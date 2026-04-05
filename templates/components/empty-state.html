@@ -1,0 +1,41 @@
+{{/*
+empty-state — Empty table row or standalone message.
+
+Required context fields:
+.colspan int — number of columns to span (for table usage)
+.message string — message text (e.g. "لا توجد فواتير")
+
+Optional context fields:
+.action_url string — URL for a CTA link (e.g. "/dashboard/stores/add")
+.action_label string — CTA text (e.g. "إضافة مخزن جديد")
+
+Usage (in table):
+{{ template "empty-table-row" dict "colspan" 7 "message" "لا توجد فواتير" }}
+
+Usage (with add link):
+{{ template "empty-table-row" dict "colspan" 3 "message" "لا توجد مخازن بعد" "action_url" "/dashboard/stores/add"
+"action_label" "إضافة مخزن جديد" }}
+
+Usage (standalone):
+{{ template "empty-state" dict "message" "لا توجد بيانات" }}
+*/}}
+{{ define "empty-table-row" }}
+<tr>
+    <td colspan="{{ .colspan }}" class="empty-state-cell">
+        <div class="empty-state-inner">
+            <svg class="empty-state-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+            <span class="empty-state-msg">{{ .message }}</span>
+            {{ if .action_url }}
+            <a href="{{ .action_url }}" class="btn btn-tonal btn-sm">{{ .action_label }}</a>
+            {{ end }}
+        </div>
+    </td>
+</tr>
+{{ end }}
+
+{{ define "empty-state" }}
+<p class="empty-state-standalone">{{ .message }}</p>
+{{ end }}

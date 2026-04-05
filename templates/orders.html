@@ -1,0 +1,67 @@
+{{ define "content" }}
+{{ template "error-alert" . }}
+<div class="list-toolbar">
+    <form method="get">
+        <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.order.search_placeholder" }}" class="search-input">
+        {{ template "per-page-select" dict "pagination" .pagination }}
+        <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
+    </form>
+    <div class="toolbar-actions">
+        <a href="/dashboard/orders/add" class="btn btn-filled"><svg class="w-4 h-4" fill="none" stroke="currentColor"
+                stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg> {{ L "tpl.order.add" }}</a>
+        {{ template "item-count" dict "pagination" .pagination }}
+    </div>
+</div>
+
+<div class="data-table-wrapper">
+    <table aria-label="{{ L "tpl.order.table_label" }}">
+        <thead>
+            <tr>
+                <th data-sortable>{{ L "tpl.order.number" }}</th>
+                <th data-sortable>{{ L "tpl.order.client" }}</th>
+                <th data-sortable>{{ L "tpl.order.total" }}</th>
+                <th data-sortable>{{ L "tpl.order.status" }}</th>
+                <th>{{ L "tpl.actions" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ if not .orders }}
+            {{ template "empty-table-row" dict "colspan" 5 "message" (L "tpl.order.no_orders") "action_url"
+            "/dashboard/orders/add" "action_label" (L "tpl.order.add_new") }} }}
+            {{ end }}
+            {{ range .orders }}
+            <tr>
+                <td>{{ .number }}</td>
+                <td>{{ .client }}</td>
+                <td>{{ .total }}</td>
+                <td>
+                    {{ if eq .status (L "tpl.order.status_completed") }}
+                    <span class="badge badge-success">{{ .status }}</span>
+                    {{ else if eq .status (L "tpl.order.status_cancelled") }}
+                    <span class="badge badge-danger">{{ .status }}</span>
+                    {{ else }}
+                    <span class="badge badge-warning">{{ .status }}</span>
+                    {{ end }}
+                </td>
+                <td>
+                    <div class="action-cell">
+                        <div class="action-links">
+                            <a href="/dashboard/orders/{{ .id }}" class="action-link">{{ L "tpl.view" }}</a>
+                            <a href="/dashboard/orders/{{ .id }}/edit" class="action-link">{{ L "tpl.edit" }}</a>
+                            <a href="#" hx-post="/dashboard/orders/{{ .id }}/delete" hx-confirm="{{ L "tpl.order.confirm_delete" }}"
+                                class="action-link action-delete">{{ L "tpl.delete" }}</a>
+                        </div>
+                        <button class="action-overflow-btn" aria-label="{{ L "tpl.more" }}">⋮</button>
+                    </div>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+
+{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
+"extra_params" "" }}
+{{ end }}

@@ -1,0 +1,65 @@
+# golangci-lint configuration for afrita-go
+# Run: golangci-lint run ./...
+
+linters:
+  enable:
+    - errcheck # Check for unchecked errors
+    - gosimple # Simplify code
+    - govet # Vet examines Go source code
+    - ineffassign # Detect ineffectual assignments
+    - staticcheck # Static analysis checks
+    - unused # Check for unused code
+    - bodyclose # Check HTTP response body is closed
+    - gosec # Security checks
+    - misspell # Find commonly misspelled English words
+    - goconst # Find repeated strings that could be constants
+    - gofmt # Check if code is gofmt-ed
+    - revive # Fast, configurable, extensible linter for Go
+  disable:
+    - exhaustruct # Too noisy for this project
+    - wrapcheck # Not needed for HTTP handlers
+    - varnamelen # Short names are fine in Go
+    - funlen # Function length varies by handler need
+    - cyclop # Complexity varies by handler
+    - gocognit # Same as above
+    - gocyclo # Same as above
+    - lll # Line length not enforced
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+  govet:
+    check-shadowing: false
+  revive:
+    rules:
+      - name: exported
+        disabled: true # We have mixed export patterns
+  gosec:
+    excludes:
+      - G104 # We handle unaudited errors with _ = pattern
+      - G203 # template.JS/template.HTML used intentionally for chart data
+      - G304 # File path from variable is expected (templates)
+  misspell:
+    locale: US
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+
+issues:
+  exclude-rules:
+    # Allow unchecked errors in test files for brevity
+    - path: _test\.go
+      linters:
+        - errcheck
+    # Don't flag Go template syntax in HTML files
+    - path: \.html$
+      linters:
+        - all
+  max-issues-per-linter: 50
+  max-same-issues: 10
+
+run:
+  timeout: 5m
+  go: '1.21'
+  tests: true

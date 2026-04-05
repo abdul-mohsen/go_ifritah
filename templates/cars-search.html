@@ -1,0 +1,223 @@
+{{ define "content" }}
+<div class="space-y-5 max-w-6xl mx-auto">
+
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10m10 0H3m10 0h2m4 0h1a1 1 0 001-1v-4.586a1 1 0 00-.293-.707l-3.414-3.414A1 1 0 0016.586 6H13">
+                    </path>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-800" data-i18n="search.cars_title">{{ L "tpl.search.cars_title" }}</h2>
+                <p class="text-xs text-gray-500" data-i18n="search.cars_subtitle">{{ L "tpl.search.cars_subtitle" }}</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="cars-result-count" class="text-xs text-gray-400 hidden">0 نتيجة</span>
+            <div id="cars-spinner" class="htmx-indicator">
+                <svg class="animate-spin h-5 w-5 text-green-500" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+                        fill="none"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Card -->
+    <div class="section-card overflow-hidden">
+        <!-- Main Search Bar -->
+        <div class="p-5 pb-4">
+            <div class="relative">
+                <input type="text" id="cars-query" name="query" class="w-full !pr-10 !py-3 text-sm"
+                    hx-get="/api/cars/search" hx-trigger="keyup changed delay:400ms" hx-include="[id^='cars-']"
+                    hx-target="#cars-results" hx-indicator="#cars-spinner"
+                    placeholder="{{ L "tpl.search.cars_placeholder" }}"
+                    data-i18n-placeholder="search.cars_query_placeholder">
+                <svg class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 text-gray-400" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Quick Manufacturer Tags -->
+        <div class="px-5 pb-3 flex flex-wrap items-center gap-2">
+            <span class="text-xs text-gray-500 ml-1" data-i18n="search.quick_make">{{ L "tpl.search.make_label" }}</span>
+            <button type="button" onclick="setCarsMake('')"
+                class="cars-make-btn active text-xs px-3 py-1 rounded-full border transition" data-make="">{{ L "tpl.search.all" }}</button>
+            <button type="button" onclick="setCarsMake('Toyota')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition"
+                data-make="Toyota">Toyota</button>
+            <button type="button" onclick="setCarsMake('Hyundai')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition"
+                data-make="Hyundai">Hyundai</button>
+            <button type="button" onclick="setCarsMake('Nissan')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition"
+                data-make="Nissan">Nissan</button>
+            <button type="button" onclick="setCarsMake('Honda')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition" data-make="Honda">Honda</button>
+            <button type="button" onclick="setCarsMake('Ford')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition" data-make="Ford">Ford</button>
+            <button type="button" onclick="setCarsMake('BMW')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition" data-make="BMW">BMW</button>
+            <button type="button" onclick="setCarsMake('Mercedes')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition"
+                data-make="Mercedes">Mercedes</button>
+            <button type="button" onclick="setCarsMake('Kia')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition" data-make="Kia">Kia</button>
+            <button type="button" onclick="setCarsMake('Lexus')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition" data-make="Lexus">Lexus</button>
+            <button type="button" onclick="setCarsMake('GMC')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition" data-make="GMC">GMC</button>
+            <button type="button" onclick="setCarsMake('Chevrolet')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition"
+                data-make="Chevrolet">Chevrolet</button>
+            <button type="button" onclick="setCarsMake('Mitsubishi')"
+                class="cars-make-btn text-xs px-3 py-1 rounded-full border transition"
+                data-make="Mitsubishi">Mitsubishi</button>
+        </div>
+
+        <!-- Filter Row -->
+        <div class="px-5 pb-4 border-t border-gray-100 pt-4">
+            <input type="hidden" id="cars-make" name="make" value="">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
+                        data-i18n="search.model">{{ L "tpl.search.model" }}</label>
+                    <input type="text" id="cars-model" name="model" placeholder="Camry, Elantra..."
+                        class="w-full text-xs" hx-get="/api/cars/search" hx-trigger="keyup changed delay:500ms"
+                        hx-include="[id^='cars-']" hx-target="#cars-results" hx-indicator="#cars-spinner">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1" data-i18n="search.year">{{ L "tpl.search.year" }}</label>
+                    <input type="number" id="cars-year" name="year" min="1980" max="2030" placeholder="2024"
+                        class="w-full text-xs">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
+                        data-i18n="search.condition">{{ L "tpl.search.condition" }}</label>
+                    <select id="cars-condition" name="condition" class="w-full text-xs">
+                        <option value="">{{ L "tpl.search.all" }}</option>
+                        <option value="new">{{ L "tpl.search.new" }}</option>
+                        <option value="used">{{ L "tpl.search.used" }}</option>
+                        <option value="salvage">{{ L "tpl.search.salvage" }}</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
+                        data-i18n="search.min_price">{{ L "tpl.search.min_price_sar" }}</label>
+                    <input type="number" id="cars-min-price" name="min_price" min="0" placeholder="0"
+                        class="w-full text-xs">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
+                        data-i18n="search.max_price">{{ L "tpl.search.max_price_sar" }}</label>
+                    <input type="number" id="cars-max-price" name="max_price" min="0" placeholder="∞"
+                        class="w-full text-xs">
+                </div>
+            </div>
+            <div class="flex items-center gap-2 mt-4 pt-3 border-t border-gray-200">
+                <button type="button" onclick="triggerCarsSearch()"
+                    class="btn btn-success btn-xs font-semibold">{{ L "tpl.search.search_btn" }}</button>
+                <button type="button" onclick="resetCarsSearch()"
+                    class="text-gray-500 hover:text-gray-700 px-4 py-1.5 rounded-lg text-xs transition hover:bg-gray-100">
+                    <span data-i18n="search.reset">{{ L "tpl.search.reset" }}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Area -->
+    <div id="cars-results">
+        <div class="section-card p-8">
+            <div class="text-center py-8">
+                <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10m10 0H3m10 0h2m4 0h1a1 1 0 001-1v-4.586a1 1 0 00-.293-.707l-3.414-3.414A1 1 0 0016.586 6H13">
+                        </path>
+                    </svg>
+                </div>
+                <p class="text-sm text-gray-500 font-medium" data-i18n="search.start_car_search">{{ L "tpl.search.start_car_search" }}</p>
+                <p class="text-xs text-gray-400 mt-1" data-i18n="search.car_search_tip">{{ L "tpl.search.car_search_tip" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .cars-make-btn {
+        background: white;
+        border-color: #e5e7eb;
+        color: #6b7280;
+        cursor: pointer;
+    }
+
+    .cars-make-btn:hover {
+        border-color: #86efac;
+        color: #16a34a;
+        background: #f0fdf4;
+    }
+
+    .cars-make-btn.active {
+        background: #16a34a;
+        border-color: #16a34a;
+        color: white;
+    }
+
+    [data-theme="dark"] .cars-make-btn {
+        background: #1f2937;
+        border-color: #374151;
+        color: #9ca3af;
+    }
+
+    [data-theme="dark"] .cars-make-btn:hover {
+        border-color: #4ade80;
+        color: #4ade80;
+        background: #14532d33;
+    }
+
+    [data-theme="dark"] .cars-make-btn.active {
+        background: #16a34a;
+        border-color: #16a34a;
+        color: white;
+    }
+</style>
+
+<script>
+    function setCarsMake(make) {
+        document.getElementById('cars-make').value = make;
+        var btns = document.querySelectorAll('.cars-make-btn');
+        for (var i = 0; i < btns.length; i++) {
+            btns[i].classList.toggle('active', btns[i].getAttribute('data-make') === make);
+        }
+        triggerCarsSearch();
+    }
+    function triggerCarsSearch() {
+        var q = document.getElementById('cars-query');
+        if (q) htmx.trigger(q, 'keyup');
+    }
+    function resetCarsSearch() {
+        var els = document.querySelectorAll('[id^="cars-"]');
+        for (var i = 0; i < els.length; i++) {
+            var el = els[i];
+            if (el.tagName === 'INPUT' && el.type !== 'hidden') el.value = '';
+            if (el.tagName === 'SELECT') el.selectedIndex = 0;
+            if (el.type === 'hidden') el.value = '';
+        }
+        setCarsMake('');
+    }
+</script>
+{{ end }}

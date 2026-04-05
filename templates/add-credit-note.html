@@ -1,0 +1,17 @@
+{{ define "content" }}
+<div class="page-card">
+    <form hx-post="/api/invoices/credit" hx-target="body" hx-indicator="#submit-spinner">
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.credit.number_label" }} <span class="required-mark">*</span></label>
+            <input type="number" name="bill_id" value="{{ .id }}" class="w-full" required min="1">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.credit.reason" }}</label>
+            <textarea name="note" rows="4" class="w-full" placeholder="{{ L "tpl.credit.reason_placeholder" }}" maxlength="1000"></textarea>
+        </div>
+
+        {{ template "form-actions" dict "submit_label" (L "tpl.save") "cancel_url" "/dashboard/invoices" }}
+    </form>
+</div>
+{{ end }}

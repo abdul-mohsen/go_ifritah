@@ -1,0 +1,39 @@
+{{/*
+pagination — Shared pagination block for all list pages.
+
+Required context fields:
+.prev_page int — previous page number (0 = no previous)
+.next_page int — next page number (0 = no next)
+.pagination struct { Page, TotalPages, PerPage, Total int }
+.query string — current search query
+
+Optional:
+.extra_params string — additional URL params like "&state=2&stock=low"
+
+Usage:
+{{ template "pagination" . }}
+*/}}
+{{ define "pagination" }}
+<div class="mt-6 flex items-center justify-center gap-3">
+    {{ if gt .prev_page 0 }}
+    <a class="pagination-btn"
+        href="?q={{ .query }}{{ safeURL .extra_params }}&per={{ .pagination.PerPage }}&page={{ .prev_page }}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+        <span>{{ L "tpl.comp.prev" }}</span>
+    </a>
+    {{ end }}
+    <span class="text-sm px-4 py-1"
+        style="color: var(--md-sys-color-on-surface-variant); background: var(--md-sys-color-surface-container); border-radius: var(--md-sys-shape-full)">{{ L "tpl.comp.page" }} {{ .pagination.Page }} {{ L "tpl.comp.of" }} {{ .pagination.TotalPages }}</span>
+    {{ if gt .next_page 0 }}
+    <a class="pagination-btn"
+        href="?q={{ .query }}{{ safeURL .extra_params }}&per={{ .pagination.PerPage }}&page={{ .next_page }}">
+        <span>{{ L "tpl.comp.next" }}</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+    </a>
+    {{ end }}
+</div>
+{{ end }}

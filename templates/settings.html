@@ -1,0 +1,1101 @@
+{{ define "content" }}
+<div class="space-y-6">
+    <form method="POST" action="/dashboard/settings" id="settings-form">
+        <input type="hidden" name="section" value="all">
+        <input type="hidden" name="csrf_token" value="">
+
+    <!-- ── Tab Navigation ─────────────────────────────────────────── -->
+    <div class="flex gap-1 mb-6 border-b" style="border-color: var(--md-sys-color-outline-variant)">
+        <button type="button" onclick="switchSettingsTab('general')" id="tab-general"
+            class="settings-tab px-4 py-2.5 text-sm font-medium rounded-t-lg transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            {{ L "tpl.settings.tab_general" }}
+        </button>
+        <button type="button" onclick="switchSettingsTab('zatca')" id="tab-zatca"
+            class="settings-tab px-4 py-2.5 text-sm font-medium rounded-t-lg transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
+            {{ L "tpl.settings.tab_zatca" }}
+        </button>
+        <button type="button" onclick="switchSettingsTab('import')" id="tab-import"
+            class="settings-tab px-4 py-2.5 text-sm font-medium rounded-t-lg transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+            </svg>
+            {{ L "tpl.settings.tab_import" }}
+        </button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 1: General Settings                                       -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="panel-general">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- ── 2. Invoice & Tax Settings ──────────────────────────────── -->
+        <div class="section-card">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+                {{ L "tpl.settings.section_invoice_tax" }}
+            </h3>
+            <div class="space-y-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.vat_rate" }}</label>
+                        <input type="number" name="vat_rate" step="0.01" value="{{ index .Settings "vat_rate" }}" min="0" max="100">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.currency" }}</label>
+                        <select name="currency">
+                            <option value="SAR" {{ if eq (index .Settings "currency") "SAR" }}selected{{ end }}>{{ L "tpl.settings.currency_sar" }}</option>
+                            <option value="USD" {{ if eq (index .Settings "currency") "USD" }}selected{{ end }}>{{ L "tpl.settings.currency_usd" }}</option>
+                            <option value="EUR" {{ if eq (index .Settings "currency") "EUR" }}selected{{ end }}>{{ L "tpl.settings.currency_eur" }}</option>
+                            <option value="AED" {{ if eq (index .Settings "currency") "AED" }}selected{{ end }}>{{ L "tpl.settings.currency_aed" }}</option>
+                            <option value="KWD" {{ if eq (index .Settings "currency") "KWD" }}selected{{ end }}>{{ L "tpl.settings.currency_kwd" }}</option>
+                            <option value="EGP" {{ if eq (index .Settings "currency") "EGP" }}selected{{ end }}>{{ L "tpl.settings.currency_egp" }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.invoice_prefix" }}</label>
+                        <input type="text" name="invoice_prefix" placeholder="INV-" value="{{ index .Settings "invoice_prefix" }}">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.payment_terms" }}</label>
+                        <input type="number" name="payment_terms" value="{{ index .Settings "payment_terms" }}" min="0" max="365">
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="show_vat_breakdown" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "show_vat_breakdown") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.show_vat_breakdown" }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="auto_calculate_vat" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "auto_calculate_vat") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.auto_calc_vat" }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="prices_include_vat" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "prices_include_vat") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.prices_incl_vat" }}
+                    </label>
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.pb_pdf_required" }}</label>
+                    <select name="pb_pdf_required">
+                        <option value="required" {{ if eq (index .Settings "pb_pdf_required") "required" }}selected{{ end }}>{{ L "tpl.settings.pb_pdf_required_val" }}</option>
+                        <option value="optional" {{ if eq (index .Settings "pb_pdf_required") "optional" }}selected{{ end }}>{{ L "tpl.settings.pb_pdf_optional_val" }}</option>
+                        <option value="disabled" {{ if eq (index .Settings "pb_pdf_required") "disabled" }}selected{{ end }}>{{ L "tpl.settings.pb_pdf_disabled_val" }}</option>
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">{{ L "tpl.settings.pb_pdf_help" }}</p>
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.default_payment_method" }}</label>
+                    <select name="default_payment_method">
+                        <option value="10" {{ if eq (index .Settings "default_payment_method") "10" }}selected{{ end }}>{{ L "tpl.payment_method.cash" }} (10)</option>
+                        <option value="30" {{ if eq (index .Settings "default_payment_method") "30" }}selected{{ end }}>{{ L "tpl.payment_method.credit" }} (30)</option>
+                        <option value="42" {{ if eq (index .Settings "default_payment_method") "42" }}selected{{ end }}>{{ L "tpl.payment_method.bank_transfer" }} (42)</option>
+                        <option value="48" {{ if eq (index .Settings "default_payment_method") "48" }}selected{{ end }}>{{ L "tpl.payment_method.bank_card" }} (48)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.invoice_footer" }}</label>
+                    <textarea name="invoice_footer" rows="2" placeholder="{{ L "tpl.settings.ph_invoice_footer" }}">{{ index .Settings "invoice_footer" }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 3. Print & PDF Settings ────────────────────────────────── -->
+        <div class="section-card">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                    </path>
+                </svg>
+                {{ L "tpl.settings.section_print_pdf" }}
+            </h3>
+            <div class="space-y-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.paper_size" }}</label>
+                        <select name="paper_size">
+                            <option value="A4" {{ if eq (index .Settings "paper_size") "A4" }}selected{{ end }}>A4</option>
+                            <option value="A5" {{ if eq (index .Settings "paper_size") "A5" }}selected{{ end }}>A5</option>
+                            <option value="Letter" {{ if eq (index .Settings "paper_size") "Letter" }}selected{{ end }}>Letter</option>
+                            <option value="thermal" {{ if eq (index .Settings "paper_size") "thermal" }}selected{{ end }}>{{ L "tpl.settings.paper_thermal" }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.print_copies" }}</label>
+                        <input type="number" name="print_copies" value="{{ index .Settings "print_copies" }}" min="1" max="5">
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="show_logo_print" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "show_logo_print") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.show_logo_print" }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="show_company_info_print" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "show_company_info_print") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.show_company_info" }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="show_qr_print" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "show_qr_print") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.show_qr_print" }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="show_bank_details" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "show_bank_details") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.show_bank_details" }}
+                    </label>
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.bank_details" }}</label>
+                    <textarea name="bank_details" rows="2" placeholder="{{ L "tpl.settings.ph_bank_details" }}">{{ index .Settings "bank_details" }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 4. Appearance Settings ─────────────────────────────────── -->
+        <div class="section-card">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01">
+                    </path>
+                </svg>
+                {{ L "tpl.settings.section_appearance" }}
+            </h3>
+            <div class="space-y-4">
+                <!-- Theme Selection -->
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.theme" }}</label>
+                    <div class="flex gap-2 mt-1">
+                        <button type="button" onclick="setThemeOption('light')" id="theme-light-btn"
+                            class="flex-1 px-3 py-2 rounded-lg border-2 text-sm font-medium transition theme-option"
+                            data-theme-val="light">
+                            ☀️ {{ L "tpl.settings.theme_light" }}
+                        </button>
+                        <button type="button" onclick="setThemeOption('dark')" id="theme-dark-btn"
+                            class="flex-1 px-3 py-2 rounded-lg border-2 text-sm font-medium transition theme-option"
+                            data-theme-val="dark">
+                            🌙 {{ L "tpl.settings.theme_dark" }}
+                        </button>
+                        <button type="button" onclick="setThemeOption('auto')" id="theme-auto-btn"
+                            class="flex-1 px-3 py-2 rounded-lg border-2 text-sm font-medium transition theme-option"
+                            data-theme-val="auto">
+                            💻 {{ L "tpl.settings.theme_auto" }}
+                        </button>
+                    </div>
+                    <input type="hidden" name="theme" id="theme-hidden" value="{{ index .Settings "theme" }}">
+                </div>
+                <!-- Language Selection -->
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.language" }}</label>
+                    <div class="flex gap-2 mt-1">
+                        <button type="button" onclick="setLangOption('ar')" id="lang-ar-btn"
+                            class="flex-1 px-3 py-2 rounded-lg border-2 text-sm font-medium transition lang-option"
+                            data-lang-val="ar">
+                            🇸🇦 {{ L "tpl.settings.lang_arabic" }}
+                        </button>
+                        <button type="button" onclick="setLangOption('en')" id="lang-en-btn"
+                            class="flex-1 px-3 py-2 rounded-lg border-2 text-sm font-medium transition lang-option"
+                            data-lang-val="en">
+                            🇺🇸 {{ L "tpl.settings.lang_english" }}
+                        </button>
+                    </div>
+                    <input type="hidden" name="language" id="language-hidden" value="{{ index .Settings "language" }}">
+                </div>
+                <!-- Date Format -->
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.date_format" }}</label>
+                    <select name="date_format" id="date-format-select">
+                        <option value="dd/mm/yyyy" {{ if eq (index .Settings "date_format") "dd/mm/yyyy" }}selected{{ end }}>{{ L "tpl.settings.date_dmy" }}</option>
+                        <option value="yyyy-mm-dd" {{ if eq (index .Settings "date_format") "yyyy-mm-dd" }}selected{{ end }}>{{ L "tpl.settings.date_ymd" }}</option>
+                        <option value="mm/dd/yyyy" {{ if eq (index .Settings "date_format") "mm/dd/yyyy" }}selected{{ end }}>{{ L "tpl.settings.date_mdy" }}</option>
+                        <option value="hijri" {{ if eq (index .Settings "date_format") "hijri" }}selected{{ end }}>{{ L "tpl.settings.date_hijri" }}</option>
+                    </select>
+                </div>
+                <!-- Number format -->
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.number_format" }}</label>
+                    <select name="number_format" id="number-format-select">
+                        <option value="ar" {{ if eq (index .Settings "number_format") "ar" }}selected{{ end }}>{{ L "tpl.settings.num_arabic" }}</option>
+                        <option value="en" {{ if eq (index .Settings "number_format") "en" }}selected{{ end }}>{{ L "tpl.settings.num_english" }}</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 5. Notification Settings ───────────────────────────────── -->
+        <div class="section-card">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                    </path>
+                </svg>
+                {{ L "tpl.settings.section_notifications" }}
+            </h3>
+            <div class="space-y-2">
+                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
+                    <div>
+                        <span class="text-sm font-medium text-gray-700">{{ L "tpl.settings.notif_invoices" }}</span>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ L "tpl.settings.notif_invoices_desc" }}</p>
+                    </div>
+                    <input type="checkbox" name="notif_invoices" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "notif_invoices") "true" }}checked{{ end }}>
+                </label>
+                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
+                    <div>
+                        <span class="text-sm font-medium text-gray-700">{{ L "tpl.settings.notif_stock" }}</span>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ L "tpl.settings.notif_stock_desc" }}</p>
+                    </div>
+                    <input type="checkbox" name="notif_stock" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "notif_stock") "true" }}checked{{ end }}>
+                </label>
+                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
+                    <div>
+                        <span class="text-sm font-medium text-gray-700">{{ L "tpl.settings.notif_payments" }}</span>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ L "tpl.settings.notif_payments_desc" }}</p>
+                    </div>
+                    <input type="checkbox" name="notif_payments" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "notif_payments") "true" }}checked{{ end }}>
+                </label>
+                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
+                    <div>
+                        <span class="text-sm font-medium text-gray-700">{{ L "tpl.settings.notif_orders" }}</span>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ L "tpl.settings.notif_orders_desc" }}</p>
+                    </div>
+                    <input type="checkbox" name="notif_orders" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "notif_orders") "true" }}checked{{ end }}>
+                </label>
+                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
+                    <div>
+                        <span class="text-sm font-medium text-gray-700">{{ L "tpl.settings.notif_session" }}</span>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ L "tpl.settings.notif_session_desc" }}</p>
+                    </div>
+                    <input type="checkbox" name="notif_session" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "notif_session") "true" }}checked{{ end }}>
+                </label>
+            </div>
+        </div>
+
+        <!-- ── 6. Security & Session Settings ─────────────────────────── -->
+        <div class="section-card">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                    </path>
+                </svg>
+                {{ L "tpl.settings.section_security" }}
+            </h3>
+            <div class="space-y-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.session_duration" }}</label>
+                        <input type="number" name="session_duration" value="{{ index .Settings "session_duration" }}" min="5" max="1440">
+                        <p class="text-xs text-gray-400 mt-1">{{ L "tpl.settings.help_session_timeout" }}</p>
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.max_login_attempts" }}</label>
+                        <input type="number" name="max_login_attempts" value="{{ index .Settings "max_login_attempts" }}" min="3" max="10">
+                        <p class="text-xs text-gray-400 mt-1">{{ L "tpl.settings.help_lock_account" }}</p>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="require_strong_password" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "require_strong_password") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.require_strong_pwd" }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="auto_logout_inactive" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "auto_logout_inactive") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.auto_logout" }}
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 7. Inventory / Products ────────────────────────────────── -->
+        <div class="section-card">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+                {{ L "tpl.settings.section_inventory" }}
+            </h3>
+            <div class="space-y-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.low_stock_threshold" }}</label>
+                        <input type="number" name="low_stock_threshold" value="{{ index .Settings "low_stock_threshold" }}" min="0" max="100">
+                        <p class="text-xs text-gray-400 mt-1">{{ L "tpl.settings.help_low_stock" }}</p>
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.default_unit" }}</label>
+                        <select name="default_unit">
+                            <option value="piece" {{ if eq (index .Settings "default_unit") "piece" }}selected{{ end }}>{{ L "tpl.settings.unit_piece" }}</option>
+                            <option value="kg" {{ if eq (index .Settings "default_unit") "kg" }}selected{{ end }}>{{ L "tpl.settings.unit_kg" }}</option>
+                            <option value="liter" {{ if eq (index .Settings "default_unit") "liter" }}selected{{ end }}>{{ L "tpl.settings.unit_liter" }}</option>
+                            <option value="meter" {{ if eq (index .Settings "default_unit") "meter" }}selected{{ end }}>{{ L "tpl.settings.unit_meter" }}</option>
+                            <option value="box" {{ if eq (index .Settings "default_unit") "box" }}selected{{ end }}>{{ L "tpl.settings.unit_box" }}</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="form-label">{{ L "tpl.settings.stock_enforcement" }}</label>
+                        <select name="stock_enforcement">
+                            <option value="disable" {{ if eq (index .Settings "stock_enforcement") "disable" }}selected{{ end }}>{{ L "tpl.settings.stock_disabled" }}</option>
+                            <option value="warn" {{ if eq (index .Settings "stock_enforcement") "warn" }}selected{{ end }}>{{ L "tpl.settings.stock_warn" }}</option>
+                            <option value="enforce" {{ if eq (index .Settings "stock_enforcement") "enforce" }}selected{{ end }}>{{ L "tpl.settings.stock_enforce" }}</option>
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">{{ L "tpl.settings.help_stock_enforcement" }}</p>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="track_inventory" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "track_inventory") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.track_inventory" }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="allow_negative_stock" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "allow_negative_stock") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.allow_neg_stock" }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" name="show_cost_price" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "show_cost_price") "true" }}checked{{ end }}>
+                        {{ L "tpl.settings.show_cost_price" }}
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 8. Data & Backup ───────────────────────────────────────── -->
+        <div class="section-card">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                </svg>
+                {{ L "tpl.settings.section_data_backup" }}
+            </h3>
+            <div class="space-y-3">
+                <div class="flex flex-wrap gap-2">
+                    <a href="/dashboard/invoices/export-csv" class="btn btn-filled btn-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg> {{ L "tpl.settings.export_invoices" }}
+                    </a>
+                    <a href="/dashboard/products/export-csv" class="btn btn-success btn-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg> {{ L "tpl.settings.export_products" }}
+                    </a>
+                    <a href="/dashboard/clients/export-csv" class="btn btn-purple btn-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg> {{ L "tpl.settings.export_clients" }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    </div><!-- /panel-general -->
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 2: ZATCA E-Invoicing Settings                             -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="panel-zatca" style="display:none">
+
+        <!-- ── Company Info (Global — shared across all branches) ─────── -->
+        <div class="section-card mb-6">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+                    </path>
+                </svg>
+                {{ L "tpl.settings.section_company" }}
+            </h3>
+            <div class="space-y-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.company_name" }}</label>
+                        <input type="text" name="company_name" placeholder="{{ L "tpl.settings.ph_company_name" }}" value="{{ index .Settings "company_name" }}">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.company_email" }}</label>
+                        <input type="email" name="company_email" placeholder="email@company.com" value="{{ index .Settings "company_email" }}">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.company_vat" }}</label>
+                        <input type="text" name="company_vat" placeholder="300000000000003" value="{{ index .Settings "company_vat" }}">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.company_cr" }}</label>
+                        <input type="text" name="company_cr" placeholder="{{ L "tpl.settings.ph_company_cr" }}" value="{{ index .Settings "company_cr" }}">
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.company_desc" }}</label>
+                    <textarea name="company_description" rows="2" placeholder="{{ L "tpl.settings.ph_company_desc" }}">{{ index .Settings "company_description" }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── ZATCA E-Invoicing Settings (Per-Branch) ────────────────── -->
+        <div class="section-card">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
+                    </path>
+                </svg>
+                {{ L "tpl.settings.section_zatca" }}
+            </h3>
+
+            <!-- Branch Selector -->
+            <div class="mb-5 p-4 rounded-lg" style="background: var(--md-sys-color-surface-container-highest)">
+                <label class="form-label text-base font-semibold mb-2 block">{{ L "tpl.settings.zatca_select_branch" }}</label>
+                <select id="zatca-branch-select" onchange="switchZatcaBranch(this.value)" class="w-full md:w-1/2">
+                    {{ range .Branches }}
+                    <option value="{{ .ID }}">{{ .Name }}{{ if not .IsActive }} {{ L "tpl.settings.branch_inactive" }}{{ end }}</option>
+                    {{ end }}
+                </select>
+                <input type="hidden" name="zatca_branch_id" id="zatca-branch-id" value="">
+                <p class="text-xs text-gray-400 mt-2">{{ L "tpl.settings.help_zatca_branch" }}</p>
+            </div>
+
+            <!-- Branch reference info (read-only, from branch data) -->
+            <div class="mb-4 p-3 rounded-lg border" style="background: var(--md-sys-color-surface-container); border-color: var(--md-sys-color-outline-variant)">
+                <div class="flex items-center gap-2 mb-2">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="text-xs font-medium text-gray-500">{{ L "tpl.settings.branch_ref_info" }}</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                    <div><span class="text-gray-400">{{ L "tpl.settings.ref_name" }}</span> <span id="zatca-ref-name" class="font-medium">—</span></div>
+                    <div><span class="text-gray-400">{{ L "tpl.settings.ref_phone" }}</span> <span id="zatca-ref-phone" class="font-medium">—</span></div>
+                    <div><span class="text-gray-400">{{ L "tpl.settings.ref_address" }}</span> <span id="zatca-ref-address" class="font-medium">—</span></div>
+                </div>
+            </div>
+
+            <!-- CSR & Onboarding -->
+            <div class="mb-4">
+                <h4 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">{{ L "tpl.settings.zatca_csr_heading" }}</h4>
+                <div class="space-y-3">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="form-label">{{ L "tpl.settings.zatca_otp" }}</label>
+                            <input type="text" name="zatca_otp" id="zatca_otp" placeholder="123456">
+                            <p class="text-xs text-gray-400 mt-1">{{ L "tpl.settings.help_otp" }}</p>
+                        </div>
+                        <div>
+                            <label class="form-label">{{ L "tpl.settings.zatca_org_id" }}</label>
+                            <input type="text" name="zatca_csr_org_identifier" id="zatca_csr_org_identifier" placeholder="123456">
+                        </div>
+                        <div>
+                            <label class="form-label">{{ L "tpl.settings.zatca_org_unit" }}</label>
+                            <input type="text" name="zatca_csr_org_unit" id="zatca_csr_org_unit" placeholder="IT">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="form-label">{{ L "tpl.settings.zatca_org_name" }}</label>
+                            <input type="text" name="zatca_csr_org_name" id="zatca_csr_org_name" placeholder="{{ L "tpl.settings.ph_org_name" }}">
+                        </div>
+                        <div>
+                            <label class="form-label">{{ L "tpl.settings.zatca_country" }}</label>
+                            <input type="text" name="zatca_csr_country" id="zatca_csr_country" placeholder="SA" maxlength="2">
+                        </div>
+                        <div>
+                            <label class="form-label">{{ L "tpl.settings.zatca_location" }}</label>
+                            <input type="text" name="zatca_csr_location" id="zatca_csr_location" placeholder="{{ L "tpl.settings.ph_location" }}">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="form-label">{{ L "tpl.settings.zatca_business_cat" }}</label>
+                            <input type="text" name="zatca_csr_business_category" id="zatca_csr_business_category" placeholder="Retail">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seller Tax Info (per-branch) -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-600 mb-3 border-b pb-2">{{ L "tpl.settings.zatca_seller_heading" }}</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.zatca_seller_vat" }}</label>
+                        <input type="text" name="zatca_seller_vat" id="zatca_seller_vat" placeholder="399999999900003" maxlength="15">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.zatca_seller_crn" }}</label>
+                        <input type="text" name="zatca_seller_crn" id="zatca_seller_crn" placeholder="7000000000">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div><!-- /panel-zatca -->
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 3: Data Import                                            -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="panel-import" style="display:none">
+        <div class="section-card mb-6">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                </svg>
+                {{ L "tpl.settings.import_title" }}
+            </h3>
+            <p class="text-sm mb-4" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.import_desc" }}</p>
+
+            <!-- Step 1: Select type, store, and file -->
+            <div id="import-step1">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.import_type" }}</label>
+                        <select id="import-type">
+                            <option value="bills">{{ L "tpl.settings.import_type_bills" }}</option>
+                            <option value="purchase_bills">{{ L "tpl.settings.import_type_purchase_bills" }}</option>
+                            <option value="products">{{ L "tpl.settings.import_type_products" }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.import_store" }}</label>
+                        <select id="import-store">
+                            {{ range .Stores }}
+                            <option value="{{ .ID }}">{{ .Name }}</option>
+                            {{ end }}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.import_file" }}</label>
+                        <input type="file" id="import-file" accept=".csv,.tsv,.txt" class="text-sm">
+                    </div>
+                </div>
+
+                <!-- Field info based on selected type -->
+                <div id="import-fields-info" class="mb-4 p-3 rounded-lg" style="background: var(--md-sys-color-surface-container-low)">
+                    <p class="text-xs font-semibold mb-2" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.import_available_fields" }}</p>
+                    <div id="import-field-list" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <button type="button" onclick="previewImportFile()" class="btn btn-filled btn-sm" id="import-preview-btn">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                    {{ L "tpl.settings.import_preview" }}
+                </button>
+            </div>
+
+            <!-- Step 2: Column mapping (hidden until preview) -->
+            <div id="import-step2" style="display:none">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="text-sm font-semibold" style="color: var(--md-sys-color-on-surface)">{{ L "tpl.settings.import_map_columns" }}</h4>
+                    <button type="button" onclick="resetImport()" class="btn btn-tonal btn-xs">{{ L "tpl.settings.import_back" }}</button>
+                </div>
+                <p class="text-xs mb-3" style="color: var(--md-sys-color-on-surface-variant)">
+                    {{ L "tpl.settings.import_total_rows" }}: <span id="import-total-rows" class="font-bold">0</span>
+                </p>
+
+                <!-- Dynamic mapping table -->
+                <div class="overflow-x-auto mb-4">
+                    <table class="w-full text-sm" id="import-mapping-table">
+                        <thead>
+                            <tr>
+                                <th class="text-right px-3 py-2">{{ L "tpl.settings.import_column" }}</th>
+                                <th class="text-right px-3 py-2">{{ L "tpl.settings.import_sample" }}</th>
+                                <th class="text-right px-3 py-2">{{ L "tpl.settings.import_map_to" }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="import-mapping-body"></tbody>
+                    </table>
+                </div>
+
+                <button type="button" onclick="executeImport()" class="btn btn-filled font-medium" id="import-execute-btn">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    {{ L "tpl.settings.import_start" }}
+                </button>
+            </div>
+
+            <!-- Step 3: Results (hidden until done) -->
+            <div id="import-step3" style="display:none">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="text-sm font-semibold" style="color: var(--md-sys-color-on-surface)">{{ L "tpl.settings.import_results" }}</h4>
+                    <button type="button" onclick="resetImport()" class="btn btn-tonal btn-xs">{{ L "tpl.settings.import_new" }}</button>
+                </div>
+                <div id="import-results-summary" class="grid grid-cols-3 gap-3 mb-4"></div>
+                <div id="import-results-detail" class="max-h-64 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div><!-- /panel-import -->
+
+    <!-- ── Sticky Save Button ─────────────────────────────────────── -->
+    <div class="sticky bottom-0 z-10 mt-6 py-4 px-4 flex items-center justify-between gap-4 rounded-lg"
+        style="background: var(--md-sys-color-surface-container); border-top: 1px solid var(--md-sys-color-outline-variant)">
+        <p class="text-sm text-gray-500">{{ L "tpl.settings.save_note" }}</p>
+        <div class="flex gap-2">
+            <button type="reset" class="btn btn-tonal btn-sm">{{ L "tpl.settings.reset" }}</button>
+            <button type="submit" class="btn btn-filled font-medium">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                {{ L "tpl.settings.save_all" }}
+            </button>
+        </div>
+    </div>
+    </form>
+</div>
+
+<script>
+    (function () {
+        // ── Theme buttons (also syncs with hidden input + localStorage for instant visual toggle) ──
+        function highlightThemeBtn() {
+            var current = document.getElementById('theme-hidden').value || 'light';
+            document.querySelectorAll('.theme-option').forEach(function (btn) {
+                var val = btn.getAttribute('data-theme-val');
+                if (val === current) {
+                    btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700');
+                    btn.classList.remove('border-gray-200', 'text-gray-600');
+                } else {
+                    btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700');
+                    btn.classList.add('border-gray-200', 'text-gray-600');
+                }
+            });
+        }
+
+        window.setThemeOption = function (theme) {
+            var resolved = theme;
+            if (theme === 'auto') {
+                resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            // Update hidden input for form submission
+            document.getElementById('theme-hidden').value = resolved;
+            // Also apply immediately via localStorage for instant visual feedback
+            localStorage.setItem('afrita_theme', resolved);
+            var html = document.documentElement;
+            if (resolved === 'dark') {
+                html.setAttribute('data-theme', 'dark');
+            } else {
+                html.removeAttribute('data-theme');
+            }
+            var icon = document.getElementById('dark-icon');
+            if (icon) icon.textContent = resolved === 'dark' ? '☀️' : '🌙';
+            highlightThemeBtn();
+        };
+        highlightThemeBtn();
+
+        // ── Language buttons (syncs with hidden input) ──
+        function highlightLangBtn() {
+            var current = document.getElementById('language-hidden').value || 'ar';
+            document.querySelectorAll('.lang-option').forEach(function (btn) {
+                var val = btn.getAttribute('data-lang-val');
+                if (val === current) {
+                    btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700');
+                    btn.classList.remove('border-gray-200', 'text-gray-600');
+                } else {
+                    btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700');
+                    btn.classList.add('border-gray-200', 'text-gray-600');
+                }
+            });
+        }
+
+        window.setLangOption = function (lang) {
+            document.getElementById('language-hidden').value = lang;
+            if (window.i18n) window.i18n.setLang(lang);
+            highlightLangBtn();
+        };
+        highlightLangBtn();
+
+        // ── CSRF: populate hidden csrf_token fields from cookie ──
+        var csrfCookie = document.cookie.split(';').find(function(c) { return c.trim().startsWith('csrf_token='); });
+        if (csrfCookie) {
+            var csrfValue = csrfCookie.trim().split('=')[1];
+            document.querySelectorAll('input[name="csrf_token"]').forEach(function(el) {
+                el.value = csrfValue;
+            });
+        }
+
+        // ── Settings tab switching ──
+        window.switchSettingsTab = function(tab) {
+            var panels = ['general', 'zatca', 'import'];
+            panels.forEach(function(p) {
+                var panel = document.getElementById('panel-' + p);
+                var tabBtn = document.getElementById('tab-' + p);
+                if (p === tab) {
+                    panel.style.display = '';
+                    tabBtn.classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+                    tabBtn.classList.remove('text-gray-500', 'hover:text-gray-700');
+                } else {
+                    panel.style.display = 'none';
+                    tabBtn.classList.remove('border-b-2', 'border-blue-500', 'text-blue-600');
+                    tabBtn.classList.add('text-gray-500', 'hover:text-gray-700');
+                }
+            });
+        };
+        // Initialize: show general tab
+        switchSettingsTab('general');
+
+        // ── ZATCA per-branch switching ──
+        var zatcaBranchData = {};
+        {{ range $id, $data := .ZatcaByBranch }}
+        zatcaBranchData[{{ $id }}] = {
+            {{ range $field, $val := $data }}"{{ $field }}": "{{ $val }}",
+            {{ end }}
+        };
+        {{ end }}
+
+        var zatcaFieldNames = [
+            "otp", "csr_org_identifier", "csr_org_unit", "csr_org_name",
+            "csr_country", "csr_location", "csr_business_category",
+            "seller_vat", "seller_crn"
+        ];
+
+        // Branch reference data (name, phone, address) for read-only display
+        var branchRefData = {};
+        {{ range .Branches }}
+        branchRefData[{{ .ID }}] = { name: "{{ .Name }}", phone: "{{ .Phone }}", address: "{{ .Address }}" };
+        {{ end }}
+
+        window.switchZatcaBranch = function(branchId) {
+            document.getElementById('zatca-branch-id').value = branchId;
+            var data = zatcaBranchData[branchId] || {};
+            zatcaFieldNames.forEach(function(field) {
+                var el = document.getElementById('zatca_' + field);
+                if (el) el.value = data[field] || '';
+            });
+            // Update branch reference info
+            var ref = branchRefData[branchId] || {};
+            var nameEl = document.getElementById('zatca-ref-name');
+            var phoneEl = document.getElementById('zatca-ref-phone');
+            var addrEl = document.getElementById('zatca-ref-address');
+            if (nameEl) nameEl.textContent = ref.name || '—';
+            if (phoneEl) phoneEl.textContent = ref.phone || '—';
+            if (addrEl) addrEl.textContent = ref.address || '—';
+        };
+
+        // Initialize first branch on load
+        var branchSelect = document.getElementById('zatca-branch-select');
+        if (branchSelect && branchSelect.options.length > 0) {
+            switchZatcaBranch(branchSelect.value);
+        }
+
+        // ── Data Import Logic ──────────────────────────────────────
+        var _importData = { headers: [], samples: [], rows: [], total: 0 };
+
+        var _importFields = {
+            bills: [
+                { key: 'part_name', label: 'اسم القطعة', required: true },
+                { key: 'price', label: 'السعر', required: true },
+                { key: 'quantity', label: 'الكمية', required: false },
+                { key: 'discount', label: 'الخصم', required: false },
+                { key: 'customer_name', label: 'اسم العميل', required: false },
+                { key: 'customer_phone', label: 'رقم الهاتف', required: false },
+                { key: 'vin', label: 'رقم الشاصي', required: false },
+                { key: 'note', label: 'ملاحظة', required: false },
+                { key: 'date', label: 'التاريخ', required: false },
+                { key: 'bill_group', label: 'رقم الفاتورة (تجميع)', required: false }
+            ],
+            purchase_bills: [
+                { key: 'part_name', label: 'اسم القطعة', required: true },
+                { key: 'price', label: 'السعر', required: true },
+                { key: 'quantity', label: 'الكمية', required: false },
+                { key: 'discount', label: 'الخصم', required: false },
+                { key: 'supplier_id', label: 'رقم المورد', required: false },
+                { key: 'date', label: 'التاريخ', required: false }
+            ],
+            products: [
+                { key: 'price', label: 'سعر البيع', required: true },
+                { key: 'quantity', label: 'الكمية', required: true },
+                { key: 'cost_price', label: 'سعر التكلفة', required: false },
+                { key: 'shelf_number', label: 'رقم الرف', required: false }
+            ]
+        };
+
+        // Show available fields based on type selection
+        function updateFieldInfo() {
+            var type = document.getElementById('import-type').value;
+            var fields = _importFields[type] || [];
+            var container = document.getElementById('import-field-list');
+            container.innerHTML = '';
+            fields.forEach(function(f) {
+                var badge = document.createElement('span');
+                badge.className = 'text-xs px-2 py-1 rounded-full ' + (f.required ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600');
+                badge.textContent = f.label + (f.required ? ' *' : '');
+                container.appendChild(badge);
+            });
+        }
+        var importTypeSelect = document.getElementById('import-type');
+        if (importTypeSelect) {
+            importTypeSelect.addEventListener('change', updateFieldInfo);
+            updateFieldInfo();
+        }
+
+        // Step 1: Preview file
+        window.previewImportFile = function() {
+            var fileInput = document.getElementById('import-file');
+            if (!fileInput.files || !fileInput.files[0]) {
+                alert('يرجى اختيار ملف');
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            var btn = document.getElementById('import-preview-btn');
+            btn.disabled = true;
+            btn.textContent = 'جاري التحليل...';
+
+            var csrfCookie = document.cookie.split(';').find(function(c) { return c.trim().startsWith('csrf_token='); });
+            var csrfValue = csrfCookie ? csrfCookie.trim().split('=')[1] : '';
+
+            fetch('/api/data-import/preview?csrf_token=' + encodeURIComponent(csrfValue), {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(function(resp) { return resp.json(); })
+            .then(function(data) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> معاينة';
+
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                _importData.headers = data.headers;
+                _importData.samples = data.samples;
+                _importData.total = data.total;
+
+                // Also read all rows from the file for submission
+                readAllRows(fileInput.files[0], function(allRows) {
+                    _importData.rows = allRows;
+                    showMappingStep();
+                });
+            })
+            .catch(function(err) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> معاينة';
+                alert('فشل في تحليل الملف: ' + err.message);
+            });
+        };
+
+        // Read all CSV rows client-side for submission
+        function readAllRows(file, callback) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var text = e.target.result;
+                // Remove BOM
+                if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+                var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ''; });
+                if (lines.length < 2) { callback([]); return; }
+                // Detect separator
+                var firstLine = lines[0];
+                var sep = ',';
+                if ((firstLine.match(/\t/g) || []).length > (firstLine.match(/,/g) || []).length) sep = '\t';
+                else if ((firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length) sep = ';';
+                // Parse rows (skip header)
+                var rows = [];
+                for (var i = 1; i < lines.length; i++) {
+                    rows.push(parseCSVLine(lines[i], sep));
+                }
+                callback(rows);
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSVLine(line, sep) {
+            var result = [];
+            var current = '';
+            var inQuotes = false;
+            for (var i = 0; i < line.length; i++) {
+                var ch = line[i];
+                if (ch === '"') {
+                    if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (ch === sep && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += ch;
+                }
+            }
+            result.push(current);
+            return result;
+        }
+
+        // Show Step 2: Mapping
+        function showMappingStep() {
+            document.getElementById('import-step1').style.display = 'none';
+            document.getElementById('import-step2').style.display = '';
+            document.getElementById('import-total-rows').textContent = _importData.total;
+
+            var type = document.getElementById('import-type').value;
+            var fields = _importFields[type] || [];
+            var tbody = document.getElementById('import-mapping-body');
+            tbody.innerHTML = '';
+
+            _importData.headers.forEach(function(header, colIdx) {
+                var tr = document.createElement('tr');
+                tr.className = 'border-t';
+
+                // Column name
+                var tdCol = document.createElement('td');
+                tdCol.className = 'px-3 py-2 font-semibold';
+                tdCol.textContent = header;
+                tr.appendChild(tdCol);
+
+                // Sample values
+                var tdSample = document.createElement('td');
+                tdSample.className = 'px-3 py-2 text-xs';
+                tdSample.style.color = 'var(--md-sys-color-on-surface-variant)';
+                var sampleVals = _importData.samples.map(function(row) { return colIdx < row.length ? row[colIdx] : ''; }).filter(function(v) { return v !== ''; });
+                tdSample.textContent = sampleVals.slice(0, 3).join(' | ');
+                tr.appendChild(tdSample);
+
+                // Mapping dropdown
+                var tdMap = document.createElement('td');
+                tdMap.className = 'px-3 py-2';
+                var select = document.createElement('select');
+                select.className = 'text-sm w-full';
+                select.setAttribute('data-col-idx', colIdx);
+                select.id = 'import-map-col-' + colIdx;
+                var optSkip = document.createElement('option');
+                optSkip.value = '';
+                optSkip.textContent = '— تخطي —';
+                select.appendChild(optSkip);
+                fields.forEach(function(f) {
+                    var opt = document.createElement('option');
+                    opt.value = f.key;
+                    opt.textContent = f.label + (f.required ? ' *' : '');
+                    select.appendChild(opt);
+                });
+                // Auto-detect: try matching header to field key/label
+                var normalizedHeader = header.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+                fields.forEach(function(f) {
+                    if (normalizedHeader === f.key ||
+                        normalizedHeader.indexOf(f.key) >= 0 ||
+                        header.indexOf(f.label) >= 0) {
+                        select.value = f.key;
+                    }
+                });
+                tdMap.appendChild(select);
+                tr.appendChild(tdMap);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Step 2 → Step 1
+        window.resetImport = function() {
+            document.getElementById('import-step1').style.display = '';
+            document.getElementById('import-step2').style.display = 'none';
+            document.getElementById('import-step3').style.display = 'none';
+            _importData = { headers: [], samples: [], rows: [], total: 0 };
+        };
+
+        // Step 2: Execute import
+        window.executeImport = function() {
+            var type = document.getElementById('import-type').value;
+            var storeId = parseInt(document.getElementById('import-store').value) || 0;
+
+            // Build mapping from dropdown selections
+            var mapping = {};
+            _importData.headers.forEach(function(h, idx) {
+                var sel = document.getElementById('import-map-col-' + idx);
+                if (sel && sel.value) {
+                    mapping[sel.value] = idx;
+                }
+            });
+
+            // Validate required fields
+            var fields = _importFields[type] || [];
+            var missing = [];
+            fields.forEach(function(f) {
+                if (f.required && !(f.key in mapping)) {
+                    missing.push(f.label);
+                }
+            });
+            if (missing.length > 0) {
+                alert('يرجى تعيين الحقول المطلوبة: ' + missing.join('، '));
+                return;
+            }
+
+            var btn = document.getElementById('import-execute-btn');
+            btn.disabled = true;
+            btn.textContent = 'جاري الاستيراد...';
+
+            var csrfCookie = document.cookie.split(';').find(function(c) { return c.trim().startsWith('csrf_token='); });
+            var csrfValue = csrfCookie ? csrfCookie.trim().split('=')[1] : '';
+
+            fetch('/api/data-import/execute?csrf_token=' + encodeURIComponent(csrfValue), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    type: type,
+                    store_id: storeId,
+                    mapping: mapping,
+                    rows: _importData.rows
+                })
+            })
+            .then(function(resp) { return resp.json(); })
+            .then(function(data) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> بدء الاستيراد';
+
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                showImportResults(data);
+            })
+            .catch(function(err) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> بدء الاستيراد';
+                alert('فشل في الاستيراد: ' + err.message);
+            });
+        };
+
+        // Show Step 3: Results
+        function showImportResults(data) {
+            document.getElementById('import-step2').style.display = 'none';
+            document.getElementById('import-step3').style.display = '';
+
+            var summary = document.getElementById('import-results-summary');
+            summary.innerHTML = '<div class="p-3 rounded-lg text-center" style="background: var(--md-sys-color-surface-container-low)"><p class="text-xs mb-1" style="color: var(--md-sys-color-on-surface-variant)">الإجمالي</p><p class="text-xl font-bold">' + data.total + '</p></div>'
+                + '<div class="p-3 rounded-lg text-center" style="background: var(--md-sys-color-surface-container-low)"><p class="text-xs mb-1" style="color: var(--md-sys-color-on-surface-variant)">نجح</p><p class="text-xl font-bold text-green-600">' + data.success + '</p></div>'
+                + '<div class="p-3 rounded-lg text-center" style="background: var(--md-sys-color-surface-container-low)"><p class="text-xs mb-1" style="color: var(--md-sys-color-on-surface-variant)">فشل</p><p class="text-xl font-bold text-red-600">' + data.failed + '</p></div>';
+
+            var detail = document.getElementById('import-results-detail');
+            if (data.results && data.results.length > 0) {
+                var html = '<table class="w-full text-sm"><thead><tr><th class="text-right px-3 py-2">الصف</th><th class="text-right px-3 py-2">الحالة</th><th class="text-right px-3 py-2">التفاصيل</th></tr></thead><tbody>';
+                data.results.forEach(function(r) {
+                    html += '<tr class="border-t"><td class="px-3 py-2">' + r.row + '</td>'
+                        + '<td class="px-3 py-2">' + (r.ok ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">نجح</span>' : '<span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">فشل</span>') + '</td>'
+                        + '<td class="px-3 py-2 text-xs">' + (r.error || '—') + '</td></tr>';
+                });
+                html += '</tbody></table>';
+                detail.innerHTML = html;
+            } else {
+                detail.innerHTML = '<p class="text-sm text-center py-4" style="color: var(--md-sys-color-on-surface-variant)">تمت العملية بنجاح</p>';
+            }
+        }
+    })();
+</script>
+{{ end }}

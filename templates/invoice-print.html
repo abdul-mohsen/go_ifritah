@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .title }}</title>
+    <link href="/static/output.css" rel="stylesheet">
+    <style>
+        @media print {
+            @page {
+                size: A4;
+                margin: 1cm;
+            }
+            body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body onload="window.print()">
+    <div class="max-w-4xl mx-auto bg-white p-8">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8 border-b pb-6">
+            <img src="/static/images/afrita-logo.svg" alt="Afrita" class="h-16 w-auto">
+            <div class="text-center">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ L "tpl.invoice.print.tax_invoice" }}</h1>
+                <p class="text-gray-600">Tax Invoice</p>
+            </div>
+            <div class="w-16"></div>
+        </div>
+
+        <!-- Invoice Info -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+                <h3 class="text-lg font-semibold mb-2 text-gray-700">{{ L "tpl.invoice.print.info" }}</h3>
+                <p class="text-sm mb-1"><span class="font-semibold">{{ L "tpl.invoice.print.number" }}</span> {{ .invoice.SequenceNumber }}</p>
+                <p class="text-sm mb-1"><span class="font-semibold">{{ L "tpl.invoice.print.date" }}</span> {{ .invoice.EffectiveDate.Time }}</p>
+                <p class="text-sm mb-1"><span class="font-semibold">{{ L "tpl.invoice.print.type" }}</span> {{ .type }}</p>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold mb-2 text-gray-700">{{ L "tpl.invoice.print.customer_info" }}</h3>
+                <p class="text-sm mb-1"><span class="font-semibold">{{ L "tpl.invoice.print.supplier_no" }}</span> 100</p>
+                <p class="text-sm mb-1"><span class="font-semibold">{{ L "tpl.invoice.print.status" }}</span> {{ .status }}</p>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="mb-8">
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-gray-100 border-b-2 border-gray-300">
+                        <th class="text-right p-3 text-sm font-semibold">#</th>
+                        <th class="text-right p-3 text-sm font-semibold">{{ L "tpl.invoice.print.item" }}</th>
+                        <th class="text-right p-3 text-sm font-semibold">{{ L "tpl.invoice.quantity" }}</th>
+                        <th class="text-right p-3 text-sm font-semibold">{{ L "tpl.invoice.price" }}</th>
+                        <th class="text-right p-3 text-sm font-semibold">{{ L "tpl.invoice.subtotal" }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range $idx, $item := .invoice.Products }}
+                    <tr class="border-b border-gray-200">
+                        <td class="p-3 text-sm">{{ add $idx 1 }}</td>
+                        <td class="p-3 text-sm">{{ $item.PartName }}</td>
+                        <td class="p-3 text-sm">{{ $item.Quantity }}</td>
+                        <td class="p-3 text-sm">{{ printf "%.2f" $item.Price }}</td>
+                        <td class="p-3 text-sm">{{ printf "%.2f" (mul $item.Price $item.Quantity) }}</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Totals -->
+        <div class="border-t-2 border-gray-300 pt-4">
+            <div class="flex justify-between mb-2 text-sm">
+                <span class="text-gray-700">{{ L "tpl.invoice.print.subtotal" }}</span>
+                <span class="font-semibold">{{ printf "%.2f" .invoice.Subtotal }} {{ L "tpl.currency" }}</span>
+            </div>
+            <div class="flex justify-between mb-2 text-sm">
+                <span class="text-gray-700">{{ L "tpl.invoice.print.discount" }}</span>
+                <span class="font-semibold">{{ printf "%.2f" .invoice.Discount }} {{ L "tpl.currency" }}</span>
+            </div>
+            <div class="flex justify-between mb-2 text-sm">
+                <span class="text-gray-700">{{ L "tpl.invoice.print.tax_15" }}</span>
+                <span class="font-semibold">{{ printf "%.2f" .invoice.TotalVAT }} {{ L "tpl.currency" }}</span>
+            </div>
+            <div class="flex justify-between text-xl font-bold border-t-2 border-gray-300 pt-3 mt-3">
+                <span>{{ L "tpl.invoice.print.grand_total" }}</span>
+                <span>{{ .total_display }} {{ L "tpl.currency" }}</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-12 text-center text-sm text-gray-600">
+            <p>{{ L "tpl.invoice.print.thank_you" }}</p>
+            <p class="mt-2">Thank you for your business</p>
+        </div>
+    </div>
+</body>
+</html>

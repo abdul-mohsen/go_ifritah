@@ -1,0 +1,38 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/orders" "section_label" (L "tpl.order.section") "current" (L "tpl.order.edit") }}
+<div class="page-card">
+    <form hx-post="{{ printf "/dashboard/orders/%d/update" .order.ID }}" hx-target="body" hx-indicator="#submit-spinner">
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.order.number" }} <span class="required-mark">*</span></label>
+            <input type="text" name="number" value="{{ .order.SequenceNumber }}" placeholder="{{ L "tpl.order.number" }}" class="w-full" required maxlength="50">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.order.client" }} <span class="required-mark">*</span></label>
+            <input type="text" name="client" value="{{ if .order.ClientName }}{{ .order.ClientName }}{{ else }}{{ .order.CustomerName }}{{ end }}" placeholder="{{ L "tpl.order.client_name" }}" class="w-full" required minlength="2" maxlength="100">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.order.total" }} <span class="required-mark">*</span></label>
+            <input type="number" step="0.01" name="total" value="{{ .order.Total }}" placeholder="0.00" class="w-full" required min="0">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.order.status" }}</label>
+            <select name="status" class="w-full" required>
+                <option value="pending" {{ if eq .order.Status "pending" }}selected{{ end }}>{{ L "tpl.order.status_pending" }}</option>
+                <option value="processing" {{ if eq .order.Status "processing" }}selected{{ end }}>{{ L "tpl.order.status_processing" }}</option>
+                <option value="completed" {{ if eq .order.Status "completed" }}selected{{ end }}>{{ L "tpl.order.status_completed" }}</option>
+                <option value="cancelled" {{ if eq .order.Status "cancelled" }}selected{{ end }}>{{ L "tpl.order.status_cancelled" }}</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.order.notes" }}</label>
+            <textarea name="notes" rows="3" placeholder="{{ L "tpl.order.notes_placeholder" }}" class="w-full" maxlength="500">{{ .order.Note }}</textarea>
+        </div>
+
+        {{ template "form-actions" dict "submit_label" (L "tpl.product.update") "cancel_url" (printf "/dashboard/orders/%d" .order.ID) }}
+    </form>
+</div>
+{{ end }}

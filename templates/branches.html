@@ -1,0 +1,61 @@
+{{ define "content" }}
+{{ template "error-alert" . }}
+<div class="list-toolbar">
+    <form method="get">
+        <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.branch.search_placeholder" }}" class="search-input">
+        {{ template "per-page-select" dict "pagination" .pagination }}
+        <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
+    </form>
+    <div class="toolbar-actions">
+        <a href="/dashboard/branches/add" class="btn btn-filled"><svg class="w-4 h-4" fill="none" stroke="currentColor"
+                stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg> {{ L "tpl.branch.add" }}</a>
+        {{ template "item-count" dict "pagination" .pagination }}
+    </div>
+</div>
+
+<div class="data-table-wrapper">
+    <table aria-label="{{ L "tpl.branch.table_label" }}">
+        <thead>
+            <tr>
+                <th data-sortable>{{ L "tpl.branch.name" }}</th>
+                <th data-sortable>{{ L "tpl.branch.location" }}</th>
+                <th>{{ L "tpl.branch.phone" }}</th>
+                <th>{{ L "tpl.branch.manager" }}</th>
+                <th>{{ L "tpl.branch.status" }}</th>
+                <th>{{ L "tpl.actions" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ if not .branches }}
+            {{ template "empty-table-row" dict "colspan" 6 "message" (L "tpl.branch.no_branches") "action_url"
+            "/dashboard/branches/add" "action_label" (L "tpl.branch.add_new") }}
+            {{ end }}
+            {{ range .branches }}
+            <tr>
+                <td>{{ .Name }}</td>
+                <td>{{ .Address }}</td>
+                <td>{{ .Phone }}</td>
+                <td>{{ if .ManagerName }}{{ .ManagerName }}{{ else }}<span class="text-muted">—</span>{{ end }}</td>
+                <td>{{ if .IsActive }}<span class="badge badge-success">{{ L "tpl.branch.active" }}</span>{{ else }}<span class="badge badge-error">{{ L "tpl.branch.inactive" }}</span>{{ end }}</td>
+                <td>
+                    <div class="action-cell">
+                        <div class="action-links">
+                            <a href="/dashboard/branches/{{ .ID }}" class="action-link action-view">{{ L "tpl.view" }}</a>
+                            <a href="/dashboard/branches/{{ .ID }}/edit" class="action-link action-edit">{{ L "tpl.edit" }}</a>
+                            <a href="#" hx-post="/dashboard/branches/{{ .ID }}/delete"
+                                hx-confirm="{{ L "tpl.branch.confirm_delete" }}" class="action-link action-delete">{{ L "tpl.delete" }}</a>
+                        </div>
+                        <button class="action-overflow-btn" aria-label="{{ L "tpl.more" }}">⋮</button>
+                    </div>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+
+{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
+"extra_params" "" }}
+{{ end }}

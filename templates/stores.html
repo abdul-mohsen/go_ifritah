@@ -1,0 +1,55 @@
+{{ define "content" }}
+{{ template "error-alert" . }}
+<div class="list-toolbar">
+    <form method="get">
+        <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.store.search_placeholder" }}" class="search-input">
+        {{ template "per-page-select" dict "pagination" .pagination }}
+        <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
+    </form>
+    <div class="toolbar-actions">
+        <a href="/dashboard/stores/add" class="btn btn-filled"><svg class="w-4 h-4" fill="none" stroke="currentColor"
+                stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg> {{ L "tpl.store.add" }}</a>
+        {{ template "item-count" dict "pagination" .pagination }}
+    </div>
+</div>
+
+<div class="data-table-wrapper">
+    <table aria-label="{{ L "tpl.store.table_label" }}">
+        <thead>
+            <tr>
+                <th data-sortable>{{ L "tpl.store.id" }}</th>
+                <th data-sortable>{{ L "tpl.store.name" }}</th>
+                <th>{{ L "tpl.actions" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ if not .stores }}
+            {{ template "empty-table-row" dict "colspan" 3 "message" (L "tpl.store.no_stores") "action_url"
+            "/dashboard/stores/add" "action_label" (L "tpl.store.add_new") }}
+            {{ end }}
+            {{ range .stores }}
+            <tr>
+                <td>{{ .ID }}</td>
+                <td>{{ .Name }}</td>
+                <td>
+                    <div class="action-cell">
+                        <div class="action-links">
+                            <a href="/dashboard/stores/{{ .ID }}" class="action-link action-view">{{ L "tpl.view" }}</a>
+                            <a href="/dashboard/stores/{{ .ID }}/edit" class="action-link action-edit">{{ L "tpl.edit" }}</a>
+                            <a href="#" hx-post="/dashboard/stores/{{ .ID }}/delete"
+                                hx-confirm="{{ L "tpl.store.confirm_delete" }}" class="action-link action-delete">{{ L "tpl.delete" }}</a>
+                        </div>
+                        <button class="action-overflow-btn" aria-label="{{ L "tpl.more" }}">⋮</button>
+                    </div>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+
+{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
+"extra_params" "" }}
+{{ end }}

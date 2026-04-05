@@ -1,0 +1,16 @@
+{{/*
+status-badge — Inline colored status pill.
+
+Required context fields:
+.status string — display text
+.status_class string — Tailwind CSS classes (e.g. "bg-green-100 text-green-800")
+
+Usage:
+{{ template "status-badge" . }}
+
+Or inline if the item has .status and .status_class:
+<span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ .status_class }}">{{ .status }}</span>
+*/}}
+{{ define "status-badge" }}
+<span class="badge {{ .status_class }}">{{ .status }}</span>
+{{ end }}

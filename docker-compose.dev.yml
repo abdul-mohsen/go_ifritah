@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  app:
+    image: golang:1.22-alpine
+    container_name: afrita-go-dev
+    working_dir: /app
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - GOFLAGS=-buildvcs=false
+    volumes:
+      - ./:/app
+    command: >
+      sh -c "
+        apk add --no-cache git nodejs npm curl &&
+        npm install --no-save tailwindcss@3.4.0 &&
+        npx tailwindcss -i ./static/input.css -o ./static/output.css --minify &&
+        go install github.com/cosmtrek/air@v1.51.0 &&
+        air -c .air.toml
+      "
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: afrita-nginx-dev
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    restart: unless-stopped

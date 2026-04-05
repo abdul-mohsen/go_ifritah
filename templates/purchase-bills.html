@@ -1,0 +1,69 @@
+{{ define "content" }}
+{{ template "error-alert" . }}
+<div class="list-toolbar">
+    <form method="get">
+        <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.pb.search_placeholder" }}" class="search-input">
+        <select name="state">
+            <option value="">{{ L "tpl.all_statuses" }}</option>
+            <option value="0" {{ if eq .state "0" }}selected{{ end }}>{{ L "tpl.invoice.status_draft" }}</option>
+            <option value="1" {{ if eq .state "1" }}selected{{ end }}>{{ L "tpl.invoice.status_processing" }}</option>
+            <option value="2" {{ if eq .state "2" }}selected{{ end }}>{{ L "tpl.invoice.status_processed" }}</option>
+            <option value="3" {{ if eq .state "3" }}selected{{ end }}>{{ L "tpl.invoice.status_issued" }}</option>
+        </select>
+        {{ template "per-page-select" dict "pagination" .pagination }}
+        <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
+    </form>
+    <div class="toolbar-actions">
+        {{ template "item-count" dict "pagination" .pagination }}
+        <a href="/dashboard/purchase-bills/import" class="btn btn-amber btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> {{ L "tpl.pb.import_excel" }}</a>
+        <a href="/dashboard/purchase-bills/add" class="btn btn-filled">{{ L "tpl.pb.add" }}</a>
+    </div>
+</div>
+
+<div class="data-table-wrapper">
+    <table aria-label="{{ L "tpl.pb.table_label" }}">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th data-sortable>{{ L "tpl.pb.bill_number" }}</th>
+                <th data-sortable>{{ L "tpl.pb.total" }}</th>
+                <th data-sortable>{{ L "tpl.pb.date" }}</th>
+                <th data-sortable>{{ L "tpl.pb.type" }}</th>
+                <th data-sortable>{{ L "tpl.pb.status" }}</th>
+                <th>{{ L "tpl.actions" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ if not .bills }}
+            {{ template "empty-table-row" dict "colspan" 7 "message" (L "tpl.pb.no_bills") "action_url" "/dashboard/purchases/add" "action_label" (L "tpl.pb.add") }} }}
+            {{ end }}
+            {{ range .bills }}
+            <tr>
+                <td>{{ if lt .order 10 }}0{{ end }}{{ .order }}</td>
+                <td class="font-bold" style="color: var(--md-sys-color-primary)">{{ .sequence_number }}</td>
+                <td class="font-bold">{{ .total }} {{ L "tpl.currency" }}</td>
+                <td>{{ .date }}</td>
+                <td>{{ .type }}</td>
+                <td>
+                    <span class="badge {{ .status_class }}">{{ .status }}</span>
+                </td>
+                <td>
+                    <div class="action-cell">
+                        <div class="action-links">
+                            <a href="/dashboard/purchase-bills/{{ .id }}" class="action-link action-view">{{ L "tpl.view" }}</a>
+                            <a href="/dashboard/purchase-bills/edit/{{ .id }}" class="action-link action-edit">{{ L "tpl.edit" }}</a>
+                            <a href="#" hx-delete="/api/purchase-bills/{{ .id }}"
+                                hx-confirm="{{ L "tpl.pb.confirm_delete" }}" class="action-link action-delete">{{ L "tpl.delete" }}</a>
+                        </div>
+                        <button class="action-overflow-btn" aria-label="{{ L "tpl.more" }}">⋮</button>
+                    </div>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+
+{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
+"extra_params" (printf "&state=%s" .state) }}
+{{ end }}

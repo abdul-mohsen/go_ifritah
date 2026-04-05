@@ -1,0 +1,58 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/stores" "section_label" (L "tpl.store.section") "current" (L "tpl.store.edit") }}
+<div class="page-card">
+    {{ template "form-errors" . }}
+
+    <form hx-post="/dashboard/stores/{{ .store.ID }}/update" hx-target="body" hx-indicator="#submit-spinner">
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.store.name" }} <span class="required-mark">*</span></label>
+            <input type="text" name="name" value="{{ if .old }}{{ old .old "name" }}{{ else }}{{ .store.Name }}{{ end
+                }}" placeholder="{{ L "tpl.store.name" }}" class="w-full {{ if hasError .errors "name" }}input-error{{ end }}"
+                required minlength="2" maxlength="100">
+            {{ if hasError .errors "name" }}<p class="field-error">{{ fieldError .errors "name" }}</p>{{ end }}
+        </div>
+
+        <!-- العنوان الوطني -->
+        <h3 class="form-section-title mt-6 mb-4" style="font-size:1.1rem; font-weight:600; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;">{{ L "tpl.address.national" }}</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">{{ L "tpl.address.building_number" }}</label>
+                <input type="text" name="building_number" placeholder="{{ L "tpl.store.example_building" }}" class="w-full"
+                    maxlength="4" pattern="\d{0,4}" value="{{ if .old }}{{ old .old "building_number" }}{{ else }}{{ .address.BuildingNumber }}{{ end }}">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.address.street_name" }}</label>
+                <input type="text" name="street_name" placeholder="{{ L "tpl.address.street_name" }}" class="w-full"
+                    maxlength="200" value="{{ if .old }}{{ old .old "street_name" }}{{ else }}{{ .address.StreetName }}{{ end }}">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.address.district" }}</label>
+                <input type="text" name="district" placeholder="{{ L "tpl.address.district" }}" class="w-full"
+                    maxlength="100" value="{{ if .old }}{{ old .old "district" }}{{ else }}{{ .address.District }}{{ end }}">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.address.city" }}</label>
+                <input type="text" name="city" placeholder="{{ L "tpl.address.city" }}" class="w-full"
+                    maxlength="100" value="{{ if .old }}{{ old .old "city" }}{{ else }}{{ .address.City }}{{ end }}">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.address.postal_code" }}</label>
+                <input type="text" name="postal_code" placeholder="{{ L "tpl.store.example_postal" }}" class="w-full"
+                    maxlength="5" pattern="\d{0,5}" value="{{ if .old }}{{ old .old "postal_code" }}{{ else }}{{ .address.PostalCode }}{{ end }}">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.address.additional_number" }}</label>
+                <input type="text" name="additional_number" placeholder="{{ L "tpl.store.example_additional" }}" class="w-full"
+                    maxlength="4" pattern="\d{0,4}" value="{{ if .old }}{{ old .old "additional_number" }}{{ else }}{{ .address.AdditionalNumber }}{{ end }}">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.address.unit_number" }}</label>
+                <input type="text" name="unit_number" placeholder="{{ L "tpl.store.unit_placeholder" }}" class="w-full"
+                    maxlength="20" value="{{ if .old }}{{ old .old "unit_number" }}{{ else }}{{ .address.UnitNumber }}{{ end }}">
+            </div>
+        </div>
+
+        {{ template "form-actions" dict "submit_label" (L "tpl.client.save_changes") "cancel_url" "/dashboard/stores" }}
+    </form>
+</div>
+{{ end }}

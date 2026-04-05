@@ -1,0 +1,89 @@
+{{ define "content" }}
+{{ template "error-alert" . }}
+<div class="list-toolbar">
+    <form method="get">
+        <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "cash_voucher.recipient_name" }}..." class="search-input">
+        <select name="type">
+            <option value="">{{ L "cash_voucher_type.all" }}</option>
+            <option value="disbursement" {{ if eq .voucher_type "disbursement" }}selected{{ end }}>{{ L "cash_voucher_type.disbursement" }}</option>
+            <option value="receipt" {{ if eq .voucher_type "receipt" }}selected{{ end }}>{{ L "cash_voucher_type.receipt" }}</option>
+            <option value="cash_box" {{ if eq .voucher_type "cash_box" }}selected{{ end }}>{{ L "cash_voucher_type.cash_box" }}</option>
+        </select>
+        {{ template "per-page-select" dict "pagination" .pagination }}
+        <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
+    </form>
+    <div class="toolbar-actions">
+        {{ template "item-count" dict "pagination" .pagination }}
+        <a href="/dashboard/cash-vouchers/add" class="btn btn-filled">{{ L "cash_voucher.add_title" }}</a>
+    </div>
+</div>
+
+<div class="data-table-wrapper">
+    <table aria-label="{{ L "cash_voucher.list_title" }}">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th data-sortable>{{ L "cash_voucher.voucher_number" }}</th>
+                <th data-sortable>{{ L "cash_voucher.voucher_type" }}</th>
+                <th data-sortable>{{ L "cash_voucher.recipient_name" }}</th>
+                <th data-sortable>{{ L "cash_voucher.amount" }}</th>
+                <th data-sortable>{{ L "cash_voucher.effective_date" }}</th>
+                <th data-sortable>{{ L "cash_voucher.state" }}</th>
+                <th>{{ L "tpl.actions" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ if not .vouchers }}
+            <tr>
+                <td colspan="8" class="text-center py-8" style="color: var(--md-sys-color-on-surface-variant)">
+                    <div class="flex flex-col items-center gap-2">
+                        <svg class="w-10 h-10 opacity-40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+                        </svg>
+                        <span>{{ L "tpl.no_data" }}</span>
+                        <a href="/dashboard/cash-vouchers/add" class="btn btn-filled btn-sm mt-2">{{ L "cash_voucher.add_title" }}</a>
+                    </div>
+                </td>
+            </tr>
+            {{ end }}
+            {{ range .vouchers }}
+            <tr>
+                <td>{{ if lt .order 10 }}0{{ end }}{{ .order }}</td>
+                <td class="font-bold" style="color: var(--md-sys-color-primary)">{{ .voucher_number }}</td>
+                <td>
+                    {{ if eq .voucher_type "disbursement" }}
+                    <span class="badge badge-danger">{{ .type_label }}</span>
+                    {{ else if eq .voucher_type "cash_box" }}
+                    <span class="badge badge-warning">{{ .type_label }}</span>
+                    {{ else }}
+                    <span class="badge badge-issued">{{ .type_label }}</span>
+                    {{ end }}
+                </td>
+                <td>{{ .recipient_name }}</td>
+                <td class="font-bold">{{ .amount }} {{ L "tpl.currency" }}</td>
+                <td>{{ .date }}</td>
+                <td>
+                    <span class="badge {{ .status_class }}">{{ .status }}</span>
+                </td>
+                <td>
+                    <div class="action-cell">
+                        <div class="action-links">
+                            <a href="/dashboard/cash-vouchers/{{ .id }}" class="action-link action-view">{{ L "tpl.view" }}</a>
+                            {{ if eq .state 0 }}
+                            <a href="/dashboard/cash-vouchers/edit/{{ .id }}" class="action-link action-edit">{{ L "tpl.edit" }}</a>
+                            <a href="#" hx-delete="/api/cash-vouchers/{{ .id }}"
+                                hx-confirm="{{ L "tpl.confirm_delete" }}" class="action-link action-delete">{{ L "tpl.delete" }}</a>
+                            {{ end }}
+                        </div>
+                        <button class="action-overflow-btn" aria-label="{{ L "tpl.more" }}">&#x22EE;</button>
+                    </div>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+
+{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
+"extra_params" (printf "&type=%s" .voucher_type) }}
+{{ end }}

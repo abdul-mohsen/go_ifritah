@@ -1,0 +1,29 @@
+{
+  "name": "afrita-go",
+  "version": "1.0.0",
+  "description": "A modern, minimal business management dashboard built with Go and HTMX. Features include invoice management, product management, client management, and more.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/input.css -o ./static/output.css --minify",
+    "watch:css": "tailwindcss -i ./static/input.css -o ./static/output.css --watch",
+    "lint:go": "golangci-lint run ./...",
+    "lint:js": "echo 'JS linting via Prettier'",
+    "format": "prettier --write 'static/**/*.{js,css}' 'templates/**/*.html'",
+    "format:check": "prettier --check 'static/**/*.{js,css}' 'templates/**/*.html'",
+    "test": "go test ./...",
+    "test:verbose": "go test -v ./...",
+    "check": "go build ./... && golangci-lint run ./... && go test ./..."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "prettier": "^3.8.1",
+    "tailwindcss": "^3.4.0"
+  }
+}

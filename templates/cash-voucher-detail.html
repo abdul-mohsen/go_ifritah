@@ -1,0 +1,122 @@
+{{ define "content" }}
+{{ template "error-alert" . }}
+
+<div class="page-header">
+    <a href="/dashboard/cash-vouchers" class="btn btn-text btn-sm">&rarr; {{ L "cash_voucher.list_title" }}</a>
+</div>
+
+<div class="section-card">
+    <!-- Header with voucher number and status -->
+    <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
+        <div class="flex items-center gap-3">
+            <h2 class="text-xl font-bold">{{ L "cash_voucher.voucher_number" }}: {{ .voucher_number }}</h2>
+            {{ if eq .voucher_type "disbursement" }}
+            <span class="badge badge-danger">{{ .type_label }}</span>
+            {{ else if eq .voucher_type "cash_box" }}
+            <span class="badge badge-warning">{{ .type_label }}</span>
+            {{ else }}
+            <span class="badge badge-issued">{{ .type_label }}</span>
+            {{ end }}
+            <span class="badge {{ .status_class }}">{{ .status }}</span>
+        </div>
+
+        <!-- Action buttons based on state -->
+        <div class="flex gap-2">
+            {{ if eq (printf "%v" .state) "0" }}
+            <a href="/dashboard/cash-vouchers/edit/{{ .id }}" class="btn btn-tonal btn-sm">{{ L "tpl.edit" }}</a>
+            <form method="POST" action="/api/cash-vouchers/{{ .id }}/approve" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ .csrf_token }}">
+                <button type="submit" class="btn btn-filled btn-sm"
+                    onclick="return confirm('{{ L "cash_voucher.approve_success" }}?')">{{ L "cash_voucher_status.approved" }}</button>
+            </form>
+            <button type="button" class="btn btn-danger btn-sm"
+                hx-delete="/api/cash-vouchers/{{ .id }}"
+                hx-confirm="{{ L "tpl.confirm_delete" }}">{{ L "tpl.delete" }}</button>
+            {{ else if eq (printf "%v" .state) "1" }}
+            <form method="POST" action="/api/cash-vouchers/{{ .id }}/post" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ .csrf_token }}">
+                <button type="submit" class="btn btn-filled btn-sm"
+                    onclick="return confirm('{{ L "cash_voucher.post_success" }}?')">{{ L "cash_voucher_status.posted" }}</button>
+            </form>
+            {{ end }}
+        </div>
+    </div>
+
+    <!-- Detail fields grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="detail-field">
+            <span class="detail-label">{{ L "cash_voucher.effective_date" }}</span>
+            <span class="detail-value">{{ .date }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "cash_voucher.amount" }}</span>
+            <span class="detail-value font-bold text-lg">{{ .amount }} {{ L "tpl.currency" }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "cash_voucher.payment_method" }}</span>
+            <span class="detail-value">{{ .method_label }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.pb.store" }}</span>
+            <span class="detail-value">{{ .store_name }}</span>
+        </div>
+    </div>
+
+    <h4 class="section-card-title mt-6">{{ L "cash_voucher.recipient_type" }}</h4>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="detail-field">
+            <span class="detail-label">{{ L "cash_voucher.recipient_type" }}</span>
+            <span class="detail-value">{{ .recipient_type_label }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "cash_voucher.recipient_name" }}</span>
+            <span class="detail-value font-bold">{{ .recipient_name }}</span>
+        </div>
+    </div>
+
+    {{ if .reference_type }}
+    <h4 class="section-card-title mt-6">{{ L "cash_voucher.reference" }}</h4>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="detail-field">
+            <span class="detail-label">{{ L "cash_voucher.reference" }}</span>
+            <span class="detail-value">{{ .reference_type }} #{{ .reference_id }}</span>
+        </div>
+    </div>
+    {{ end }}
+
+    {{ if or .description .note }}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        {{ if .description }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "cash_voucher.description" }}</span>
+            <span class="detail-value">{{ .description }}</span>
+        </div>
+        {{ end }}
+        {{ if .note }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "cash_voucher.note" }}</span>
+            <span class="detail-value">{{ .note }}</span>
+        </div>
+        {{ end }}
+    </div>
+    {{ end }}
+
+    {{ if eq .payment_method "bank_transfer" }}
+    <h4 class="section-card-title mt-6">{{ L "cash_voucher.bank_name" }}</h4>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="detail-field">
+            <span class="detail-label">{{ L "cash_voucher.bank_name" }}</span>
+            <span class="detail-value">{{ .bank_name }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "cash_voucher.bank_account" }}</span>
+            <span class="detail-value">{{ .bank_account }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "cash_voucher.transaction_ref" }}</span>
+            <span class="detail-value">{{ .transaction_reference }}</span>
+        </div>
+    </div>
+    {{ end }}
+</div>
+{{ end }}

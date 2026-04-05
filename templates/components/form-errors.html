@@ -1,0 +1,27 @@
+{{/*
+form-errors — Validation error summary box for forms.
+
+Required context fields:
+.errors map[string]string — field-name → error-message map (nil/empty = hidden)
+
+Usage:
+{{ template "form-errors" . }}
+*/}}
+{{ define "form-errors" }}
+{{ if .errors }}
+<div role="alert" class="mb-4 flex gap-3 items-start rounded-xl p-4"
+    style="background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container)">
+    <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+    </svg>
+    <div>
+        <p class="font-semibold text-sm mb-1">{{ L "tpl.comp.form_errors_title" }}</p>
+        <ul class="text-sm list-disc ps-5 space-y-0.5">
+            {{ range $field, $msg := .errors }}
+            <li>{{ $msg }}</li>
+            {{ end }}
+        </ul>
+    </div>
+</div>
+{{ end }}
+{{ end }}

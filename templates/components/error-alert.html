@@ -1,0 +1,20 @@
+{{/*
+error-alert — Red error banner shown on form/list pages.
+
+Required context fields:
+.error string — error message (empty string = hidden)
+
+Usage:
+{{ template "error-alert" . }}
+*/}}
+{{ define "error-alert" }}
+{{ if .error }}
+<div role="alert" class="mb-4 flex items-center gap-3 px-4 py-3 text-sm"
+    style="background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container); border-radius: var(--md-sys-shape-sm)">
+    <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+    </svg>
+    <span>{{ .error }}</span>
+</div>
+{{ end }}
+{{ end }}

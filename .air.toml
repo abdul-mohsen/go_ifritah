@@ -1,0 +1,23 @@
+root = "."
+
+[build]
+  cmd = "go build -o ./tmp/main ."
+  bin = "./tmp/main"
+  delay = 1000
+  exclude_dir = ["tmp", "vendor", "node_modules"]
+  include_ext = ["go", "html", "css", "js"]
+  log = "air.log"
+  poll = true
+  poll_interval = 500
+
+[log]
+  time = true
+
+[color]
+  main = "yellow"
+  watcher = "cyan"
+  build = "green"
+  runner = "magenta"
+
+[run]
+  cmd = "./tmp/main"

@@ -1,0 +1,20 @@
+<div class="data-table-wrapper">
+    <table class="w-full">
+        <thead>
+            <tr>
+                <th>{{ L "tpl.partial.part" }}</th>
+                <th>{{ L "tpl.partial.price" }}</th>
+                <th>{{ L "tpl.partial.stock" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .results }}
+            <tr>
+                <td>{{ index . "part_name" }}</td>
+                <td>{{ index . "price" }}</td>
+                <td>{{ index . "quantity" }}</td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>

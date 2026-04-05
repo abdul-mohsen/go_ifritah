@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ L "tpl.auth.login_title" }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>(function () { if (localStorage.getItem('afrita_theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark') })();</script>
+    <link href="/static/output.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/darkmode.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+
+<body class="login-body min-h-screen flex flex-col items-center justify-center px-4">
+    <div class="login-card rounded-2xl shadow-2xl p-8 w-full max-w-sm" dir="rtl">
+        <div class="text-center mb-6">
+            <img src="/static/images/afrita-logo.svg" alt="{{ L "tpl.auth.app_name" }}" class="mx-auto mb-4" style="height:48px;width:auto">
+            <h1 class="text-2xl font-bold mb-1" style="color: var(--md-sys-color-primary)">{{ L "tpl.auth.app_name" }}</h1>
+            <p class="login-subtitle text-sm">{{ L "tpl.auth.app_subtitle" }}</p>
+        </div>
+
+        <form hx-post="/login" hx-indicator="#login-spinner" hx-disabled-elt="button[type='submit']">
+            <div class="mb-4">
+                <label class="login-label block text-xs font-semibold mb-1.5">{{ L "tpl.auth.username" }}</label>
+                <input type="text" name="username" placeholder="{{ L "tpl.auth.username_placeholder" }}" class="w-full" required>
+            </div>
+
+            <div class="mb-5">
+                <label class="login-label block text-xs font-semibold mb-1.5">{{ L "tpl.auth.password" }}</label>
+                <input type="password" name="password" placeholder="••••••••" class="w-full" required>
+            </div>
+
+            <button type="submit"
+                class="w-full py-2.5 rounded-lg font-bold transition text-sm flex items-center justify-center gap-2"
+                style="background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary)">
+                <svg id="login-spinner" class="htmx-indicator animate-spin h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                {{ L "tpl.auth.login_btn" }}
+            </button>
+        </form>
+
+        <div class="mt-5 text-center space-y-1.5">
+            <p class="login-subtitle text-xs">{{ L "tpl.auth.no_account" }} <a href="/register" class="hover:underline font-semibold"
+                    style="color: var(--md-sys-color-primary)">{{ L "tpl.auth.register_here" }}</a></p>
+            <p class="login-subtitle text-xs"><a href="/forgot-password" class="hover:underline"
+                    style="color: var(--md-sys-color-primary)">{{ L "tpl.auth.forgot_password" }}</a></p>
+        </div>
+    </div>
+
+    <!-- Footer — centered below card -->
+    <footer class="mt-6 mb-4 text-center">
+        <p class="text-xs" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.auth.app_name" }} v{{ .version }} © 2024-2026</p>
+        <p class="text-[10px]" style="color: var(--md-sys-color-outline)">{{ L "tpl.auth.all_rights" }}</p>
+    </footer>
+    <script src="/static/js/i18n.js"></script>
+
+    <!-- Toast container for login errors -->
+    <div id="toast-container"></div>
+    <script>
+        document.body.addEventListener('showToast', function (e) {
+            var d = e.detail || {};
+            var type = d.type || 'error';
+            var msg = d.message || '{{ L "tpl.auth.unexpected_error" }}';
+            var container = document.getElementById('toast-container');
+            var toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.innerHTML = '<span>' + msg + '</span><button class="toast-close" onclick="this.parentElement.classList.add(\'toast-out\');setTimeout(function(){toast.remove()},300)">&times;</button>';
+            container.appendChild(toast);
+            var ref = toast;
+            setTimeout(function () { ref.classList.add('toast-out'); setTimeout(function () { ref.remove(); }, 300); }, 4000);
+        });
+    </script>
+</body>
+
+</html>

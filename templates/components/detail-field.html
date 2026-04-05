@@ -1,0 +1,29 @@
+{{/*
+detail-field — M3 key-value pair for detail pages.
+
+Required: .label (string), .value (any)
+
+Usage:
+{{ template "detail-field" dict "label" "الاسم" "value" .client.Name }}
+*/}}
+{{ define "detail-field" }}
+<div class="detail-field">
+    <span class="detail-label">{{ .label }}</span>
+    <span class="detail-value">{{ .value }}</span>
+</div>
+{{ end }}
+
+{{/*
+detail-field-v — Vertical variant (label above value).
+
+Required: .label (string), .value (any)
+
+Usage:
+{{ template "detail-field-v" dict "label" "اسم القطعة" "value" .product.PartName }}
+*/}}
+{{ define "detail-field-v" }}
+<div class="detail-field-v">
+    <span class="detail-label">{{ .label }}</span>
+    <p class="detail-value">{{ .value }}</p>
+</div>
+{{ end }}

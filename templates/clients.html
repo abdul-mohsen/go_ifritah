@@ -1,0 +1,63 @@
+{{ define "content" }}
+{{ template "error-alert" . }}
+<div class="list-toolbar">
+    <form method="get">
+        <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.client.search_placeholder" }}"
+            class="search-input">
+        {{ template "per-page-select" dict "pagination" .pagination }}
+        <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
+    </form>
+    <div class="toolbar-actions">
+        <a href="/dashboard/clients/export-csv" class="btn btn-tonal btn-sm"><svg class="w-4 h-4" fill="none"
+                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg> CSV</a>
+        <a href="/dashboard/clients/add" class="btn btn-filled"><svg class="w-4 h-4" fill="none" stroke="currentColor"
+                stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg> {{ L "tpl.client.add" }}</a>
+        {{ template "item-count" dict "pagination" .pagination }}
+    </div>
+</div>
+
+<div class="data-table-wrapper">
+    <table aria-label="{{ L "tpl.client.table_label" }}">
+        <thead>
+            <tr>
+                <th data-sortable>{{ L "tpl.client.name" }}</th>
+                <th data-sortable>{{ L "tpl.client.company_name" }}</th>
+                <th data-sortable>{{ L "tpl.client.email" }}</th>
+                <th data-sortable>{{ L "tpl.client.phone" }}</th>
+                <th>{{ L "tpl.actions" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ if not .clients }}
+            {{ template "empty-table-row" dict "colspan" 5 "message" (L "tpl.client.no_clients") "action_url"
+            "/dashboard/clients/add" "action_label" (L "tpl.client.add_new") }} }}
+            {{ end }}
+            {{ range .clients }}
+            <tr>
+                <td>{{ .Name }}</td>
+                <td>{{ .CompanyName }}</td>
+                <td>{{ .Email }}</td>
+                <td>{{ .Phone }}</td>
+                <td>
+                    <div class="action-cell">
+                        <div class="action-links">
+                            <a href="/dashboard/clients/{{ .ID }}" class="action-link action-view">{{ L "tpl.view" }}</a>
+                            <a href="/dashboard/clients/{{ .ID }}/edit" class="action-link action-edit">{{ L "tpl.edit" }}</a>
+                        </div>
+                        <button class="action-overflow-btn" aria-label="{{ L "tpl.more" }}">⋮</button>
+                    </div>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+
+{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
+"extra_params" "" }}
+{{ end }}

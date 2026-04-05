@@ -1,0 +1,16 @@
+{{/*
+per-page-select — Dropdown for selecting items per page.
+
+Required context fields:
+.pagination struct { PerPage int }
+
+Usage:
+{{ template "per-page-select" . }}
+*/}}
+{{ define "per-page-select" }}
+<select name="per" class="per-page-select">
+    <option value="10" {{ if eq .pagination.PerPage 10 }}selected{{ end }}>10</option>
+    <option value="25" {{ if eq .pagination.PerPage 25 }}selected{{ end }}>25</option>
+    <option value="50" {{ if eq .pagination.PerPage 50 }}selected{{ end }}>50</option>
+</select>
+{{ end }}

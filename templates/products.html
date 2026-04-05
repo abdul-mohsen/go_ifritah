@@ -1,0 +1,77 @@
+{{ define "content" }}
+{{ template "error-alert" . }}
+<div class="list-toolbar">
+    <form method="get">
+        <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.product.search_placeholder" }}" class="search-input">
+        <select name="stock">
+            <option value="">{{ L "tpl.product.all_stock" }}</option>
+            <option value="in" {{ if eq .stock "in" }}selected{{ end }}>{{ L "tpl.product.in_stock" }}</option>
+            <option value="out" {{ if eq .stock "out" }}selected{{ end }}>{{ L "tpl.product.out_of_stock" }}</option>
+        </select>
+        {{ template "per-page-select" dict "pagination" .pagination }}
+        <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
+    </form>
+    <div class="toolbar-actions">
+        <a href="/dashboard/products/export-csv" class="btn btn-tonal btn-sm"><svg class="w-4 h-4" fill="none"
+                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg> CSV</a>
+        <a href="/dashboard/products/add" class="btn btn-filled"><svg class="w-4 h-4" fill="none" stroke="currentColor"
+                stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg> {{ L "tpl.product.add" }}</a>
+        {{ template "item-count" dict "pagination" .pagination }}
+    </div>
+</div>
+
+<div class="data-table-wrapper">
+    <table aria-label="{{ L "tpl.product.table_label" }}">
+        <thead>
+            <tr>
+                <th data-sortable>{{ L "tpl.product.id" }}</th>
+                <th data-sortable>{{ L "tpl.product.part_name" }}</th>
+                <th data-sortable>{{ L "tpl.product.price" }}</th>
+                <th data-sortable>{{ L "tpl.product.quantity" }}</th>
+                <th data-sortable>{{ L "tpl.product.status" }}</th>
+                <th>{{ L "tpl.actions" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ if not .products }}
+            {{ template "empty-table-row" dict "colspan" 6 "message" (L "tpl.product.no_products") "action_url"
+            "/dashboard/products/add" "action_label" (L "tpl.product.add_new") }}
+            {{ end }}
+            {{ range .products }}
+            <tr>
+                <td>{{ .ID }}</td>
+                <td class="font-medium">{{ .PartName }}</td>
+                <td>{{ printf "%.2f" .Price }}</td>
+                <td>{{ .Quantity }}</td>
+                <td>
+                    {{ if gt .Quantity 0 }}
+                    <span class="badge badge-success">{{ L "tpl.product.in_stock" }}</span>
+                    {{ else }}
+                    <span class="badge badge-danger">{{ L "tpl.product.out_of_stock" }}</span>
+                    {{ end }}
+                </td>
+                <td>
+                    <div class="action-cell">
+                        <div class="action-links">
+                            <a href="/dashboard/products/{{ .ID }}" class="action-link action-view">{{ L "tpl.view" }}</a>
+                            <a href="/dashboard/products/{{ .ID }}/edit" class="action-link action-edit">{{ L "tpl.edit" }}</a>
+                            <a href="#" hx-post="/dashboard/products/{{ .ID }}/delete"
+                                hx-confirm="{{ L "tpl.product.confirm_delete" }}" class="action-link action-delete">{{ L "tpl.delete" }}</a>
+                        </div>
+                        <button class="action-overflow-btn" aria-label="{{ L "tpl.more" }}">⋮</button>
+                    </div>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+
+{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
+"extra_params" (printf "&stock=%s" .stock) }}
+{{ end }}

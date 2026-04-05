@@ -1,0 +1,79 @@
+{{ define "content" }}
+<div class="page-card-wide">
+    <div class="mb-6">
+        <a href="/dashboard/stores" class="back-link">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            {{ L "tpl.store.back_to_list" }}
+        </a>
+        <h2 class="page-title" style="margin-bottom:0">{{ .store.Name }}</h2>
+    </div>
+
+    <div class="grid-2">
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.store.id" }}</span>
+            <p class="detail-value">{{ .store.ID }}</p>
+        </div>
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.store.name" }}</span>
+            <p class="detail-value">{{ .store.Name }}</p>
+        </div>
+    </div>
+
+    <!-- العنوان الوطني -->
+    {{ if or .address.BuildingNumber .address.StreetName .address.District .address.City .address.PostalCode .address.AdditionalNumber .address.UnitNumber }}
+    <h3 style="font-size:1.1rem; font-weight:600; margin-top:1.5rem; margin-bottom:0.75rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;">{{ L "tpl.address.national" }}</h3>
+    <div class="grid-2">
+        {{ if .address.BuildingNumber }}
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.address.building_number" }}</span>
+            <p class="detail-value">{{ .address.BuildingNumber }}</p>
+        </div>
+        {{ end }}
+        {{ if .address.StreetName }}
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.address.street_name" }}</span>
+            <p class="detail-value">{{ .address.StreetName }}</p>
+        </div>
+        {{ end }}
+        {{ if .address.District }}
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.address.district" }}</span>
+            <p class="detail-value">{{ .address.District }}</p>
+        </div>
+        {{ end }}
+        {{ if .address.City }}
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.address.city" }}</span>
+            <p class="detail-value">{{ .address.City }}</p>
+        </div>
+        {{ end }}
+        {{ if .address.PostalCode }}
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.address.postal_code" }}</span>
+            <p class="detail-value">{{ .address.PostalCode }}</p>
+        </div>
+        {{ end }}
+        {{ if .address.AdditionalNumber }}
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.address.additional_number" }}</span>
+            <p class="detail-value">{{ .address.AdditionalNumber }}</p>
+        </div>
+        {{ end }}
+        {{ if .address.UnitNumber }}
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.address.unit_number" }}</span>
+            <p class="detail-value">{{ .address.UnitNumber }}</p>
+        </div>
+        {{ end }}
+    </div>
+    {{ end }}
+
+    <div class="detail-actions">
+        <a href="{{ printf "/dashboard/stores/%d/edit" .store.ID }}" class="btn btn-success">{{ L "tpl.edit" }}</a>
+        <button hx-post="{{ printf "/dashboard/stores/%d/delete" .store.ID }}"
+            hx-confirm="{{ L "tpl.store.confirm_delete" }}" class="btn btn-error">{{ L "tpl.delete" }}</button>
+    </div>
+</div>
+{{ end }}

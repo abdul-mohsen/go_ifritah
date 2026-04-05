@@ -1,0 +1,85 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/suppliers" "section_label" (L "tpl.supplier.section") "current" .supplier.Name
+}}
+<div class="page-card">
+    <h3 class="page-title">{{ L "tpl.supplier.detail_heading" }}</h3>
+    <div class="space-y-3">
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.name" }}</span>
+            <span class="detail-value">{{ .supplier.Name }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.supplier_number" }}</span>
+            <span class="detail-value">{{ .supplier.Number }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.email" }}</span>
+            <span class="detail-value">{{ .supplier.Email }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.phone" }}</span>
+            <span class="detail-value">{{ .supplier.PhoneNumber }}</span>
+        </div>
+
+        <!-- العنوان -->
+        {{ if .supplier.ShortAddress }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.short_address" }}</span>
+            <span class="detail-value">{{ .supplier.ShortAddress }}</span>
+        </div>
+        {{ end }}
+        {{ if .supplier.Address }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.address.full_address" }}</span>
+            <span class="detail-value">{{ .supplier.Address }}</span>
+        </div>
+        {{ end }}
+
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.vat_number" }}</span>
+            <span class="detail-value">{{ .supplier.VATNumber }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.cr" }}</span>
+            <span class="detail-value">{{ .supplier.CR }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.bank_account" }}</span>
+            <span class="detail-value">{{ .supplier.BankAccount }}</span>
+        </div>
+        {{ if .supplier.IsPostPaid }}
+        <div class="mt-4 border-t pt-4" style="border-color:var(--md-sys-color-outline-variant)">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style="background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container)">{{ L "tpl.supplier.postpaid_badge" }}</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.credit_limit" }}</span>
+                    <span class="detail-value">{{ .supplier.CreditLimit }} {{ L "tpl.currency_sar" }}</span>
+                </div>
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.payment_terms_days" }}</span>
+                    <span class="detail-value">{{ .supplier.PaymentTermsDays }} {{ L "tpl.days" }}</span>
+                </div>
+            </div>
+        </div>
+        {{ end }}
+        {{ if .supplier.CreatedAt }}
+        <div class="detail-field">
+            <span class="detail-label">تاريخ الإنشاء</span>
+            <span class="detail-value">{{ .supplier.CreatedAt }}</span>
+        </div>
+        {{ end }}
+        {{ if .supplier.UpdatedAt }}
+        <div class="detail-field">
+            <span class="detail-label">تاريخ التحديث</span>
+            <span class="detail-value">{{ .supplier.UpdatedAt }}</span>
+        </div>
+        {{ end }}
+    </div>
+    <div class="detail-actions">
+        <a href="{{ printf "/dashboard/suppliers/%d/edit" .supplier.ID }}" class="btn btn-filled">{{ L "tpl.edit" }}</a>
+        <a href="/dashboard/suppliers" class="btn btn-outlined">{{ L "tpl.back" }}</a>
+    </div>
+</div>
+{{ end }}

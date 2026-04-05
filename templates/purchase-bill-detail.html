@@ -1,0 +1,389 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/purchase-bills" "section_label" (L "tpl.pb.section") "current"
+(printf "#%d" .bill.SequenceNumber) }}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="section-card">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="section-card-title" style="margin-bottom:0">{{ L "tpl.pb.heading" }} #{{ .bill.SequenceNumber }}
+                </h3>
+                <p class="detail-label" style="margin-top:0.25rem">{{ .effective_date }}</p>
+            </div>
+            <span class="badge {{ .status_class }}">{{ .status_label }}</span>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="detail-actions" style="margin-top:0">
+            <a href="{{ printf "/dashboard/purchase-bills/edit/%s" .bill_id }}" class="btn btn-success btn-sm"><svg
+                    class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg> {{ L "tpl.edit" }}</a>
+            <button hx-delete="{{ printf "/api/purchase-bills/%s" .bill_id }}"
+                hx-confirm="{{ L "tpl.pb.confirm_delete" }}" class="btn btn-error btn-sm"><svg class="w-4 h-4"
+                    fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg> {{ L "tpl.delete" }}</button>
+            <a href="/dashboard/purchase-bills" class="btn btn-outlined btn-sm"><svg class="w-4 h-4" fill="none"
+                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg> {{ L "tpl.back" }}</a>
+        </div>
+    </div>
+
+    <!-- Info Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Bill Info -->
+        <div class="section-card">
+            <h4 class="section-card-title">
+                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                {{ L "tpl.pb.bill_info" }}
+            </h4>
+            <div class="space-y-3">
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.pb.bill_id" }}</span>
+                    <span class="detail-value">{{ .bill_id }}</span>
+                </div>
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.pb.seq_number" }}</span>
+                    <span class="detail-value">#{{ .bill.SequenceNumber }}</span>
+                </div>
+                {{ if .supplier_sequence_number }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.pb.supplier_seq" }}</span>
+                    <span class="detail-value">{{ .supplier_sequence_number }}</span>
+                </div>
+                {{ end }}
+                {{ if .vat_sequence_number }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.pb.vat_seq" }}</span>
+                    <span class="detail-value">{{ .vat_sequence_number }}</span>
+                </div>
+                {{ end }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.pb.type" }}</span>
+                    <span class="detail-value">{{ .type_label }}</span>
+                </div>
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.pb.status" }}</span>
+                    <span class="badge {{ .status_class }}">{{ .status_label }}</span>
+                </div>
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.pb.date" }}</span>
+                    <span class="detail-value">{{ .effective_date }}</span>
+                </div>
+                {{ if .payment_due_date }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.pb.due_date" }}</span>
+                    <span class="detail-value">{{ .payment_due_date }}</span>
+                </div>
+                {{ end }}
+                {{ if .deliver_date }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.deliver_date" }}</span>
+                    <span class="detail-value">{{ .deliver_date }}</span>
+                </div>
+                {{ end }}
+            </div>
+        </div>
+
+        <!-- Store & Supplier Info -->
+        <div class="section-card">
+            <h4 class="section-card-title">
+                <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                {{ L "tpl.pb.store_supplier" }}
+            </h4>
+            <div class="space-y-3">
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.pb.store" }}</span>
+                    <span class="detail-value">{{ if .store_name }}{{ .store_name }}{{ else }}{{ L "tpl.pb.not_specified" }}{{ end }}</span>
+                </div>
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.pb.store_number" }}</span>
+                    <span class="detail-value">{{ .store_id }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supplier Details -->
+        <div class="section-card">
+            <h4 class="section-card-title">
+                <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {{ L "tpl.supplier.detail_heading" }}
+            </h4>
+            <div class="space-y-3">
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.supplier_name" }}</span>
+                    <span class="detail-value">{{ if .supplier_name }}{{ .supplier_name }}{{ else }}{{ L "tpl.pb.not_specified" }}{{ end }}</span>
+                </div>
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.pb.supplier_number" }}</span>
+                    <span class="detail-value">{{ .merchant_id }}</span>
+                </div>
+                {{ if .supplier }}
+                {{ if .supplier.PhoneNumber }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.phone" }}</span>
+                    <span class="detail-value" dir="ltr">{{ .supplier.PhoneNumber }}</span>
+                </div>
+                {{ end }}
+                {{ if .supplier.Email }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.email" }}</span>
+                    <span class="detail-value" dir="ltr">{{ .supplier.Email }}</span>
+                </div>
+                {{ end }}
+                {{ if .supplier.Address }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.address" }}</span>
+                    <span class="detail-value">{{ .supplier.Address }}</span>
+                </div>
+                {{ end }}
+                {{ if .supplier.ShortAddress }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.short_address" }}</span>
+                    <span class="detail-value" dir="ltr">{{ .supplier.ShortAddress }}</span>
+                </div>
+                {{ end }}
+                {{ if .supplier.VATNumber }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.vat_number" }}</span>
+                    <span class="detail-value" dir="ltr">{{ .supplier.VATNumber }}</span>
+                </div>
+                {{ end }}
+                {{ if .supplier.CR }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.cr" }}</span>
+                    <span class="detail-value" dir="ltr">{{ .supplier.CR }}</span>
+                </div>
+                {{ end }}
+                {{ if .supplier.BankAccount }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.bank_account" }}</span>
+                    <span class="detail-value" dir="ltr">{{ .supplier.BankAccount }}</span>
+                </div>
+                {{ end }}
+                {{ if .supplier.IsPostPaid }}
+                <div class="detail-field" style="border-top: 1px solid var(--md-sys-color-outline-variant); padding-top: 0.75rem; margin-top: 0.5rem">
+                    <span class="detail-label">{{ L "tpl.supplier.is_postpaid" }}</span>
+                    <span class="badge badge-warning">{{ L "tpl.supplier.postpaid_badge" }}</span>
+                </div>
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.credit_limit" }}</span>
+                    <span class="detail-value">{{ .supplier.CreditLimit }} {{ L "tpl.currency" }}</span>
+                </div>
+                {{ if gt .supplier.PaymentTermsDays 0 }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.payment_terms_days" }}</span>
+                    <span class="detail-value">{{ .supplier.PaymentTermsDays }}</span>
+                </div>
+                {{ end }}
+                {{ end }}
+                {{ end }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Catalog Products Table -->
+    <div class="section-card">
+        <h4 class="section-card-title">
+            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            {{ L "tpl.pb.catalog_products" }}
+            {{ if .catalog_products }}
+            <span class="text-sm font-normal" style="color: var(--md-sys-color-on-surface-variant); margin-right: 0.5rem">({{ len .catalog_products }})</span>
+            {{ end }}
+        </h4>
+        {{ if .catalog_products }}
+        <div class="data-table-wrapper" style="box-shadow:none">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>{{ L "tpl.pb.product_number" }}</th>
+                        <th>{{ L "tpl.pb.part_name" }}</th>
+                        <th>{{ L "tpl.pb.quantity" }}</th>
+                        <th>{{ L "tpl.pb.unit_price" }}</th>
+                        <th>{{ L "tpl.pb.subtotal" }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range $i, $p := .catalog_products }}
+                    <tr>
+                        <td>{{ add $i 1 }}</td>
+                        <td><span class="badge badge-info" style="font-size: 0.75rem">{{ $p.ProductID }}</span></td>
+                        <td class="font-medium">{{ if $p.PartName }}{{ $p.PartName }}{{ else }}<span style="color: var(--md-sys-color-on-surface-variant)">—</span>{{ end }}</td>
+                        <td>{{ $p.Quantity }}</td>
+                        <td>{{ printf "%.2f" $p.Price }} {{ L "tpl.currency" }}</td>
+                        <td class="font-medium">{{ if gt $p.TotalBeforeVAT 0.0 }}{{ printf "%.2f" $p.TotalBeforeVAT }}{{ else }}{{ printf "%.2f" (mul $p.Price $p.Quantity) }}{{ end }} {{ L "tpl.currency" }}</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+                <tfoot>
+                    <tr style="font-weight: 600; border-top: 2px solid var(--md-sys-color-outline-variant)">
+                        <td colspan="5" style="text-align: left">{{ L "tpl.pb.catalog_subtotal" }}</td>
+                        <td>{{ .products_subtotal }} {{ L "tpl.currency" }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {{ else }}
+        <div style="padding: 2rem 1rem; text-align: center">
+            <svg class="w-10 h-10 mx-auto" style="color: var(--md-sys-color-on-surface-variant); opacity: 0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <p style="color: var(--md-sys-color-on-surface-variant); margin-top: 0.5rem">{{ L "tpl.pb.no_catalog" }}</p>
+        </div>
+        {{ end }}
+    </div>
+
+    <!-- Manual Products Table -->
+    <div class="section-card">
+        <h4 class="section-card-title">
+            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            {{ L "tpl.pb.manual_products" }}
+            {{ if .manual_products }}
+            <span class="text-sm font-normal" style="color: var(--md-sys-color-on-surface-variant); margin-right: 0.5rem">({{ len .manual_products }})</span>
+            {{ end }}
+        </h4>
+        {{ if .manual_products }}
+        <div class="data-table-wrapper" style="box-shadow:none">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>{{ L "tpl.pb.part_name" }}</th>
+                        <th>{{ L "tpl.pb.quantity" }}</th>
+                        <th>{{ L "tpl.pb.unit_price" }}</th>
+                        <th>{{ L "tpl.pb.subtotal" }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range $i, $p := .manual_products }}
+                    <tr>
+                        <td>{{ add $i 1 }}</td>
+                        <td class="font-medium">{{ $p.PartName }}</td>
+                        <td>{{ $p.Quantity }}</td>
+                        <td>{{ printf "%.2f" $p.Price }} {{ L "tpl.currency" }}</td>
+                        <td class="font-medium">{{ if gt $p.TotalBeforeVAT 0.0 }}{{ printf "%.2f" $p.TotalBeforeVAT }}{{ else }}{{ printf "%.2f" (mul $p.Price $p.Quantity) }}{{ end }} {{ L "tpl.currency" }}</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+                <tfoot>
+                    <tr style="font-weight: 600; border-top: 2px solid var(--md-sys-color-outline-variant)">
+                        <td colspan="4" style="text-align: left">{{ L "tpl.pb.manual_subtotal" }}</td>
+                        <td>{{ .manual_subtotal }} {{ L "tpl.currency" }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {{ else }}
+        <div style="padding: 2rem 1rem; text-align: center">
+            <svg class="w-10 h-10 mx-auto" style="color: var(--md-sys-color-on-surface-variant); opacity: 0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <p style="color: var(--md-sys-color-on-surface-variant); margin-top: 0.5rem">{{ L "tpl.pb.no_manual" }}</p>
+        </div>
+        {{ end }}
+    </div>
+
+    <!-- Financial Summary -->
+    <div class="section-card">
+        <h4 class="section-card-title">
+            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {{ L "tpl.pb.financial_summary" }}
+        </h4>
+        <div class="space-y-3 max-w-md mr-auto">
+            <div class="detail-field">
+                <span class="detail-label">{{ L "tpl.pb.sub_total" }}</span>
+                <span class="detail-value">{{ printf "%.2f" .bill.Subtotal }} {{ L "tpl.currency" }}</span>
+            </div>
+            <div class="detail-field">
+                <span class="detail-label">{{ L "tpl.pb.discount" }}</span>
+                <span class="detail-value">{{ printf "%.2f" .bill.Discount }}%</span>
+            </div>
+            <div class="detail-field">
+                <span class="detail-label">{{ L "tpl.pb.vat" }}</span>
+                <span class="detail-value">{{ printf "%.2f" .vat_amount }} {{ L "tpl.currency" }}</span>
+            </div>
+            <div class="detail-field"
+                style="border-top: 1px solid var(--md-sys-color-outline-variant); padding-top: 0.75rem; font-size: 1.125rem; font-weight: 700">
+                <span class="detail-label" style="font-weight:700">{{ L "tpl.pb.total" }}</span>
+                <span style="color: var(--md-sys-color-tertiary)">{{ .total_display }} {{ L "tpl.currency" }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Uploaded Files -->
+    {{ if or .pdf_link_key .attachment_items }}
+    <div class="section-card">
+        <h4 class="section-card-title">
+            <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
+            {{ L "tpl.pb.attachments" }}
+        </h4>
+        <div class="space-y-2">
+            {{ if .pdf_link_key }}
+            <div class="flex items-center gap-3 p-3 rounded border" style="background: var(--md-sys-color-surface-variant)">
+                <svg class="w-8 h-8 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <div class="flex-1">
+                    <p class="text-sm font-medium">{{ L "tpl.pb.purchase_pdf" }}</p>
+                </div>
+                <a href="{{ .pdf_link_key }}" target="_blank"
+                    class="btn btn-tonal btn-xs">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    {{ L "tpl.pb.download" }}
+                </a>
+            </div>
+            {{ end }}
+            {{ range .attachment_items }}
+            <div class="flex items-center gap-3 p-3 rounded border" style="background: var(--md-sys-color-surface-variant)">
+                <svg class="w-8 h-8 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <div class="flex-1">
+                    <p class="text-sm font-medium">{{ .Name }}</p>
+                </div>
+                <a href="{{ .Key }}" target="_blank"
+                    class="btn btn-tonal btn-xs">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    {{ L "tpl.pb.download" }}
+                </a>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+    {{ end }}
+</div>
+{{ end }}

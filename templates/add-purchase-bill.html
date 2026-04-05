@@ -1,0 +1,634 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/purchase-bills" "section_label" (L "tpl.pb.section_purchase") "current" (L "tpl.pb.add_heading") }}
+<div class="page-card-wide">
+    <form hx-post="/api/purchase-bills" hx-target="body" id="purchase-form" hx-indicator="#submit-spinner" hx-encoding="multipart/form-data">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">{{ L "tpl.pb.store_label" }} <span class="required-mark">*</span></label>
+                <select name="store_id" class="w-full" required>
+                    <option value="">{{ L "tpl.pb.select_store" }}</option>
+                    {{ range .stores }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.default_store_id }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.pb.supplier" }} <span class="required-mark">*</span></label>
+                <select name="supplier_id" class="w-full" required>
+                    <option value="">{{ L "tpl.pb.select_supplier" }}</option>
+                    {{ range .suppliers }}
+                    <option value="{{ .ID }}">{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.pb.supplier_bill_number" }}</label>
+                <input type="text" name="supplier_sequance_number" class="w-full" maxlength="50">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.pb.date" }}</label>
+                <input type="date" name="payment_date" class="w-full" required>
+            </div>
+            <div id="payment-due-date-field" style="display:none">
+                <label class="form-label">{{ L "tpl.pb.payment_due_date" }}</label>
+                <input type="date" name="payment_due_date" class="w-full">
+                <p class="text-xs text-gray-400 mt-1">{{ L "tpl.pb.payment_due_date_help" }}</p>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.deliver_date" }}</label>
+                <input type="date" name="deliver_date" value="{{ .today }}" class="w-full">
+            </div>
+        </div>
+
+        <!-- Payment Method -->
+        <div class="mt-4">
+            <label class="form-label">{{ L "tpl.payment_method" }}</label>
+            <select name="payment_method" id="payment_method_select" class="w-full" onchange="onPaymentMethodChange()">
+                <option value="10" {{ if eq .default_payment_method "10" }}selected{{ end }}>{{ L "tpl.payment_method.cash" }} (10)</option>
+                <option value="30" {{ if eq .default_payment_method "30" }}selected{{ end }}>{{ L "tpl.payment_method.credit" }} (30)</option>
+                <option value="42" {{ if eq .default_payment_method "42" }}selected{{ end }}>{{ L "tpl.payment_method.bank_transfer" }} (42)</option>
+                <option value="48" {{ if eq .default_payment_method "48" }}selected{{ end }}>{{ L "tpl.payment_method.bank_card" }} (48)</option>
+            </select>
+            <span id="supplier-default-hint" class="text-xs hidden" style="color: var(--md-sys-color-on-surface-variant);">({{ L "tpl.pb.supplier_default" }})</span>
+        </div>
+        <!-- Credit Info Banner (shown when payment_method=30) -->
+        <div id="credit-info-banner" class="mt-4 p-4 rounded-lg border hidden" style="background: var(--md-sys-color-surface-variant)">
+            <div class="flex items-center gap-2 mb-2">
+                <svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span class="font-medium text-sm">{{ L "tpl.pb.supplier_info" }}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-sm items-center">
+                <div id="credit-limit-field" class="hidden">
+                    <span class="detail-label">{{ L "tpl.pb.credit_limit" }}</span>
+                    <span id="supplier-credit-limit" class="detail-value font-medium"></span>
+                </div>
+            </div>
+        </div>
+        <!-- Credit Limit Warning -->
+        <div id="credit-warning-banner" class="mt-3 p-3 rounded-lg border border-amber-300 hidden" style="background: #fffbeb">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                <span class="text-sm text-amber-800 font-medium">{{ L "tpl.pb.credit_warning" }}</span>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <h4 class="section-card-title">{{ L "tpl.pb.catalog_parts" }}</h4>
+            <div id="products-container" class="space-y-3"></div>
+            <button type="button" onclick="addItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.pb.add_catalog_part" }}</button>
+        </div>
+
+        <div class="mt-6">
+            <h4 class="section-card-title">{{ L "tpl.pb.manual_parts" }}</h4>
+            <div id="manual-container" class="space-y-3"></div>
+            <button type="button" onclick="addManualItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.pb.add_manual_part" }}</button>
+        </div>
+
+        <div class="mt-6"{{ if eq .pb_pdf_required "disabled" }} style="display:none"{{ end }}>
+            <h4 class="section-card-title">{{ L "tpl.pb.attachments" }}</h4>
+            <div class="flex flex-col gap-4">
+                <div>
+                    <span class="form-label">{{ L "tpl.pb.purchase_pdf_label" }}{{ if eq .pb_pdf_required "required" }} <span class="required-mark">*</span>{{ end }}</span>
+                    <div class="file-upload-zone" id="bill_pdf_zone">
+                        <input type="file" name="bill_pdf" id="bill_pdf_input" accept=".pdf"{{ if eq .pb_pdf_required "required" }} required{{ end }}
+                            style="display:none" onchange="validateBillPDF(this)">
+                        <label for="bill_pdf_input" class="file-upload-label">
+                            <span class="file-upload-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                            </span>
+                            <span class="file-upload-text">{{ L "tpl.pb.drag_pdf" }}</span>
+                            <span class="file-upload-browse">{{ L "tpl.pb.browse_file" }}</span>
+                            <span class="file-upload-hint">{{ L "tpl.pb.pdf_hint" }}</span>
+                        </label>
+                        <div class="file-upload-preview" id="bill_pdf_preview">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style="flex-shrink:0;color:#ef4444"><path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            <span class="file-name" id="bill_pdf_name"></span>
+                            <span class="file-size" id="bill_pdf_size"></span>
+                            <span class="file-remove" onclick="clearFileInput('bill_pdf')" title="{{ L "tpl.pb.remove" }}">&times;</span>
+                        </div>
+                    </div>
+                    <p id="bill_pdf_error" class="text-xs mt-1 text-red-600 hidden"></p>
+                </div>
+                <div>
+                    <span class="form-label">{{ L "tpl.pb.extra_docs" }}</span>
+                    <div class="file-upload-zone" id="documents_zone">
+                        <input type="file" name="documents" id="documents_input" accept=".pdf,.jpg,.jpeg,.png" multiple
+                            style="display:none" onchange="validateDocuments(this)">
+                        <label for="documents_input" class="file-upload-label">
+                            <span class="file-upload-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13"/></svg>
+                            </span>
+                            <span class="file-upload-text">{{ L "tpl.pb.drag_files" }}</span>
+                            <span class="file-upload-browse">{{ L "tpl.pb.browse_files" }}</span>
+                            <span class="file-upload-hint">{{ L "tpl.pb.docs_hint" }}</span>
+                        </label>
+                        <div class="file-upload-multi-preview" id="documents_preview"></div>
+                    </div>
+                    <p id="documents_error" class="text-xs mt-1 text-red-600 hidden"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="form-label">{{ L "tpl.pb.discount_pct" }}</label>
+                <input type="number" name="discount" id="discount" value="0" min="0" max="100" class="w-full"
+                    oninput="recalculateTotal()">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.pb.grand_total" }}</label>
+                <input type="text" id="total_display" class="w-full"
+                    style="background: var(--md-sys-color-surface-variant)" disabled>
+                <input type="hidden" name="total_amount" id="total_amount" value="0">
+            </div>
+        </div>
+
+        {{ template "form-actions" dict "submit_label" (L "tpl.save") "cancel_url" "/dashboard/purchase-bills" }}
+    </form>
+</div>
+
+<script>
+    // Supplier payment data for payment method defaults and credit checks
+    var suppliersData = {
+        {{ range .suppliers }}
+        {{ .ID }}: { preferredPaymentMethod: {{ if .PreferredPaymentMethod }}{{ .PreferredPaymentMethod }}{{ else }}{{ if .IsPostPaid }}30{{ else }}10{{ end }}{{ end }}, paymentTermsDays: {{ .PaymentTermsDays }}, creditLimit: {{ if .CreditLimit }}{{ .CreditLimit }}{{ else }}0{{ end }} },
+        {{ end }}
+    };
+
+    function onSupplierChange() {
+        var sel = document.querySelector('[name="supplier_id"]');
+        var sid = parseInt(sel.value);
+        var pmSelect = document.getElementById('payment_method_select');
+        var defaultHint = document.getElementById('supplier-default-hint');
+        var s = suppliersData[sid];
+        if (s) {
+            // Set payment method to supplier's preferred
+            var pm = s.preferredPaymentMethod || 10;
+            pmSelect.value = String(pm);
+            defaultHint.classList.remove('hidden');
+            onPaymentMethodChange();
+        } else {
+            defaultHint.classList.add('hidden');
+            document.getElementById('credit-info-banner').classList.add('hidden');
+            document.getElementById('payment-due-date-field').style.display = 'none';
+            document.querySelector('[name="payment_due_date"]').value = '';
+            document.getElementById('credit-warning-banner').classList.add('hidden');
+        }
+    }
+
+    function onPaymentMethodChange() {
+        var pmSelect = document.getElementById('payment_method_select');
+        var isCredit = pmSelect.value === '30';
+        var dueDateField = document.getElementById('payment-due-date-field');
+        var infoBanner = document.getElementById('credit-info-banner');
+        var creditField = document.getElementById('credit-limit-field');
+        var creditLimitEl = document.getElementById('supplier-credit-limit');
+        var sel = document.querySelector('[name="supplier_id"]');
+        var s = suppliersData[parseInt(sel.value)];
+
+        if (isCredit) {
+            dueDateField.style.display = '';
+            if (s) {
+                // Show credit info banner
+                infoBanner.classList.remove('hidden');
+                if (parseFloat(s.creditLimit || 0) > 0) {
+                    creditField.classList.remove('hidden');
+                    creditLimitEl.textContent = parseFloat(s.creditLimit || 0).toFixed(2) + ' {{ L "tpl.currency" }}';
+                } else {
+                    creditField.classList.add('hidden');
+                }
+                // Auto-calculate due date
+                var paymentDate = document.querySelector('[name="payment_date"]').value;
+                if (paymentDate && s.paymentTermsDays > 0) {
+                    var d = new Date(paymentDate);
+                    d.setDate(d.getDate() + s.paymentTermsDays);
+                    document.querySelector('[name="payment_due_date"]').value = d.toISOString().split('T')[0];
+                }
+            }
+        } else {
+            dueDateField.style.display = 'none';
+            document.querySelector('[name="payment_due_date"]').value = '';
+            infoBanner.classList.add('hidden');
+        }
+        checkCreditLimit();
+    }
+    document.querySelector('[name="supplier_id"]').addEventListener('change', onSupplierChange);
+    document.querySelector('[name="payment_date"]').addEventListener('change', onPaymentMethodChange);
+
+    var searchTimers = {};
+
+    function itemRow() {
+        var rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        return `
+            <div class="item-row border rounded p-3" data-row-id="${rowId}">
+                <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+                    <div class="md:col-span-2 relative">
+                        <label class="form-label">{{ L "tpl.pb.oem_label" }}</label>
+                        <input type="text" class="w-full part-search" placeholder="{{ L "tpl.pb.oem_placeholder" }}" autocomplete="off"
+                               oninput="searchParts(this, '${rowId}')" onfocus="showDropdown('${rowId}')">
+                        <input type="hidden" name="products_product_id" value="0">
+                        <input type="hidden" name="products_part_name" value="">
+                        <div id="dropdown_${rowId}" class="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.pb.quantity" }}</label>
+                        <input type="number" name="products_quantity" min="1" value="1" class="w-full" oninput="recalculateTotal()">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.pb.purchase_price" }}</label>
+                        <input type="text" name="products_price" class="w-full" oninput="recalculateTotal()">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.product.selling_price" }}</label>
+                        <input type="text" name="products_cost_price" class="w-full" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.product.shelf_number" }}</label>
+                        <input type="text" name="products_shelf_number" class="w-full" placeholder="">
+                    </div>
+                </div>
+                <div class="mt-2 flex justify-end">
+                    <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">{{ L "tpl.delete" }}</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function searchParts(input, rowId) {
+        var query = input.value.trim();
+        if (searchTimers[rowId]) clearTimeout(searchTimers[rowId]);
+        if (query.length < 1) {
+            hideDropdown(rowId);
+            return;
+        }
+        searchTimers[rowId] = setTimeout(function () {
+            var csrfToken = getCsrfCookie();
+            var formData = new FormData();
+            formData.append('query', query);
+            fetch('/api/parts/search-json', {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken },
+                body: formData
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (parts) { renderDropdown(parts, rowId, input); })
+                .catch(function () { hideDropdown(rowId); });
+        }, 300);
+    }
+
+    function getCsrfCookie() {
+        var match = document.cookie.match(/csrf_token=([^;]+)/);
+        return match ? match[1] : '';
+    }
+
+    function renderDropdown(parts, rowId, input) {
+        var dd = document.getElementById('dropdown_' + rowId);
+        if (!parts || parts.length === 0) {
+            dd.innerHTML = '<div class="px-3 py-2 text-sm text-gray-500">{{ L "tpl.product.no_results" }}</div>';
+            dd.classList.remove('hidden');
+            return;
+        }
+        var html = '';
+        var count = Math.min(parts.length, 50);
+        for (var i = 0; i < count; i++) {
+            var p = parts[i];
+            var oem = p.oem_number || '';
+            var partId = p.id || 0;
+            if (!oem || oem === '_' || oem === '-') continue;
+            html += '<div class="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer border-b" '
+                + 'onclick="selectPart(this, \'' + rowId + '\', \'' + escapeAttr(oem) + '\', ' + partId + ')">'
+                + escapeHtml(oem)
+                + '</div>';
+        }
+        if (!html) {
+            html = '<div class="px-3 py-2 text-sm text-gray-500">{{ L "tpl.product.no_results" }}</div>';
+        }
+        dd.innerHTML = html;
+        dd.classList.remove('hidden');
+    }
+
+    function selectPart(el, rowId, oem, partId) {
+        var row = document.querySelector('[data-row-id="' + rowId + '"]');
+        row.querySelector('.part-search').value = oem;
+        row.querySelector('[name="products_part_name"]').value = oem;
+        if (partId) {
+            row.querySelector('[name="products_product_id"]').value = partId;
+        }
+        hideDropdown(rowId);
+    }
+
+    function showDropdown(rowId) {
+        var dd = document.getElementById('dropdown_' + rowId);
+        if (dd.innerHTML.trim()) dd.classList.remove('hidden');
+    }
+
+    function hideDropdown(rowId) {
+        var dd = document.getElementById('dropdown_' + rowId);
+        if (dd) dd.classList.add('hidden');
+    }
+
+    function escapeHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function escapeAttr(s) {
+        return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!e.target.classList.contains('part-search')) {
+            var dds = document.querySelectorAll('[id^="dropdown_"]');
+            for (var i = 0; i < dds.length; i++) dds[i].classList.add('hidden');
+        }
+    });
+
+    function manualItemRow() {
+        return `
+            <div class="item-row grid grid-cols-1 md:grid-cols-4 gap-3 items-end border rounded p-3">
+                <div class="md:col-span-2">
+                    <label class="form-label">{{ L "tpl.pb.part_name" }}</label>
+                    <input type="text" name="manual_part_name" class="w-full" placeholder="{{ L "tpl.pb.enter_part_name" }}" oninput="recalculateTotal()">
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.pb.quantity" }}</label>
+                    <input type="number" name="manual_quantity" min="1" value="1" class="w-full" oninput="recalculateTotal()">
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.pb.purchase_price" }}</label>
+                    <input type="text" name="manual_price" class="w-full" placeholder="0" oninput="recalculateTotal()">
+                </div>
+                <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">{{ L "tpl.delete" }}</button>
+            </div>
+        `;
+    }
+
+    function addItem() {
+        var container = document.getElementById('products-container');
+        container.insertAdjacentHTML('beforeend', itemRow());
+    }
+
+    function addManualItem() {
+        document.getElementById('manual-container').insertAdjacentHTML('beforeend', manualItemRow());
+    }
+
+    function removeRow(btn) {
+        var row = btn.closest('.item-row');
+        if (row) row.remove();
+        recalculateTotal();
+    }
+
+    function sumCatalogItems() {
+        var prices = document.getElementsByName('products_price');
+        var qtys = document.getElementsByName('products_quantity');
+        var total = 0;
+        for (var i = 0; i < Math.max(prices.length, qtys.length); i++) {
+            var price = parseFloat(prices[i]?.value || 0);
+            var qty = parseFloat(qtys[i]?.value || 0);
+            total += price * qty;
+        }
+        return total;
+    }
+
+    function sumManualItems() {
+        var prices = document.getElementsByName('manual_price');
+        var qtys = document.getElementsByName('manual_quantity');
+        var total = 0;
+        for (var i = 0; i < Math.max(prices.length, qtys.length); i++) {
+            var price = parseFloat(prices[i]?.value || 0);
+            var qty = parseFloat(qtys[i]?.value || 0);
+            total += price * qty;
+        }
+        return total;
+    }
+
+    function recalculateTotal() {
+        var itemsTotal = sumCatalogItems() + sumManualItems();
+        var discount = parseFloat(document.getElementById('discount').value || 0);
+        var subtotal = itemsTotal;
+        var withVat = subtotal * 1.15;
+        var total = withVat * (1 - discount / 100);
+        document.getElementById('total_display').value = total.toFixed(2) + ' {{ L "tpl.currency" }}';
+        document.getElementById('total_amount').value = total.toFixed(2);
+        checkCreditLimit();
+    }
+
+    function checkCreditLimit() {
+        var pmSelect = document.getElementById('payment_method_select');
+        var sel = document.querySelector('[name="supplier_id"]');
+        var sid = parseInt(sel.value);
+        var s = suppliersData[sid];
+        var warningBanner = document.getElementById('credit-warning-banner');
+        if (pmSelect.value === '30' && s && parseFloat(s.creditLimit || 0) > 0) {
+            var total = parseFloat(document.getElementById('total_amount').value || 0);
+            if (total > parseFloat(s.creditLimit)) {
+                warningBanner.classList.remove('hidden');
+            } else {
+                warningBanner.classList.add('hidden');
+            }
+        } else {
+            warningBanner.classList.add('hidden');
+        }
+    }
+
+    recalculateTotal();
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' {{ L "tpl.pb.file_bytes" }}';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' {{ L "tpl.pb.file_kb" }}';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' {{ L "tpl.pb.file_mb" }}';
+    }
+
+    // Accumulated documents file store — maintains all selected files across multiple selections
+    var accumulatedDocFiles = new DataTransfer();
+
+    function clearFileInput(prefix) {
+        var input = document.getElementById(prefix + '_input');
+        var zone = document.getElementById(prefix + '_zone');
+        input.value = '';
+        zone.classList.remove('has-file', 'has-error');
+        if (prefix === 'bill_pdf') {
+            document.getElementById('bill_pdf_name').textContent = '';
+            document.getElementById('bill_pdf_size').textContent = '';
+        } else {
+            accumulatedDocFiles = new DataTransfer();
+            document.getElementById('documents_preview').innerHTML = '';
+        }
+        document.getElementById(prefix + '_error').classList.add('hidden');
+        document.getElementById(prefix + '_error').textContent = '';
+    }
+
+    function updatePDFPreview(file) {
+        var zone = document.getElementById('bill_pdf_zone');
+        document.getElementById('bill_pdf_name').textContent = file.name;
+        document.getElementById('bill_pdf_size').textContent = formatFileSize(file.size);
+        zone.classList.add('has-file');
+        zone.classList.remove('has-error');
+    }
+
+    function updateDocsPreview() {
+        var zone = document.getElementById('documents_zone');
+        var preview = document.getElementById('documents_preview');
+        preview.innerHTML = '';
+        var files = accumulatedDocFiles.files;
+        if (files.length === 0) { zone.classList.remove('has-file'); return; }
+        zone.classList.add('has-file');
+        zone.classList.remove('has-error');
+        for (var i = 0; i < files.length; i++) {
+            var item = document.createElement('div');
+            item.className = 'file-item';
+            var ext = files[i].name.split('.').pop().toLowerCase();
+            var iconColor = ext === 'pdf' ? 'text-red-500' : 'text-blue-500';
+            item.innerHTML = '<svg width="14" height="14" class="' + iconColor + '" style="flex-shrink:0" fill="currentColor" viewBox="0 0 20 20"><path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' +
+                '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + files[i].name + '</span>' +
+                '<span style="color:var(--md-sys-color-on-surface-variant);font-size:0.6875rem">' + formatFileSize(files[i].size) + '</span>' +
+                '<span class="file-remove" onclick="removeDocFile(' + i + ')" title="\u0625\u0632\u0627\u0644\u0629">&times;</span>';
+            preview.appendChild(item);
+        }
+    }
+
+    function removeDocFile(index) {
+        var newDt = new DataTransfer();
+        for (var i = 0; i < accumulatedDocFiles.files.length; i++) {
+            if (i !== index) newDt.items.add(accumulatedDocFiles.files[i]);
+        }
+        accumulatedDocFiles = newDt;
+        // Sync the input element with accumulated files
+        document.getElementById('documents_input').files = accumulatedDocFiles.files;
+        updateDocsPreview();
+    }
+
+    function validateBillPDF(input) {
+        var errorEl = document.getElementById('bill_pdf_error');
+        var zone = document.getElementById('bill_pdf_zone');
+        errorEl.classList.add('hidden');
+        errorEl.textContent = '';
+        zone.classList.remove('has-file', 'has-error');
+        if (!input.files || input.files.length === 0) return;
+        var file = input.files[0];
+        if (file.size > 5 * 1024 * 1024) {
+            errorEl.textContent = '{{ L "tpl.pb.file_size_exceeded" }}';
+            errorEl.classList.remove('hidden');
+            zone.classList.add('has-error');
+            input.value = '';
+            return;
+        }
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            errorEl.textContent = '{{ L "tpl.pb.must_be_pdf" }}';
+            errorEl.classList.remove('hidden');
+            zone.classList.add('has-error');
+            input.value = '';
+            return;
+        }
+        updatePDFPreview(file);
+    }
+
+    function validateDocuments(input) {
+        var errorEl = document.getElementById('documents_error');
+        var zone = document.getElementById('documents_zone');
+        errorEl.classList.add('hidden');
+        errorEl.textContent = '';
+        if (!input.files || input.files.length === 0) return;
+        var allowed = ['.pdf', '.jpg', '.jpeg', '.png'];
+        // Validate new files before adding
+        for (var i = 0; i < input.files.length; i++) {
+            var file = input.files[i];
+            if (file.size > 10 * 1024 * 1024) {
+                errorEl.textContent = '{{ L "tpl.pb.doc_size_prefix" }} "' + file.name + '" {{ L "tpl.pb.doc_size_exceeded" }}';
+                errorEl.classList.remove('hidden');
+                zone.classList.add('has-error');
+                input.value = '';
+                return;
+            }
+            var ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (allowed.indexOf(ext) === -1) {
+                errorEl.textContent = '{{ L "tpl.pb.doc_format_msg" }} "' + file.name + '" {{ L "tpl.pb.doc_format_prefix" }}';
+                errorEl.classList.remove('hidden');
+                zone.classList.add('has-error');
+                input.value = '';
+                return;
+            }
+        }
+        // Accumulate: add new files to existing collection
+        for (var i = 0; i < input.files.length; i++) {
+            accumulatedDocFiles.items.add(input.files[i]);
+        }
+        // Sync the input element with all accumulated files
+        input.files = accumulatedDocFiles.files;
+        zone.classList.remove('has-error');
+        updateDocsPreview();
+    }
+
+    // Drag-and-drop with counter to fix child-element flicker
+    (function() {
+        function setupDragDrop(zoneId, inputId, validateFn) {
+            var zone = document.getElementById(zoneId);
+            var input = document.getElementById(inputId);
+            if (!zone || !input) return;
+            var dragCounter = 0;
+
+            zone.addEventListener('dragenter', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dragCounter++;
+                zone.classList.add('drag-over');
+            });
+            zone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            zone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dragCounter--;
+                if (dragCounter <= 0) {
+                    dragCounter = 0;
+                    zone.classList.remove('drag-over');
+                }
+            });
+            zone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dragCounter = 0;
+                zone.classList.remove('drag-over');
+                if (e.dataTransfer.files.length > 0) {
+                    if (inputId === 'documents_input') {
+                        // For documents, merge dropped files with accumulated
+                        var tmpDt = new DataTransfer();
+                        for (var i = 0; i < e.dataTransfer.files.length; i++) {
+                            tmpDt.items.add(e.dataTransfer.files[i]);
+                        }
+                        input.files = tmpDt.files;
+                    } else {
+                        input.files = e.dataTransfer.files;
+                    }
+                    validateFn(input);
+                }
+            });
+        }
+        setupDragDrop('bill_pdf_zone', 'bill_pdf_input', validateBillPDF);
+        setupDragDrop('documents_zone', 'documents_input', validateDocuments);
+    })();
+
+    // Prevent form submission if bill_pdf has validation errors
+    document.getElementById('purchase-form').addEventListener('htmx:configRequest', function(e) {
+        var pdfRequired = '{{ .pb_pdf_required }}' === 'required';
+        if (!pdfRequired) return; // optional or disabled — skip PDF validation
+        var pdfInput = document.querySelector('[name="bill_pdf"]');
+        var pdfError = document.getElementById('bill_pdf_error');
+        var pdfZone = document.getElementById('bill_pdf_zone');
+        if (!pdfInput.files || pdfInput.files.length === 0) {
+            pdfError.textContent = '{{ L "tpl.pb.upload_required" }}';
+            pdfError.classList.remove('hidden');
+            pdfZone.classList.add('has-error');
+            e.preventDefault();
+            return;
+        }
+        if (!pdfError.classList.contains('hidden')) {
+            e.preventDefault();
+        }
+    });
+</script>
+{{ end }}

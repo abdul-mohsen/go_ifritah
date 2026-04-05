@@ -1,0 +1,56 @@
+{{/*
+form-field — M3 form field with label, input, and inline error.
+
+Required: .label, .name, .errors, .value
+Optional: .type (default "text"), .required (bool), .placeholder, .minlength,
+          .maxlength, .pattern, .title, .min, .max, .step, .readonly
+
+Usage (add form):
+{{ template "form-field" dict "label" "اسم المورد" "name" "name" "required" true
+   "minlength" "2" "maxlength" "100" "errors" .errors "value" (old .old "name") }}
+
+Usage (edit form):
+{{ template "form-field" dict "label" "اسم المورد" "name" "name" "required" true
+   "errors" .errors "value" .supplier.Name }}
+*/}}
+{{ define "form-field" }}
+<div class="form-group">
+    <label class="form-label">{{ .label }}{{ if .required }}<span class="required-mark">*</span>{{ end }}</label>
+    <input type="{{ if .type }}{{ .type }}{{ else }}text{{ end }}" name="{{ .name }}"
+        class="w-full{{ if and .errors (hasError .errors .name) }} input-error{{ end }}"
+        {{ if .required }}required{{ end }}
+        {{ if .placeholder }}placeholder="{{ .placeholder }}"{{ end }}
+        {{ if .minlength }}minlength="{{ .minlength }}"{{ end }}
+        {{ if .maxlength }}maxlength="{{ .maxlength }}"{{ end }}
+        {{ if .pattern }}pattern="{{ .pattern }}"{{ end }}
+        {{ if .title }}title="{{ .title }}"{{ end }}
+        {{ if .min }}min="{{ .min }}"{{ end }}
+        {{ if .max }}max="{{ .max }}"{{ end }}
+        {{ if .step }}step="{{ .step }}"{{ end }}
+        {{ if .readonly }}readonly{{ end }}
+        value="{{ .value }}">
+    {{ if and .errors (hasError .errors .name) }}<p class="field-error">{{ fieldError .errors .name }}</p>{{ end }}
+</div>
+{{ end }}
+
+{{/*
+form-textarea — M3 textarea field with label and inline error.
+
+Required: .label, .name, .errors, .value
+Optional: .required, .rows (default "3"), .placeholder, .maxlength
+
+Usage:
+{{ template "form-textarea" dict "label" "ملاحظات" "name" "note" "errors" .errors "value" "" "rows" "3" }}
+*/}}
+{{ define "form-textarea" }}
+<div class="form-group">
+    <label class="form-label">{{ .label }}{{ if .required }}<span class="required-mark">*</span>{{ end }}</label>
+    <textarea name="{{ .name }}"
+        class="w-full{{ if and .errors (hasError .errors .name) }} input-error{{ end }}"
+        {{ if .required }}required{{ end }}
+        {{ if .placeholder }}placeholder="{{ .placeholder }}"{{ end }}
+        {{ if .maxlength }}maxlength="{{ .maxlength }}"{{ end }}
+        rows="{{ if .rows }}{{ .rows }}{{ else }}3{{ end }}">{{ .value }}</textarea>
+    {{ if and .errors (hasError .errors .name) }}<p class="field-error">{{ fieldError .errors .name }}</p>{{ end }}
+</div>
+{{ end }}

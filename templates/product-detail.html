@@ -1,0 +1,79 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/products" "section_label" (L "tpl.product.products_section") "current" (printf "#%d"
+.product.ID) }}
+<div class="page-card-wide">
+    <div class="mb-6">
+        <a href="/dashboard/products" class="back-link">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            {{ L "tpl.product.back_to_list" }}
+        </a>
+        <h2 class="page-title" style="margin-bottom:0">{{ L "tpl.product.detail_heading" }} #{{ .product.ID }}</h2>
+    </div>
+
+    <div class="grid-2" style="gap: 1.5rem">
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.product.article_id" }}</span>
+            <p class="detail-value">{{ .product.PartID }}</p>
+        </div>
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.product.part_name" }}</span>
+            <p class="detail-value">{{ if .product.PartName }}{{ .product.PartName }}{{ else }}<span class="text-gray-400">—</span>{{ end }}</p>
+        </div>
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.product.selling_price" }}</span>
+            <p class="detail-value">{{ printf "%.2f" .product.Price }} {{ L "tpl.currency" }}</p>
+        </div>
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.product.cost_price" }}</span>
+            <p class="detail-value">{{ if .product.CostPrice }}{{ .product.CostPrice }} {{ L "tpl.currency" }}{{ else }}<span class="text-gray-400">—</span>{{ end }}</p>
+        </div>
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.product.available_qty" }}</span>
+            <p class="detail-value">{{ .product.Quantity }}</p>
+        </div>
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.product.stock_status" }}</span>
+            <p class="detail-value">
+                {{ if gt .product.Quantity 0 }}
+                <span class="badge badge-success">{{ L "tpl.product.in_stock" }}</span>
+                {{ else }}
+                <span class="badge badge-danger">{{ L "tpl.product.out_of_stock" }}</span>
+                {{ end }}
+            </p>
+        </div>
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.product.shelf_number" }}</span>
+            <p class="detail-value">{{ if .product.ShelfNumber }}{{ .product.ShelfNumber }}{{ else }}<span class="text-gray-400">—</span>{{ end }}</p>
+        </div>
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.product.store_number" }}</span>
+            <p class="detail-value">{{ if .store_name }}{{ .store_name }}{{else if .product.StoreID }}{{.product.StoreID}} {{ else }}<span class="text-gray-400">—</span>{{ end }}</p>
+        </div>
+    </div>
+
+    <div class="detail-actions">
+        <a href="{{ printf "/dashboard/products/%d/edit" .product.ID }}" class="btn btn-success">{{ L "tpl.edit" }}</a>
+        <button hx-post="{{ printf "/dashboard/products/%d/delete" .product.ID }}"
+            hx-confirm="{{ L "tpl.product.confirm_delete" }}"
+            class="btn btn-error">{{ L "tpl.delete" }}</button>
+    </div>
+</div>
+
+<!-- Stock Movements History -->
+<div class="page-card-wide mt-4">
+    <h3 class="section-card-title">
+        <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9h4m-4 4h6"></path>
+        </svg>
+        {{ L "tpl.product.stock_history" }}
+    </h3>
+    <div id="stock-movements-container"
+         hx-get="{{ printf "/api/stock/movements/%d" .product.ID }}"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <div class="text-center py-4 text-gray-400 text-sm">{{ L "tpl.product.loading_history" }}</div>
+    </div>
+</div>
+{{ end }}

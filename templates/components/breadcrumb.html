@@ -1,0 +1,27 @@
+{{/*
+breadcrumb — RTL breadcrumb navigation.
+
+Required context fields:
+.section_url string — URL of the parent section (e.g. "/dashboard/clients")
+.section_label string — Arabic label for parent section (e.g. "العملاء")
+.current string — Current page label (e.g. "إضافة عميل")
+
+Usage:
+{{ template "breadcrumb" dict "section_url" "/dashboard/clients" "section_label" "العملاء" "current" "إضافة عميل" }}
+*/}}
+{{ define "breadcrumb" }}
+<nav class="mb-5 text-sm flex items-center gap-1.5" style="color: var(--md-sys-color-on-surface-variant)">
+    <a href="/dashboard" class="transition-colors hover:underline" style="color: var(--md-sys-color-primary)">{{ L "nav.dashboard" }}</a>
+    <svg class="w-3.5 h-3.5 opacity-40 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2"
+        viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+    <a href="{{ .section_url }}" class="transition-colors hover:underline" style="color: var(--md-sys-color-primary)">{{
+        .section_label }}</a>
+    <svg class="w-3.5 h-3.5 opacity-40 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2"
+        viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+    <span class="font-medium" style="color: var(--md-sys-color-on-surface)">{{ .current }}</span>
+</nav>
+{{ end }}

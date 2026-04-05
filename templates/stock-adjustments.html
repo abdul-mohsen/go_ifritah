@@ -1,0 +1,94 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/products" "section_label" (L "tpl.product.products_section") "current" (L "tpl.stock.heading") }}
+<div class="page-card-wide">
+    <div class="mb-6">
+        <h2 class="page-title" style="margin-bottom:0">{{ L "tpl.stock.heading" }}</h2>
+        <p class="text-sm text-gray-500 mt-1">{{ L "tpl.stock.subtitle" }}</p>
+    </div>
+
+    <form hx-post="/api/stock/adjust" hx-target="body" class="space-y-4">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">{{ L "tpl.stock.product" }} <span class="required-mark">*</span></label>
+                <select name="product_id" id="product-select" class="w-full" required onchange="updateProductInfo()">
+                    <option value="">{{ L "tpl.stock.select_product" }}</option>
+                    {{ range .products }}
+                    <option value="{{ .ID }}" data-quantity="{{ .Quantity }}" data-name="{{ .PartName }}">
+                        {{ if .PartName }}{{ .PartName }}{{ else }}{{ L "tpl.stock.part" }}{{ end }} #{{ .ID }} ({{ L "tpl.stock.qty_label" }} {{ .Quantity }})
+                    </option>
+                    {{ end }}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">المخزن <span class="required-mark">*</span></label>
+                <select name="store_id" class="w-full" required>
+                    <option value="">اختر المخزن</option>
+                    {{ range .stores }}
+                    <option value="{{ .ID }}">{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.stock.current_qty" }}</label>
+                <input type="text" id="current-quantity" class="w-full" disabled
+                    style="background: var(--md-sys-color-surface-variant)" value="—">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.stock.qty_change" }} <span class="required-mark">*</span></label>
+                <input type="number" name="quantity_change" id="quantity-change" class="w-full" required
+                    placeholder="{{ L "tpl.stock.qty_placeholder" }}" oninput="updateNewQuantity()">
+                <p class="text-xs text-gray-400 mt-1">{{ L "tpl.stock.qty_hint" }}</p>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.stock.new_qty" }}</label>
+                <input type="text" id="new-quantity" class="w-full" disabled
+                    style="background: var(--md-sys-color-surface-variant)" value="—">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.stock.reason" }} <span class="required-mark">*</span></label>
+                <select name="reason" class="w-full" required>
+                    <option value="">{{ L "tpl.stock.select_reason" }}</option>
+                    <option value="damaged">{{ L "tpl.stock.damaged" }}</option>
+                    <option value="lost">{{ L "tpl.stock.lost" }}</option>
+                    <option value="expired">{{ L "tpl.stock.expired" }}</option>
+                    <option value="returned_supplier">{{ L "tpl.stock.returned_supplier" }}</option>
+                    <option value="count_correction">{{ L "tpl.stock.count_correction" }}</option>
+                    <option value="other">{{ L "tpl.stock.other" }}</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.note" }}</label>
+                <input type="text" name="note" class="w-full" maxlength="500" placeholder="{{ L "tpl.stock.note_placeholder" }}">
+            </div>
+        </div>
+
+        <div class="flex gap-2 items-center mt-4">
+            <button type="submit" class="btn btn-filled">{{ L "tpl.stock.execute" }}</button>
+            <a href="/dashboard/products" class="btn btn-outlined">{{ L "tpl.cancel" }}</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    function updateProductInfo() {
+        var sel = document.getElementById('product-select');
+        var opt = sel.options[sel.selectedIndex];
+        var qty = opt.getAttribute('data-quantity') || '—';
+        document.getElementById('current-quantity').value = qty;
+        updateNewQuantity();
+    }
+
+    function updateNewQuantity() {
+        var sel = document.getElementById('product-select');
+        var opt = sel.options[sel.selectedIndex];
+        var currentQty = parseInt(opt.getAttribute('data-quantity') || '0', 10);
+        var change = parseInt(document.getElementById('quantity-change').value || '0', 10);
+        if (isNaN(currentQty) || isNaN(change)) {
+            document.getElementById('new-quantity').value = '—';
+            return;
+        }
+        document.getElementById('new-quantity').value = currentQty + change;
+    }
+</script>
+{{ end }}

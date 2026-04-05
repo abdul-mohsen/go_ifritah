@@ -1,0 +1,50 @@
+{{/*
+kpi-card-lg — Large gradient KPI card (dashboard row 1).
+
+Required: .gradient, .label_color, .label, .value
+Optional: .href (wraps in <a>), .suffix (e.g. "ر.س"), .text_size ("text-2xl" default)
+
+    Usage:
+    {{ template "kpi-card-lg" dict "href" "/dashboard/invoices" "gradient" "from-blue-500 to-blue-700" "label_color"
+    "text-blue-100" "label" "إجمالي الفواتير" "value" .stats.invoices }}
+    */}}
+    {{ define "kpi-card-lg" }}
+    {{ if .href }}<a href="{{ .href }}" {{ else }}<div{{ end }}
+        class="kpi-card-lg relative overflow-hidden p-5 text-white transition-shadow {{ .gradient }}"
+        style="border-radius: var(--md-sys-shape-md); box-shadow: var(--md-sys-elevation-2);">
+        <div class="absolute top-0 left-0 w-24 h-24 rounded-full -translate-x-8 -translate-y-8"
+            style="background: rgba(255,255,255,0.15)"></div>
+        <p class="text-xs font-medium mb-1 opacity-90 {{ .label_color }}">{{ .label }}</p>
+        <div class="flex items-center gap-2">
+            <p class="{{ if .text_size }}{{ .text_size }}{{ else }}text-xl{{ end }} font-bold">{{ .value }}{{ if .suffix
+                }}
+                <span class="text-xs opacity-80">{{ .suffix }}</span>{{ end }}
+            </p>
+            {{ if .trend_arrow }}<span class="text-xs font-semibold px-1.5 py-0.5 rounded-full"
+                style="background: rgba(255,255,255,0.25)">{{ .trend_arrow }} {{ .trend_percent }}%</span>{{ end }}
+        </div>
+        {{ if .href }}
+    </a>{{ else }}</div>{{ end }}
+    {{ end }}
+
+    {{/*
+    kpi-card-sm — Small stat KPI card (dashboard row 2) — M3 Outlined Card.
+
+    Required: .dot_color, .value_color, .label, .value
+    Optional: .href (wraps in <a>)
+
+        Usage:
+        {{ template "kpi-card-sm" dict "href" "/dashboard/products" "dot_color" "bg-purple-500" "value_color"
+        "text-purple-600" "label" "المنتجات" "value" .stats.products }}
+        */}}
+        {{ define "kpi-card-sm" }}
+        {{ if .href }}<a href="{{ .href }}" {{ else }}<div{{ end }} class="p-4 transition-shadow"
+            style="background: var(--md-sys-color-surface-container-lowest); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-md); box-shadow: var(--md-sys-elevation-0)">
+            <div class="flex items-center gap-2 mb-1.5">
+                <div class="w-2.5 h-2.5 rounded-full {{ .dot_color }}"></div>
+                <p class="text-xs font-medium" style="color: var(--md-sys-color-on-surface-variant)">{{ .label }}</p>
+            </div>
+            <p class="text-xl font-bold {{ .value_color }}">{{ .value }}</p>
+            {{ if .href }}
+        </a>{{ else }}</div>{{ end }}
+        {{ end }}

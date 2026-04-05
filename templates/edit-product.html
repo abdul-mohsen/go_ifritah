@@ -1,0 +1,56 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/products" "section_label" (L "tpl.product.products_section") "current" (L "tpl.product.edit") }}
+<div class="page-card">
+    {{ template "form-errors" . }}
+
+    <form hx-post="/dashboard/products/{{ .id }}/update" hx-target="body" hx-indicator="#submit-spinner">
+        <!-- Product ID (read-only display) -->
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.product.article_id" }}</label>
+            <input type="text" value="{{ .product.PartID }}" class="w-full bg-gray-100 dark:bg-gray-700" readonly disabled>
+        </div>
+
+        <!-- Store selection -->
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.product.store_label" }} <span class="required-mark">*</span></label>
+            <select name="store_id" class="w-full {{ if hasError .errors "store_id" }}input-error{{ end }}" required>
+                <option value="">{{ L "tpl.product.select_store" }}</option>
+                {{ range .stores }}
+                <option value="{{ .ID }}" {{ if eq .ID $.product.StoreID }}selected{{ end }}>{{ .Name }}</option>
+                {{ end }}
+            </select>
+            {{ if hasError .errors "store_id" }}<p class="field-error">{{ fieldError .errors "store_id" }}</p>{{ end }}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.product.selling_price" }} <span class="required-mark">*</span></label>
+                <input type="number" name="price" step="0.01" value="{{ if .old }}{{ old .old "price" }}{{ else }}{{ printf "%.2f" .product.Price }}{{ end }}" class="w-full {{ if hasError .errors "price" }}input-error{{ end }}" required min="0">
+                {{ if hasError .errors "price" }}<p class="field-error">{{ fieldError .errors "price" }}</p>{{ end }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.product.quantity" }} <span class="required-mark">*</span></label>
+                <input type="number" name="quantity" value="{{ if .old }}{{ old .old "quantity" }}{{ else }}{{ .product.Quantity }}{{ end }}" class="w-full {{ if hasError .errors "quantity" }}input-error{{ end }}" required min="0">
+                {{ if hasError .errors "quantity" }}<p class="field-error">{{ fieldError .errors "quantity" }}</p>{{ end }}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.product.cost_price" }} <span class="required-mark">*</span></label>
+                <input type="number" name="cost_price" step="0.01" value="{{ if .old }}{{ old .old "cost_price" }}{{ else }}{{ .product.CostPrice }}{{ end }}" class="w-full {{ if hasError .errors "cost_price" }}input-error{{ end }}" required min="0">
+                {{ if hasError .errors "cost_price" }}<p class="field-error">{{ fieldError .errors "cost_price" }}</p>{{ end }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.product.shelf_number" }} <span class="required-mark">*</span></label>
+                <input type="text" name="shelf_number" value="{{ if .old }}{{ old .old "shelf_number" }}{{ else }}{{ .product.ShelfNumber }}{{ end }}" class="w-full {{ if hasError .errors "shelf_number" }}input-error{{ end }}" required>
+                {{ if hasError .errors "shelf_number" }}<p class="field-error">{{ fieldError .errors "shelf_number" }}</p>{{ end }}
+            </div>
+        </div>
+
+        {{ template "form-actions" dict "submit_label" (L "tpl.product.update") "cancel_url" "/dashboard/products" }}
+    </form>
+</div>
+{{ end }}

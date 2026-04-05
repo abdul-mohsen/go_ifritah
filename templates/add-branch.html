@@ -1,0 +1,42 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/branches" "section_label" (L "tpl.branch.section") "current" (L "tpl.branch.add_heading") }}
+<div class="page-card">
+    {{ template "form-errors" . }}
+
+    <form hx-post="/dashboard/branches/create" hx-target="body" hx-indicator="#submit-spinner">
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.branch.name" }} <span class="required-mark">*</span></label>
+            <input type="text" name="name" placeholder="{{ L "tpl.branch.name" }}" class="w-full {{ if hasError .errors "name"
+                }}input-error{{ end }}" required minlength="2" maxlength="100" value="{{ old .old "name" }}">
+            {{ if hasError .errors "name" }}<p class="field-error">{{ fieldError .errors "name" }}</p>{{ end }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.branch.location" }} <span class="required-mark">*</span></label>
+            <input type="text" name="location" placeholder="{{ L "tpl.branch.location_placeholder" }}" class="w-full {{ if hasError .errors "location"
+                }}input-error{{ end }}" required minlength="2" maxlength="200" value="{{ old .old "location" }}">
+            {{ if hasError .errors "location" }}<p class="field-error">{{ fieldError .errors "location" }}</p>{{ end }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.branch.phone" }}</label>
+            <input type="tel" name="phone" placeholder="05xxxxxxxx" class="w-full {{ if hasError .errors "phone"
+                }}input-error{{ end }}" maxlength="20"
+                value="{{ old .old "phone" }}">
+            {{ if hasError .errors "phone" }}<p class="field-error">{{ fieldError .errors "phone" }}</p>{{ end }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.branch.manager" }}</label>
+            <select name="manager_id" class="w-full">
+                <option value="">{{ L "tpl.branch.no_manager" }}</option>
+                {{ range .Managers }}
+                <option value="{{ .ID }}">{{ .FullName }}</option>
+                {{ end }}
+            </select>
+        </div>
+
+        {{ template "form-actions" dict "submit_label" (L "tpl.save") "cancel_url" "/dashboard/branches" }}
+    </form>
+</div>
+{{ end }}

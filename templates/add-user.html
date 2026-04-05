@@ -1,0 +1,210 @@
+{{ define "content" }}
+<!-- Header -->
+<div class="mb-5">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="page-title">{{ L "tpl.user.add_heading" }}</h1>
+            <p class="detail-label" style="margin-top:0.25rem">{{ L "tpl.user.add_subtitle" }}</p>
+        </div>
+        <a href="/dashboard/users" class="back-link">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            {{ L "tpl.user.back_to_users" }}
+        </a>
+    </div>
+</div>
+
+<!-- Form -->
+<form id="user-form" class="section-card" style="max-width:48rem">
+    <!-- Basic Info Section -->
+    <div class="mb-6">
+        <h2 class="section-card-title"
+            style="padding-bottom:0.5rem; border-bottom: 1px solid var(--md-sys-color-outline-variant)">{{ L "tpl.user.basic_info" }}</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">
+                    {{ L "tpl.user.username" }} <span class="required-mark">*</span>
+                </label>
+                <input type="text" name="username" required placeholder="{{ L "tpl.user.username_placeholder" }}"
+                    pattern="^[a-zA-Z0-9_.]{3,30}$" maxlength="30" title="{{ L "tpl.user.username_title" }}"
+                    class="w-full">
+                <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.user.username_hint" }}</p>
+            </div>
+            <div>
+                <label class="form-label">
+                    {{ L "tpl.user.email" }} <span class="required-mark">*</span>
+                </label>
+                <input type="email" name="email" required placeholder="{{ L "tpl.user.email_placeholder" }}" maxlength="254"
+                    class="w-full">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+                <label class="form-label">
+                    {{ L "tpl.user.password" }} <span class="required-mark">*</span>
+                </label>
+                <input type="password" name="password" required minlength="8" maxlength="128"
+                    placeholder="{{ L "tpl.user.password_placeholder" }}" class="w-full">
+            </div>
+            <div>
+                <label class="form-label">
+                    {{ L "tpl.user.confirm_password" }} <span class="required-mark">*</span>
+                </label>
+                <input type="password" name="confirm_password" id="confirm_pw" required minlength="8" maxlength="128"
+                    placeholder="{{ L "tpl.user.confirm_pw_placeholder" }}" class="w-full">
+                <p id="pw-mismatch" class="text-xs mt-1 hidden" style="color: var(--md-sys-color-error)">{{ L "tpl.user.pw_mismatch" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Role Section -->
+    <div class="mb-6">
+        <h2 class="section-card-title"
+            style="padding-bottom:0.5rem; border-bottom: 1px solid var(--md-sys-color-outline-variant)">{{ L "tpl.user.role_permissions" }}
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">
+                    {{ L "tpl.user.role" }} <span class="required-mark">*</span>
+                </label>
+                <select name="role" id="role-select" required class="w-full">
+                    <option value="">{{ L "tpl.user.select_role" }}</option>
+                    <option value="employee">{{ L "tpl.user.role_employee_desc" }}</option>
+                    <option value="manager">{{ L "tpl.user.role_manager_desc" }}</option>
+                    <option value="admin">{{ L "tpl.user.role_admin_desc" }}</option>
+                </select>
+            </div>
+            <div id="manager-section" class="hidden">
+                <label class="form-label">
+                    {{ L "tpl.user.responsible_supervisor" }} <span class="required-mark">*</span>
+                </label>
+                <select name="manager_id" class="w-full">
+                    <option value="">{{ L "tpl.user.select_supervisor" }}</option>
+                    {{ range .Managers }}
+                    <option value="{{ .ID }}">{{ .Username }} ({{ .Email }})</option>
+                    {{ end }}
+                </select>
+            </div>
+        </div>
+
+        <!-- Role descriptions -->
+        <div id="role-info" class="mt-3 hidden">
+            <div id="role-employee-info" class="alert alert-success hidden" style="padding: 0.75rem">
+                <h3 class="font-bold text-sm mb-1">{{ L "tpl.user.role_employee" }}</h3>
+                <ul class="text-xs list-disc list-inside space-y-0.5">
+                    <li>{{ L "tpl.user.employee_desc_1" }}</li>
+                    <li>{{ L "tpl.user.employee_desc_2" }}</li>
+                    <li>{{ L "tpl.user.employee_desc_3" }}</li>
+                </ul>
+            </div>
+            <div id="role-manager-info" class="rounded-lg p-3 hidden"
+                style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); border: 1px solid var(--md-sys-color-primary)">
+                <h3 class="font-bold text-sm mb-1">{{ L "tpl.user.role_manager" }}</h3>
+                <ul class="text-xs list-disc list-inside space-y-0.5">
+                    <li>{{ L "tpl.user.manager_desc_1" }}</li>
+                    <li>{{ L "tpl.user.manager_desc_2" }}</li>
+                    <li>{{ L "tpl.user.manager_desc_3" }}</li>
+                </ul>
+            </div>
+            <div id="role-admin-info" class="alert alert-error hidden" style="padding: 0.75rem">
+                <h3 class="font-bold text-sm mb-1">{{ L "tpl.user.role_admin" }}</h3>
+                <ul class="text-xs list-disc list-inside space-y-0.5">
+                    <li>{{ L "tpl.user.admin_desc_1" }}</li>
+                    <li>{{ L "tpl.user.admin_desc_2" }}</li>
+                    <li>{{ L "tpl.user.admin_desc_3" }}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status -->
+    <div class="mb-6">
+        <h2 class="section-card-title"
+            style="padding-bottom:0.5rem; border-bottom: 1px solid var(--md-sys-color-outline-variant)">{{ L "tpl.user.account_status" }}</h2>
+        <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="active" checked class="w-4 h-4">
+            <span class="form-label" style="margin-bottom:0">{{ L "tpl.user.account_active" }}</span>
+        </label>
+        <p class="text-xs mt-1 mr-7" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.user.deactivate_hint" }}</p>
+    </div>
+
+    <!-- Result -->
+    <div id="result" class="mb-4"></div>
+
+    <!-- Actions -->
+    <div class="detail-actions" style="border-top: 1px solid var(--md-sys-color-outline-variant); padding-top:1rem">
+        <button type="submit" class="btn btn-filled btn-sm flex-1 font-bold">{{ L "tpl.user.save_user" }}</button>
+        <a href="/dashboard/users" class="btn btn-outlined btn-sm flex-1 text-center font-semibold">{{ L "tpl.cancel" }}</a>
+    </div>
+</form>
+
+<script>
+    (function () {
+        var roleSelect = document.getElementById('role-select');
+        var managerSection = document.getElementById('manager-section');
+        var roleInfo = document.getElementById('role-info');
+
+        roleSelect.addEventListener('change', function () {
+            var role = this.value;
+            if (role === 'employee') {
+                managerSection.classList.remove('hidden');
+            } else {
+                managerSection.classList.add('hidden');
+            }
+            roleInfo.classList.remove('hidden');
+            var infos = document.querySelectorAll('[id^="role-"][id$="-info"]');
+            for (var i = 0; i < infos.length; i++) infos[i].classList.add('hidden');
+            if (role) {
+                var el = document.getElementById('role-' + role + '-info');
+                if (el) el.classList.remove('hidden');
+            }
+        });
+
+        var pw = document.querySelector('[name="password"]');
+        var cpw = document.getElementById('confirm_pw');
+        var mismatch = document.getElementById('pw-mismatch');
+        cpw.addEventListener('input', function () {
+            mismatch.classList.toggle('hidden', pw.value === cpw.value);
+        });
+
+        document.getElementById('user-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (pw.value !== cpw.value) { mismatch.classList.remove('hidden'); return; }
+
+            var formData = new FormData(this);
+            var data = {
+                username: formData.get('username'),
+                email: formData.get('email'),
+                password: formData.get('password'),
+                role: formData.get('role'),
+                active: formData.get('active') === 'on'
+            };
+            if (formData.get('manager_id')) data.manager_id = parseInt(formData.get('manager_id'));
+
+            // TODO (backend): POST /api/v2/users (create user endpoint)
+            var csrfToken = document.cookie.split('; ').reduce(function (v, c) { var p = c.split('='); return p[0] === 'csrf_token' ? decodeURIComponent(p[1]) : v }, '');
+            fetch('/dashboard/users/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                body: JSON.stringify(data)
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    var result = document.getElementById('result');
+                    var esc = function (s) { return String(s || '').replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] }) };
+                    if (res.error) {
+                        result.innerHTML = '<div class="alert alert-error"><strong>{{ L "tpl.user.error_prefix" }}</strong> ' + esc(res.error) + '</div>';
+                    } else {
+                        result.innerHTML = '<div class="alert alert-success"><strong>{{ L "tpl.user.success_prefix" }}</strong> {{ L "tpl.user.created_success" }}</div>';
+                        setTimeout(function () { window.location.href = '/dashboard/users'; }, 1500);
+                    }
+                })
+                .catch(function () {
+                    document.getElementById('result').innerHTML = '<div class="alert alert-error"><strong>{{ L "tpl.user.error_prefix" }}</strong> {{ L "tpl.user.connection_error" }}</div>';
+                });
+        });
+    })();
+</script>
+{{ end }}

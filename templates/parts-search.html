@@ -1,0 +1,238 @@
+{{ define "content" }}
+<div class="space-y-5 max-w-6xl mx-auto">
+
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-800" data-i18n="search.parts_title">{{ L "tpl.search.parts_title" }}</h2>
+                <p class="text-xs text-gray-500" data-i18n="search.parts_subtitle">{{ L "tpl.search.parts_subtitle" }}</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="parts-result-count" class="text-xs text-gray-400 hidden">0 نتيجة</span>
+            <div id="parts-spinner" class="htmx-indicator">
+                <svg class="animate-spin h-5 w-5 text-blue-500" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+                        fill="none"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Card -->
+    <div class="section-card overflow-hidden">
+        <!-- Main Search Bar -->
+        <div class="p-5 pb-4">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <div class="flex-1 relative">
+                    <input type="text" id="parts-query" name="query" class="w-full !pr-10 !py-3 text-sm"
+                        hx-post="/api/parts/search" hx-trigger="keyup changed delay:400ms" hx-include="[id^='parts-']"
+                        hx-target="#parts-results" hx-indicator="#parts-spinner"
+                        placeholder="{{ L "tpl.search.parts_placeholder" }}"
+                        data-i18n-placeholder="search.parts_query_placeholder">
+                    <svg class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 text-gray-400" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <div class="w-full sm:w-52">
+                    <input type="text" id="parts-vin" name="vin" placeholder="{{ L "tpl.search.vin_optional" }}"
+                        class="w-full !py-3 text-xs font-mono" dir="ltr" hx-post="/api/parts/search"
+                        hx-trigger="keyup changed delay:500ms" hx-include="[id^='parts-']" hx-target="#parts-results"
+                        hx-indicator="#parts-spinner">
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Filter Tags -->
+        <div class="px-5 pb-3 flex flex-wrap items-center gap-2">
+            <span class="text-xs text-gray-500 ml-1" data-i18n="search.quick_filters">{{ L "tpl.search.quick_filters" }}</span>
+            <button type="button" onclick="setPartsCategory('')"
+                class="parts-cat-btn active text-xs px-3 py-1 rounded-full border transition" data-cat="">{{ L "tpl.search.all" }}</button>
+            <button type="button" onclick="setPartsCategory('engine')"
+                class="parts-cat-btn text-xs px-3 py-1 rounded-full border transition" data-cat="engine">{{ L "tpl.search.cat_engine" }}</button>
+            <button type="button" onclick="setPartsCategory('brakes')"
+                class="parts-cat-btn text-xs px-3 py-1 rounded-full border transition" data-cat="brakes">{{ L "tpl.search.cat_brakes" }}</button>
+            <button type="button" onclick="setPartsCategory('suspension')"
+                class="parts-cat-btn text-xs px-3 py-1 rounded-full border transition"
+                data-cat="suspension">{{ L "tpl.search.cat_suspension" }}</button>
+            <button type="button" onclick="setPartsCategory('electrical')"
+                class="parts-cat-btn text-xs px-3 py-1 rounded-full border transition"
+                data-cat="electrical">{{ L "tpl.search.cat_electrical" }}</button>
+            <button type="button" onclick="setPartsCategory('body')"
+                class="parts-cat-btn text-xs px-3 py-1 rounded-full border transition" data-cat="body">{{ L "tpl.search.cat_body" }}</button>
+            <button type="button" onclick="setPartsCategory('transmission')"
+                class="parts-cat-btn text-xs px-3 py-1 rounded-full border transition" data-cat="transmission">{{ L "tpl.search.cat_transmission" }}</button>
+            <button type="button" onclick="setPartsCategory('cooling')"
+                class="parts-cat-btn text-xs px-3 py-1 rounded-full border transition" data-cat="cooling">{{ L "tpl.search.cat_cooling" }}</button>
+            <button type="button" onclick="setPartsCategory('exhaust')"
+                class="parts-cat-btn text-xs px-3 py-1 rounded-full border transition" data-cat="exhaust">{{ L "tpl.search.cat_exhaust" }}</button>
+            <button type="button" onclick="setPartsCategory('interior')"
+                class="parts-cat-btn text-xs px-3 py-1 rounded-full border transition"
+                data-cat="interior">{{ L "tpl.search.cat_interior" }}</button>
+        </div>
+
+        <!-- Advanced Filters (expandable) -->
+        <div id="parts-advanced-toggle" class="px-5 pb-2">
+            <button type="button" onclick="togglePartsAdvanced()"
+                class="flex items-center gap-1.5 text-xs font-medium transition"
+                style="color: var(--md-sys-color-primary)">
+                <svg id="parts-chevron" class="w-3.5 h-3.5 transition-transform duration-200" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+                <span data-i18n="search.more_filters">{{ L "tpl.search.more_filters" }}</span>
+            </button>
+        </div>
+
+        <div id="parts-advanced" class="hidden border-t border-gray-100 bg-gray-50 px-5 py-4">
+            <input type="hidden" id="parts-category" name="category" value="">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
+                        data-i18n="search.condition">{{ L "tpl.search.condition" }}</label>
+                    <select id="parts-condition" name="condition" class="w-full text-xs">
+                        <option value="">{{ L "tpl.search.all" }}</option>
+                        <option value="new">{{ L "tpl.search.new" }}</option>
+                        <option value="used">{{ L "tpl.search.used" }}</option>
+                        <option value="refurbished">{{ L "tpl.search.refurbished" }}</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1" data-i18n="search.make">{{ L "tpl.search.manufacturer" }}</label>
+                    <input type="text" id="parts-make" name="make" placeholder="Toyota" class="w-full text-xs">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
+                        data-i18n="search.model">{{ L "tpl.search.model" }}</label>
+                    <input type="text" id="parts-model" name="model" placeholder="Camry" class="w-full text-xs">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
+                        data-i18n="search.min_price">{{ L "tpl.search.min_price" }}</label>
+                    <input type="number" id="parts-min-price" name="min_price" min="0" step="0.01" placeholder="0"
+                        class="w-full text-xs">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
+                        data-i18n="search.max_price">{{ L "tpl.search.max_price" }}</label>
+                    <input type="number" id="parts-max-price" name="max_price" min="0" step="0.01" placeholder="∞"
+                        class="w-full text-xs">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3">
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1" data-i18n="search.year">{{ L "tpl.search.year" }}</label>
+                    <input type="number" id="parts-year" name="year" min="1900" max="2030" placeholder="2024"
+                        class="w-full text-xs">
+                </div>
+            </div>
+            <div class="flex items-center gap-2 mt-4 pt-3 border-t border-gray-200">
+                <button type="button" onclick="triggerPartsSearch()" class="btn btn-filled btn-xs font-semibold">{{ L "tpl.search.apply_filters" }}</button>
+                <button type="button" onclick="resetPartsSearch()"
+                    class="text-gray-500 hover:text-gray-700 px-4 py-1.5 rounded-lg text-xs transition hover:bg-gray-100">
+                    <span data-i18n="search.reset">{{ L "tpl.search.reset" }}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Area -->
+    <div id="parts-results">
+        <div class="section-card p-8">
+            <div class="text-center py-8">
+                <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <p class="text-sm text-gray-500 font-medium" data-i18n="search.start_searching">{{ L "tpl.search.start_parts_search" }}</p>
+                <p class="text-xs text-gray-400 mt-1" data-i18n="search.search_tip">{{ L "tpl.search.parts_search_tip" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .parts-cat-btn {
+        background: white;
+        border-color: #e5e7eb;
+        color: #6b7280;
+        cursor: pointer;
+    }
+
+    .parts-cat-btn:hover {
+        border-color: #93c5fd;
+        color: #2563eb;
+        background: #eff6ff;
+    }
+
+    .parts-cat-btn.active {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: white;
+    }
+
+    [data-theme="dark"] .parts-cat-btn {
+        background: #1f2937;
+        border-color: #374151;
+        color: #9ca3af;
+    }
+
+    [data-theme="dark"] .parts-cat-btn:hover {
+        border-color: #60a5fa;
+        color: #60a5fa;
+        background: #1e3a5f;
+    }
+
+    [data-theme="dark"] .parts-cat-btn.active {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: white;
+    }
+</style>
+
+<script>
+    function setPartsCategory(cat) {
+        document.getElementById('parts-category').value = cat;
+        var btns = document.querySelectorAll('.parts-cat-btn');
+        for (var i = 0; i < btns.length; i++) {
+            btns[i].classList.toggle('active', btns[i].getAttribute('data-cat') === cat);
+        }
+        triggerPartsSearch();
+    }
+    function togglePartsAdvanced() {
+        var el = document.getElementById('parts-advanced');
+        var chevron = document.getElementById('parts-chevron');
+        var isHidden = el.classList.contains('hidden');
+        el.classList.toggle('hidden');
+        chevron.style.transform = isHidden ? 'rotate(180deg)' : '';
+    }
+    function triggerPartsSearch() {
+        var q = document.getElementById('parts-query');
+        if (q) htmx.trigger(q, 'keyup');
+    }
+    function resetPartsSearch() {
+        var els = document.querySelectorAll('[id^="parts-"]');
+        for (var i = 0; i < els.length; i++) {
+            var el = els[i];
+            if (el.tagName === 'INPUT' && el.type !== 'hidden') el.value = '';
+            if (el.tagName === 'SELECT') el.selectedIndex = 0;
+            if (el.type === 'hidden') el.value = '';
+        }
+        setPartsCategory('');
+    }
+</script>
+{{ end }}

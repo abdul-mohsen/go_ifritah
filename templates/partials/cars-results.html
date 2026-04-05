@@ -1,0 +1,20 @@
+<div class="data-table-wrapper">
+    <table class="w-full">
+        <thead>
+            <tr>
+                <th>{{ L "tpl.partial.brand" }}</th>
+                <th>{{ L "tpl.partial.model" }}</th>
+                <th>{{ L "tpl.partial.year" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .results }}
+            <tr>
+                <td>{{ index . "make" }}</td>
+                <td>{{ index . "model" }}</td>
+                <td>{{ index . "year" }}</td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>

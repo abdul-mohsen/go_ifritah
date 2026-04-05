@@ -1,0 +1,438 @@
+{{ define "content" }}
+<!-- Header -->
+<div class="mb-5">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="page-title">{{ L "tpl.user.edit_heading" }} {{ .User.Username }}</h1>
+            <p class="detail-label" style="margin-top:0.25rem">{{ L "tpl.user.edit_subtitle" }}</p>
+        </div>
+        <a href="/dashboard/users" class="back-link">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            {{ L "tpl.user.back_to_users" }}
+        </a>
+    </div>
+</div>
+
+<!-- Form -->
+<form id="user-form" class="section-card" style="max-width:56rem">
+    <!-- Basic Info Section -->
+    <div class="mb-8">
+        <h2 class="section-card-title"
+            style="padding-bottom:0.5rem; border-bottom: 1px solid var(--md-sys-color-outline-variant)">{{ L "tpl.user.basic_info" }}</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="form-label">{{ L "tpl.user.username" }}</label>
+                <input type="text" name="username" value="{{ .User.Username }}" required class="w-full">
+            </div>
+
+            <div>
+                <label class="form-label">{{ L "tpl.user.email" }}</label>
+                <input type="email" name="email" value="{{ .User.Email }}" required class="w-full">
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <label class="form-label">{{ L "tpl.user.role" }}</label>
+            <select name="role" id="role-select" class="w-full" required>
+                <option value="employee" {{ if eq .User.Role "employee" }}selected{{ end }}>{{ L "tpl.user.role_employee" }}</option>
+                <option value="manager" {{ if eq .User.Role "manager" }}selected{{ end }}>{{ L "tpl.user.role_manager" }}</option>
+                <option value="admin" {{ if eq .User.Role "admin" }}selected{{ end }}>{{ L "tpl.user.role_admin" }}</option>
+            </select>
+        </div>
+
+        <div class="mt-6">
+            <label class="flex items-center space-x-3 space-x-reverse cursor-pointer">
+                <input type="checkbox" name="active" {{ if .User.Active }}checked{{ end }} class="w-5 h-5">
+                <span class="form-label" style="margin-bottom:0">{{ L "tpl.user.account_active" }}</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Permission Matrix (for employees only) -->
+    <div id="permissions-section" class="mb-8 {{ if ne .User.Role " employee" }}hidden{{ end }}">
+        <h2 class="section-card-title"
+            style="padding-bottom:0.5rem; border-bottom: 1px solid var(--md-sys-color-outline-variant)">{{ L "tpl.user.permissions_matrix" }}
+        </h2>
+
+        <div class="rounded-lg p-6" style="background: var(--md-sys-color-surface-variant)">
+            <!-- Permission Templates -->
+            <div class="mb-6 flex flex-wrap gap-3">
+                <button type="button" onclick="applyTemplate('salesperson')" class="btn btn-success font-semibold">📊
+                    {{ L "tpl.user.tpl_salesperson" }}</button>
+                <button type="button" onclick="applyTemplate('accountant')" class="btn btn-filled font-semibold">💼
+                    {{ L "tpl.user.tpl_accountant" }}</button>
+                <button type="button" onclick="applyTemplate('inventory')" class="btn btn-purple font-semibold">📦 {{ L "tpl.user.tpl_inventory" }}</button>
+                <button type="button" onclick="clearAll()" class="btn btn-error font-semibold">🗑️ {{ L "tpl.user.clear_all" }}</button>
+                <button type="button" onclick="selectAll()" class="btn btn-tonal font-semibold">✅ {{ L "tpl.user.select_all" }}</button>
+            </div>
+
+            <!-- Permission Grid -->
+            <div class="overflow-x-auto">
+                <table class="w-full rounded-lg overflow-hidden shadow perm-table"
+                    style="background: var(--md-sys-color-surface)">
+                    <thead class="bg-primary text-white">
+                        <tr>
+                            <th class="text-right p-4 font-bold w-1/5">{{ L "tpl.user.resources" }}</th>
+                            <th class="text-center p-4 font-bold w-1/5">{{ L "tpl.user.perm_view" }}</th>
+                            <th class="text-center p-4 font-bold w-1/5">{{ L "tpl.user.perm_add" }}</th>
+                            <th class="text-center p-4 font-bold w-1/5">{{ L "tpl.user.perm_edit" }}</th>
+                            <th class="text-center p-4 font-bold w-1/5">{{ L "tpl.user.perm_delete" }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <!-- Invoices -->
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-4 font-semibold text-gray-800">{{ L "tpl.user.res_invoices" }}</td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_invoices_view" data-resource="invoices"
+                                    data-action="view"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_invoices_add" data-resource="invoices"
+                                    data-action="add"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_invoices_edit" data-resource="invoices"
+                                    data-action="edit"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_invoices_delete" data-resource="invoices"
+                                    data-action="delete"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                        </tr>
+
+                        <!-- Products -->
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-4 font-semibold text-gray-800">{{ L "tpl.user.res_products" }}</td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_products_view" data-resource="products"
+                                    data-action="view"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_products_add" data-resource="products"
+                                    data-action="add"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_products_edit" data-resource="products"
+                                    data-action="edit"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_products_delete" data-resource="products"
+                                    data-action="delete"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                        </tr>
+
+                        <!-- Clients -->
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-4 font-semibold text-gray-800">{{ L "tpl.user.res_clients" }}</td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_clients_view" data-resource="clients"
+                                    data-action="view"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_clients_add" data-resource="clients" data-action="add"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_clients_edit" data-resource="clients"
+                                    data-action="edit"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_clients_delete" data-resource="clients"
+                                    data-action="delete"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                        </tr>
+
+                        <!-- Suppliers -->
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-4 font-semibold text-gray-800">{{ L "tpl.user.res_suppliers" }}</td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_suppliers_view" data-resource="suppliers"
+                                    data-action="view"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_suppliers_add" data-resource="suppliers"
+                                    data-action="add"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_suppliers_edit" data-resource="suppliers"
+                                    data-action="edit"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_suppliers_delete" data-resource="suppliers"
+                                    data-action="delete"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                        </tr>
+
+                        <!-- Orders -->
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-4 font-semibold text-gray-800">{{ L "tpl.user.res_orders" }}</td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_orders_view" data-resource="orders" data-action="view"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_orders_add" data-resource="orders" data-action="add"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_orders_edit" data-resource="orders" data-action="edit"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_orders_delete" data-resource="orders"
+                                    data-action="delete"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                        </tr>
+
+                        <!-- Stores -->
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-4 font-semibold text-gray-800">{{ L "tpl.user.res_warehouses" }}</td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_stores_view" data-resource="stores" data-action="view"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_stores_add" data-resource="stores" data-action="add"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_stores_edit" data-resource="stores" data-action="edit"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_stores_delete" data-resource="stores"
+                                    data-action="delete"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                        </tr>
+
+                        <!-- Branches -->
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-4 font-semibold text-gray-800">{{ L "tpl.user.res_branches" }}</td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_branches_view" data-resource="branches"
+                                    data-action="view"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_branches_add" data-resource="branches"
+                                    data-action="add"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_branches_edit" data-resource="branches"
+                                    data-action="edit"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_branches_delete" data-resource="branches"
+                                    data-action="delete"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                        </tr>
+
+                        <!-- Reports -->
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-4 font-semibold text-gray-800">{{ L "tpl.user.res_reports" }}</td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_reports_view" data-resource="reports"
+                                    data-action="view"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_reports_add" data-resource="reports" data-action="add"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_reports_edit" data-resource="reports"
+                                    data-action="edit"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                            <td class="text-center p-4">
+                                <input type="checkbox" name="perm_reports_delete" data-resource="reports"
+                                    data-action="delete"
+                                    class="w-6 h-6 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer">
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-4 text-sm p-4 rounded-lg"
+                style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); border: 1px solid var(--md-sys-color-primary)">
+                <strong>{{ L "tpl.user.perm_note_prefix" }}</strong> {{ L "tpl.user.perm_note" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="result" class="mb-6"></div>
+
+    <!-- Actions -->
+    <div class="detail-actions" style="border-top: 1px solid var(--md-sys-color-outline-variant); padding-top:1rem">
+        <button type="submit"
+            class="flex-1 bg-secondary text-primary px-6 py-3 rounded-lg hover:bg-opacity-90 font-bold transition shadow-md hover:shadow-lg">
+            {{ L "tpl.user.save_changes" }}
+        </button>
+        <a href="/dashboard/users" class="btn btn-outlined btn-lg flex-1 text-center font-bold">{{ L "tpl.cancel" }}</a>
+    </div>
+</form>
+
+<script>
+    const userId = {{ .User.ID }};
+    const userRole = '{{ .User.Role }}';
+
+    // Show/hide permissions section based on role
+    const roleSelect = document.getElementById('role-select');
+    const permissionsSection = document.getElementById('permissions-section');
+
+    roleSelect.addEventListener('change', function () {
+        if (this.value === 'employee') {
+            permissionsSection.classList.remove('hidden');
+        } else {
+            permissionsSection.classList.add('hidden');
+        }
+    });
+
+    // Load existing permissions
+    { { if .User.Permissions } }
+    const existingPermissions = {{ .User.Permissions }};
+    existingPermissions.forEach(perm => {
+        if (perm.can_view) document.querySelector(`[data-resource="${perm.resource}"][data-action="view"]`).checked = true;
+        if (perm.can_add) document.querySelector(`[data-resource="${perm.resource}"][data-action="add"]`).checked = true;
+        if (perm.can_edit) document.querySelector(`[data-resource="${perm.resource}"][data-action="edit"]`).checked = true;
+        if (perm.can_delete) document.querySelector(`[data-resource="${perm.resource}"][data-action="delete"]`).checked = true;
+    });
+    { { end } }
+
+    // Permission templates
+    const templates = {
+        salesperson: {
+            invoices: { view: true, add: true, edit: false, delete: false },
+            clients: { view: true, add: true, edit: false, delete: false },
+            products: { view: true, add: false, edit: false, delete: false }
+        },
+        accountant: {
+            invoices: { view: true, add: true, edit: true, delete: false },
+            products: { view: true, add: false, edit: true, delete: false },
+            clients: { view: true, add: false, edit: true, delete: false },
+            suppliers: { view: true, add: false, edit: true, delete: false },
+            reports: { view: true, add: false, edit: false, delete: false }
+        },
+        inventory: {
+            products: { view: true, add: true, edit: true, delete: false },
+            stores: { view: true, add: false, edit: true, delete: false },
+            orders: { view: true, add: true, edit: true, delete: false }
+        }
+    };
+
+    function applyTemplate(templateName) {
+        clearAll();
+        const template = templates[templateName];
+        for (const [resource, perms] of Object.entries(template)) {
+            if (perms.view) document.querySelector(`[data-resource="${resource}"][data-action="view"]`).checked = true;
+            if (perms.add) document.querySelector(`[data-resource="${resource}"][data-action="add"]`).checked = true;
+            if (perms.edit) document.querySelector(`[data-resource="${resource}"][data-action="edit"]`).checked = true;
+            if (perms.delete) document.querySelector(`[data-resource="${resource}"][data-action="delete"]`).checked = true;
+        }
+    }
+
+    function clearAll() {
+        document.querySelectorAll('#permissions-section input[type="checkbox"]').forEach(cb => cb.checked = false);
+    }
+
+    function selectAll() {
+        document.querySelectorAll('#permissions-section input[type="checkbox"]').forEach(cb => cb.checked = true);
+    }
+
+    // Auto-save permissions on change
+    document.querySelectorAll('#permissions-section input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function () {
+            savePermissions();
+        });
+    });
+
+    const csrfToken = document.cookie.split('; ').reduce((v, c) => { const p = c.split('='); return p[0] === 'csrf_token' ? decodeURIComponent(p[1]) : v }, '');
+
+    function savePermissions() {
+        const resources = ['invoices', 'products', 'clients', 'suppliers', 'orders', 'stores', 'branches', 'reports'];
+        const permissions = resources.map(resource => ({
+            resource: resource,
+            can_view: document.querySelector(`[data-resource="${resource}"][data-action="view"]`).checked,
+            can_add: document.querySelector(`[data-resource="${resource}"][data-action="add"]`).checked,
+            can_edit: document.querySelector(`[data-resource="${resource}"][data-action="edit"]`).checked,
+            can_delete: document.querySelector(`[data-resource="${resource}"][data-action="delete"]`).checked
+        }));
+
+        fetch(`/dashboard/users/${userId}/permissions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+            body: JSON.stringify({ permissions: permissions })
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Permissions saved:', data);
+            });
+    }
+
+    // Handle form submission
+    document.getElementById('user-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const data = {
+            username: formData.get('username'),
+            email: formData.get('email'),
+            role: formData.get('role'),
+            active: formData.get('active') === 'on'
+        };
+
+        const csrfToken = document.cookie.split('; ').reduce((v, c) => { const p = c.split('='); return p[0] === 'csrf_token' ? decodeURIComponent(p[1]) : v }, '');
+        fetch(`/dashboard/users/${userId}/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(data => {
+                var esc = function (s) { return String(s || '').replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] }) };
+                if (data.error) {
+                    document.getElementById('result').innerHTML = `
+                        <div class="alert alert-error">
+                            <strong>{{ L "tpl.user.error_prefix" }}</strong> ${esc(data.error)}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('result').innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>{{ L "tpl.user.success_prefix" }}</strong> {{ L "tpl.user.updated_redirect" }}
+                        </div>
+                    `;
+                    setTimeout(() => {
+                        window.location.href = '/dashboard/users';
+                    }, 1500);
+                }
+            });
+    });
+</script>
+{{ end }}

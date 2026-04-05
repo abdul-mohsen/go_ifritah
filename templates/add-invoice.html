@@ -1,0 +1,568 @@
+﻿{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/invoices" "section_label" (L "nav.invoices_section") "current" .title }}
+<div class="page-card-wide">
+    <form hx-post="/api/invoices" hx-target="body" id="invoice-form" hx-indicator="#submit-spinner">
+        {{ if .is_company }}
+        <input type="hidden" name="client_id" id="client-id-field" value="">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 border rounded" style="border-color: var(--md-sys-color-primary); background: var(--md-sys-color-surface-container)">
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.client_company" }} <span class="required-mark">*</span></label>
+                <select name="client_id" id="client-select" class="w-full" required onchange="fillClientInfo()">
+                    <option value="">{{ L "tpl.invoice.select_client" }}</option>
+                    {{ range .clients }}
+                    <option value="{{ .ID }}" data-name="{{ .Name }}" data-phone="{{ .Phone }}" data-company="{{ .CompanyName }}">{{ .Name }}{{ if .CompanyName }} — {{ .CompanyName }}{{ end }}</option>
+                    {{ end }}
+                </select>
+                <a href="/dashboard/clients/add" class="action-link action-view"
+                    style="font-size: 0.75rem; margin-top: 0.25rem; display: inline-block">{{ L "tpl.add_new_client" }}</a>
+            </div>
+        </div>
+        {{ end }}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.store" }} <span class="required-mark">*</span></label>
+                <select name="store_id" class="w-full" required>
+                    <option value="">{{ L "tpl.invoice.form.select_store" }}</option>
+                    {{ range .stores }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.default_store_id }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.branch" }} <span class="required-mark">*</span></label>
+                <select name="branch_id" class="w-full" required>
+                    <option value="">{{ L "tpl.invoice.form.select_branch" }}</option>
+                    {{ range .branches }}
+                    <option value="{{ .ID }}">{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.payment_method" }}</label>
+                <select name="payment_method" class="w-full">
+                    <option value="10" {{ if eq .default_payment_method "10" }}selected{{ end }}>{{ L "tpl.payment_method.cash" }} (10)</option>
+                    <option value="30" {{ if eq .default_payment_method "30" }}selected{{ end }}>{{ L "tpl.payment_method.credit" }} (30)</option>
+                    <option value="42" {{ if eq .default_payment_method "42" }}selected{{ end }}>{{ L "tpl.payment_method.bank_transfer" }} (42)</option>
+                    <option value="48" {{ if eq .default_payment_method "48" }}selected{{ end }}>{{ L "tpl.payment_method.bank_card" }} (48)</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.deliver_date" }}</label>
+                <input type="date" name="deliver_date" value="{{ .today }}" class="w-full">
+            </div>
+            <div id="payment-due-date-wrapper" style="display:none;">
+                <label class="form-label">{{ L "tpl.pb.payment_due_date" }}</label>
+                <input type="date" name="payment_due_date" class="w-full">
+            </div>
+            {{ if not .is_company }}
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.customer_name" }}</label>
+                <input type="text" name="user_name" class="w-full" maxlength="100">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.customer_phone" }}</label>
+                <input type="tel" name="user_phone_number" class="w-full" maxlength="20">
+            </div>
+            {{ else }}
+            <input type="hidden" name="user_name" id="company-user-name" value="">
+            <input type="hidden" name="user_phone_number" id="company-user-phone" value="">
+            {{ end }}
+            <div class="md:col-span-2">
+                <label class="form-label">{{ L "tpl.note" }}</label>
+                <input type="text" name="note" class="w-full" maxlength="500">
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <h4 class="section-card-title">{{ L "tpl.invoice.form.catalog_title" }}</h4>
+            <div id="products-container" class="space-y-3"></div>
+            <button type="button" onclick="addCatalogItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.invoice.form.add_catalog" }}</button>
+        </div>
+
+        <div class="mt-6">
+            <h4 class="section-card-title">{{ L "tpl.invoice.form.manual_title" }}</h4>
+            <div id="manual-container" class="space-y-3"></div>
+            <button type="button" onclick="addManualItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.invoice.form.add_manual" }}</button>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.labor" }}</label>
+                <input type="number" name="maintenance_cost" id="maintenance_cost" value="0" min="0" step="0.01"
+                    class="w-full" oninput="recalculateTotal()">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.grand_total" }}</label>
+                <input type="text" id="total_display" class="w-full"
+                    style="background: var(--md-sys-color-surface-variant)" disabled>
+                <input type="hidden" name="total_amount" id="total_amount" value="0">
+            </div>
+        </div>
+
+        <div class="mt-6 flex gap-2 items-center">
+            <button type="submit" name="state" value="0" class="btn btn-tonal">{{ L "tpl.invoice.form.save_draft" }}</button>
+            <button type="submit" name="state" value="1" class="btn btn-filled">{{ L "tpl.invoice.form.save_invoice" }}</button>
+            <a href="/dashboard/invoices" class="btn btn-outlined">{{ L "tpl.cancel" }}</a>
+            <span id="submit-spinner" class="htmx-indicator">
+                <svg class="animate-spin h-5 w-5" style="color: var(--md-sys-color-primary)" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+                        fill="none" />
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+            </span>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Show/hide payment_due_date based on payment_method
+    (function() {
+        var pmSelect = document.querySelector('select[name="payment_method"]');
+        var pddWrapper = document.getElementById('payment-due-date-wrapper');
+        function togglePDD() {
+            pddWrapper.style.display = pmSelect.value === '30' ? '' : 'none';
+        }
+        pmSelect.addEventListener('change', togglePDD);
+        togglePDD();
+    })();
+
+    var searchTimers = {};
+
+    function catalogItemRow() {
+        var rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        return `
+            <div class="item-row border rounded p-3" data-row-id="${rowId}">
+                <div class="flex flex-wrap gap-3 items-end">
+                    <div class="relative" style="flex:2 1 200px">
+                        <label class="form-label">{{ L "tpl.invoice.form.part_label" }}</label>
+                        <input type="text" class="w-full product-search" placeholder="{{ L "tpl.invoice.form.search_part" }}" autocomplete="off"
+                               oninput="searchProducts(this, '${rowId}')" onfocus="showProductDropdown('${rowId}')">
+                        <input type="hidden" name="products_product_id" value="0">
+                        <input type="hidden" name="products_name" value="">
+                        <div id="pdropdown_${rowId}" class="absolute z-50 w-full border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1" style="background:var(--md-sys-color-surface-container)"></div>
+                    </div>
+                    <div style="flex:1 1 90px">
+                        <label class="form-label">{{ L "tpl.invoice.quantity" }}</label>
+                        <input type="number" name="products_quantity" min="1" value="1" class="w-full" oninput="recalculateTotal()">
+                    </div>
+                    <div style="flex:1 1 100px">
+                        <label class="form-label">{{ L "tpl.invoice.price" }}</label>
+                        <input type="text" name="products_price" class="w-full" oninput="recalculateTotal()">
+                    </div>
+                    <div style="flex:1 1 140px">
+                        <label class="form-label">{{ L "tpl.invoice.form.discount_amt" }}</label>
+                        <div class="flex gap-1">
+                            <input type="number" name="products_discount" min="0" step="0.01" value="0" class="w-full discount-value" oninput="recalculateTotal()">
+                            <button type="button" class="btn btn-tonal btn-xs discount-toggle" style="white-space:nowrap;min-width:2.5rem" onclick="toggleDiscountMode(this)">{{ L "tpl.invoice.form.discount_mode_val" }}</button>
+                        </div>
+                    </div>
+                    <div style="flex:1 1 120px">
+                        <label class="form-label">{{ L "tpl.invoice.form.total_with_vat" }}</label>
+                        <input type="text" class="w-full line-total-vat" step="0.01" min="0" placeholder="0.00" oninput="updatePriceFromTotal(this)">
+                    </div>
+                    <div style="flex:0 0 auto" class="flex items-end pb-1">
+                        <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">{{ L "tpl.delete" }}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function searchProducts(input, rowId) {
+        var query = input.value.trim();
+        if (searchTimers[rowId]) clearTimeout(searchTimers[rowId]);
+        if (query.length < 1) {
+            hideProductDropdown(rowId);
+            return;
+        }
+        searchTimers[rowId] = setTimeout(function () {
+            var csrfToken = getCsrfCookie();
+            var formData = new FormData();
+            formData.append('query', query);
+            fetch('/api/products/search-json', {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken },
+                body: formData,
+                credentials: 'same-origin'
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (products) { renderProductDropdown(products, rowId, input); })
+                .catch(function () { hideProductDropdown(rowId); });
+        }, 300);
+    }
+
+    function getCsrfCookie() {
+        var match = document.cookie.match(/csrf_token=([^;]+)/);
+        return match ? match[1] : '';
+    }
+
+    function renderProductDropdown(products, rowId, input) {
+        var dd = document.getElementById('pdropdown_' + rowId);
+        if (!products || products.length === 0) {
+            dd.innerHTML = '<div class="px-3 py-2 text-sm" style="color:var(--md-sys-color-on-surface-variant)">{{ L "tpl.product.no_results" }}</div>';
+            dd.classList.remove('hidden');
+            return;
+        }
+        var html = '';
+        for (var i = 0; i < products.length; i++) {
+            var p = products[i];
+            var label = p.name ? p.name : '{{ L "tpl.invoice.form.part_label" }} #' + p.id;
+            html += '<div class="px-3 py-2 text-sm cursor-pointer border-b" style="border-color:var(--md-sys-color-outline-variant)" '
+                + 'onmouseover="this.style.background=\'var(--md-sys-color-surface-container-high)\'" '
+                + 'onmouseout="this.style.background=\'transparent\'" '
+                + 'onclick="selectProduct(this, \'' + rowId + '\', ' + p.id + ', \'' + escapeAttr(label) + '\', \'' + escapeAttr(String(p.price)) + '\')">'
+                + '<div>' + escapeHtml(label) + ' <span style="color:var(--md-sys-color-primary)">#' + p.id + '</span></div>'
+                + '<div class="text-xs" style="color:var(--md-sys-color-on-surface-variant)">{{ L "tpl.invoice.price" }}: ' + escapeHtml(String(p.price)) + ' — {{ L "tpl.invoice.quantity" }}: ' + escapeHtml(String(p.quantity)) + '</div>'
+                + '</div>';
+        }
+        dd.innerHTML = html;
+        dd.classList.remove('hidden');
+    }
+
+    function selectProduct(el, rowId, productId, name, price) {
+        var row = document.querySelector('[data-row-id="' + rowId + '"]');
+        row.querySelector('.product-search').value = name;
+        row.querySelector('[name="products_product_id"]').value = productId;
+        row.querySelector('[name="products_name"]').value = name;
+        row.querySelector('[name="products_price"]').value = price;
+        hideProductDropdown(rowId);
+        recalculateTotal();
+    }
+
+    function showProductDropdown(rowId) {
+        var dd = document.getElementById('pdropdown_' + rowId);
+        if (dd && dd.innerHTML.trim()) dd.classList.remove('hidden');
+    }
+
+    function hideProductDropdown(rowId) {
+        var dd = document.getElementById('pdropdown_' + rowId);
+        if (dd) dd.classList.add('hidden');
+    }
+
+    function escapeHtml(s) {
+        if (!s) return '';
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function escapeAttr(s) {
+        if (!s) return '';
+        return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!e.target.classList.contains('product-search')) {
+            var dds = document.querySelectorAll('[id^="pdropdown_"]');
+            for (var i = 0; i < dds.length; i++) dds[i].classList.add('hidden');
+        }
+    });
+
+    function manualItemRow() {
+        return `
+            <div class="item-row border rounded p-3">
+                <div class="flex flex-wrap gap-3 items-end">
+                    <div style="flex:2 1 150px">
+                        <label class="form-label">{{ L "tpl.invoice.form.product_name" }}</label>
+                        <input type="text" name="manual_part_name" class="w-full" oninput="recalculateTotal()">
+                    </div>
+                    <div style="flex:1 1 120px">
+                        <label class="form-label">{{ L "tpl.invoice.form.part_number" }}</label>
+                        <input type="text" name="manual_part_number" class="w-full">
+                    </div>
+                    <div style="flex:1 1 90px">
+                        <label class="form-label">{{ L "tpl.invoice.quantity" }}</label>
+                        <input type="number" name="manual_quantity" min="1" value="1" class="w-full" oninput="recalculateTotal()">
+                    </div>
+                    <div style="flex:1 1 100px">
+                        <label class="form-label">{{ L "tpl.invoice.price" }}</label>
+                        <input type="text" name="manual_price" min="0" step="0.01" class="w-full" oninput="recalculateTotal()">
+                    </div>
+                    <div style="flex:1 1 140px">
+                        <label class="form-label">{{ L "tpl.invoice.form.discount_amt" }}</label>
+                        <div class="flex gap-1">
+                            <input type="number" name="manual_discount" min="0" step="0.01" value="0" class="w-full discount-value" oninput="recalculateTotal()">
+                            <button type="button" class="btn btn-tonal btn-xs discount-toggle" style="white-space:nowrap;min-width:2.5rem" onclick="toggleDiscountMode(this)">{{ L "tpl.invoice.form.discount_mode_val" }}</button>
+                        </div>
+                    </div>
+                    <div style="flex:1 1 120px">
+                        <label class="form-label">{{ L "tpl.invoice.form.total_with_vat" }}</label>
+                        <input type="text" class="w-full line-total-vat" step="0.01" min="0" placeholder="0.00" oninput="updatePriceFromTotal(this)">
+                    </div>
+                    <div style="flex:0 0 auto" class="flex items-end pb-1">
+                        <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">{{ L "tpl.delete" }}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function addCatalogItem() {
+        document.getElementById('products-container').insertAdjacentHTML('beforeend', catalogItemRow());
+    }
+
+    function addManualItem() {
+        document.getElementById('manual-container').insertAdjacentHTML('beforeend', manualItemRow());
+    }
+
+    function removeRow(btn) {
+        var row = btn.closest('.item-row');
+        if (row) row.remove();
+        recalculateTotal();
+    }
+
+    function getDiscountAmount(discInput, lineTotal) {
+        var mode = discInput.dataset.mode || 'val';
+        var raw = parseFloat(discInput.value || 0);
+        if (mode === 'pct') {
+            return Math.min((raw / 100) * lineTotal, lineTotal);
+        }
+        return Math.min(raw, lineTotal);
+    }
+
+    function sumCatalogItems() {
+        var prices = document.getElementsByName('products_price');
+        var qtys = document.getElementsByName('products_quantity');
+        var discs = document.getElementsByName('products_discount');
+        var total = 0;
+        for (var i = 0; i < Math.max(prices.length, qtys.length); i++) {
+            var price = parseFloat(prices[i]?.value || 0);
+            var qty = parseFloat(qtys[i]?.value || 0);
+            var lineTotal = price * qty;
+            var disc = getDiscountAmount(discs[i], lineTotal);
+            total += lineTotal - disc;
+        }
+        return total;
+    }
+
+    function sumManualItems() {
+        var prices = document.getElementsByName('manual_price');
+        var qtys = document.getElementsByName('manual_quantity');
+        var discs = document.getElementsByName('manual_discount');
+        var total = 0;
+        for (var i = 0; i < Math.max(prices.length, qtys.length); i++) {
+            var price = parseFloat(prices[i]?.value || 0);
+            var qty = parseFloat(qtys[i]?.value || 0);
+            var lineTotal = price * qty;
+            var disc = getDiscountAmount(discs[i], lineTotal);
+            total += lineTotal - disc;
+        }
+        return total;
+    }
+
+    // Before form submit: convert any percentage-mode discounts to actual amounts
+    function finalizeDiscounts() {
+        var allDiscs = document.querySelectorAll('.discount-value');
+        allDiscs.forEach(function(discInput) {
+            var mode = discInput.dataset.mode || 'val';
+            if (mode === 'pct') {
+                var row = discInput.closest('.item-row');
+                var priceInput = row.querySelector('[name$="_price"]');
+                var qtyInput = row.querySelector('[name$="_quantity"]');
+                var price = parseFloat(priceInput?.value || 0);
+                var qty = parseFloat(qtyInput?.value || 0);
+                var lineTotal = price * qty;
+                var pct = parseFloat(discInput.value || 0);
+                var val = Math.min((pct / 100) * lineTotal, lineTotal);
+                discInput.value = val.toFixed(2);
+                discInput.dataset.mode = 'val';
+            }
+        });
+    }
+
+    function recalculateTotal() {
+        var itemsTotal = sumCatalogItems() + sumManualItems();
+        var maintenance = parseFloat(document.getElementById('maintenance_cost').value || 0);
+        var subtotal = itemsTotal + maintenance;
+        var total = subtotal * 1.15;
+        document.getElementById('total_display').value = total.toFixed(2) + ' {{ L "tpl.currency" }}';
+        document.getElementById('total_amount').value = total.toFixed(2);
+        updateLineTotals();
+    }
+
+    // Toggle discount input between fixed amount (SAR) and percentage (%) mode
+    function toggleDiscountMode(btn) {
+        var row = btn.closest('.item-row');
+        var discInput = row.querySelector('.discount-value');
+        var priceInput = row.querySelector('[name$="_price"]');
+        var qtyInput = row.querySelector('[name$="_quantity"]');
+        var price = parseFloat(priceInput?.value || 0);
+        var qty = parseFloat(qtyInput?.value || 0);
+        var lineTotal = price * qty;
+        var currentMode = discInput.dataset.mode || 'val';
+        if (currentMode === 'val') {
+            // Switch to percentage mode
+            btn.textContent = '{{ L "tpl.invoice.form.discount_mode_pct" }}';
+            var currentVal = parseFloat(discInput.value || 0);
+            discInput.value = lineTotal > 0 ? ((currentVal / lineTotal) * 100).toFixed(2) : '0';
+            discInput.dataset.mode = 'pct';
+        } else {
+            // Switch to value mode
+            btn.textContent = '{{ L "tpl.invoice.form.discount_mode_val" }}';
+            var pct = parseFloat(discInput.value || 0);
+            var val = Math.min((pct / 100) * lineTotal, lineTotal);
+            discInput.value = val.toFixed(2);
+            discInput.dataset.mode = 'val';
+        }
+        recalculateTotal();
+    }
+
+    // Reverse-calculate price from total-with-VAT input
+    function updatePriceFromTotal(totalInput) {
+        var row = totalInput.closest('.item-row');
+        var priceInput = row.querySelector('[name$="_price"]');
+        var qtyInput = row.querySelector('[name$="_quantity"]');
+        var discInput = row.querySelector('.discount-value');
+        var totalWithVat = parseFloat(totalInput.value || 0);
+        var qty = parseFloat(qtyInput?.value || 1);
+        if (qty <= 0) qty = 1;
+        var disc = 0;
+        if (discInput) {
+            var lineEstimate = totalWithVat / 1.15;
+            disc = getDiscountAmount(discInput, lineEstimate);
+        }
+        // totalWithVat = (price * qty - discount) * 1.15
+        // price = (totalWithVat / 1.15 + discount) / qty
+        var pricePerPiece = (totalWithVat / 1.15 + disc) / qty;
+        if (pricePerPiece < 0) pricePerPiece = 0;
+        priceInput.value = pricePerPiece.toFixed(2);
+        recalculateTotal();
+    }
+
+    // Forward-calculate line total with VAT (called from recalculateTotal)
+    function updateLineTotals() {
+        var rows = document.querySelectorAll('.item-row');
+        rows.forEach(function(row) {
+            var priceInput = row.querySelector('[name$="_price"]');
+            var qtyInput = row.querySelector('[name$="_quantity"]');
+            var discInput = row.querySelector('.discount-value');
+            var totalInput = row.querySelector('.line-total-vat');
+            if (!totalInput || !priceInput) return;
+            // Skip if user is currently typing in the total field
+            if (document.activeElement === totalInput) return;
+            var price = parseFloat(priceInput.value || 0);
+            var qty = parseFloat(qtyInput?.value || 1);
+            var lineTotal = price * qty;
+            var disc = discInput ? getDiscountAmount(discInput, lineTotal) : 0;
+            var withVat = (lineTotal - disc) * 1.15;
+            totalInput.value = withVat > 0 ? withVat.toFixed(2) : '';
+        });
+    }
+
+    // Start with one manual item row by default
+    addManualItem();
+    recalculateTotal();
+
+    // Convert percentage-mode discounts to amounts before form submission
+    document.getElementById('invoice-form').addEventListener('htmx:beforeRequest', function() {
+        finalizeDiscounts();
+    });
+
+    // ── Stock availability check before invoice submission ──
+    // Intercept form submission to check stock when enforcement is warn/enforce
+    (function() {
+        var form = document.getElementById('invoice-form');
+        if (!form) return;
+
+        var stockCheckDone = false;
+
+        form.addEventListener('htmx:confirm', function(evt) {
+            // Only check once per submission attempt
+            if (stockCheckDone) {
+                stockCheckDone = false;
+                return; // allow submission
+            }
+
+            // Collect catalog product items
+            var productIds = document.getElementsByName('products_product_id');
+            var productQtys = document.getElementsByName('products_quantity');
+            var items = [];
+            for (var i = 0; i < productIds.length; i++) {
+                var pid = parseInt(productIds[i].value);
+                var qty = parseInt(productQtys[i]?.value || 1);
+                if (pid > 0 && qty > 0) {
+                    items.push({product_id: pid, quantity: qty});
+                }
+            }
+
+            // No catalog products — skip stock check
+            if (items.length === 0) return;
+
+            // Prevent submission until stock check completes
+            evt.preventDefault();
+
+            // First get enforcement mode
+            fetch('/api/stock/enforcement', {credentials: 'same-origin'})
+                .then(function(r) { return r.json(); })
+                .then(function(enforcement) {
+                    if (enforcement.mode === 'disable') {
+                        // No check needed
+                        stockCheckDone = true;
+                        htmx.trigger(form, 'submit');
+                        return;
+                    }
+
+                    // Check stock
+                    return fetch('/api/stock/check', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(items)
+                    }).then(function(r) { return r.json(); })
+                      .then(function(result) {
+                        if (result.all_sufficient) {
+                            stockCheckDone = true;
+                            htmx.trigger(form, 'submit');
+                            return;
+                        }
+
+                        // Build warning message
+                        var msg = '';
+                        for (var j = 0; j < result.items.length; j++) {
+                            var item = result.items[j];
+                            if (!item.sufficient) {
+                                msg += '\u0645\u0646\u062a\u062c #' + item.product_id + ': \u0645\u062a\u0648\u0641\u0631 ' + item.available + ' / \u0645\u0637\u0644\u0648\u0628 ' + item.requested + '\n';
+                            }
+                        }
+
+                        if (result.enforcement === 'enforce') {
+                            alert('\u26d4 \u0644\u0627 \u064a\u0645\u0643\u0646 \u0625\u062a\u0645\u0627\u0645 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629 \u2014 \u0627\u0644\u0645\u062e\u0632\u0648\u0646 \u063a\u064a\u0631 \u0643\u0627\u0641\u064a:\n\n' + msg);
+                            return;
+                        }
+
+                        // warn mode — let user choose
+                        if (confirm('\u26a0\ufe0f \u062a\u062d\u0630\u064a\u0631: \u0627\u0644\u0645\u062e\u0632\u0648\u0646 \u063a\u064a\u0631 \u0643\u0627\u0641\u064a:\n\n' + msg + '\n\u0647\u0644 \u062a\u0631\u064a\u062f \u0627\u0644\u0645\u062a\u0627\u0628\u0639\u0629\u061f')) {
+                            stockCheckDone = true;
+                            htmx.trigger(form, 'submit');
+                        }
+                    });
+                })
+                .catch(function() {
+                    // On error, allow submission (fail-open)
+                    stockCheckDone = true;
+                    htmx.trigger(form, 'submit');
+                });
+        });
+    })();
+
+    // Company invoice: auto-fill customer name and phone from selected client
+    function fillClientInfo() {
+        var sel = document.getElementById('client-select');
+        if (!sel) return;
+        var opt = sel.options[sel.selectedIndex];
+        if (!opt || !opt.value) return;
+        var clientName = opt.getAttribute('data-name') || '';
+        var company = opt.getAttribute('data-company') || '';
+        var phone = opt.getAttribute('data-phone') || '';
+        var displayName = company ? clientName + ' - ' + company : clientName;
+        var nameField = document.getElementById('company-user-name') || document.querySelector('[name="user_name"]');
+        var phoneField = document.getElementById('company-user-phone') || document.querySelector('[name="user_phone_number"]');
+        if (nameField) nameField.value = displayName;
+        if (phoneField) phoneField.value = phone;
+        var clientField = document.getElementById('client-id-field');
+        if (clientField) clientField.value = opt.value;
+    }
+</script>
+{{ end }}

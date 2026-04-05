@@ -1,0 +1,63 @@
+.DS_Store
+.env
+.env.local
+*.log
+*.tmp
+/bin/
+/dist/
+vendor/
+__pycache__/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+node_modules/
+tmp/
+*.bak
+temp_*.txt
+main.exe
+test.exe
+cookies.txt
+cookies_new.txt
+
+# Test output artifacts
+tests/*.txt
+
+# Package lock (use package.json only)
+package-lock.json
+
+# Uploaded files (user-generated content)
+uploads/
+
+# Created by https://www.toptal.com/developers/gitignore/api/go
+# Edit at https://www.toptal.com/developers/gitignore?templates=go
+
+### Go ###
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# End of https://www.toptal.com/developers/gitignore/api/go.token
+api_docs/.token
+scripts
+main
+api_docs/

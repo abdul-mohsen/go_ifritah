@@ -1,0 +1,159 @@
+{{ define "content" }}
+{{ template "error-alert" . }}
+
+<div class="page-header">
+    <a href="/dashboard/cash-vouchers" class="btn btn-text btn-sm">&rarr; {{ L "cash_voucher.list_title" }}</a>
+</div>
+
+<form hx-post="/api/cash-vouchers" hx-target="body" class="section-card">
+
+    <!-- Row 1: Type + Date + Amount -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="form-group">
+            <label class="form-label">{{ L "cash_voucher.voucher_type" }} *</label>
+            <select name="voucher_type" required class="form-select" id="voucher_type">
+                <option value="disbursement">{{ L "cash_voucher_type.disbursement" }}</option>
+                <option value="receipt">{{ L "cash_voucher_type.receipt" }}</option>
+                <option value="cash_box">{{ L "cash_voucher_type.cash_box" }}</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">{{ L "cash_voucher.effective_date" }} *</label>
+            <input type="date" id="effective_date" name="effective_date" required class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">{{ L "cash_voucher.amount" }} ({{ L "tpl.currency" }}) *</label>
+            <input type="number" name="amount" required min="0.01" step="0.01" class="form-input" placeholder="0.00">
+        </div>
+    </div>
+
+    <!-- Row 2: Payment + Store -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div class="form-group">
+            <label class="form-label">{{ L "cash_voucher.payment_method" }} *</label>
+            <select name="payment_method" required class="form-select" id="payment_method" onchange="toggleBankFields()">
+                <option value="cash">{{ L "cash_voucher_method.cash" }}</option>
+                <option value="bank_transfer">{{ L "cash_voucher_method.bank_transfer" }}</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.pb.store" }} *</label>
+            <select name="store_id" required class="form-select">
+                {{ range .stores }}
+                <option value="{{ .ID }}" {{ if eq .ID $.default_store_id }}selected{{ end }}>{{ .Name }}</option>
+                {{ end }}
+            </select>
+        </div>
+    </div>
+
+    <!-- Row 3: Recipient -->
+    <h4 class="section-card-title mt-6">{{ L "cash_voucher.recipient_type" }}</h4>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="form-group">
+            <label class="form-label">{{ L "cash_voucher.recipient_type" }} *</label>
+            <select name="recipient_type" required class="form-select" id="recipient_type" onchange="toggleRecipientFields()">
+                <option value="supplier">{{ L "cash_voucher_recipient.supplier" }}</option>
+                <option value="client">{{ L "cash_voucher_recipient.client" }}</option>
+                <option value="employee">{{ L "cash_voucher_recipient.employee" }}</option>
+                <option value="other">{{ L "cash_voucher_recipient.other" }}</option>
+            </select>
+        </div>
+        <div class="form-group" id="supplier_select_group">
+            <label class="form-label">{{ L "cash_voucher_recipient.supplier" }}</label>
+            <select name="recipient_id" class="form-select" id="supplier_select" onchange="updateRecipientName(this)">
+                <option value="">-- {{ L "tpl.select" }} --</option>
+                {{ range .suppliers }}
+                <option value="{{ .ID }}" data-name="{{ .Name }}">{{ .Name }}</option>
+                {{ end }}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">{{ L "cash_voucher.recipient_name" }} *</label>
+            <input type="text" name="recipient_name" required class="form-input" id="recipient_name" placeholder="{{ L "cash_voucher.recipient_name" }}">
+        </div>
+    </div>
+
+    <!-- Row 4: Reference -->
+    <h4 class="section-card-title mt-6">{{ L "cash_voucher.reference" }}</h4>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="form-group">
+            <label class="form-label">{{ L "cash_voucher.reference" }}</label>
+            <select name="reference_type" class="form-select">
+                <option value="">-- {{ L "tpl.select" }} --</option>
+                <option value="purchase_bill">{{ L "purchase_bill.type_label" }}</option>
+                <option value="bill">{{ L "tpl.invoice.type" }}</option>
+                <option value="expense">{{ L "cash_voucher_recipient.other" }}</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">{{ L "cash_voucher.reference" }} #</label>
+            <input type="number" name="reference_id" class="form-input" placeholder="#">
+        </div>
+    </div>
+
+    <!-- Row 5: Description + Note side by side -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div class="form-group">
+            <label class="form-label">{{ L "cash_voucher.description" }}</label>
+            <textarea name="description" class="form-textarea" rows="2" placeholder="{{ L "cash_voucher.description" }}"></textarea>
+        </div>
+        <div class="form-group">
+            <label class="form-label">{{ L "cash_voucher.note" }}</label>
+            <textarea name="note" class="form-textarea" rows="2" placeholder="{{ L "cash_voucher.note" }}"></textarea>
+        </div>
+    </div>
+
+    <!-- Bank fields (hidden by default) -->
+    <div id="bank_fields" style="display: none;">
+        <h4 class="section-card-title mt-6">{{ L "cash_voucher.bank_name" }}</h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="form-group">
+                <label class="form-label">{{ L "cash_voucher.bank_name" }}</label>
+                <input type="text" name="bank_name" class="form-input" placeholder="{{ L "cash_voucher.bank_name" }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">{{ L "cash_voucher.bank_account" }}</label>
+                <input type="text" name="bank_account" class="form-input" placeholder="{{ L "cash_voucher.bank_account" }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">{{ L "cash_voucher.transaction_ref" }}</label>
+                <input type="text" name="transaction_reference" class="form-input" placeholder="{{ L "cash_voucher.transaction_ref" }}">
+            </div>
+        </div>
+    </div>
+
+    <div class="flex gap-3 mt-6">
+        <button type="submit" class="btn btn-filled">{{ L "tpl.save" }}</button>
+        <a href="/dashboard/cash-vouchers" class="btn btn-tonal">{{ L "tpl.cancel" }}</a>
+    </div>
+</form>
+
+<script>
+function toggleBankFields() {
+    var method = document.getElementById('payment_method').value;
+    document.getElementById('bank_fields').style.display = (method === 'bank_transfer') ? '' : 'none';
+}
+
+function toggleRecipientFields() {
+    var type = document.getElementById('recipient_type').value;
+    var supplierGroup = document.getElementById('supplier_select_group');
+    if (type === 'supplier') {
+        supplierGroup.style.display = '';
+    } else {
+        supplierGroup.style.display = 'none';
+        document.getElementById('supplier_select').value = '';
+    }
+}
+
+function updateRecipientName(select) {
+    var option = select.options[select.selectedIndex];
+    if (option && option.dataset.name) {
+        document.getElementById('recipient_name').value = option.dataset.name;
+    }
+}
+
+toggleBankFields();
+toggleRecipientFields();
+document.getElementById('effective_date').value = new Date().toISOString().slice(0,10);
+</script>
+{{ end }}

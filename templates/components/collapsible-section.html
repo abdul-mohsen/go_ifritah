@@ -1,0 +1,23 @@
+{{/*
+collapsible-section — Panel with a clickable header that toggles body visibility.
+
+Required context fields:
+.Section string — data-chart-section value (for dashboard prefs)
+.Title string — heading text
+.ToggleFn string — JS function name (e.g. "toggleAgingPanel")
+.IconID string — id for the chevron icon span
+.BodyID string — id for the collapsible body div
+.StartHidden bool — if true, body starts with class="hidden"
+
+Usage: Documented as a pattern reference. Applied inline in dashboard.html.
+*/}}
+{{ define "collapsible-header" }}
+<div class="flex items-center justify-between cursor-pointer select-none py-1" onclick="{{ .ToggleFn }}()">
+    <h3 class="text-sm font-semibold" style="color: var(--md-sys-color-on-surface)">{{ .Title }}</h3>
+    <span id="{{ .IconID }}" class="transition-transform" style="color: var(--md-sys-color-on-surface-variant)">
+        <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+    </span>
+</div>
+{{ end }}

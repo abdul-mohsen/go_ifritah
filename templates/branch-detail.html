@@ -1,0 +1,65 @@
+{{ define "content" }}
+<div class="page-card-wide">
+    <div class="mb-6">
+        <a href="/dashboard/branches" class="back-link">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            {{ L "tpl.branch.back_to_list" }}
+        </a>
+        <h2 class="page-title" style="margin-bottom:0">{{ .branch.Name }}</h2>
+        <div class="mt-2">
+            {{ if .branch.IsActive }}<span class="badge badge-success">{{ L "tpl.branch.active" }}</span>{{ else }}<span class="badge badge-error">{{ L "tpl.branch.inactive" }}</span>{{ end }}
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.branch.location" }}</span>
+            <p class="detail-value">{{ if .branch.Address }}{{ .branch.Address }}{{ else }}—{{ end }}</p>
+        </div>
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.branch.phone" }}</span>
+            <p class="detail-value">{{ if .branch.Phone }}{{ .branch.Phone }}{{ else }}—{{ end }}</p>
+        </div>
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.branch.manager" }}</span>
+            <p class="detail-value">{{ if .branch.ManagerName }}{{ .branch.ManagerName }}{{ else }}—{{ end }}</p>
+        </div>
+        <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.branch.store_count" }}</span>
+            <p class="detail-value">{{ .branch.StoreCount }}</p>
+        </div>
+    </div>
+
+    {{ if .branch.Stores }}
+    <div class="mt-6">
+        <h3 class="section-title">{{ L "tpl.branch.linked_stores" }}</h3>
+        <div class="data-table-wrapper">
+            <table aria-label="{{ L "tpl.branch.stores_table" }}">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>{{ L "tpl.store.name" }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .branch.Stores }}
+                    <tr>
+                        <td>{{ .ID }}</td>
+                        <td>{{ .Name }}</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{ end }}
+
+    <div class="detail-actions">
+        <a href="/dashboard/branches/{{ .branch.ID }}/edit" class="btn btn-success">{{ L "tpl.edit" }}</a>
+        <button hx-post="/dashboard/branches/{{ .branch.ID }}/delete"
+            hx-confirm="{{ L "tpl.branch.confirm_delete" }}" class="btn btn-error">{{ L "tpl.delete" }}</button>
+    </div>
+</div>
+{{ end }}

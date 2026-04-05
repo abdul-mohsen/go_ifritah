@@ -1,0 +1,39 @@
+{{ if .movements }}
+<div class="overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b" style="border-color: var(--md-sys-color-outline-variant)">
+                <th class="text-right py-2 px-3 font-medium text-gray-500">{{ L "tpl.partial.date" }}</th>
+                <th class="text-right py-2 px-3 font-medium text-gray-500">{{ L "tpl.partial.type" }}</th>
+                <th class="text-right py-2 px-3 font-medium text-gray-500">{{ L "tpl.partial.quantity" }}</th>
+                <th class="text-right py-2 px-3 font-medium text-gray-500">{{ L "tpl.partial.reference" }}</th>
+                <th class="text-right py-2 px-3 font-medium text-gray-500">{{ L "tpl.partial.note" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .movements }}
+            <tr class="border-b" style="border-color: var(--md-sys-color-outline-variant)">
+                <td class="py-2 px-3 text-xs text-gray-500">{{ .CreatedAt }}</td>
+                <td class="py-2 px-3">
+                    <span class="badge {{ if eq .MovementType "purchase" }}badge-success{{ else if eq .MovementType "sale" }}badge-danger{{ else if eq .MovementType "credit_note" }}badge-warning{{ else if eq .MovementType "adjustment" }}badge-info{{ else }}badge-secondary{{ end }}">
+                        {{ .MovementTypeLabel }}
+                    </span>
+                </td>
+                <td class="py-2 px-3 font-mono">{{ .Quantity }}</td>
+                <td class="py-2 px-3 text-xs text-gray-500">
+                    {{ if .ReferenceID }}#{{ derefInt .ReferenceID }}{{ end }}
+                </td>
+                <td class="py-2 px-3 text-xs text-gray-500">{{ derefStr .Reason }}</td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+{{ else }}
+<div class="text-center py-6 text-gray-400 text-sm">
+    <svg class="w-8 h-8 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+    </svg>
+    {{ L "tpl.partial.no_stock_movements" }}
+</div>
+{{ end }}

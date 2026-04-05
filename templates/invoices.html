@@ -1,0 +1,100 @@
+{{ define "content" }}
+{{ template "error-alert" . }}
+<div class="list-toolbar">
+    <form method="get">
+        <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.invoice.search_placeholder" }}" class="search-input">
+        <select name="state">
+            <option value="">{{ L "tpl.all_statuses" }}</option>
+            <option value="0" {{ if eq .state "0" }}selected{{ end }}>{{ L "tpl.invoice.status_draft" }}</option>
+            <option value="1" {{ if eq .state "1" }}selected{{ end }}>{{ L "tpl.invoice.status_processing" }}</option>
+            <option value="2" {{ if eq .state "2" }}selected{{ end }}>{{ L "tpl.invoice.status_processed" }}</option>
+            <option value="3" {{ if eq .state "3" }}selected{{ end }}>{{ L "tpl.invoice.status_issued" }}</option>
+        </select>
+        {{ template "per-page-select" dict "pagination" .pagination }}
+        <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
+    </form>
+    <div class="toolbar-actions">
+        {{ template "item-count" dict "pagination" .pagination }}
+        <a href="/dashboard/invoices/import-csv" class="btn btn-amber btn-sm"><svg class="w-4 h-4" fill="none"
+                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg> {{ L "tpl.import_csv" }}</a>
+        <a href="/dashboard/invoices/export-csv" class="btn btn-tonal btn-sm"><svg class="w-4 h-4" fill="none"
+                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg> CSV</a>
+        <a href="/dashboard/invoices/add-invoice" class="btn btn-filled">{{ L "tpl.invoice.add" }}</a>
+        <a href="/dashboard/invoices/add-invoice?type=company" class="btn btn-success">{{ L "tpl.invoice.company_bill" }}</a>
+    </div>
+</div>
+
+<div class="data-table-wrapper">
+    <table aria-label="{{ L "tpl.invoice.table_label" }}">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th data-sortable>{{ L "tpl.invoice.number" }}</th>
+                <th data-sortable>{{ L "tpl.invoice.total" }}</th>
+                <th data-sortable>{{ L "tpl.invoice.date" }}</th>
+                <th data-sortable>{{ L "tpl.invoice.type" }}</th>
+                <th data-sortable>{{ L "tpl.invoice.status" }}</th>
+                <th>{{ L "tpl.actions" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ if not .invoices }}
+            {{ template "empty-table-row" dict "colspan" 7 "message" (L "tpl.invoice.no_invoices") "action_url" "/dashboard/invoices/add-invoice" "action_label" (L "tpl.invoice.add") }}
+            {{ end }}
+            {{ range .invoices }}
+            <tr>
+                <td>{{ if lt .order 10 }}0{{ end }}{{ .order }}</td>
+                <td class="font-bold" style="color: var(--md-sys-color-primary)">{{ .sequence_number }}</td>
+                <td class="font-bold">{{ .total }} {{ L "tpl.currency" }}</td>
+                <td>{{ .date }}</td>
+                <td>{{ .type }}</td>
+                <td>
+                    <span class="badge {{ .status_class }}">{{ .status }}</span>
+                </td>
+                <td>
+                    <div class="action-cell">
+                        <div class="action-links">
+                            {{ if .is_credit }}
+                            <a href="/credit_bill/{{ .id }}" class="action-link action-view">{{ L "tpl.view" }}</a>
+                            <a href="#" onclick="openPDF('/bill/credit/pdf/{{ .id }}'); return false;"
+                                class="action-link action-pdf">PDF</a>
+                            <a href="#" onclick="printPDF('/bill/credit/pdf/{{ .id }}'); return false;"
+                                class="action-link action-print">{{ L "tpl.print" }}</a>
+                            {{ else }}
+                            <a href="/bill/{{ .id }}" class="action-link action-view">{{ L "tpl.view" }}</a>
+                            <a href="#" onclick="openPDF('/bill/pdf/{{ .id }}'); return false;"
+                                class="action-link action-pdf">PDF</a>
+                            <a href="#" onclick="printPDF('/bill/pdf/{{ .id }}'); return false;"
+                                class="action-link action-print">{{ L "tpl.print" }}</a>
+                            {{ end }}
+                            {{ if eq .state 0 }}
+                            <a href="/dashboard/invoices/edit/{{ .id }}" class="action-link action-edit">{{ L "tpl.edit" }}</a>
+                            {{ end }}
+                            {{ if and (eq .state 1) (eq .credit_state 0) }}
+                            <a href="/dashboard/invoices/credit/{{ .id }}" class="action-link action-credit">{{ L "tpl.invoice.credit_note" }}</a>
+                            {{ end }}
+                            {{ if eq .state 0 }}
+                            <a href="#" hx-delete="/api/invoices/{{ .id }}"
+                                hx-confirm="{{ L "tpl.invoice.confirm_delete" }}" class="action-link action-delete">{{ L "tpl.delete" }}</a>
+                            {{ end }}
+                        </div>
+                        <button class="action-overflow-btn" aria-label="{{ L "tpl.more" }}">⋮</button>
+                    </div>
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+
+{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
+"extra_params" (printf "&state=%s" .state) }}
+
+
+{{ end }}

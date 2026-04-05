@@ -1,0 +1,71 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/orders" "section_label" (L "tpl.order.section") "current" .order.SequenceNumber }}
+<div class="page-card">
+    <h3 class="page-title">{{ L "tpl.order.detail_heading" }}</h3>
+    <div class="space-y-3">
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.order.number" }}</span>
+            <span class="detail-value">{{ .order.SequenceNumber }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.order.client" }}</span>
+            <span class="detail-value">{{ if .order.ClientName }}{{ .order.ClientName }}{{ else }}{{ .order.CustomerName }}{{ end }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.order.warehouse" }}</span>
+            <span class="detail-value">{{ .order.StoreName }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.order.status" }}</span>
+            <span class="detail-value">
+                {{ if eq .status_ar (L "tpl.order.status_completed") }}
+                <span class="badge badge-success">{{ .status_ar }}</span>
+                {{ else if eq .status_ar (L "tpl.order.status_cancelled") }}
+                <span class="badge badge-danger">{{ .status_ar }}</span>
+                {{ else }}
+                <span class="badge badge-warning">{{ .status_ar }}</span>
+                {{ end }}
+            </span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.order.total" }}</span>
+            <span class="detail-value">{{ .order.Total }} {{ L "tpl.currency" }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.order.notes" }}</span>
+            <span class="detail-value">{{ if .order.Note }}{{ .order.Note }}{{ else }}—{{ end }}</span>
+        </div>
+    </div>
+
+    {{ if .order.Items }}
+    <h4 class="mt-6 mb-3 text-lg font-semibold">{{ L "tpl.order.items" }}</h4>
+    <div class="data-table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ L "tpl.order.part" }}</th>
+                    <th>{{ L "tpl.order.quantity" }}</th>
+                    <th>{{ L "tpl.order.unit_price" }}</th>
+                    <th>{{ L "tpl.order.total" }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ range .order.Items }}
+                <tr>
+                    <td>{{ .PartName }}</td>
+                    <td>{{ .Quantity }}</td>
+                    <td>{{ .UnitPrice }} {{ L "tpl.currency" }}</td>
+                    <td>{{ .LineTotal }} {{ L "tpl.currency" }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+    {{ end }}
+
+    <div class="detail-actions">
+        <a href="{{ printf "/dashboard/orders/%d/edit" .order.ID }}" class="btn btn-filled">{{ L "tpl.edit" }}</a>
+        <a href="/dashboard/orders" class="btn btn-outlined">{{ L "tpl.back" }}</a>
+    </div>
+</div>
+{{ end }}

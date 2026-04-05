@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ L "tpl.auth.register_title" }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>(function () { if (localStorage.getItem('afrita_theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark') })();</script>
+    <link href="/static/output.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/darkmode.js"></script>
+</head>
+
+<body class="login-body min-h-screen flex flex-col items-center justify-center px-4">
+    <div class="login-card rounded-xl shadow-2xl p-8 w-full max-w-md" dir="rtl">
+        <div class="text-center mb-6">
+            <img src="/static/images/afrita-logo.svg" alt="{{ L "tpl.auth.app_name" }}" class="mx-auto mb-4" style="height:48px;width:auto">
+            <h1 class="text-2xl font-bold mb-1" style="color: var(--md-sys-color-primary)">{{ L "tpl.auth.create_account" }}</h1>
+            <p class="login-subtitle text-sm">{{ L "tpl.auth.create_subtitle" }}</p>
+        </div>
+
+        <form id="register-form">
+            <div class="mb-4">
+                <label class="form-label">{{ L "tpl.auth.full_name" }}</label>
+                <input type="text" name="full_name" placeholder="{{ L "tpl.auth.full_name_placeholder" }}" required class="w-full">
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">{{ L "tpl.user.username" }}</label>
+                <input type="text" name="username" placeholder="{{ L "tpl.user.username_placeholder" }}" required class="w-full">
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">{{ L "tpl.user.email" }}</label>
+                <input type="email" name="email" placeholder="{{ L "tpl.user.email_placeholder" }}" required class="w-full">
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">{{ L "tpl.auth.phone" }}</label>
+                <input type="tel" name="phone" placeholder="05XXXXXXXX" class="w-full" required>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">{{ L "tpl.user.password" }}</label>
+                <input type="password" name="password" id="password" placeholder="{{ L "tpl.user.password_placeholder" }}" required
+                    minlength="8" class="w-full">
+            </div>
+
+            <div class="mb-5">
+                <label class="form-label">{{ L "tpl.user.confirm_password" }}</label>
+                <input type="password" name="confirm_password" id="confirm_password" placeholder="{{ L "tpl.user.confirm_pw_placeholder" }}"
+                    required minlength="8" class="w-full">
+                <p id="password-mismatch" class="text-xs mt-1 hidden" style="color: var(--md-sys-color-error)">{{ L "tpl.user.pw_mismatch" }}</p>
+            </div>
+
+            <div id="register-result" class="mb-4"></div>
+
+            <button type="submit" class="btn btn-filled btn-sm w-full font-bold">{{ L "tpl.auth.create_btn" }}</button>
+        </form>
+
+        <div class="mt-5 text-center">
+            <p class="text-sm" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.auth.have_account" }} <a href="/"
+                    class="hover:underline font-semibold" style="color: var(--md-sys-color-primary)">{{ L "tpl.auth.login_btn" }}</a>
+            </p>
+        </div>
+    </div>
+
+    <footer class="mt-6 mb-4 text-center">
+        <p class="text-xs" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.auth.app_name" }} v{{ .version }} © 2024-2026</p>
+        <p class="text-[10px]" style="color: var(--md-sys-color-outline)">{{ L "tpl.auth.all_rights" }}</p>
+    </footer>
+
+    <script>
+        (function () {
+            var form = document.getElementById('register-form');
+            var pw = document.getElementById('password');
+            var cpw = document.getElementById('confirm_password');
+            var mismatch = document.getElementById('password-mismatch');
+
+            cpw.addEventListener('input', function () {
+                mismatch.classList.toggle('hidden', pw.value === cpw.value);
+            });
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                if (pw.value !== cpw.value) {
+                    mismatch.classList.remove('hidden');
+                    return;
+                }
+
+                var data = {
+                    full_name: form.full_name.value,
+                    username: form.username.value,
+                    email: form.email.value,
+                    phone: form.phone.value,
+                    password: form.password.value
+                };
+
+                // TODO (backend): POST /api/v2/register
+                // Expected Request:  { "full_name": "...", "username": "...", "email": "...", "phone": "...", "password": "..." }
+                // Expected Response (success): { "success": true, "message": "تم إنشاء الحساب بنجاح", "user_id": 123 }
+                // Expected Response (error):   { "success": false, "error": "اسم المستخدم مستخدم بالفعل" }
+
+                var csrfToken = (document.cookie.match(/csrf_token=([^;]+)/) || [])[1] || '';
+                fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify(data)
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (res) {
+                        var result = document.getElementById('register-result');
+                        var esc = function (s) { return String(s || '').replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] }) };
+                        if (res.success) {
+                            result.innerHTML = '<div class="alert alert-success"><strong>{{ L "tpl.register.success" }}</strong> ' + esc(res.message) + '</div>';
+                            setTimeout(function () { window.location.href = '/'; }, 2000);
+                        } else {
+                            result.innerHTML = '<div class="alert alert-error"><strong>{{ L "tpl.register.error_prefix" }}</strong> ' + esc(res.error || res.message) + '</div>';
+                        }
+                    })
+                    .catch(function () {
+                        document.getElementById('register-result').innerHTML = '<div class="alert alert-error"><strong>{{ L "tpl.register.error_prefix" }}</strong> {{ L "tpl.register.connection_error" }}</div>';
+                    });
+            });
+        })();
+    </script>
+    <script src="/static/js/i18n.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,25 @@
+{{/*
+chart-panel — Wrapper for a Chart.js canvas with section visibility support.
+
+Required context fields:
+.Section string — data-chart-section value
+.Title string — heading text
+.CanvasID string — canvas element id
+.Height string — CSS max-height or height value (e.g. "240px")
+
+Usage:
+{{ template "chart-panel" dict "Section" "profitTrend" "Title" "اتجاه الربح" "CanvasID" "profitChart" "Height" "240px"
+}}
+
+Note: This component cannot be used with dict() since Go templates don't have
+a built-in dict function. Instead it's documented as a pattern reference.
+Use inline where the header needs extra controls.
+*/}}
+{{ define "chart-panel" }}
+<div class="p-5"
+    style="background: var(--md-sys-color-surface-container-lowest); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-md)"
+    data-chart-section="{{ .Section }}">
+    <h3 class="text-sm font-semibold mb-3" style="color: var(--md-sys-color-on-surface)">{{ .Title }}</h3>
+    <div class="chart-container" style="max-height:{{ .Height }}"><canvas id="{{ .CanvasID }}"></canvas></div>
+</div>
+{{ end }}

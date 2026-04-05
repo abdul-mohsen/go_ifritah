@@ -1,0 +1,712 @@
+{{ define "content" }}
+<div class="page-card">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="page-title">{{ L "tpl.import.title_purchase_bills" }}</h2>
+        <a href="/dashboard/purchase-bills" class="text-sm text-blue-600 hover:underline">{{ L "tpl.import.back_to_purchase_bills" }}</a>
+    </div>
+
+    <!-- Store selector -->
+    <div class="mb-4" style="max-width:300px">
+        <label class="form-label">{{ L "tpl.import.store_label" }} <span class="required-mark">*</span></label>
+        <select id="store-select" class="w-full" required>
+            <option value="">{{ L "tpl.import.choose_store" }}</option>
+            {{ range .stores }}
+            <option value="{{ .ID }}">{{ .Name }}</option>
+            {{ end }}
+        </select>
+    </div>
+
+    <!-- Upload Zone -->
+    <div id="excel-step-upload" class="file-upload-zone" style="cursor:pointer">
+        <input type="file" id="excel_file_input" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(this)">
+        <label for="excel_file_input" class="file-upload-label">
+            <span class="file-upload-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+            </span>
+            <span class="file-upload-text">{{ L "tpl.import.upload_drag_drop" }}</span>
+            <span class="file-upload-browse">{{ L "tpl.import.upload_click" }}</span>
+            <span class="file-upload-hint">{{ L "tpl.import.upload_hint" }}</span>
+        </label>
+    </div>
+    <div style="text-align:center;margin-top:8px">
+        <button type="button" class="btn-text-sm" onclick="downloadTemplate()" style="display:inline-flex;align-items:center;gap:4px;color:var(--md-sys-color-primary)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+            {{ L "tpl.import.download_template" }}
+        </button>
+    </div>
+
+    <!-- Step 1: Select Sheets -->
+    <div id="excel-step-sheets" class="excel-wizard-step hidden">
+        <div class="excel-wizard-header">
+            <span class="excel-wizard-badge">1</span>
+            <span>{{ L "tpl.import.step_sheets" }}</span>
+            <button type="button" class="btn-text-sm" onclick="resetExcelImport()">{{ L "tpl.cancel" }}</button>
+        </div>
+        <div class="excel-wizard-body">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="form-label">{{ L "tpl.import.products_sheet" }} <span class="required-mark">*</span></label>
+                    <select id="excel_products_sheet" class="w-full" onchange="onSheetSelected()">
+                        <option value="">{{ L "tpl.import.choose_sheet" }}</option>
+                    </select>
+                    <p class="text-xs mt-1" style="color:var(--md-sys-color-on-surface-variant)">{{ L "tpl.import.sheet_desc" }}</p>
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.import.bill_sheet" }}</label>
+                    <select id="excel_bill_sheet" class="w-full" onchange="onSheetSelected()">
+                        <option value="">{{ L "tpl.import.same_as_products" }}</option>
+                    </select>
+                    <p class="text-xs mt-1" style="color:var(--md-sys-color-on-surface-variant)">{{ L "tpl.import.bill_sheet_desc" }}</p>
+                </div>
+            </div>
+            <div id="excel-sheet-preview" class="mt-3 hidden">
+                <p class="text-sm font-medium mb-1">{{ L "tpl.import.data_preview" }}</p>
+                <div class="excel-preview-table-wrap">
+                    <table id="excel-preview-table" class="excel-preview-table"></table>
+                </div>
+            </div>
+            <div class="mt-3 flex justify-start">
+                <button type="button" class="btn btn-primary btn-xs" id="btn-to-mapping" onclick="goToMapping()" disabled>{{ L "tpl.import.next_mapping" }}</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: Column Mapping -->
+    <div id="excel-step-mapping" class="excel-wizard-step hidden">
+        <div class="excel-wizard-header">
+            <span class="excel-wizard-badge">2</span>
+            <span>{{ L "tpl.import.step_mapping" }}</span>
+            <button type="button" class="btn-text-sm" onclick="goBackToSheets()">{{ L "tpl.import.back" }}</button>
+        </div>
+        <div class="excel-wizard-body">
+            <p class="text-sm mb-3" style="color:var(--md-sys-color-on-surface-variant)">{{ L "tpl.import.mapping_desc" }}</p>
+
+            <h5 class="text-sm font-semibold mb-2">{{ L "tpl.import.product_fields" }}</h5>
+            <div id="product-column-mapping" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4"></div>
+
+            <div id="bill-column-mapping-section" class="hidden">
+                <h5 class="text-sm font-semibold mb-2">{{ L "tpl.import.bill_fields" }}</h5>
+                <div id="bill-column-mapping" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4"></div>
+            </div>
+
+            <div id="mapping-preview" class="mt-3 hidden">
+                <p class="text-sm font-medium mb-1">{{ L "tpl.import.results_preview" }}</p>
+                <div class="excel-preview-table-wrap">
+                    <table id="mapping-preview-table" class="excel-preview-table"></table>
+                </div>
+            </div>
+
+            <div class="mt-3 flex gap-2 justify-start">
+                <button type="button" class="btn btn-primary btn-xs" onclick="previewBills()">{{ L "tpl.import.preview_bills" }}</button>
+                <button type="button" class="btn btn-tonal btn-xs" onclick="goBackToSheets()">{{ L "tpl.import.back" }}</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3: Multi-Bill Preview -->
+    <div id="excel-step-preview" class="excel-wizard-step hidden">
+        <div class="excel-wizard-header">
+            <span class="excel-wizard-badge">3</span>
+            <span>{{ L "tpl.import.preview_bills" }}</span>
+            <button type="button" class="btn-text-sm" onclick="goBackToMapping()">{{ L "tpl.import.back_to_mapping" }}</button>
+        </div>
+        <div class="excel-wizard-body">
+            <div id="preview-summary" class="mb-3"></div>
+            <div id="preview-bills-container"></div>
+            <div class="mt-4 flex gap-2 justify-start">
+                <button type="button" class="btn btn-primary btn-xs" id="btn-confirm-import" onclick="confirmBulkImport()">
+                    <span id="excel-import-btn-text">{{ L "tpl.import.confirm_import" }}</span>
+                    <span id="excel-import-btn-spinner" class="hidden" style="display:inline-flex;align-items:center;gap:4px">
+                        <svg class="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="30 70" stroke-linecap="round"/></svg>
+                        {{ L "tpl.import.importing" }}
+                    </span>
+                </button>
+                <button type="button" class="btn btn-tonal btn-xs" onclick="goBackToMapping()">{{ L "tpl.edit" }}</button>
+                <button type="button" class="btn btn-tonal btn-xs" onclick="resetExcelImport()">{{ L "tpl.cancel" }}</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 4: Results -->
+    <div id="excel-step-results" class="excel-wizard-step hidden">
+        <div class="excel-wizard-header" id="excel-results-header" style="background:rgba(0,150,50,0.08);border-color:rgba(0,150,50,0.3)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span id="excel-results-msg" style="color:#16a34a">{{ L "tpl.import.success" }}</span>
+            <button type="button" class="btn-text-sm" onclick="resetExcelImport()">{{ L "tpl.import.import_another" }}</button>
+        </div>
+        <div class="excel-wizard-body">
+            <div id="excel-results-details"></div>
+            <div class="mt-3">
+                <a href="/dashboard/purchase-bills" class="btn btn-filled btn-sm">{{ L "tpl.import.view_purchase_bills" }}</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/xlsx.full.min.js"></script>
+<script>
+    function escHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function getCsrfCookie() {
+        return (document.cookie.match(/csrf_token=([^;]+)/) || [])[1] || '';
+    }
+
+    // ── Download Template ─────────────────────────────────────
+    function downloadTemplate() {
+        var wb = XLSX.utils.book_new();
+
+        var prodData = [
+            ['{{ L "tpl.import.field.bill_ref" }}', '{{ L "tpl.import.field.part_name" }}', '{{ L "tpl.import.field.quantity" }}', '{{ L "tpl.import.field.price" }}'],
+            ['PB-001', 'فلتر زيت', 10, 15],
+            ['PB-001', 'فلتر هواء', 20, 22],
+            ['PB-002', 'بطارية 70 أمبير', 5, 280],
+            ['PB-002', 'طقم فرامل أمامي', 8, 120],
+            ['PB-003', 'رديتر مياه', 3, 350]
+        ];
+        var ws1 = XLSX.utils.aoa_to_sheet(prodData);
+        ws1['!cols'] = [{wch:14},{wch:22},{wch:8},{wch:10}];
+        XLSX.utils.book_append_sheet(wb, ws1, '{{ L "tpl.import.sheet_products" }}');
+
+        var billData = [
+            ['{{ L "tpl.import.field.bill_ref" }}', '{{ L "tpl.import.col.supplier_id" }}', '{{ L "tpl.import.col.supplier_bill_no" }}', '{{ L "tpl.import.col.bill_date" }}', '{{ L "tpl.import.field.discount_pct" }}', '{{ L "tpl.import.col.extra_fees" }}', '{{ L "tpl.import.field.note" }}'],
+            ['PB-001', '1', 'SUP-2024-001', '2026-03-01', 5, 0, 'دفعة شهر مارس'],
+            ['PB-002', '1', 'SUP-2024-002', '2026-03-10', 0, 50, ''],
+            ['PB-003', '2', 'SUP-2024-003', '2026-03-15', 10, 0, 'أسعار خاصة']
+        ];
+        var ws2 = XLSX.utils.aoa_to_sheet(billData);
+        ws2['!cols'] = [{wch:14},{wch:10},{wch:18},{wch:14},{wch:8},{wch:12},{wch:18}];
+        XLSX.utils.book_append_sheet(wb, ws2, '{{ L "tpl.import.sheet_bills" }}');
+
+        XLSX.writeFile(wb, 'نموذج_استيراد_فواتير_مشتريات.xlsx');
+    }
+
+    // ── Excel Import Wizard ──────────────────────────────────
+    var excelWorkbook = null;
+    var excelSheetData = {};
+    var parsedBillsForImport = [];
+
+    var productFields = [
+        { key: 'part_name', label: '{{ L "tpl.import.field.part_name" }}', required: true },
+        { key: 'quantity', label: '{{ L "tpl.import.field.quantity" }}', required: true },
+        { key: 'price', label: '{{ L "tpl.import.field.price" }}', required: true },
+        { key: 'bill_ref', label: '{{ L "tpl.import.field.bill_ref" }}', required: false }
+    ];
+
+    var billFields = [
+        { key: 'bill_ref', label: '{{ L "tpl.import.field.bill_ref" }}' },
+        { key: 'supplier_id', label: '{{ L "tpl.import.field.supplier_id" }}' },
+        { key: 'supplier_seq', label: '{{ L "tpl.import.field.supplier_seq" }}' },
+        { key: 'effective_date', label: '{{ L "tpl.import.field.effective_date" }}' },
+        { key: 'discount', label: '{{ L "tpl.import.field.discount_pct" }}' },
+        { key: 'fees', label: '{{ L "tpl.import.field.fees" }}' },
+        { key: 'note', label: '{{ L "tpl.import.field.note" }}' }
+    ];
+
+    function handleExcelUpload(input) {
+        if (!input.files || !input.files[0]) return;
+        var file = input.files[0];
+        var ext = file.name.split('.').pop().toLowerCase();
+        if (ext !== 'xlsx' && ext !== 'xls') {
+            alert('{{ L "tpl.import.err_excel_format" }}');
+            input.value = '';
+            return;
+        }
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                excelWorkbook = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+                showSheetSelector();
+            } catch(err) {
+                alert('{{ L "tpl.import.err_read_file" }}' + err.message);
+                input.value = '';
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function showSheetSelector() {
+        document.getElementById('excel-step-upload').classList.add('hidden');
+        document.getElementById('excel-step-sheets').classList.remove('hidden');
+        document.getElementById('excel-step-mapping').classList.add('hidden');
+        document.getElementById('excel-step-preview').classList.add('hidden');
+        document.getElementById('excel-step-results').classList.add('hidden');
+
+        var sheets = excelWorkbook.SheetNames;
+        var prodSelect = document.getElementById('excel_products_sheet');
+        var billSelect = document.getElementById('excel_bill_sheet');
+
+        prodSelect.innerHTML = '<option value="">{{ L "tpl.import.choose_sheet" }}</option>';
+        billSelect.innerHTML = '<option value="">{{ L "tpl.import.same_as_products" }}</option>';
+
+        for (var i = 0; i < sheets.length; i++) {
+            var o1 = document.createElement('option'); o1.value = sheets[i]; o1.textContent = sheets[i]; prodSelect.appendChild(o1);
+            var o2 = document.createElement('option'); o2.value = sheets[i]; o2.textContent = sheets[i]; billSelect.appendChild(o2);
+        }
+
+        if (sheets.length === 1) {
+            prodSelect.value = sheets[0];
+            onSheetSelected();
+        }
+    }
+
+    function getSheetData(sheetName) {
+        if (excelSheetData[sheetName]) return excelSheetData[sheetName];
+        var ws = excelWorkbook.Sheets[sheetName];
+        var data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        excelSheetData[sheetName] = data;
+        return data;
+    }
+
+    function onSheetSelected() {
+        var prodSheet = document.getElementById('excel_products_sheet').value;
+        var btnNext = document.getElementById('btn-to-mapping');
+        if (!prodSheet) {
+            btnNext.disabled = true;
+            document.getElementById('excel-sheet-preview').classList.add('hidden');
+            return;
+        }
+        btnNext.disabled = false;
+        var data = getSheetData(prodSheet);
+        showPreviewTable('excel-preview-table', data, 6);
+        document.getElementById('excel-sheet-preview').classList.remove('hidden');
+    }
+
+    function showPreviewTable(tableId, data, maxRows) {
+        var table = document.getElementById(tableId);
+        if (!data || data.length === 0) { table.innerHTML = '<tr><td>{{ L "tpl.import.no_data" }}</td></tr>'; return; }
+        var html = '<thead><tr>';
+        var headers = data[0];
+        for (var c = 0; c < headers.length; c++) html += '<th>' + escHtml(String(headers[c] || '{{ L "tpl.import.column_prefix" }}' + (c+1))) + '</th>';
+        html += '</tr></thead><tbody>';
+        var rows = Math.min(data.length, maxRows || 6);
+        for (var r = 1; r < rows; r++) {
+            html += '<tr>';
+            for (var c2 = 0; c2 < headers.length; c2++) {
+                var val = data[r] ? (data[r][c2] != null ? data[r][c2] : '') : '';
+                if (val instanceof Date) val = val.toISOString().split('T')[0];
+                html += '<td>' + escHtml(String(val)) + '</td>';
+            }
+            html += '</tr>';
+        }
+        if (data.length > rows) html += '<tr><td colspan="' + headers.length + '" style="text-align:center;color:var(--md-sys-color-on-surface-variant);font-style:italic">... و ' + (data.length - rows) + '{{ L "tpl.import.more_rows_suffix" }}</td></tr>';
+        html += '</tbody>';
+        table.innerHTML = html;
+    }
+
+    function goToMapping() {
+        var prodSheet = document.getElementById('excel_products_sheet').value;
+        if (!prodSheet) return;
+        document.getElementById('excel-step-sheets').classList.add('hidden');
+        document.getElementById('excel-step-mapping').classList.remove('hidden');
+
+        var prodData = getSheetData(prodSheet);
+        var prodHeaders = prodData[0] || [];
+
+        var prodMapDiv = document.getElementById('product-column-mapping');
+        prodMapDiv.innerHTML = '';
+        for (var i = 0; i < productFields.length; i++) prodMapDiv.appendChild(createMappingRow(productFields[i], prodHeaders, 'prod_map_'));
+
+        var billSheet = document.getElementById('excel_bill_sheet').value;
+        var billMapSection = document.getElementById('bill-column-mapping-section');
+        var billMapDiv = document.getElementById('bill-column-mapping');
+
+        if (billSheet) {
+            var billData = getSheetData(billSheet);
+            var billHeaders = billData[0] || [];
+            billMapDiv.innerHTML = '';
+            for (var j = 0; j < billFields.length; j++) billMapDiv.appendChild(createMappingRow(billFields[j], billHeaders, 'bill_map_'));
+            billMapSection.classList.remove('hidden');
+        } else {
+            billMapDiv.innerHTML = '';
+            for (var k = 0; k < billFields.length; k++) billMapDiv.appendChild(createMappingRow(billFields[k], prodHeaders, 'bill_map_'));
+            billMapSection.classList.remove('hidden');
+        }
+
+        autoMatchColumns(prodHeaders, 'prod_map_', productFields);
+        var bHeaders = billSheet ? (getSheetData(billSheet)[0] || []) : prodHeaders;
+        autoMatchColumns(bHeaders, 'bill_map_', billFields);
+        updateMappingPreview();
+    }
+
+    function createMappingRow(field, headers, prefix) {
+        var wrap = document.createElement('div');
+        wrap.className = 'excel-mapping-row';
+        var label = document.createElement('label');
+        label.className = 'form-label';
+        label.textContent = field.label;
+        if (field.required) { var req = document.createElement('span'); req.className = 'required-mark'; req.textContent = ' *'; label.appendChild(req); }
+        var select = document.createElement('select');
+        select.className = 'w-full';
+        select.id = prefix + field.key;
+        select.onchange = updateMappingPreview;
+        var emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '{{ L "tpl.import.skip_option" }}';
+        select.appendChild(emptyOpt);
+        for (var i = 0; i < headers.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = headers[i] || ('{{ L "tpl.import.column_prefix" }}' + (i+1));
+            select.appendChild(opt);
+        }
+        wrap.appendChild(label);
+        wrap.appendChild(select);
+        return wrap;
+    }
+
+    function autoMatchColumns(headers, prefix, fields) {
+        var headerLower = headers.map(function(h) { return String(h || '').toLowerCase().trim(); });
+        var matchMap = {
+            'part_name': ['اسم', 'name', 'part', 'قطع', 'منتج', 'product', 'item', 'صنف', 'description', 'وصف'],
+            'quantity': ['كمي', 'qty', 'quantity', 'عدد', 'count'],
+            'price': ['سعر', 'price', 'cost', 'قيم', 'amount', 'مبلغ', 'unit'],
+            'bill_ref': ['مرجع', 'ref', 'reference', 'bill_id', 'bill_ref', 'رقم الفاتورة', 'bill_number'],
+            'supplier_id': ['مورد', 'supplier', 'vendor', 'رقم المورد'],
+            'supplier_seq': ['فاتورة المورد', 'supplier_sequence', 'رقم فاتورة', 'sequence'],
+            'effective_date': ['تاريخ', 'date', 'effective'],
+            'discount': ['خصم', 'discount', 'تخفيض'],
+            'fees': ['رسوم', 'fees', 'fee', 'مصاريف', 'إضافي'],
+            'note': ['ملاحظ', 'note', 'notes', 'comment', 'remarks']
+        };
+        for (var f = 0; f < fields.length; f++) {
+            var key = fields[f].key;
+            var keywords = matchMap[key] || [];
+            var sel = document.getElementById(prefix + key);
+            if (!sel) continue;
+            for (var h = 0; h < headerLower.length; h++) {
+                var matched = false;
+                for (var k = 0; k < keywords.length; k++) { if (headerLower[h].indexOf(keywords[k]) !== -1) { matched = true; break; } }
+                if (matched) { sel.value = h; break; }
+            }
+        }
+    }
+
+    function updateMappingPreview() {
+        var prodSheet = document.getElementById('excel_products_sheet').value;
+        if (!prodSheet) return;
+        var data = getSheetData(prodSheet);
+        if (data.length < 2) return;
+        var nameCol = document.getElementById('prod_map_part_name').value;
+        var qtyCol = document.getElementById('prod_map_quantity').value;
+        var priceCol = document.getElementById('prod_map_price').value;
+        var refCol = document.getElementById('prod_map_bill_ref');
+        var refColVal = refCol ? refCol.value : '';
+        if (nameCol === '') return;
+
+        var previewDiv = document.getElementById('mapping-preview');
+        var table = document.getElementById('mapping-preview-table');
+        var hasRef = refColVal !== '';
+        var html = '<thead><tr>';
+        if (hasRef) html += '<th>{{ L "tpl.import.ref" }}</th>';
+        html += '<th>{{ L "tpl.import.field.part_name" }}</th><th>{{ L "tpl.import.field.quantity" }}</th><th>{{ L "tpl.import.field.price" }}</th></tr></thead><tbody>';
+        var rows = Math.min(data.length, 6);
+        for (var r = 1; r < rows; r++) {
+            var row = data[r] || [];
+            html += '<tr>';
+            if (hasRef) html += '<td>' + escHtml(String(row[parseInt(refColVal)] || '')) + '</td>';
+            html += '<td>' + escHtml(String(nameCol !== '' ? (row[parseInt(nameCol)] || '') : '')) + '</td>';
+            html += '<td>' + escHtml(String(qtyCol !== '' ? (row[parseInt(qtyCol)] || '') : '')) + '</td>';
+            html += '<td>' + escHtml(String(priceCol !== '' ? (row[parseInt(priceCol)] || '') : '')) + '</td>';
+            html += '</tr>';
+        }
+        html += '</tbody>';
+        table.innerHTML = html;
+        previewDiv.classList.remove('hidden');
+    }
+
+    // ── Multi-Bill Preview ──────────────────────────────────
+    function buildBillGroups() {
+        var prodSheet = document.getElementById('excel_products_sheet').value;
+        if (!prodSheet) return [];
+        var prodData = getSheetData(prodSheet);
+
+        var nameCol = document.getElementById('prod_map_part_name').value;
+        var qtyCol = document.getElementById('prod_map_quantity').value;
+        var priceCol = document.getElementById('prod_map_price').value;
+        var refCol = document.getElementById('prod_map_bill_ref');
+        var prodRefCol = refCol ? refCol.value : '';
+
+        if (nameCol === '') return [];
+
+        var billSheet = document.getElementById('excel_bill_sheet').value;
+        var billData = billSheet ? getSheetData(billSheet) : prodData;
+
+        var supplierCol = document.getElementById('bill_map_supplier_id') ? document.getElementById('bill_map_supplier_id').value : '';
+        var supplierSeqCol = document.getElementById('bill_map_supplier_seq') ? document.getElementById('bill_map_supplier_seq').value : '';
+        var dateCol = document.getElementById('bill_map_effective_date') ? document.getElementById('bill_map_effective_date').value : '';
+        var discCol = document.getElementById('bill_map_discount') ? document.getElementById('bill_map_discount').value : '';
+        var feesCol = document.getElementById('bill_map_fees') ? document.getElementById('bill_map_fees').value : '';
+        var noteCol = document.getElementById('bill_map_note') ? document.getElementById('bill_map_note').value : '';
+        var billRefCol = document.getElementById('bill_map_bill_ref');
+        var billRefColVal = billRefCol ? billRefCol.value : '';
+
+        var billInfoMap = {};
+        if (billRefColVal !== '' && billData.length >= 2) {
+            for (var b = 1; b < billData.length; b++) {
+                var brow = billData[b];
+                if (!brow) continue;
+                var bref = String(brow[parseInt(billRefColVal)] || '').trim();
+                if (!bref) continue;
+                billInfoMap[bref] = {
+                    supplier_id: supplierCol !== '' ? String(brow[parseInt(supplierCol)] || '').replace(/[^\d]/g, '') : '0',
+                    supplier_seq: supplierSeqCol !== '' ? String(brow[parseInt(supplierSeqCol)] || '') : '1',
+                    effective_date: dateCol !== '' ? formatDateVal(brow[parseInt(dateCol)]) : '',
+                    discount: discCol !== '' ? String(brow[parseInt(discCol)] || '').replace(/[^\d.]/g, '') : '0',
+                    fees: feesCol !== '' ? String(brow[parseInt(feesCol)] || '').replace(/[^\d.]/g, '') : '0',
+                    note: noteCol !== '' ? String(brow[parseInt(noteCol)] || '') : ''
+                };
+            }
+        } else if (billData.length >= 2) {
+            var firstBillRow = billData[1];
+            billInfoMap['__default__'] = {
+                supplier_id: supplierCol !== '' ? String(firstBillRow[parseInt(supplierCol)] || '').replace(/[^\d]/g, '') : '0',
+                supplier_seq: supplierSeqCol !== '' ? String(firstBillRow[parseInt(supplierSeqCol)] || '') : '1',
+                effective_date: dateCol !== '' ? formatDateVal(firstBillRow[parseInt(dateCol)]) : '',
+                discount: discCol !== '' ? String(firstBillRow[parseInt(discCol)] || '').replace(/[^\d.]/g, '') : '0',
+                fees: feesCol !== '' ? String(firstBillRow[parseInt(feesCol)] || '').replace(/[^\d.]/g, '') : '0',
+                note: noteCol !== '' ? String(firstBillRow[parseInt(noteCol)] || '') : ''
+            };
+        }
+
+        var groups = {};
+        var groupOrder = [];
+        for (var r = 1; r < prodData.length; r++) {
+            var row = prodData[r];
+            if (!row) continue;
+            var name = String(row[parseInt(nameCol)] || '').trim();
+            if (!name) continue;
+            var qty = qtyCol !== '' ? String(row[parseInt(qtyCol)] || '1') : '1';
+            var price = priceCol !== '' ? String(row[parseInt(priceCol)] || '0') : '0';
+            qty = qty.replace(/[^\d.]/g, '') || '1';
+            price = price.replace(/[^\d.]/g, '') || '0';
+
+            var ref = '__default__';
+            if (prodRefCol !== '') ref = String(row[parseInt(prodRefCol)] || '').trim() || '__default__';
+            if (!groups[ref]) { groups[ref] = []; groupOrder.push(ref); }
+            groups[ref].push({ name: name, quantity: qty, price: price });
+        }
+
+        var storeId = parseInt(document.getElementById('store-select').value) || 0;
+
+        var bills = [];
+        for (var g = 0; g < groupOrder.length; g++) {
+            var gRef = groupOrder[g];
+            var info = billInfoMap[gRef] || billInfoMap['__default__'] || {};
+            var products = groups[gRef];
+            var subtotal = 0;
+            for (var p = 0; p < products.length; p++) subtotal += parseFloat(products[p].price) * parseFloat(products[p].quantity);
+            var disc = parseFloat(info.discount || '0');
+            var total = subtotal * (1 - disc / 100);
+
+            bills.push({
+                ref: gRef === '__default__' ? '' : gRef,
+                info: info,
+                products: products,
+                subtotal: subtotal,
+                total: total,
+                payload: {
+                    store_id: storeId,
+                    merchant_id: 0,
+                    supplier_id: parseInt(info.supplier_id) || 0,
+                    supplier_sequence_number: parseInt(info.supplier_seq) || 1,
+                    effective_date: info.effective_date || '',
+                    products: [],
+                    manual_products: products.map(function(p) {
+                        return { product_id: null, name: p.name, price: p.price, quantity: p.quantity };
+                    }),
+                    discount: String(disc || '0'),
+                    subtotal: total
+                }
+            });
+        }
+        return bills;
+    }
+
+    function formatDateVal(val) {
+        if (!val) return '';
+        if (val instanceof Date) return val.toISOString().split('T')[0];
+        var s = String(val);
+        var parsed = new Date(s);
+        if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+        return s;
+    }
+
+    function previewBills() {
+        var prodSheet = document.getElementById('excel_products_sheet').value;
+        if (!prodSheet) { alert('{{ L "tpl.import.err_select_sheet" }}'); return; }
+        var nameCol = document.getElementById('prod_map_part_name').value;
+        if (nameCol === '') { alert('{{ L "tpl.import.err_map_name" }}'); return; }
+        var storeId = document.getElementById('store-select').value;
+        if (!storeId) { alert('{{ L "tpl.import.err_select_store" }}'); return; }
+
+        var bills = buildBillGroups();
+        if (bills.length === 0) { alert('{{ L "tpl.import.err_no_valid_data" }}'); return; }
+
+        parsedBillsForImport = bills;
+
+        var totalProducts = 0;
+        for (var i = 0; i < bills.length; i++) totalProducts += bills[i].products.length;
+
+        var summary = document.getElementById('preview-summary');
+        summary.innerHTML = '<div class="bulk-preview-summary"><span><strong>' + bills.length + '</strong> {{ L "tpl.import.purchase_bill_word" }}</span><span style="margin:0 8px">&middot;</span><span><strong>' + totalProducts + '</strong> {{ L "tpl.import.pieces" }}</span></div>';
+
+        var container = document.getElementById('preview-bills-container');
+        container.innerHTML = '';
+
+        for (var b = 0; b < bills.length; b++) {
+            var bill = bills[b];
+            var card = document.createElement('div');
+            card.className = 'bulk-preview-card';
+
+            var headerLine = '{{ L "tpl.import.purchase_bill_word" }} ' + (b + 1);
+            if (bill.ref) headerLine += ' — ' + escHtml(bill.ref);
+
+            var infoHtml = '<div class="bulk-preview-info">';
+            if (bill.info.supplier_id && bill.info.supplier_id !== '0') infoHtml += '<span>{{ L "tpl.import.supplier_id_prefix" }} ' + escHtml(bill.info.supplier_id) + '</span>';
+            if (bill.info.supplier_seq && bill.info.supplier_seq !== '1') infoHtml += '<span>{{ L "tpl.import.supplier_bill_prefix" }} ' + escHtml(bill.info.supplier_seq) + '</span>';
+            if (bill.info.effective_date) infoHtml += '<span>{{ L "tpl.import.date_prefix" }} ' + escHtml(bill.info.effective_date) + '</span>';
+            if (bill.info.discount && bill.info.discount !== '0') infoHtml += '<span>{{ L "tpl.import.discount_prefix" }} ' + escHtml(bill.info.discount) + '%</span>';
+            if (bill.info.fees && bill.info.fees !== '0') infoHtml += '<span>{{ L "tpl.import.fees_prefix" }} ' + escHtml(bill.info.fees) + '</span>';
+            if (bill.info.note) infoHtml += '<span>{{ L "tpl.import.note_prefix" }} ' + escHtml(bill.info.note) + '</span>';
+            infoHtml += '</div>';
+
+            var tableHtml = '<table class="excel-preview-table"><thead><tr><th>#</th><th>{{ L "tpl.import.field.part_name" }}</th><th>{{ L "tpl.import.field.quantity" }}</th><th>{{ L "tpl.import.field.price" }}</th><th>{{ L "tpl.import.total_col" }}</th></tr></thead><tbody>';
+            for (var p = 0; p < bill.products.length; p++) {
+                var prod = bill.products[p];
+                var lineTotal = (parseFloat(prod.price) * parseFloat(prod.quantity)).toFixed(2);
+                tableHtml += '<tr><td>' + (p+1) + '</td><td>' + escHtml(prod.name) + '</td><td>' + escHtml(prod.quantity) + '</td><td>' + escHtml(prod.price) + '</td><td>' + lineTotal + '</td></tr>';
+            }
+            tableHtml += '</tbody></table>';
+
+            var totalHtml = '<div class="bulk-preview-total"><span>{{ L "tpl.import.subtotal_prefix" }} ' + bill.subtotal.toFixed(2) + ' {{ L "tpl.import.currency" }}</span>';
+            if (bill.info.discount && bill.info.discount !== '0') totalHtml += '<span>{{ L "tpl.import.after_discount" }} ' + bill.total.toFixed(2) + ' {{ L "tpl.import.currency" }}</span>';
+            totalHtml += '</div>';
+
+            card.innerHTML = '<div class="bulk-preview-card-header"><span class="bulk-preview-card-badge">' + (b+1) + '</span><span class="bulk-preview-card-title">' + headerLine + '</span><span class="bulk-preview-card-count">' + bill.products.length + ' {{ L "tpl.import.pieces" }}</span></div>' + infoHtml + '<div class="excel-preview-table-wrap">' + tableHtml + '</div>' + totalHtml;
+            container.appendChild(card);
+        }
+
+        document.getElementById('excel-step-mapping').classList.add('hidden');
+        document.getElementById('excel-step-preview').classList.remove('hidden');
+    }
+
+    // ── Bulk Submit ──────────────────────────────────────────
+    function confirmBulkImport() {
+        if (!parsedBillsForImport || parsedBillsForImport.length === 0) return;
+
+        var btn = document.getElementById('btn-confirm-import');
+        btn.disabled = true;
+        document.getElementById('excel-import-btn-text').classList.add('hidden');
+        document.getElementById('excel-import-btn-spinner').classList.remove('hidden');
+
+        var payloads = parsedBillsForImport.map(function(b) { return b.payload; });
+        var csrfToken = getCsrfCookie();
+
+        fetch('/api/purchase-bills/bulk-import', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify(payloads)
+        })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) { showExcelResults(data); })
+        .catch(function(err) { showExcelResults({ total: payloads.length, success: 0, failed: payloads.length, results: [], error: err.message }); })
+        .finally(function() {
+            btn.disabled = false;
+            document.getElementById('excel-import-btn-text').classList.remove('hidden');
+            document.getElementById('excel-import-btn-spinner').classList.add('hidden');
+        });
+    }
+
+    function showExcelResults(data) {
+        document.getElementById('excel-step-preview').classList.add('hidden');
+        document.getElementById('excel-step-results').classList.remove('hidden');
+
+        var header = document.getElementById('excel-results-header');
+        var msg = document.getElementById('excel-results-msg');
+        var details = document.getElementById('excel-results-details');
+
+        if (data.error) {
+            header.style.background = 'rgba(220,38,38,0.08)';
+            header.style.borderColor = 'rgba(220,38,38,0.3)';
+            msg.style.color = '#dc2626';
+            msg.textContent = '{{ L "tpl.import.err_import_failed" }}' + data.error;
+            details.innerHTML = '';
+            return;
+        }
+
+        var allOk = data.failed === 0;
+        if (allOk) {
+            header.style.background = 'rgba(0,150,50,0.08)';
+            header.style.borderColor = 'rgba(0,150,50,0.3)';
+            msg.style.color = '#16a34a';
+            msg.textContent = '{{ L "tpl.import.result_prefix" }}' + data.success + '{{ L "tpl.import.result_pb_suffix" }}';
+        } else {
+            header.style.background = 'rgba(234,179,8,0.08)';
+            header.style.borderColor = 'rgba(234,179,8,0.3)';
+            msg.style.color = '#ca8a04';
+            msg.textContent = '{{ L "tpl.import.result_prefix" }}' + data.success + '{{ L "tpl.import.result_of" }}' + data.total + '{{ L "tpl.import.result_partial_suffix" }}' + data.failed + '{{ L "tpl.import.result_failed_suffix" }}';
+        }
+
+        var html = '<div class="bulk-results-list">';
+        var results = data.results || [];
+        for (var i = 0; i < results.length; i++) {
+            var r = results[i];
+            var ref = parsedBillsForImport[r.index] ? (parsedBillsForImport[r.index].ref || '') : '';
+            var label = '{{ L "tpl.import.invoice_word" }} ' + (r.index + 1);
+            if (ref) label += ' (' + escHtml(ref) + ')';
+            if (r.ok) {
+                html += '<div class="bulk-result-item bulk-result-ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>' + label + '</span></div>';
+            } else {
+                html += '<div class="bulk-result-item bulk-result-fail"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>' + label + '</span><span class="bulk-result-error">' + escHtml(r.error || '') + '</span></div>';
+            }
+        }
+        html += '</div>';
+        details.innerHTML = html;
+    }
+
+    function goBackToSheets() {
+        document.getElementById('excel-step-mapping').classList.add('hidden');
+        document.getElementById('excel-step-sheets').classList.remove('hidden');
+    }
+
+    function goBackToMapping() {
+        document.getElementById('excel-step-preview').classList.add('hidden');
+        document.getElementById('excel-step-mapping').classList.remove('hidden');
+    }
+
+    function resetExcelImport() {
+        excelWorkbook = null;
+        excelSheetData = {};
+        parsedBillsForImport = [];
+        document.getElementById('excel_file_input').value = '';
+        document.getElementById('excel-step-upload').classList.remove('hidden');
+        document.getElementById('excel-step-sheets').classList.add('hidden');
+        document.getElementById('excel-step-mapping').classList.add('hidden');
+        document.getElementById('excel-step-preview').classList.add('hidden');
+        document.getElementById('excel-step-results').classList.add('hidden');
+        document.getElementById('excel-sheet-preview').classList.add('hidden');
+    }
+
+    // Drag-and-drop
+    (function() {
+        var zone = document.getElementById('excel-step-upload');
+        var input = document.getElementById('excel_file_input');
+        if (!zone || !input) return;
+        var dragCtr = 0;
+        zone.addEventListener('dragenter', function(e) { e.preventDefault(); e.stopPropagation(); dragCtr++; zone.classList.add('drag-over'); });
+        zone.addEventListener('dragover', function(e) { e.preventDefault(); e.stopPropagation(); });
+        zone.addEventListener('dragleave', function(e) { e.preventDefault(); e.stopPropagation(); dragCtr--; if(dragCtr<=0){dragCtr=0;zone.classList.remove('drag-over');} });
+        zone.addEventListener('drop', function(e) {
+            e.preventDefault(); e.stopPropagation(); dragCtr=0; zone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) { input.files = e.dataTransfer.files; handleExcelUpload(input); }
+        });
+    })();
+</script>
+{{ end }}

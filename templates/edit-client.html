@@ -1,0 +1,190 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/clients" "section_label" (L "tpl.client.section") "current" (L "tpl.client.edit") }}
+<div class="page-card">
+    {{ template "form-errors" . }}
+
+    <form hx-post="/dashboard/clients/{{ .client.ID }}/update" hx-target="body" hx-indicator="#submit-spinner">
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.client.client_name" }} <span class="required-mark">*</span></label>
+            <input type="text" name="name" value="{{ if .old }}{{ old .old "name" }}{{ else }}{{ .client.Name }}{{ end }}" placeholder="{{ L "tpl.client.client_name" }}" class="w-full {{ if hasError .errors "name" }}input-error{{ end }}" required minlength="2" maxlength="100">
+            {{ if hasError .errors "name" }}<p class="field-error">{{ fieldError .errors "name" }}</p>{{ end }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.client.client_number" }}</label>
+            <input type="text" name="number" value="{{ if .old }}{{ old .old "number" }}{{ else }}{{ .client.Number }}{{ end }}" placeholder="{{ L "tpl.client.client_number" }}" class="w-full {{ if hasError .errors "number" }}input-error{{ end }}" maxlength="50">
+            {{ if hasError .errors "number" }}<p class="field-error">{{ fieldError .errors "number" }}</p>{{ end }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.client.company_name" }} <span class="required-mark">*</span></label>
+            <input type="text" name="company_name" value="{{ if .old }}{{ old .old "company_name" }}{{ else }}{{ .client.CompanyName }}{{ end }}" placeholder="{{ L "tpl.client.company_name" }}" class="w-full {{ if hasError .errors "company_name" }}input-error{{ end }}" required minlength="2" maxlength="200">
+            {{ if hasError .errors "company_name" }}<p class="field-error">{{ fieldError .errors "company_name" }}</p>{{ end }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.client.email" }} <span class="required-mark">*</span></label>
+            <input type="email" name="email" value="{{ if .old }}{{ old .old "email" }}{{ else }}{{ .client.Email }}{{ end }}" placeholder="client@example.com" class="w-full {{ if hasError .errors "email" }}input-error{{ end }}" required maxlength="254">
+            {{ if hasError .errors "email" }}<p class="field-error">{{ fieldError .errors "email" }}</p>{{ end }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.client.phone" }} <span class="required-mark">*</span></label>
+            <input type="tel" name="phone" value="{{ if .old }}{{ old .old "phone" }}{{ else }}{{ .client.Phone }}{{ end }}" placeholder="05xxxxxxxx" class="w-full {{ if hasError .errors "phone" }}input-error{{ end }}" required maxlength="20">
+            {{ if hasError .errors "phone" }}<p class="field-error">{{ fieldError .errors "phone" }}</p>{{ end }}
+        </div>
+
+        <!-- العنوان الوطني -->
+        <div class="mt-6 mb-4">
+            <h4 class="text-base font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2">{{ L "tpl.address.national" }}</h4>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.supplier.short_address" }}</label>
+            <input type="text" name="short_address"
+                value="{{ if .old }}{{ old .old "short_address" }}{{ else }}{{ .client.ShortAddress }}{{ end }}"
+                class="w-full {{ if hasError .errors "short_address" }}input-error{{ end }}"
+                placeholder="مثال: الرياض - حي العليا" maxlength="200">
+            {{ if hasError .errors "short_address" }}<p class="field-error">{{ fieldError .errors "short_address" }}</p>{{ end }}
+        </div>
+
+        {{ if and (not .old) .client.Address }}
+        <div class="form-group">
+            <label class="form-label">العنوان الحالي</label>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2 p-2 rounded" style="background:var(--md-sys-color-surface-variant)">{{ .client.Address }}</p>
+        </div>
+        {{ end }}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.address.building_number" }}</label>
+                <input type="text" name="building_number"
+                    value="{{ if .old }}{{ old .old "building_number" }}{{ end }}"
+                    class="w-full" placeholder="1234" pattern="^\d{4}$" maxlength="4"
+                    title="{{ L "tpl.address.building_title" }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.address.street_name" }}</label>
+                <input type="text" name="street_name"
+                    value="{{ if .old }}{{ old .old "street_name" }}{{ end }}"
+                    class="w-full" placeholder="{{ L "tpl.address.street_name" }}" maxlength="200">
+            </div>
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.address.district" }}</label>
+                <input type="text" name="district"
+                    value="{{ if .old }}{{ old .old "district" }}{{ end }}"
+                    class="w-full" placeholder="{{ L "tpl.address.district" }}" maxlength="100">
+            </div>
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.address.city" }}</label>
+                <input type="text" name="city"
+                    value="{{ if .old }}{{ old .old "city" }}{{ end }}"
+                    class="w-full" placeholder="{{ L "tpl.address.city" }}" maxlength="100">
+            </div>
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.address.region" }}</label>
+                {{ $currentRegion := "" }}
+                {{ if .old }}{{ $currentRegion = (old .old "region") }}{{ end }}
+                <select name="region" class="w-full">
+                    <option value="">{{ L "tpl.address.select_region" }}</option>
+                    {{ range $.regions }}
+                    <option value="{{ . }}" {{ if eq $currentRegion . }}selected{{ end }}>{{ . }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.address.postal_code" }}</label>
+                <input type="text" name="postal_code"
+                    value="{{ if .old }}{{ old .old "postal_code" }}{{ end }}"
+                    class="w-full" placeholder="12345" pattern="^\d{5}$" maxlength="5"
+                    title="{{ L "tpl.address.postal_title" }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.address.additional_number" }}</label>
+                <input type="text" name="additional_number"
+                    value="{{ if .old }}{{ old .old "additional_number" }}{{ end }}"
+                    class="w-full" placeholder="6789" pattern="^\d{4}$" maxlength="4"
+                    title="{{ L "tpl.address.additional_title" }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.address.unit_number" }}</label>
+                <input type="text" name="unit_number"
+                    value="{{ if .old }}{{ old .old "unit_number" }}{{ end }}"
+                    class="w-full" placeholder="{{ L "tpl.address.optional" }}" maxlength="20">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.address.country" }}</label>
+            <input type="text" name="country"
+                value="{{ if .old }}{{ old .old "country" }}{{ else }}{{ L "tpl.address.saudi_arabia" }}{{ end }}"
+                class="w-full" maxlength="100">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.client.vat_number" }} <span class="required-mark">*</span></label>
+            <input type="text" name="vat_number" value="{{ if .old }}{{ old .old "vat_number" }}{{ else }}{{ .client.VATNumber }}{{ end }}" placeholder="{{ L "tpl.client.vat_placeholder" }}" class="w-full {{ if hasError .errors "vat_number" }}input-error{{ end }}" required pattern="^\d{15}$" maxlength="15" title="{{ L "tpl.client.vat_title" }}">
+            {{ if hasError .errors "vat_number" }}<p class="field-error">{{ fieldError .errors "vat_number" }}</p>{{ end }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.client.cr" }}</label>
+            <input type="text" name="commercial_registration" value="{{ if .old }}{{ old .old "commercial_registration" }}{{ else }}{{ .client.CR }}{{ end }}"
+                class="w-full {{ if hasError .errors "commercial_registration" }}input-error{{ end }}"
+                maxlength="10" pattern="^\d{10}$" title="السجل التجاري يتكون من 10 أرقام"
+                placeholder="1010000000">
+            {{ if hasError .errors "commercial_registration" }}<p class="field-error">{{ fieldError .errors "commercial_registration" }}</p>{{ end }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.supplier.bank_account" }}</label>
+            <input type="text" name="bank_account" value="{{ if .old }}{{ old .old "bank_account" }}{{ else }}{{ .client.BankAccount }}{{ end }}"
+                class="w-full {{ if hasError .errors "bank_account" }}input-error{{ end }}" maxlength="30">
+            {{ if hasError .errors "bank_account" }}<p class="field-error">{{ fieldError .errors "bank_account" }}</p>{{ end }}
+        </div>
+
+        <!-- Payment Method Settings -->
+        <div class="mt-6 border rounded p-4" style="border-color:var(--md-sys-color-outline-variant)">
+            <h4 class="section-card-title mb-3">{{ L "tpl.supplier.preferred_payment_method" }}</h4>
+            <div class="mb-3">
+                <label class="form-label">{{ L "tpl.payment_method" }}</label>
+                {{ $pm := "10" }}
+                {{ if .old }}{{ $pm = old .old "preferred_payment_method" }}{{ else }}{{ if .client.IsPostPaid }}{{ $pm = "30" }}{{ end }}{{ if .client.PreferredPaymentMethod }}{{ $pm = printf "%d" .client.PreferredPaymentMethod }}{{ end }}{{ end }}
+                <select name="preferred_payment_method" class="w-full" onchange="toggleCreditFields(this)">
+                    <option value="10" {{ if eq $pm "10" }}selected{{ end }}>{{ L "tpl.payment_method.cash" }} (10)</option>
+                    <option value="30" {{ if eq $pm "30" }}selected{{ end }}>{{ L "tpl.payment_method.credit" }} (30)</option>
+                    <option value="42" {{ if eq $pm "42" }}selected{{ end }}>{{ L "tpl.payment_method.bank_transfer" }} (42)</option>
+                    <option value="48" {{ if eq $pm "48" }}selected{{ end }}>{{ L "tpl.payment_method.bank_card" }} (48)</option>
+                </select>
+            </div>
+            <div id="credit-fields" class="grid grid-cols-1 md:grid-cols-2 gap-3" style="display:none">
+                <div>
+                    <label class="form-label">{{ L "tpl.supplier.credit_limit" }}</label>
+                    <input type="number" name="credit_limit" step="0.01" min="0" class="w-full"
+                        value="{{ if .old }}{{ old .old "credit_limit" }}{{ else }}{{ .client.CreditLimit }}{{ end }}">
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.supplier.payment_terms_days" }}</label>
+                    <input type="number" name="payment_terms_days" min="1" max="365" class="w-full"
+                        value="{{ if .old }}{{ old .old "payment_terms_days" }}{{ else }}{{ .client.PaymentTermsDays }}{{ end }}" placeholder="30">
+                </div>
+            </div>
+        </div>
+        <script>
+            function toggleCreditFields(sel) {
+                var show = sel.value === '30';
+                var container = document.getElementById('credit-fields');
+                container.style.display = show ? '' : 'none';
+                var inputs = container.querySelectorAll('input');
+                for (var i = 0; i < inputs.length; i++) { inputs[i].disabled = !show; }
+            }
+            (function() {
+                var sel = document.querySelector('[name="preferred_payment_method"]');
+                if (sel) toggleCreditFields(sel);
+            })();
+        </script>
+
+        {{ template "form-actions" dict "submit_label" (L "tpl.client.save_changes") "cancel_url" "/dashboard/clients" }}
+    </form>
+</div>
+{{ end }}

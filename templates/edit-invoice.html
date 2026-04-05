@@ -1,0 +1,569 @@
+﻿{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/invoices" "section_label" (L "nav.invoices_section") "current" (L "tpl.invoice.form.edit_title") }}
+<div class="page-card-wide">
+    <form hx-put="/api/invoices/{{ .id }}" hx-target="body" id="invoice-form" hx-indicator="#submit-spinner">
+        {{ if .is_company }}
+        <input type="hidden" name="client_id" value="{{ .client_id }}">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 border rounded" style="border-color: var(--md-sys-color-primary); background: var(--md-sys-color-surface-container)">
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.client_company" }} <span class="required-mark">*</span></label>
+                <select name="client_id" id="client-select" class="w-full" required onchange="fillClientInfo()">
+                    <option value="">{{ L "tpl.invoice.select_client" }}</option>
+                    {{ range .clients }}
+                    <option value="{{ .ID }}" data-name="{{ .Name }}" data-phone="{{ .Phone }}" data-company="{{ .CompanyName }}" {{ if eq .ID $.client_id }}selected{{ end }}>{{ .Name }}{{ if .CompanyName }} — {{ .CompanyName }}{{ end }}</option>
+                    {{ end }}
+                </select>
+            </div>
+        </div>
+        {{ end }}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.store" }} <span class="required-mark">*</span></label>
+                <select name="store_id" class="w-full" required>
+                    <option value="">{{ L "tpl.invoice.form.select_store" }}</option>
+                    {{ range .stores }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.invoice.StoreID }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.branch" }} <span class="required-mark">*</span></label>
+                <select name="branch_id" class="w-full" required>
+                    <option value="">{{ L "tpl.invoice.form.select_branch" }}</option>
+                    {{ range .branches }}
+                    <option value="{{ .ID }}" {{ if eq .ID $.invoice.BranchID }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.payment_method" }}</label>
+                {{ $invPM := .default_payment_method }}{{ if .bill_payment_method }}{{ $invPM = .bill_payment_method }}{{ end }}
+                <select name="payment_method" class="w-full">
+                    <option value="10" {{ if eq $invPM "10" }}selected{{ end }}>{{ L "tpl.payment_method.cash" }} (10)</option>
+                    <option value="30" {{ if eq $invPM "30" }}selected{{ end }}>{{ L "tpl.payment_method.credit" }} (30)</option>
+                    <option value="42" {{ if eq $invPM "42" }}selected{{ end }}>{{ L "tpl.payment_method.bank_transfer" }} (42)</option>
+                    <option value="48" {{ if eq $invPM "48" }}selected{{ end }}>{{ L "tpl.payment_method.bank_card" }} (48)</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.deliver_date" }}</label>
+                <input type="date" name="deliver_date" value="{{ .deliver_date }}" class="w-full">
+            </div>
+            <div id="payment-due-date-wrapper" style="display:none;">
+                <label class="form-label">{{ L "tpl.pb.payment_due_date" }}</label>
+                <input type="date" name="payment_due_date" value="{{ .payment_due_date }}" class="w-full">
+            </div>
+            {{ if not .is_company }}
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.vin" }}</label>
+                <div class="flex gap-2">
+                    <input type="text" name="vin" id="vin-input" class="w-full" pattern="^[A-HJ-NPR-Z0-9]{17}$"
+                        maxlength="17" title="{{ L "tpl.invoice.form.vin_title" }}">
+                    <button hx-get="/api/vin/verify" hx-include="#vin-input" hx-target="#vin-result"
+                        class="btn btn-tonal btn-sm border">{{ L "tpl.invoice.form.verify" }}</button>
+                </div>
+                <div id="vin-result"></div>
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.customer_name" }}</label>
+                <input type="text" name="user_name" value="{{ .invoice.UserName }}" class="w-full" maxlength="100">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.customer_phone" }}</label>
+                <input type="tel" name="user_phone_number" value="{{ .invoice.UserPhoneNumber }}" class="w-full"
+                    maxlength="20">
+            </div>
+            {{ else }}
+            <input type="hidden" name="user_name" value="{{ .invoice.UserName }}">
+            <input type="hidden" name="user_phone_number" value="{{ .invoice.UserPhoneNumber }}">
+            {{ end }}
+            <div class="md:col-span-2">
+                <label class="form-label">{{ L "tpl.note" }}</label>
+                <input type="text" name="note" value="{{ .invoice.Note }}" class="w-full" maxlength="500">
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <h4 class="section-card-title">{{ L "tpl.invoice.form.catalog_title" }}</h4>
+            <div id="products-container" class="space-y-3">
+                {{ range $idx, $prod := .invoice.Products }}
+                {{ $rowId := printf "exist_%d" $idx }}
+                <div class="item-row border rounded p-3" data-row-id="{{ $rowId }}">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                        <div class="md:col-span-2 relative">
+                            <label class="form-label">{{ L "tpl.invoice.form.part_label" }}</label>
+                            <input type="text" class="w-full product-search" value="{{ if $prod.PartName }}{{ $prod.PartName }} #{{ $prod.ProductID }}{{ else }}{{ L "tpl.invoice.form.part_label" }} #{{ $prod.ProductID }}{{ end }}" placeholder="{{ L "tpl.invoice.form.search_part" }}" autocomplete="off"
+                                   oninput="searchProducts(this, '{{ $rowId }}')" onfocus="showProductDropdown('{{ $rowId }}')">
+                            <input type="hidden" name="products_product_id" value="{{ $prod.ProductID }}">
+                            <input type="hidden" name="products_name" value="{{ $prod.PartName }}">
+                            <div id="pdropdown_{{ $rowId }}" class="absolute z-50 w-full border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1" style="background:var(--md-sys-color-surface-container)"></div>
+                        </div>
+                        <div>
+                            <label class="form-label">{{ L "tpl.invoice.quantity" }}</label>
+                            <input type="number" name="products_quantity" min="1" value="{{ $prod.Quantity }}" class="w-full"
+                                oninput="recalculateTotal()">
+                        </div>
+                        <div>
+                            <label class="form-label">{{ L "tpl.invoice.price" }}</label>
+                            <input type="text" name="products_price" value="{{ $prod.Price }}" class="w-full"
+                                oninput="recalculateTotal()">
+                        </div>
+                        <div>
+                            <label class="form-label">{{ L "tpl.invoice.form.discount_amt" }}</label>
+                            <div class="flex gap-1">
+                                <input type="number" name="products_discount" min="0" step="0.01" value="{{ $prod.Discount }}" class="w-full discount-value"
+                                    oninput="recalculateTotal()">
+                                <button type="button" class="btn btn-tonal btn-xs discount-toggle" style="white-space:nowrap;min-width:2.5rem" onclick="toggleDiscountMode(this)">{{ L "tpl.invoice.form.discount_mode_val" }}</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label">{{ L "tpl.invoice.form.total_with_vat" }}</label>
+                            <input type="text" class="w-full line-total-vat" step="0.01" min="0" placeholder="0.00" oninput="updatePriceFromTotal(this)">
+                        </div>
+                    </div>
+                    <div class="mt-2 flex justify-end">
+                        <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">{{ L "tpl.delete" }}</button>
+                    </div>
+                </div>
+                {{ end }}
+            </div>
+            <button type="button" onclick="addCatalogItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.invoice.form.add_catalog" }}</button>
+        </div>
+
+        <div class="mt-6">
+            <h4 class="section-card-title">{{ L "tpl.invoice.form.manual_title" }}</h4>
+            <div id="manual-container" class="space-y-3">
+                {{ range .invoice.ManualProducts }}
+                <div class="item-row border rounded p-3">
+                    <div class="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
+                    <div>
+                        <label class="form-label">{{ L "tpl.invoice.form.product_name" }}</label>
+                        <input type="text" name="manual_part_name" value="{{ .PartName }}" class="w-full"
+                            oninput="recalculateTotal()">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.invoice.form.part_number" }}</label>
+                        <input type="text" name="manual_part_number" value="{{ .PartNumber }}" class="w-full">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.invoice.quantity" }}</label>
+                        <input type="number" name="manual_quantity" min="1" value="{{ .Quantity }}" class="w-full"
+                            oninput="recalculateTotal()">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.invoice.price" }}</label>
+                        <input type="text" name="manual_price" value="{{ .Price }}" class="w-full"
+                            oninput="recalculateTotal()">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.invoice.form.discount_amt" }}</label>
+                        <div class="flex gap-1">
+                            <input type="number" name="manual_discount" min="0" step="0.01" value="{{ .Discount }}" class="w-full discount-value"
+                                oninput="recalculateTotal()">
+                            <button type="button" class="btn btn-tonal btn-xs discount-toggle" style="white-space:nowrap;min-width:2.5rem" onclick="toggleDiscountMode(this)">{{ L "tpl.invoice.form.discount_mode_val" }}</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.invoice.form.total_with_vat" }}</label>
+                        <input type="text" class="w-full line-total-vat" step="0.01" min="0" placeholder="0.00" oninput="updatePriceFromTotal(this)">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="button" class="text-red-600 text-sm" onclick="removeRow(this)">{{ L "tpl.delete" }}</button>
+                    </div>
+                    </div>
+                </div>
+                {{ end }}
+            </div>
+            <button type="button" onclick="addManualItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.invoice.form.add_manual" }}</button>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.labor" }}</label>
+                <input type="number" name="maintenance_cost" id="maintenance_cost"
+                    value="{{ .invoice.MaintenanceCost }}" min="0" step="0.01" class="w-full"
+                    oninput="recalculateTotal()">
+            </div>
+            <div>
+                <label class="form-label">{{ L "tpl.invoice.form.grand_total" }}</label>
+                <input type="text" id="total_display" class="w-full"
+                    style="background: var(--md-sys-color-surface-variant)" disabled>
+                <input type="hidden" name="total_amount" id="total_amount" value="{{ printf " %.2f" .invoice.TotalAmount
+                    }}">
+            </div>
+        </div>
+
+        <div class="mt-6 flex gap-2 items-center">
+            <button type="submit" name="state" value="0" class="btn btn-tonal">{{ L "tpl.invoice.form.save_draft" }}</button>
+            <button type="submit" name="state" value="1" class="btn btn-filled">{{ L "tpl.invoice.form.update_invoice" }}</button>
+            <a href="/dashboard/invoices" class="btn btn-outlined">{{ L "tpl.cancel" }}</a>
+            <span id="submit-spinner" class="htmx-indicator">
+                <svg class="animate-spin h-5 w-5" style="color: var(--md-sys-color-primary)" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+                        fill="none" />
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+            </span>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Show/hide payment_due_date based on payment_method
+    (function() {
+        var pmSelect = document.querySelector('select[name="payment_method"]');
+        var pddWrapper = document.getElementById('payment-due-date-wrapper');
+        function togglePDD() {
+            pddWrapper.style.display = pmSelect.value === '30' ? '' : 'none';
+        }
+        pmSelect.addEventListener('change', togglePDD);
+        togglePDD();
+    })();
+
+    var searchTimers = {};
+
+    function catalogItemRow() {
+        var rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        return `
+            <div class="item-row border rounded p-3" data-row-id="${rowId}">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                    <div class="md:col-span-2 relative">
+                        <label class="form-label">{{ L "tpl.invoice.form.part_label" }}</label>
+                        <input type="text" class="w-full product-search" placeholder="{{ L "tpl.invoice.form.search_part" }}" autocomplete="off"
+                               oninput="searchProducts(this, '${rowId}')" onfocus="showProductDropdown('${rowId}')">
+                        <input type="hidden" name="products_product_id" value="0">
+                        <input type="hidden" name="products_name" value="">
+                        <div id="pdropdown_${rowId}" class="absolute z-50 w-full border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1" style="background:var(--md-sys-color-surface-container)"></div>
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.invoice.quantity" }}</label>
+                        <input type="number" name="products_quantity" min="1" value="1" class="w-full" oninput="recalculateTotal()">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.invoice.price" }}</label>
+                        <input type="text" name="products_price" class="w-full" oninput="recalculateTotal()">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.invoice.form.discount_amt" }}</label>
+                        <div class="flex gap-1">
+                            <input type="number" name="products_discount" min="0" step="0.01" value="0" class="w-full discount-value" oninput="recalculateTotal()">
+                            <button type="button" class="btn btn-tonal btn-xs discount-toggle" style="white-space:nowrap;min-width:2.5rem" onclick="toggleDiscountMode(this)">{{ L "tpl.invoice.form.discount_mode_val" }}</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.invoice.form.total_with_vat" }}</label>
+                        <input type="text" class="w-full line-total-vat" step="0.01" min="0" placeholder="0.00" oninput="updatePriceFromTotal(this)">
+                    </div>
+                </div>
+                <div class="mt-2 flex justify-end">
+                    <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">{{ L "tpl.delete" }}</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function searchProducts(input, rowId) {
+        var query = input.value.trim();
+        if (searchTimers[rowId]) clearTimeout(searchTimers[rowId]);
+        if (query.length < 1) {
+            hideProductDropdown(rowId);
+            return;
+        }
+        searchTimers[rowId] = setTimeout(function () {
+            var csrfToken = getCsrfCookie();
+            var formData = new FormData();
+            formData.append('query', query);
+            fetch('/api/products/search-json', {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken },
+                body: formData,
+                credentials: 'same-origin'
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (products) { renderProductDropdown(products, rowId, input); })
+                .catch(function () { hideProductDropdown(rowId); });
+        }, 300);
+    }
+
+    function getCsrfCookie() {
+        var match = document.cookie.match(/csrf_token=([^;]+)/);
+        return match ? match[1] : '';
+    }
+
+    function renderProductDropdown(products, rowId, input) {
+        var dd = document.getElementById('pdropdown_' + rowId);
+        if (!products || products.length === 0) {
+            dd.innerHTML = '<div class="px-3 py-2 text-sm" style="color:var(--md-sys-color-on-surface-variant)">{{ L "tpl.product.no_results" }}</div>';
+            dd.classList.remove('hidden');
+            return;
+        }
+        var html = '';
+        for (var i = 0; i < products.length; i++) {
+            var p = products[i];
+            var label = p.name ? p.name : '{{ L "tpl.invoice.form.part_label" }} #' + p.id;
+            html += '<div class="px-3 py-2 text-sm cursor-pointer border-b" style="border-color:var(--md-sys-color-outline-variant)" '
+                + 'onmouseover="this.style.background=\'var(--md-sys-color-surface-container-high)\'" '
+                + 'onmouseout="this.style.background=\'transparent\'" '
+                + 'onclick="selectProduct(this, \'' + rowId + '\', ' + p.id + ', \'' + escapeAttr(label) + '\', \'' + escapeAttr(String(p.price)) + '\')">'
+                + '<div>' + escapeHtml(label) + ' <span style="color:var(--md-sys-color-primary)">#' + p.id + '</span></div>'
+                + '<div class="text-xs" style="color:var(--md-sys-color-on-surface-variant)">{{ L "tpl.invoice.price" }}: ' + escapeHtml(String(p.price)) + ' — {{ L "tpl.invoice.quantity" }}: ' + escapeHtml(String(p.quantity)) + '</div>'
+                + '</div>';
+        }
+        dd.innerHTML = html;
+        dd.classList.remove('hidden');
+    }
+
+    function selectProduct(el, rowId, productId, name, price) {
+        var row = document.querySelector('[data-row-id="' + rowId + '"]');
+        row.querySelector('.product-search').value = name;
+        row.querySelector('[name="products_product_id"]').value = productId;
+        row.querySelector('[name="products_name"]').value = name;
+        row.querySelector('[name="products_price"]').value = price;
+        hideProductDropdown(rowId);
+        recalculateTotal();
+    }
+
+    function showProductDropdown(rowId) {
+        var dd = document.getElementById('pdropdown_' + rowId);
+        if (dd && dd.innerHTML.trim()) dd.classList.remove('hidden');
+    }
+
+    function hideProductDropdown(rowId) {
+        var dd = document.getElementById('pdropdown_' + rowId);
+        if (dd) dd.classList.add('hidden');
+    }
+
+    function escapeHtml(s) {
+        if (!s) return '';
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function escapeAttr(s) {
+        if (!s) return '';
+        return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!e.target.classList.contains('product-search')) {
+            var dds = document.querySelectorAll('[id^="pdropdown_"]');
+            for (var i = 0; i < dds.length; i++) dds[i].classList.add('hidden');
+        }
+    });
+
+    function manualItemRow() {
+        return `
+            <div class="item-row border rounded p-3">
+                <div class="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
+                <div>
+                    <label class="form-label">{{ L "tpl.invoice.form.product_name" }}</label>
+                    <input type="text" name="manual_part_name" class="w-full" oninput="recalculateTotal()">
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.invoice.form.part_number" }}</label>
+                    <input type="text" name="manual_part_number" class="w-full">
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.invoice.quantity" }}</label>
+                    <input type="number" name="manual_quantity" min="1" value="1" class="w-full" oninput="recalculateTotal()">
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.invoice.price" }}</label>
+                    <input type="text" name="manual_price" min="0" step="0.01" class="w-full" oninput="recalculateTotal()">
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.invoice.form.discount_amt" }}</label>
+                    <div class="flex gap-1">
+                        <input type="number" name="manual_discount" min="0" step="0.01" value="0" class="w-full discount-value" oninput="recalculateTotal()">
+                        <button type="button" class="btn btn-tonal btn-xs discount-toggle" style="white-space:nowrap;min-width:2.5rem" onclick="toggleDiscountMode(this)">{{ L "tpl.invoice.form.discount_mode_val" }}</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.invoice.form.total_with_vat" }}</label>
+                    <input type="text" class="w-full line-total-vat" step="0.01" min="0" placeholder="0.00" oninput="updatePriceFromTotal(this)">
+                </div>
+                <div class="flex items-end">
+                    <button type="button" class="text-red-600 text-sm" onclick="removeRow(this)">{{ L "tpl.delete" }}</button>
+                </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function addCatalogItem() {
+        document.getElementById('products-container').insertAdjacentHTML('beforeend', catalogItemRow());
+    }
+
+    function addManualItem() {
+        document.getElementById('manual-container').insertAdjacentHTML('beforeend', manualItemRow());
+    }
+
+    function removeRow(btn) {
+        var row = btn.closest('.item-row');
+        if (row) {
+            row.remove();
+        }
+        recalculateTotal();
+    }
+
+    function getDiscountAmount(discInput, lineTotal) {
+        var mode = discInput.dataset.mode || 'val';
+        var raw = parseFloat(discInput.value || 0);
+        if (mode === 'pct') {
+            return Math.min((raw / 100) * lineTotal, lineTotal);
+        }
+        return Math.min(raw, lineTotal);
+    }
+
+    function sumCatalogItems() {
+        var prices = document.getElementsByName('products_price');
+        var qtys = document.getElementsByName('products_quantity');
+        var discs = document.getElementsByName('products_discount');
+        var total = 0;
+        for (var i = 0; i < Math.max(prices.length, qtys.length); i++) {
+            var price = parseFloat(prices[i]?.value || 0);
+            var qty = parseFloat(qtys[i]?.value || 0);
+            var lineTotal = price * qty;
+            var disc = getDiscountAmount(discs[i], lineTotal);
+            total += lineTotal - disc;
+        }
+        return total;
+    }
+
+    function sumManualItems() {
+        var prices = document.getElementsByName('manual_price');
+        var qtys = document.getElementsByName('manual_quantity');
+        var discs = document.getElementsByName('manual_discount');
+        var total = 0;
+        for (var i = 0; i < Math.max(prices.length, qtys.length); i++) {
+            var price = parseFloat(prices[i]?.value || 0);
+            var qty = parseFloat(qtys[i]?.value || 0);
+            var lineTotal = price * qty;
+            var disc = getDiscountAmount(discs[i], lineTotal);
+            total += lineTotal - disc;
+        }
+        return total;
+    }
+
+    // Before form submit: convert any percentage-mode discounts to actual amounts
+    function finalizeDiscounts() {
+        var allDiscs = document.querySelectorAll('.discount-value');
+        allDiscs.forEach(function(discInput) {
+            var mode = discInput.dataset.mode || 'val';
+            if (mode === 'pct') {
+                var row = discInput.closest('.item-row');
+                var priceInput = row.querySelector('[name$="_price"]');
+                var qtyInput = row.querySelector('[name$="_quantity"]');
+                var price = parseFloat(priceInput?.value || 0);
+                var qty = parseFloat(qtyInput?.value || 0);
+                var lineTotal = price * qty;
+                var pct = parseFloat(discInput.value || 0);
+                var val = Math.min((pct / 100) * lineTotal, lineTotal);
+                discInput.value = val.toFixed(2);
+                discInput.dataset.mode = 'val';
+            }
+        });
+    }
+
+    function recalculateTotal() {
+        var itemsTotal = sumCatalogItems() + sumManualItems();
+        var maintenance = parseFloat(document.getElementById('maintenance_cost').value || 0);
+        var subtotal = itemsTotal + maintenance;
+        var total = subtotal * 1.15;
+        document.getElementById('total_display').value = total.toFixed(2) + ' {{ L "tpl.currency" }}';
+        document.getElementById('total_amount').value = total.toFixed(2);
+        updateLineTotals();
+    }
+
+    // Toggle discount input between fixed amount (SAR) and percentage (%) mode
+    function toggleDiscountMode(btn) {
+        var row = btn.closest('.item-row');
+        var discInput = row.querySelector('.discount-value');
+        var priceInput = row.querySelector('[name$="_price"]');
+        var qtyInput = row.querySelector('[name$="_quantity"]');
+        var price = parseFloat(priceInput?.value || 0);
+        var qty = parseFloat(qtyInput?.value || 0);
+        var lineTotal = price * qty;
+        var currentMode = discInput.dataset.mode || 'val';
+        if (currentMode === 'val') {
+            btn.textContent = '{{ L "tpl.invoice.form.discount_mode_pct" }}';
+            var currentVal = parseFloat(discInput.value || 0);
+            discInput.value = lineTotal > 0 ? ((currentVal / lineTotal) * 100).toFixed(2) : '0';
+            discInput.dataset.mode = 'pct';
+        } else {
+            btn.textContent = '{{ L "tpl.invoice.form.discount_mode_val" }}';
+            var pct = parseFloat(discInput.value || 0);
+            var val = Math.min((pct / 100) * lineTotal, lineTotal);
+            discInput.value = val.toFixed(2);
+            discInput.dataset.mode = 'val';
+        }
+        recalculateTotal();
+    }
+
+    // Reverse-calculate price from total-with-VAT input
+    function updatePriceFromTotal(totalInput) {
+        var row = totalInput.closest('.item-row');
+        var priceInput = row.querySelector('[name$="_price"]');
+        var qtyInput = row.querySelector('[name$="_quantity"]');
+        var discInput = row.querySelector('.discount-value');
+        var totalWithVat = parseFloat(totalInput.value || 0);
+        var qty = parseFloat(qtyInput?.value || 1);
+        if (qty <= 0) qty = 1;
+        var disc = 0;
+        if (discInput) {
+            var lineEstimate = totalWithVat / 1.15;
+            disc = getDiscountAmount(discInput, lineEstimate);
+        }
+        var pricePerPiece = (totalWithVat / 1.15 + disc) / qty;
+        if (pricePerPiece < 0) pricePerPiece = 0;
+        priceInput.value = pricePerPiece.toFixed(2);
+        recalculateTotal();
+    }
+
+    // Forward-calculate line total with VAT (called from recalculateTotal)
+    function updateLineTotals() {
+        var rows = document.querySelectorAll('.item-row');
+        rows.forEach(function(row) {
+            var priceInput = row.querySelector('[name$="_price"]');
+            var qtyInput = row.querySelector('[name$="_quantity"]');
+            var discInput = row.querySelector('.discount-value');
+            var totalInput = row.querySelector('.line-total-vat');
+            if (!totalInput || !priceInput) return;
+            if (document.activeElement === totalInput) return;
+            var price = parseFloat(priceInput.value || 0);
+            var qty = parseFloat(qtyInput?.value || 1);
+            var lineTotal = price * qty;
+            var disc = discInput ? getDiscountAmount(discInput, lineTotal) : 0;
+            var withVat = (lineTotal - disc) * 1.15;
+            totalInput.value = withVat > 0 ? withVat.toFixed(2) : '';
+        });
+    }
+
+    recalculateTotal();
+
+    // Convert percentage-mode discounts to amounts before form submission
+    document.getElementById('invoice-form').addEventListener('htmx:beforeRequest', function() {
+        finalizeDiscounts();
+    });
+
+    // Company invoice: update client_id when client changes
+    function fillClientInfo() {
+        var sel = document.getElementById('client-select');
+        if (!sel) return;
+        var opt = sel.options[sel.selectedIndex];
+        if (!opt || !opt.value) return;
+        var clientField = document.querySelector('[name="client_id"]');
+        if (clientField) clientField.value = opt.value;
+        var nameField = document.querySelector('[name="user_name"]');
+        var phoneField = document.querySelector('[name="user_phone_number"]');
+        var clientName = opt.getAttribute('data-name') || '';
+        var company = opt.getAttribute('data-company') || '';
+        var phone = opt.getAttribute('data-phone') || '';
+        if (nameField) nameField.value = company ? clientName + ' - ' + company : clientName;
+        if (phoneField) phoneField.value = phone;
+    }
+</script>
+{{ end }}

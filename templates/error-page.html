@@ -1,0 +1,148 @@
+{{ define "error-page" }}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .code }} - {{ .title }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="/static/output.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/darkmode.js"></script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .error-container {
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            padding: 60px 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        .error-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .error-icon svg {
+            width: 40px;
+            height: 40px;
+        }
+        .error-code {
+            font-size: 72px;
+            font-weight: bold;
+            margin: 0;
+            line-height: 1;
+        }
+        .error-title {
+            font-size: 24px;
+            margin: 16px 0;
+        }
+        .error-message {
+            font-size: 16px;
+            margin: 16px 0 30px;
+            line-height: 1.6;
+        }
+        .error-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            display: inline-block;
+            padding: 12px 28px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            display: inline-block;
+            padding: 12px 28px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            border: 2px solid;
+            transition: all 0.2s ease;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-1px);
+        }
+        /* Light mode */
+        body { background: linear-gradient(135deg, #1d3666 0%, #2a4a8f 100%); }
+        .error-container { background: white; }
+        .error-code { color: #1d3666; }
+        .error-title { color: #1d3666; }
+        .error-message { color: #666; }
+        .error-icon { background: #fef3c7; }
+        .error-icon svg { color: #d97706; }
+        .btn-primary { background: #FDBC2D; color: #1d3666; }
+        .btn-primary:hover { background: #e5a826; }
+        .btn-secondary { color: #1d3666; border-color: #1d3666; }
+        .btn-secondary:hover { background: rgba(29,54,102,0.05); }
+
+        /* Error-specific icon colors */
+        .error-404 .error-icon { background: #dbeafe; }
+        .error-404 .error-icon svg { color: #2563eb; }
+        .error-500 .error-icon { background: #fee2e2; }
+        .error-500 .error-icon svg { color: #dc2626; }
+        .error-403 .error-icon { background: #fef3c7; }
+        .error-403 .error-icon svg { color: #d97706; }
+
+        /* Dark mode */
+        [data-theme="dark"] body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+        [data-theme="dark"] .error-container { background: #1e293b; border: 1px solid #334155; }
+        [data-theme="dark"] .error-code { color: #93c5fd; }
+        [data-theme="dark"] .error-title { color: #e2e8f0; }
+        [data-theme="dark"] .error-message { color: #94a3b8; }
+        [data-theme="dark"] .btn-primary { background: #FDBC2D; color: #0f172a; }
+        [data-theme="dark"] .btn-secondary { color: #93c5fd; border-color: #93c5fd; }
+        [data-theme="dark"] .btn-secondary:hover { background: rgba(147,197,253,0.1); }
+    </style>
+</head>
+<body>
+    <div class="error-container error-{{ .code }}">
+        <div class="error-icon">
+            {{ if eq .code "404" }}
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            {{ else if eq .code "403" }}
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+            {{ else }}
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            {{ end }}
+        </div>
+        <h1 class="error-code">{{ .code }}</h1>
+        <h2 class="error-title">{{ .title }}</h2>
+        <p class="error-message">{{ .message }}</p>
+        <div class="error-actions">
+            <a class="btn-primary" href="/dashboard">{{ L "middleware.back_to_dashboard" }}</a>
+            <a class="btn-secondary" href="javascript:history.back()">{{ L "tpl.error.go_back" }}</a>
+        </div>
+    </div>
+</body>
+</html>
+{{ end }}

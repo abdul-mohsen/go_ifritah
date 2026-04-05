@@ -1,0 +1,12 @@
+{{/*
+item-count — Small badge showing total item count.
+
+Required context fields:
+.pagination struct { Total int }
+
+Usage:
+{{ template "item-count" . }}
+*/}}
+{{ define "item-count" }}
+<span class="badge badge-info">{{ .pagination.Total }} {{ L "tpl.comp.item" }}</span>
+{{ end }}

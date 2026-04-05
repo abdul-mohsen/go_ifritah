@@ -1,0 +1,6 @@
+static/output.css
+node_modules
+tmp
+templates/
+*.min.js
+*.min.css

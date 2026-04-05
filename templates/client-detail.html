@@ -1,0 +1,96 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/clients" "section_label" (L "tpl.client.section") "current" .client.Name }}
+<div class="page-card">
+    <h3 class="page-title">{{ L "tpl.client.detail_heading" }}</h3>
+    <div class="space-y-3">
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.client.name" }}</span>
+            <span class="detail-value">{{ .client.Name }}</span>
+        </div>
+        {{ if .client.Number }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.client.client_number" }}</span>
+            <span class="detail-value">{{ .client.Number }}</span>
+        </div>
+        {{ end }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.client.company_name" }}</span>
+            <span class="detail-value">{{ .client.CompanyName }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.client.email" }}</span>
+            <span class="detail-value">{{ .client.Email }}</span>
+        </div>
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.client.phone" }}</span>
+            <span class="detail-value">{{ .client.Phone }}</span>
+        </div>
+
+        <!-- العنوان -->
+        {{ if .client.ShortAddress }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.short_address" }}</span>
+            <span class="detail-value">{{ .client.ShortAddress }}</span>
+        </div>
+        {{ end }}
+        {{ if .client.Address }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.address.full_address" }}</span>
+            <span class="detail-value">{{ .client.Address }}</span>
+        </div>
+        {{ end }}
+
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.client.vat_number" }}</span>
+            <span class="detail-value">{{ .client.VATNumber }}</span>
+        </div>
+        {{ if .client.CR }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.client.cr" }}</span>
+            <span class="detail-value">{{ .client.CR }}</span>
+        </div>
+        {{ end }}
+        {{ if .client.BankAccount }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.bank_account" }}</span>
+            <span class="detail-value">{{ .client.BankAccount }}</span>
+        </div>
+        {{ end }}
+
+        {{ if .client.IsPostPaid }}
+        <div class="mt-4 border-t pt-4" style="border-color:var(--md-sys-color-outline-variant)">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style="background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container)">{{ L "tpl.supplier.postpaid_badge" }}</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.credit_limit" }}</span>
+                    <span class="detail-value">{{ .client.CreditLimit }} {{ L "tpl.currency_sar" }}</span>
+                </div>
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.supplier.payment_terms_days" }}</span>
+                    <span class="detail-value">{{ .client.PaymentTermsDays }} {{ L "tpl.days" }}</span>
+                </div>
+            </div>
+        </div>
+        {{ end }}
+
+        {{ if .client.CreatedAt }}
+        <div class="detail-field">
+            <span class="detail-label">تاريخ الإنشاء</span>
+            <span class="detail-value">{{ .client.CreatedAt }}</span>
+        </div>
+        {{ end }}
+        {{ if .client.UpdatedAt }}
+        <div class="detail-field">
+            <span class="detail-label">تاريخ التحديث</span>
+            <span class="detail-value">{{ .client.UpdatedAt }}</span>
+        </div>
+        {{ end }}
+    </div>
+    <div class="detail-actions">
+        <a href="{{ printf "/dashboard/clients/%s/edit" .client.ID }}" class="btn btn-filled">{{ L "tpl.edit" }}</a>
+        <a href="/dashboard/clients" class="btn btn-outlined">{{ L "tpl.back" }}</a>
+    </div>
+</div>
+{{ end }}

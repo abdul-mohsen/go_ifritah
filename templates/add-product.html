@@ -1,0 +1,253 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/products" "section_label" (L "tpl.product.products_section") "current" (L "tpl.product.add") }}
+<div class="page-card-wide">
+    {{ template "form-errors" . }}
+
+    <form hx-post="/dashboard/products/create" hx-target="body" hx-indicator="#submit-spinner">
+        <!-- Store selector -->
+        <div class="form-group" style="margin-bottom:1.5rem">
+            <label class="form-label">{{ L "tpl.product.store_label" }} <span class="required-mark">*</span></label>
+            <select name="store_id" class="w-full {{ if hasError .errors "store_id" }}input-error{{ end }}" required>
+                <option value="">{{ L "tpl.product.select_store" }}</option>
+                {{ range .stores }}
+                <option value="{{ .ID }}">{{ .Name }}</option>
+                {{ end }}
+            </select>
+            {{ if hasError .errors "store_id" }}<p class="field-error">{{ fieldError .errors "store_id" }}</p>{{ end }}
+        </div>
+
+        <!-- Products rows -->
+        <div class="mb-4 flex items-center justify-between">
+            <h3 class="section-card-title" style="margin-bottom:0">{{ L "tpl.product.products_section" }}</h3>
+            <button type="button" id="add-row-btn" class="btn btn-success btn-sm">{{ L "tpl.product.add_row" }}</button>
+        </div>
+
+        {{ if hasError .errors "products" }}<p class="field-error mb-2">{{ fieldError .errors "products" }}</p>{{ end }}
+
+        <div id="products-container"></div>
+
+        {{ template "form-actions" dict "submit_label" (L "tpl.save") "cancel_url" "/dashboard/products" }}
+    </form>
+</div>
+
+<script>
+    (function () {
+        var container = document.getElementById('products-container');
+        var addBtn = document.getElementById('add-row-btn');
+        var searchTimers = {};
+        var rowCounter = 0;
+
+        function getCsrf() {
+            var m = document.cookie.match(/csrf_token=([^;]+)/);
+            return m ? m[1] : '';
+        }
+
+        function escapeHtml(s) {
+            var d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function createRow() {
+            rowCounter++;
+            var rid = 'prow_' + Date.now() + '_' + rowCounter;
+            var div = document.createElement('div');
+            div.className = 'product-row border border-gray-200 rounded-lg p-4 mb-3 relative';
+            div.setAttribute('data-rid', rid);
+            div.innerHTML =
+                '<button type="button" class="remove-row-btn absolute top-2 left-2 text-red-500 hover:text-red-700 text-lg font-bold hidden" title="{{ L "tpl.delete" }}">&times;</button>' +
+                '<div class="grid grid-cols-1 md:grid-cols-5 gap-3">' +
+                '<div class="md:col-span-2 relative">' +
+                '<label class="form-label">{{ L "tpl.product.oem_label" }} <span class="text-red-500">*</span></label>' +
+                '<input type="text" class="w-full part-search" placeholder="{{ L "tpl.product.oem_placeholder" }}" autocomplete="off" data-rid="' + rid + '">' +
+                '<input type="hidden" name="part_name[]" value="">' +
+                '<div id="dd_' + rid + '" class="absolute z-50 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto hidden mt-1" style="scrollbar-width:thin;"></div>' +
+                '</div>' +
+                '<div>' +
+                '<label class="form-label">{{ L "tpl.product.quantity" }} <span class="text-red-500">*</span></label>' +
+                '<input type="number" name="quantity[]" placeholder="1" class="w-full" required min="1" value="1">' +
+                '</div>' +
+                '<div>' +
+                '<label class="form-label">{{ L "tpl.product.selling_price" }} <span class="text-red-500">*</span></label>' +
+                '<input type="number" name="price[]" placeholder="0" class="w-full" required min="0">' +
+                '</div>' +
+                '<div>' +
+                '<label class="form-label">{{ L "tpl.product.cost_price" }}</label>' +
+                '<input type="number" name="cost_price[]" placeholder="0" class="w-full" min="0">' +
+                '</div>' +
+                '</div>' +
+                '<div class="grid grid-cols-1 md:grid-cols-5 gap-3 mt-2">' +
+                '<div class="md:col-span-2"></div>' +
+                '<div class="md:col-span-2"></div>' +
+                '<div>' +
+                '<label class="form-label">{{ L "tpl.product.shelf_number" }}</label>' +
+                '<input type="text" name="shelf_number[]" placeholder="" class="w-full">' +
+                '</div>' +
+                '</div>';
+            container.appendChild(div);
+            updateRemoveButtons();
+        }
+
+        function updateRemoveButtons() {
+            var rows = container.querySelectorAll('.product-row');
+            rows.forEach(function (row) {
+                var btn = row.querySelector('.remove-row-btn');
+                btn.classList.toggle('hidden', rows.length <= 1);
+            });
+        }
+
+        // Debounced live search
+        function doSearch(input) {
+            var rid = input.getAttribute('data-rid');
+            var query = input.value.trim();
+            if (searchTimers[rid]) clearTimeout(searchTimers[rid]);
+            if (query.length < 1) {
+                hideDD(rid);
+                return;
+            }
+            // Show loading indicator
+            var dd = document.getElementById('dd_' + rid);
+            dd.innerHTML = '<div class="px-3 py-2 text-sm text-gray-400 text-center">{{ L "tpl.product.searching" }}</div>';
+            dd.classList.remove('hidden');
+
+            searchTimers[rid] = setTimeout(function () {
+                var fd = new FormData();
+                fd.append('query', query);
+                fetch('/api/parts/search-json', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': getCsrf() },
+                    body: fd
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (parts) { renderDD(parts, rid); })
+                    .catch(function () { hideDD(rid); });
+            }, 250);
+        }
+
+        function renderDD(parts, rid) {
+            var dd = document.getElementById('dd_' + rid);
+            if (!parts || parts.length === 0) {
+                dd.innerHTML = '<div class="px-3 py-3 text-sm text-gray-500 text-center">{{ L "tpl.product.no_results" }}</div>';
+                dd.classList.remove('hidden');
+                return;
+            }
+            var html = '';
+            var shown = 0;
+            var total = parts.length;
+            for (var i = 0; i < total && shown < 50; i++) {
+                var oem = parts[i].oem_number || '';
+                if (!oem || oem === '_' || oem === '-') continue;
+                html += '<div class="dd-item px-3 py-2 text-sm cursor-pointer border-b hover:bg-blue-50 transition-colors" data-oem="' + escapeHtml(oem) + '">'
+                    + '<span class="font-mono">' + escapeHtml(oem) + '</span>'
+                    + '</div>';
+                shown++;
+            }
+            if (shown === 0) {
+                html = '<div class="px-3 py-3 text-sm text-gray-500 text-center">{{ L "tpl.product.no_results" }}</div>';
+            } else if (total > 50) {
+                html += '<div class="px-3 py-2 text-xs text-gray-400 text-center bg-gray-50 sticky bottom-0">{{ L "tpl.product.showing_of" }} ' + shown + ' {{ L "tpl.product.of" }} ' + total + ' — {{ L "tpl.product.narrow_results" }}</div>';
+            }
+            dd.innerHTML = html;
+            dd.classList.remove('hidden');
+        }
+
+        function selectItem(row, oem) {
+            row.querySelector('.part-search').value = oem;
+            row.querySelector('[name="part_name[]"]').value = oem;
+            var rid = row.getAttribute('data-rid');
+            hideDD(rid);
+        }
+
+        function hideDD(rid) {
+            var dd = document.getElementById('dd_' + rid);
+            if (dd) dd.classList.add('hidden');
+        }
+
+        // Event delegation for search input
+        container.addEventListener('input', function (e) {
+            if (e.target.classList.contains('part-search')) {
+                doSearch(e.target);
+                // Clear hidden field when user edits
+                var row = e.target.closest('.product-row');
+                row.querySelector('[name="part_name[]"]').value = '';
+            }
+        });
+
+        // Event delegation for dropdown selection
+        container.addEventListener('click', function (e) {
+            var item = e.target.closest('.dd-item');
+            if (item) {
+                var row = item.closest('.product-row');
+                selectItem(row, item.getAttribute('data-oem'));
+                return;
+            }
+            if (e.target.classList.contains('remove-row-btn')) {
+                var rows = container.querySelectorAll('.product-row');
+                if (rows.length > 1) {
+                    e.target.closest('.product-row').remove();
+                    updateRemoveButtons();
+                }
+            }
+        });
+
+        // Keyboard nav in dropdown
+        container.addEventListener('keydown', function (e) {
+            if (!e.target.classList.contains('part-search')) return;
+            var rid = e.target.getAttribute('data-rid');
+            var dd = document.getElementById('dd_' + rid);
+            if (dd.classList.contains('hidden')) return;
+
+            var items = dd.querySelectorAll('.dd-item');
+            if (!items.length) return;
+
+            var active = dd.querySelector('.dd-item.bg-blue-100, .dd-item.dark\\:bg-gray-500');
+            var idx = -1;
+            items.forEach(function (el, i) { if (el === active) idx = i; });
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (active) active.classList.remove('bg-blue-100');
+                idx = (idx + 1) % items.length;
+                items[idx].classList.add('bg-blue-100');
+                items[idx].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (active) active.classList.remove('bg-blue-100');
+                idx = idx <= 0 ? items.length - 1 : idx - 1;
+                items[idx].classList.add('bg-blue-100');
+                items[idx].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (active) {
+                    var row = e.target.closest('.product-row');
+                    selectItem(row, active.getAttribute('data-oem'));
+                }
+            } else if (e.key === 'Escape') {
+                hideDD(rid);
+            }
+        });
+
+        // Close dropdowns on outside click
+        document.addEventListener('click', function (e) {
+            if (!e.target.classList.contains('part-search') && !e.target.closest('.dd-item')) {
+                var dds = container.querySelectorAll('[id^="dd_"]');
+                dds.forEach(function (dd) { dd.classList.add('hidden'); });
+            }
+        });
+
+        // Show dropdown on focus if has content
+        container.addEventListener('focusin', function (e) {
+            if (e.target.classList.contains('part-search')) {
+                var rid = e.target.getAttribute('data-rid');
+                var dd = document.getElementById('dd_' + rid);
+                if (dd.innerHTML.trim()) dd.classList.remove('hidden');
+            }
+        });
+
+        addBtn.addEventListener('click', function () { createRow(); });
+
+        // Create first row
+        createRow();
+    })();
+</script>
+{{ end }}

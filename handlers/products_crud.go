@@ -18,6 +18,70 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// parseProductJSON unmarshals a product from backend JSON, handling string-encoded numeric fields.
+func parseProductJSON(data []byte) models.Product {
+	var p models.Product
+	_ = json.Unmarshal(data, &p)
+
+	var raw map[string]interface{}
+	if json.Unmarshal(data, &raw) != nil {
+		return p
+	}
+	if p.ID == 0 {
+		if v, ok := helpers.CoerceFloat(raw["id"]); ok {
+			p.ID = int(v)
+		}
+	}
+	if p.PartID == 0 {
+		if v, ok := helpers.CoerceFloat(raw["article_id"]); ok {
+			p.PartID = int(v)
+		}
+	}
+	if p.Price == 0 {
+		if v, ok := helpers.CoerceFloat(raw["price"]); ok {
+			p.Price = v
+		}
+	}
+	if p.Quantity == 0 {
+		if v, ok := helpers.CoerceFloat(raw["quantity"]); ok {
+			p.Quantity = int(v)
+		}
+	}
+	if p.CostPrice == "" {
+		if v, ok := raw["cost_price"].(string); ok {
+			p.CostPrice = v
+		} else if v, ok := helpers.CoerceFloat(raw["cost_price"]); ok {
+			p.CostPrice = fmt.Sprintf("%.2f", v)
+		}
+	}
+	if p.StoreID == 0 {
+		if v, ok := helpers.CoerceFloat(raw["store_id"]); ok {
+			p.StoreID = int(v)
+		}
+	}
+	if p.MinStock == 0 {
+		if v, ok := helpers.CoerceFloat(raw["min_stock"]); ok {
+			p.MinStock = int(v)
+		}
+	}
+	if s, ok := raw["shelf_number"].(string); ok && p.ShelfNumber == "" {
+		p.ShelfNumber = s
+	}
+	if s, ok := raw["name"].(string); ok && p.Name == "" {
+		p.Name = s
+	}
+	if s, ok := raw["part_name"].(string); ok && p.PartName == "" {
+		p.PartName = s
+	}
+	if p.ID == 0 && p.PartID > 0 {
+		p.ID = p.PartID
+	}
+	if p.PartName == "" && p.Name != "" {
+		p.PartName = p.Name
+	}
+	return p
+}
+
 // HandleProducts displays the products list page
 func HandleProducts(w http.ResponseWriter, r *http.Request) {
 	token, ok := helpers.GetTokenOrRedirect(w, r)
@@ -29,6 +93,7 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		products = []models.Product{}
 	}
+	helpers.EnrichProductPartNames(products, token)
 
 	stockFilter := r.URL.Query().Get("stock")
 	query := r.URL.Query().Get("q")
@@ -121,16 +186,16 @@ func HandleProductDetail(w http.ResponseWriter, r *http.Request) {
 	req, _ := http.NewRequest("GET", config.BackendDomain+"/api/v2/product/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err == nil && resp.StatusCode == 200 {
-		_ = json.NewDecoder(resp.Body).Decode(&product)
+		bodyBytes, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		if product.ID == 0 && product.PartID > 0 {
-			product.ID = product.PartID
-		}
+		product = parseProductJSON(bodyBytes)
 		if product.ID > 0 {
 			found = true
 		}
-	} else if resp != nil {
-		resp.Body.Close()
+	} else {
+		if resp != nil {
+			resp.Body.Close()
+		}
 	}
 
 	if !found {
@@ -145,6 +210,15 @@ func HandleProductDetail(w http.ResponseWriter, r *http.Request) {
 		}
 		if !found {
 			product = models.Product{ID: prodID}
+		}
+	}
+
+	// Enrich part name from parts API if not set
+	if product.PartName == "" && product.PartID > 0 {
+		if nameMap, err := helpers.FetchPartNames(token); err == nil {
+			if name, ok := nameMap[product.PartID]; ok {
+				product.PartName = name
+			}
 		}
 	}
 
@@ -185,13 +259,23 @@ func HandleEditProduct(w http.ResponseWriter, r *http.Request) {
 	resp, err := helpers.DoAuthedRequest(req, token)
 	var product models.Product
 	if err == nil && resp.StatusCode == 200 {
-		_ = json.NewDecoder(resp.Body).Decode(&product)
+		bodyBytes, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
+		product = parseProductJSON(bodyBytes)
 	} else {
 		if resp != nil {
 			resp.Body.Close()
 		}
 		product = models.Product{ID: helpers.ParseIntValue(id)}
+	}
+
+	// Enrich part name
+	if product.PartName == "" && product.PartID > 0 {
+		if nameMap, err := helpers.FetchPartNames(token); err == nil {
+			if name, ok := nameMap[product.PartID]; ok {
+				product.PartName = name
+			}
+		}
 	}
 
 	helpers.Render(w, r, "edit-product", map[string]interface{}{
@@ -275,12 +359,17 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 		if i < len(shelfNumbers) {
 			shelfNum = shelfNumbers[i]
 		}
+		partName := ""
+		if i < len(partNames) {
+			partName = partNames[i]
+		}
 		products = append(products, map[string]interface{}{
 			"product_id":   id,
 			"quantity":     qty,
 			"price":        price,
 			"cost_price":   costPrice,
 			"shelf_number": shelfNum,
+			"name":         partName,
 		})
 	}
 

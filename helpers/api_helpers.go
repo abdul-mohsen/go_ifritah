@@ -705,9 +705,12 @@ func FetchProducts(token string) ([]models.Product, error) {
 	products, err := decodeListResponse[models.Product](bodyBytes)
 	if err == nil {
 		for i, p := range products {
-
 			if p.ID == 0 && p.PartID > 0 {
 				products[i].ID = p.PartID
+			}
+			// Use Name from backend as fallback for PartName
+			if products[i].PartName == "" && products[i].Name != "" {
+				products[i].PartName = products[i].Name
 			}
 		}
 		APICache.Set("products", products, CacheTTLProducts)
@@ -742,6 +745,12 @@ func FetchProducts(token string) ([]models.Product, error) {
 		if value, ok := item["part_name"].(string); ok {
 			partName = value
 		}
+		// Fallback: use "name" field from backend
+		if partName == "" {
+			if value, ok := item["name"].(string); ok {
+				partName = value
+			}
+		}
 		costPrice := ""
 		if value, ok := item["cost_price"].(string); ok {
 			costPrice = value
@@ -760,6 +769,82 @@ func FetchProducts(token string) ([]models.Product, error) {
 
 	APICache.Set("products", converted, CacheTTLProducts)
 	return converted, nil
+}
+
+// FetchPartNames fetches all parts from the backend and returns a map of part ID → OEM number (part name).
+func FetchPartNames(token string) (map[int]string, error) {
+	if cached, ok := APICache.Get("part_names"); ok {
+		if v, ok := cached.(map[int]string); ok {
+			return v, nil
+		}
+	}
+
+	payload, _ := json.Marshal(map[string]string{"query": ""})
+	req, err := http.NewRequest("POST", config.BackendDomain+"/api/v2/part/", bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := DoAuthedRequest(req, token)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("parts API status %d", resp.StatusCode)
+	}
+
+	var parts []map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&parts); err != nil {
+		return nil, err
+	}
+
+	nameMap := make(map[int]string, len(parts))
+	for _, p := range parts {
+		id := 0
+		if v, ok := CoerceFloat(p["id"]); ok {
+			id = int(v)
+		}
+		oem := ""
+		if v, ok := p["oem_number"].(string); ok {
+			oem = v
+		}
+		if id > 0 && oem != "" {
+			nameMap[id] = oem
+		}
+	}
+
+	APICache.Set("part_names", nameMap, CacheTTLProducts)
+	return nameMap, nil
+}
+
+// EnrichProductPartNames resolves article_id → oem_number for products that have no PartName set.
+func EnrichProductPartNames(products []models.Product, token string) {
+	// Check if any product needs a name
+	needsLookup := false
+	for _, p := range products {
+		if p.PartName == "" && p.PartID > 0 {
+			needsLookup = true
+			break
+		}
+	}
+	if !needsLookup {
+		return
+	}
+
+	nameMap, err := FetchPartNames(token)
+	if err != nil {
+		log.Printf("[ENRICH PARTS] Failed to fetch part names: %v", err)
+		return
+	}
+
+	for i := range products {
+		if products[i].PartName == "" && products[i].PartID > 0 {
+			if name, ok := nameMap[products[i].PartID]; ok {
+				products[i].PartName = name
+			}
+		}
+	}
 }
 
 func FetchSuppliers(token string) ([]models.Supplier, error) {

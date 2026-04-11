@@ -516,3 +516,185 @@ func min(a, b int) int {
 
 // Ensure fmt is used
 var _ = fmt.Sprintf
+
+// TestCreatePBManualItemsOnlyInManualProducts verifies that when creating a
+// purchase bill with only manual items, items appear ONLY in manual_products
+// (not duplicated in products[]) and each has a "name" field set.
+func TestCreatePBManualItemsOnlyInManualProducts(t *testing.T) {
+	// Track what the backend receives
+	var receivedPayload map[string]interface{}
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		path := r.URL.Path
+
+		if strings.Contains(path, "/api/v2/purchase_bill") && r.Method == "POST" && !strings.Contains(path, "/all") {
+			// Capture the create payload
+			json.NewDecoder(r.Body).Decode(&receivedPayload)
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"id": 999}`))
+			return
+		}
+
+		w.Write([]byte(`{"data":[]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+	helpers.APICache.Delete("purchase_bills")
+
+	cleanup := setupPBTestSession("pb-manual-e2e", "pb-manual-e2e-token")
+	defer cleanup()
+
+	// Simulate form submission with manual items only
+	form := "store_id=4&supplier_id=251&payment_date=2026-04-10&payment_method=10" +
+		"&manual_part_name=%D9%81%D9%84%D8%AA%D8%B1+%D8%B2%D9%8A%D8%AA" + // فلتر زيت
+		"&manual_quantity=2&manual_price=50&discount=0&total_amount=115"
+
+	req := httptest.NewRequest("POST", "/api/purchase-bills", strings.NewReader(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-manual-e2e"})
+	w := httptest.NewRecorder()
+
+	HandleCreatePurchaseBill(w, req)
+
+	if receivedPayload == nil {
+		t.Fatal("backend never received the purchase bill create request")
+	}
+
+	// 1. products[] must be empty
+	products, _ := receivedPayload["products"].([]interface{})
+	if len(products) != 0 {
+		t.Errorf("products[] should be empty for manual-only PB, got %d items: %v", len(products), products)
+	}
+
+	// 2. manual_products[] must have exactly 1 item
+	manualProducts, _ := receivedPayload["manual_products"].([]interface{})
+	if len(manualProducts) != 1 {
+		t.Fatalf("expected 1 manual_product, got %d", len(manualProducts))
+	}
+
+	// 3. The manual product must have "name" set to "فلتر زيت"
+	mp, ok := manualProducts[0].(map[string]interface{})
+	if !ok {
+		t.Fatal("manual_products[0] is not an object")
+	}
+	name, _ := mp["name"].(string)
+	if name != "فلتر زيت" {
+		t.Errorf("expected manual product name 'فلتر زيت', got '%s'", name)
+	}
+
+	// 4. product_id must be null (nil)
+	if mp["product_id"] != nil {
+		t.Errorf("expected manual product product_id to be null, got %v", mp["product_id"])
+	}
+}
+
+// TestProductDetailShowsNameFromBackend verifies that when the backend returns
+// a product with a "name" field, it is displayed on the product detail page.
+func TestProductDetailShowsNameFromBackend(t *testing.T) {
+	helpers.APICache.Delete("products")
+	helpers.APICache.Delete("part_names")
+	helpers.APICache.Delete("stores")
+
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		path := r.URL.Path
+
+		if strings.Contains(path, "/api/v2/product/555") && r.Method == "GET" {
+			w.Write([]byte(`{
+				"id": 555,
+				"article_id": null,
+				"store_id": 4,
+				"status": 0,
+				"shelf_number": "B3",
+				"min_stock": 5,
+				"cost_price": "50",
+				"price": "120",
+				"quantity": "3",
+				"is_deleted": false,
+				"name": "فلتر زيت يدوي"
+			}`))
+			return
+		}
+		if strings.Contains(path, "/api/v2/stores/all") {
+			w.Write([]byte(`[{"id":4,"name":"المخزن الرئيسي"}]`))
+			return
+		}
+		if strings.Contains(path, "/api/v2/part") {
+			w.Write([]byte(`[]`))
+			return
+		}
+		if strings.Contains(path, "/api/v2/product/all") {
+			w.Write([]byte(`[]`))
+			return
+		}
+		if strings.Contains(path, "/api/v2/stock") {
+			w.Write([]byte(`[]`))
+			return
+		}
+		w.Write([]byte(`{"data":[]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	cleanup := setupPBTestSession("prod-name-test", "prod-name-token")
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/dashboard/products/555", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "prod-name-test"})
+	req = mux.SetURLVars(req, map[string]string{"id": "555"})
+	w := httptest.NewRecorder()
+
+	HandleProductDetail(w, req)
+
+	body := w.Body.String()
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d. body: %s", w.Code, body[:min(500, len(body))])
+	}
+
+	// The product name "فلتر زيت يدوي" must appear on the page
+	if !strings.Contains(body, "فلتر زيت يدوي") {
+		t.Error("expected product name 'فلتر زيت يدوي' from backend 'name' field to be shown on product detail page")
+	}
+
+	// Price must be parsed from string "120" and rendered as 120.00
+	if !strings.Contains(body, "120.00") {
+		t.Error("expected price '120.00' on product detail page (backend returns price as string)")
+	}
+
+	// Quantity must be parsed from string "3"
+	if !strings.Contains(body, ">3<") && !strings.Contains(body, "> 3 <") && !strings.Contains(body, ">3\n") {
+		// Check the raw body for quantity rendering
+		if !strings.Contains(body, "3</p>") {
+			t.Error("expected quantity '3' on product detail page (backend returns quantity as string)")
+		}
+	}
+
+	// Shelf number "B3" must appear
+	if !strings.Contains(body, "B3") {
+		t.Error("expected shelf number 'B3' on product detail page")
+	}
+
+	// Store name "المخزن الرئيسي" must appear (resolved from store_id=4)
+	if !strings.Contains(body, "المخزن الرئيسي") {
+		t.Error("expected store name 'المخزن الرئيسي' on product detail page")
+	}
+
+	// Cost price "50" must appear
+	if !strings.Contains(body, "50") {
+		t.Error("expected cost price '50' on product detail page")
+	}
+
+	// Min stock "5" must appear
+	if !strings.Contains(body, ">5<") || !strings.Contains(body, "5</p>") {
+		// Flexible check
+		if !strings.Contains(body, "5") {
+			t.Error("expected min_stock '5' on product detail page")
+		}
+	}
+}

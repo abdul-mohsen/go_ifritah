@@ -48,6 +48,10 @@
             <p class="detail-value">{{ if .product.ShelfNumber }}{{ .product.ShelfNumber }}{{ else }}<span class="text-gray-400">—</span>{{ end }}</p>
         </div>
         <div class="detail-field-v">
+            <span class="detail-label">{{ L "tpl.product.min_stock" }}</span>
+            <p class="detail-value">{{ .product.MinStock }}</p>
+        </div>
+        <div class="detail-field-v">
             <span class="detail-label">{{ L "tpl.product.store_number" }}</span>
             <p class="detail-value">{{ if .store_name }}{{ .store_name }}{{else if .product.StoreID }}{{.product.StoreID}} {{ else }}<span class="text-gray-400">—</span>{{ end }}</p>
         </div>

@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"afrita/config"
 	"afrita/helpers"
@@ -19,6 +18,9 @@ import (
 
 	"github.com/gorilla/mux"
 )
+
+// purchaseBillCreateLock prevents duplicate purchase bill creation per user session.
+var purchaseBillCreateLock sync.Map
 
 // HandlePurchaseBills renders the purchase bills list page.
 func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +124,14 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prevent duplicate submissions: only one in-flight create per user session
+	if _, loaded := purchaseBillCreateLock.LoadOrStore(token, true); loaded {
+		log.Printf("[CREATE PURCHASE BILL] Duplicate request blocked for token=%s…", token[:8])
+		w.WriteHeader(http.StatusConflict)
+		return
+	}
+	defer purchaseBillCreateLock.Delete(token)
+
 	payload := helpers.BuildPurchaseBillPayload(r)
 	jsonPayload, _ := json.Marshal(payload)
 
@@ -153,6 +163,7 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 // autoCreateProductsFromPurchaseBill creates products in the store for each item in the purchase bill.
 // It reads cost_price[] from the form and uses the purchase bill product data.
 func autoCreateProductsFromPurchaseBill(token string, storeID int, r *http.Request) {
+	productIDs := r.Form["products_product_id"]
 	quantities := r.Form["products_quantity"]
 	prices := r.Form["products_price"]
 	costPrices := r.Form["products_cost_price"]
@@ -164,6 +175,15 @@ func autoCreateProductsFromPurchaseBill(token string, storeID int, r *http.Reque
 
 	products := make([]map[string]interface{}, 0, len(quantities))
 	for i := range quantities {
+		// Skip manual items (product_id=0 means unlinked/manual)
+		pid := 0
+		if i < len(productIDs) {
+			pid, _ = strconv.Atoi(productIDs[i])
+		}
+		if pid == 0 {
+			continue
+		}
+
 		qty, _ := strconv.Atoi(quantities[i])
 		price := 0
 		if i < len(prices) {
@@ -182,12 +202,8 @@ func autoCreateProductsFromPurchaseBill(token string, storeID int, r *http.Reque
 			continue
 		}
 
-		var rb [4]byte
-		_, _ = rand.Read(rb[:])
-		productID := int(binary.BigEndian.Uint32(rb[:]))%900000 + 100000
-
 		products = append(products, map[string]interface{}{
-			"product_id":   productID,
+			"product_id":   pid,
 			"quantity":     qty,
 			"price":        price,
 			"cost_price":   costPrice,

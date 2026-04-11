@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"afrita/models"
-	"crypto/rand"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -361,27 +360,6 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 	}
 	if manualProducts == nil {
 		manualProducts = []models.BillManualItem{}
-	}
-
-	// Backend requires at least one item in products[]. When only manual
-	// products exist, convert them to products with random IDs so the
-	// backend accepts the request. ID must fit int32 (max 2147483647).
-	if len(products) == 0 && len(manualProducts) > 0 {
-		for _, mp := range manualProducts {
-			var buf [4]byte
-			_, _ = rand.Read(buf[:])
-			// Mask to 30 bits to stay safely within int32 range (max ~1 billion)
-			fakeID := (int(buf[0])<<22 | int(buf[1])<<14 | int(buf[2])<<6 | int(buf[3])>>2) & 0x3FFFFFFF
-			if fakeID == 0 {
-				fakeID = 1
-			}
-			products = append(products, models.BillProductItem{
-				ID:       fakeID,
-				PartName: mp.PartName,
-				Price:    mp.Price,
-				Quantity: mp.Quantity,
-			})
-		}
 	}
 
 	supplierID := ParseIntValue(r.FormValue("supplier_id"))

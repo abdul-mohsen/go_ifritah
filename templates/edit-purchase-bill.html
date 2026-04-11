@@ -10,7 +10,7 @@
         </a>
     </div>
     <form hx-put="/api/purchase-bills/{{ .bill_id }}" hx-target="body" id="purchase-form"
-        hx-indicator="#submit-spinner" hx-encoding="multipart/form-data">
+        hx-indicator="#submit-spinner" hx-encoding="multipart/form-data" hx-disabled-elt="button[type='submit']">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="form-label">{{ L "tpl.pb.store_label" }} <span class="required-mark">*</span></label>

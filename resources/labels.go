@@ -827,6 +827,7 @@ var labels = map[string]Label{
 	"tpl.product.available_qty":      {Ar: "الكمية المتوفرة", En: "Available Quantity"},
 	"tpl.product.stock_status":       {Ar: "حالة المخزون", En: "Stock Status"},
 	"tpl.product.shelf_number":       {Ar: "رقم الرف", En: "Shelf Number"},
+	"tpl.product.min_stock":          {Ar: "الحد الأدنى للمخزون", En: "Minimum Stock"},
 	"tpl.product.store_number":       {Ar: "رقم المخزن", En: "Store Number"},
 	"tpl.product.stock_history":      {Ar: "سجل حركة المخزون", En: "Stock Movement History"},
 	"tpl.product.loading_history":    {Ar: "جاري تحميل سجل الحركة...", En: "Loading movement history..."},

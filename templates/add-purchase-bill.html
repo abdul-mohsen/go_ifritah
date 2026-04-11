@@ -1,7 +1,7 @@
 {{ define "content" }}
 {{ template "breadcrumb" dict "section_url" "/dashboard/purchase-bills" "section_label" (L "tpl.pb.section_purchase") "current" (L "tpl.pb.add_heading") }}
 <div class="page-card-wide">
-    <form hx-post="/api/purchase-bills" hx-target="body" id="purchase-form" hx-indicator="#submit-spinner" hx-encoding="multipart/form-data">
+    <form hx-post="/api/purchase-bills" hx-target="body" id="purchase-form" hx-indicator="#submit-spinner" hx-encoding="multipart/form-data" hx-disabled-elt="button[type='submit']">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="form-label">{{ L "tpl.pb.store_label" }} <span class="required-mark">*</span></label>

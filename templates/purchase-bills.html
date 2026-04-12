@@ -25,7 +25,8 @@
         <thead>
             <tr>
                 <th>#</th>
-                <th data-sortable>{{ L "tpl.pb.bill_number" }}</th>
+                <th data-sortable>{{ L "tpl.pb.supplier_seq" }}</th>
+                <th data-sortable>{{ L "tpl.pb.bill_id" }}</th>
                 <th data-sortable>{{ L "tpl.pb.total" }}</th>
                 <th data-sortable>{{ L "tpl.pb.date" }}</th>
                 <th data-sortable>{{ L "tpl.pb.type" }}</th>
@@ -35,12 +36,13 @@
         </thead>
         <tbody>
             {{ if not .bills }}
-            {{ template "empty-table-row" dict "colspan" 7 "message" (L "tpl.pb.no_bills") "action_url" "/dashboard/purchases/add" "action_label" (L "tpl.pb.add") }} }}
+            {{ template "empty-table-row" dict "colspan" 8 "message" (L "tpl.pb.no_bills") "action_url" "/dashboard/purchases/add" "action_label" (L "tpl.pb.add") }} }}
             {{ end }}
             {{ range .bills }}
             <tr>
                 <td>{{ if lt .order 10 }}0{{ end }}{{ .order }}</td>
-                <td class="font-bold" style="color: var(--md-sys-color-primary)">{{ .sequence_number }}</td>
+                <td class="font-bold" style="color: var(--md-sys-color-primary)">{{ .supplier_sequence_number }}</td>
+                <td>{{ .id }}</td>
                 <td class="font-bold">{{ .total }} {{ L "tpl.currency" }}</td>
                 <td>{{ .date }}</td>
                 <td>{{ .type }}</td>

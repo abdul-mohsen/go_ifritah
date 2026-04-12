@@ -110,9 +110,10 @@ type CashVoucherPayload struct {
 
 // Invoice represents the invoice/bill structure from the API
 type Invoice struct {
-	ID             int `json:"id"`
-	SequenceNumber int `json:"sequence_number"`
-	EffectiveDate  struct {
+	ID                     int `json:"id"`
+	SequenceNumber         int `json:"sequence_number"`
+	SupplierSequenceNumber int `json:"supplier_sequence_number"`
+	EffectiveDate          struct {
 		Time  string `json:"Time"`
 		Valid bool   `json:"Valid"`
 	} `json:"effective_date"`

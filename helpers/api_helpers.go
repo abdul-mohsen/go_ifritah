@@ -1240,6 +1240,9 @@ func decodePurchaseBillList(body []byte) ([]models.Invoice, error) {
 		if v, ok := CoerceFloat(m["sequence_number"]); ok {
 			inv.SequenceNumber = int(v)
 		}
+		if v, ok := CoerceFloat(m["supplier_sequence_number"]); ok {
+			inv.SupplierSequenceNumber = int(v)
+		}
 		if v, ok := CoerceFloat(m["total"]); ok {
 			inv.Total = v
 		}

@@ -54,16 +54,20 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 		if len(dateStr) >= 10 {
 			dateStr = dateStr[:10]
 		}
+		supplierSeq := ""
+		if inv.SupplierSequenceNumber > 0 {
+			supplierSeq = fmt.Sprintf("%d", inv.SupplierSequenceNumber)
+		}
 		displayBills = append(displayBills, map[string]interface{}{
-			"id":              inv.ID,
-			"order":           i + 1,
-			"sequence_number": inv.SequenceNumber,
-			"total":           fmt.Sprintf("%.2f", inv.Total),
-			"date":            dateStr,
-			"type":            invoiceType,
-			"state":           inv.State,
-			"status":          status,
-			"status_class":    statusClass,
+			"id":                       inv.ID,
+			"order":                    i + 1,
+			"supplier_sequence_number": supplierSeq,
+			"total":                    fmt.Sprintf("%.2f", inv.Total),
+			"date":                     dateStr,
+			"type":                     invoiceType,
+			"state":                    inv.State,
+			"status":                   status,
+			"status_class":             statusClass,
 		})
 	}
 
@@ -308,8 +312,28 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 
 	// Supplier sequence number
 	supplierSeqNum := ""
-	if v, ok := helpers.CoerceFloat(extra["supplier_sequence_number"]); ok && v > 0 {
+	if v, ok := extra["supplier_sequence_number"].(string); ok && v != "" {
+		supplierSeqNum = v
+	} else if v, ok := helpers.CoerceFloat(extra["supplier_sequence_number"]); ok && v > 0 {
 		supplierSeqNum = fmt.Sprintf("%.0f", v)
+	}
+
+	// Deliver date
+	deliverDate := ""
+	if v, ok := extra["deliver_date"].(string); ok && len(v) >= 10 {
+		deliverDate = v[:10]
+	}
+
+	// Note
+	note := ""
+	if v, ok := extra["note"].(string); ok {
+		note = v
+	}
+
+	// Payment method
+	paymentMethod := ""
+	if v, ok := extra["payment_method"].(string); ok {
+		paymentMethod = v
 	}
 
 	// Compute total if backend doesn't return it (purchase bills: total = subtotal + vat - discount)
@@ -367,6 +391,9 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		"total_display":            fmt.Sprintf("%.2f", total),
 		"vat_amount":               invoice.VAT,
 		"supplier_sequence_number": supplierSeqNum,
+		"deliver_date":             deliverDate,
+		"note":                     note,
+		"payment_method":           paymentMethod,
 		"pdf_link_key":             pdfLinkKey,
 	})
 }

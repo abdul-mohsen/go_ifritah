@@ -1,13 +1,13 @@
 {{ define "content" }}
 {{ template "breadcrumb" dict "section_url" "/dashboard/purchase-bills" "section_label" (L "tpl.pb.section") "current"
-(printf "#%d" .bill.SequenceNumber) }}
+(printf "#%s" .bill_id) }}
 <div class="max-w-4xl mx-auto space-y-6">
 
     <!-- Header -->
     <div class="section-card">
         <div class="flex items-center justify-between mb-4">
             <div>
-                <h3 class="section-card-title" style="margin-bottom:0">{{ L "tpl.pb.heading" }} #{{ .bill.SequenceNumber }}
+                <h3 class="section-card-title" style="margin-bottom:0">{{ L "tpl.pb.heading" }} #{{ .supplier_sequence_number }}
                 </h3>
                 <p class="detail-label" style="margin-top:0.25rem">{{ .effective_date }}</p>
             </div>
@@ -52,15 +52,9 @@
                     <span class="detail-value">{{ .bill_id }}</span>
                 </div>
                 <div class="detail-field">
-                    <span class="detail-label">{{ L "tpl.pb.seq_number" }}</span>
-                    <span class="detail-value">#{{ .bill.SequenceNumber }}</span>
-                </div>
-                {{ if .supplier_sequence_number }}
-                <div class="detail-field">
                     <span class="detail-label">{{ L "tpl.pb.supplier_seq" }}</span>
-                    <span class="detail-value">{{ .supplier_sequence_number }}</span>
+                    <span class="detail-value">{{ if .supplier_sequence_number }}{{ .supplier_sequence_number }}{{ else }}—{{ end }}</span>
                 </div>
-                {{ end }}
                 {{ if .vat_sequence_number }}
                 <div class="detail-field">
                     <span class="detail-label">{{ L "tpl.pb.vat_seq" }}</span>
@@ -77,18 +71,26 @@
                 </div>
                 <div class="detail-field">
                     <span class="detail-label">{{ L "tpl.pb.date" }}</span>
-                    <span class="detail-value">{{ .effective_date }}</span>
+                    <span class="detail-value">{{ if .effective_date }}{{ .effective_date }}{{ else }}—{{ end }}</span>
                 </div>
-                {{ if .payment_due_date }}
                 <div class="detail-field">
                     <span class="detail-label">{{ L "tpl.pb.due_date" }}</span>
-                    <span class="detail-value">{{ .payment_due_date }}</span>
+                    <span class="detail-value">{{ if .payment_due_date }}{{ .payment_due_date }}{{ else }}—{{ end }}</span>
                 </div>
-                {{ end }}
-                {{ if .deliver_date }}
                 <div class="detail-field">
                     <span class="detail-label">{{ L "tpl.deliver_date" }}</span>
-                    <span class="detail-value">{{ .deliver_date }}</span>
+                    <span class="detail-value">{{ if .deliver_date }}{{ .deliver_date }}{{ else }}—{{ end }}</span>
+                </div>
+                {{ if .payment_method }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.payment_method" }}</span>
+                    <span class="detail-value">{{ .payment_method }}</span>
+                </div>
+                {{ end }}
+                {{ if .note }}
+                <div class="detail-field">
+                    <span class="detail-label">{{ L "tpl.note" }}</span>
+                    <span class="detail-value">{{ .note }}</span>
                 </div>
                 {{ end }}
             </div>

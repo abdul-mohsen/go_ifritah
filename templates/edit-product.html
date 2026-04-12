@@ -25,7 +25,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="form-group">
                 <label class="form-label">{{ L "tpl.product.selling_price" }} <span class="required-mark">*</span></label>
-                <input type="number" name="price" step="0.01" value="{{ if .old }}{{ old .old "price" }}{{ else }}{{ printf "%.2f" .product.Price }}{{ end }}" class="w-full {{ if hasError .errors "price" }}input-error{{ end }}" required min="0">
+                <input type="number" name="price" step="0.01" value="{{ if .old }}{{ old .old "price" }}{{ else }}{{ .product.Price }}{{ end }}" class="w-full {{ if hasError .errors "price" }}input-error{{ end }}" required min="0">
                 {{ if hasError .errors "price" }}<p class="field-error">{{ fieldError .errors "price" }}</p>{{ end }}
             </div>
 

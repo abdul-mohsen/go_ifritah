@@ -227,7 +227,7 @@
                         <td class="px-3 py-2 font-semibold">{{ L "dashboard.stock.product_prefix" }}{{ .id }}</td>
                         <td class="px-3 py-2 text-gray-600">{{ .price }} {{ L "ui.currency" }}</td>
                         <td class="px-3 py-2">
-                            {{ if eq .quantity 0 }}
+                            {{ if or (eq .quantity "") (eq .quantity "0") }}
                             <span class="bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">{{ L "dashboard.stock.out_of_stock" }}</span>
                             {{ else }}
                             <span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full">{{ .quantity

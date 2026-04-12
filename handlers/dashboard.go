@@ -81,9 +81,9 @@ func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 		"recent_invoices":    recentInvoices,
 		"status_counts":      statusCountsTemplate,
 		"low_stock_products": []map[string]interface{}{
-			{"id": 101, "price": "45.00", "quantity": 2},
-			{"id": 102, "price": "120.00", "quantity": 0},
-			{"id": 103, "price": "78.50", "quantity": 3},
+			{"id": 101, "price": "45.00", "quantity": "2"},
+			{"id": 102, "price": "120.00", "quantity": "0"},
+			{"id": 103, "price": "78.50", "quantity": "3"},
 		},
 		"state_filter": "",
 		"start_date":   "",
@@ -402,17 +402,17 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	lowStockProducts := make([]map[string]interface{}, 0)
 	if prodErr == nil {
 		for _, p := range products {
-			if p.Quantity <= 5 {
+			if helpers.ParseIntValue(p.Quantity) <= 5 {
 				lowStockProducts = append(lowStockProducts, map[string]interface{}{
 					"id":       p.ID,
-					"price":    fmt.Sprintf("%.2f", p.Price),
+					"price":    p.Price,
 					"quantity": p.Quantity,
 				})
 			}
 		}
 		sort.Slice(lowStockProducts, func(i, j int) bool {
-			qi, _ := lowStockProducts[i]["quantity"].(int)
-			qj, _ := lowStockProducts[j]["quantity"].(int)
+			qi := helpers.ParseIntValue(fmt.Sprint(lowStockProducts[i]["quantity"]))
+			qj := helpers.ParseIntValue(fmt.Sprint(lowStockProducts[j]["quantity"]))
 			return qi < qj
 		})
 		if len(lowStockProducts) > 10 {
@@ -993,7 +993,7 @@ func HandleDashboardExportPDF(w http.ResponseWriter, r *http.Request) {
 	lowStockCount := 0
 	if prodErr == nil {
 		for _, p := range products {
-			if p.Quantity <= 5 {
+			if helpers.ParseIntValue(p.Quantity) <= 5 {
 				lowStockCount++
 			}
 		}

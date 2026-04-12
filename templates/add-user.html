@@ -70,8 +70,7 @@
                     {{ L "tpl.user.role" }} <span class="required-mark">*</span>
                 </label>
                 <select name="role" id="role-select" required class="w-full">
-                    <option value="">{{ L "tpl.user.select_role" }}</option>
-                    <option value="employee">{{ L "tpl.user.role_employee_desc" }}</option>
+                    <option value="employee" selected>{{ L "tpl.user.role_employee_desc" }}</option>
                     <option value="manager">{{ L "tpl.user.role_manager_desc" }}</option>
                     <option value="admin">{{ L "tpl.user.role_admin_desc" }}</option>
                 </select>
@@ -81,7 +80,6 @@
                     {{ L "tpl.user.responsible_supervisor" }} <span class="required-mark">*</span>
                 </label>
                 <select name="manager_id" class="w-full">
-                    <option value="">{{ L "tpl.user.select_supervisor" }}</option>
                     {{ range .Managers }}
                     <option value="{{ .ID }}">{{ .Username }} ({{ .Email }})</option>
                     {{ end }}

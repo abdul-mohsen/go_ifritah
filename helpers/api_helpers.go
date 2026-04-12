@@ -191,16 +191,9 @@ func FetchInvoicesAll(token string, page int, query string) ([]models.Invoice, e
 		page = 1
 	}
 
-	// For page 1, use empty payload to show drafts (sequence_number=0)
-	// For other pages, send page_number to backend for pagination
-	var payload map[string]interface{}
-	if page == 1 {
-		payload = map[string]interface{}{}
-		log.Printf("🔵 [API REQUEST] POST %s/api/v2/bill/all (PAGE 1 - INCLUDE DRAFTS)", config.BackendDomain)
-	} else {
-		payload = map[string]interface{}{"page_number": page}
-		log.Printf("🔵 [API REQUEST] POST %s/api/v2/bill/all (PAGE %d)", config.BackendDomain, page)
-	}
+	// Always fetch all bills from backend (page_number 0) and paginate client-side
+	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
+	log.Printf("🔵 [API REQUEST] POST %s/api/v2/bill/all", config.BackendDomain)
 	if query != "" {
 		payload["query"] = query
 		log.Printf("🔵 [API SEARCH] query=%s", query)
@@ -239,7 +232,8 @@ func FetchAllInvoicesUnpaginated(token string) ([]models.Invoice, error) {
 		}
 	}
 	payload := map[string]interface{}{
-		"page_size": 10000,
+		"page_number": 0,
+		"page_size":   10000,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -293,16 +287,9 @@ func FetchPurchaseBillsAll(token string, page int, query string) ([]models.Invoi
 		}
 	}
 
-	// For page 1, use empty payload to show drafts (sequence_number=0)
-	// For other pages, send page_number to backend for pagination
-	var payload map[string]interface{}
-	if page == 1 {
-		payload = map[string]interface{}{}
-		log.Printf("🔵 [API REQUEST] POST %s/api/v2/purchase_bill/all (PAGE 1 - INCLUDE DRAFTS)", config.BackendDomain)
-	} else {
-		payload = map[string]interface{}{"page_number": page}
-		log.Printf("🔵 [API REQUEST] POST %s/api/v2/purchase_bill/all (PAGE %d)", config.BackendDomain, page)
-	}
+	// Always fetch all purchase bills from backend (page_number 0) and paginate client-side
+	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
+	log.Printf("🔵 [API REQUEST] POST %s/api/v2/purchase_bill/all", config.BackendDomain)
 	if query != "" {
 		payload["query"] = query
 		log.Printf("🔵 [API SEARCH] query=%s", query)
@@ -683,7 +670,7 @@ func FetchProducts(token string) ([]models.Product, error) {
 			return v, nil
 		}
 	}
-	req, err := http.NewRequest("POST", config.BackendDomain+"/api/v2/product/all", bytes.NewBufferString(`{}`))
+	req, err := http.NewRequest("POST", config.BackendDomain+"/api/v2/product/all", bytes.NewBufferString(`{"page_number":0,"page_size":10000}`))
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
 	}
@@ -725,8 +712,8 @@ func FetchProducts(token string) ([]models.Product, error) {
 	converted := make([]models.Product, 0, len(items))
 	for _, item := range items {
 		id := 0
-		qty := 0
-		price := 0.0
+		qty := ""
+		price := ""
 		if value, ok := CoerceFloat(item["article_id"]); ok {
 			id = int(value)
 		}
@@ -735,11 +722,15 @@ func FetchProducts(token string) ([]models.Product, error) {
 				id = int(value)
 			}
 		}
-		if value, ok := CoerceFloat(item["quantity"]); ok {
-			qty = int(value)
+		if value, ok := item["quantity"].(string); ok {
+			qty = value
+		} else if value, ok := CoerceFloat(item["quantity"]); ok {
+			qty = fmt.Sprintf("%g", value)
 		}
-		if value, ok := CoerceFloat(item["price"]); ok {
+		if value, ok := item["price"].(string); ok {
 			price = value
+		} else if value, ok := CoerceFloat(item["price"]); ok {
+			price = fmt.Sprintf("%g", value)
 		}
 		partName := ""
 		if value, ok := item["part_name"].(string); ok {
@@ -853,7 +844,7 @@ func FetchSuppliers(token string) ([]models.Supplier, error) {
 			return v, nil
 		}
 	}
-	req, err := http.NewRequest("POST", config.BackendDomain+"/api/v2/supplier/all", bytes.NewBufferString(`{}`))
+	req, err := http.NewRequest("POST", config.BackendDomain+"/api/v2/supplier/all", bytes.NewBufferString(`{"page_number":0,"page_size":10000}`))
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
 	}
@@ -961,7 +952,7 @@ func FetchClients(token string) ([]models.Client, error) {
 			return v, nil
 		}
 	}
-	body := []byte(`{"page":0,"page_size":10000}`)
+	body := []byte(`{"page_number":0,"page_size":10000}`)
 	req, err := http.NewRequest("POST", config.BackendDomain+"/api/v2/client/all", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
@@ -1016,7 +1007,7 @@ func FetchOrders(token string) ([]map[string]interface{}, error) {
 			return v, nil
 		}
 	}
-	req, err := http.NewRequest("POST", config.BackendDomain+"/api/v2/order/all", bytes.NewBufferString(`{}`))
+	req, err := http.NewRequest("POST", config.BackendDomain+"/api/v2/order/all", bytes.NewBufferString(`{"page_number":0,"page_size":10000}`))
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
 	}
@@ -1111,7 +1102,7 @@ func FetchBranches(token string) ([]models.Branch, error) {
 			return v, nil
 		}
 	}
-	payload := []byte("{}")
+	payload := []byte(`{"page_number":0,"page_size":10000}`)
 	req, err := http.NewRequest("POST", config.BackendDomain+"/api/v2/branch/all", bytes.NewBuffer(payload))
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)

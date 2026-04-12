@@ -18,61 +18,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// parseProductJSON unmarshals a product from backend JSON, handling string-encoded numeric fields.
-func parseProductJSON(data []byte) models.Product {
+// unmarshalProduct decodes backend JSON into a Product, applying name fallbacks.
+func unmarshalProduct(data []byte) models.Product {
 	var p models.Product
 	_ = json.Unmarshal(data, &p)
-
-	var raw map[string]interface{}
-	if json.Unmarshal(data, &raw) != nil {
-		return p
-	}
-	if p.ID == 0 {
-		if v, ok := helpers.CoerceFloat(raw["id"]); ok {
-			p.ID = int(v)
-		}
-	}
-	if p.PartID == 0 {
-		if v, ok := helpers.CoerceFloat(raw["article_id"]); ok {
-			p.PartID = int(v)
-		}
-	}
-	if p.Price == 0 {
-		if v, ok := helpers.CoerceFloat(raw["price"]); ok {
-			p.Price = v
-		}
-	}
-	if p.Quantity == 0 {
-		if v, ok := helpers.CoerceFloat(raw["quantity"]); ok {
-			p.Quantity = int(v)
-		}
-	}
-	if p.CostPrice == "" {
-		if v, ok := raw["cost_price"].(string); ok {
-			p.CostPrice = v
-		} else if v, ok := helpers.CoerceFloat(raw["cost_price"]); ok {
-			p.CostPrice = fmt.Sprintf("%.2f", v)
-		}
-	}
-	if p.StoreID == 0 {
-		if v, ok := helpers.CoerceFloat(raw["store_id"]); ok {
-			p.StoreID = int(v)
-		}
-	}
-	if p.MinStock == 0 {
-		if v, ok := helpers.CoerceFloat(raw["min_stock"]); ok {
-			p.MinStock = int(v)
-		}
-	}
-	if s, ok := raw["shelf_number"].(string); ok && p.ShelfNumber == "" {
-		p.ShelfNumber = s
-	}
-	if s, ok := raw["name"].(string); ok && p.Name == "" {
-		p.Name = s
-	}
-	if s, ok := raw["part_name"].(string); ok && p.PartName == "" {
-		p.PartName = s
-	}
 	if p.ID == 0 && p.PartID > 0 {
 		p.ID = p.PartID
 	}
@@ -115,7 +64,7 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 	if stockFilter == "in" {
 		filtered := make([]models.Product, 0)
 		for _, p := range products {
-			if p.Quantity > 0 {
+			if helpers.ParseIntValue(p.Quantity) > 0 {
 				filtered = append(filtered, p)
 			}
 		}
@@ -123,7 +72,7 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 	} else if stockFilter == "out" {
 		filtered := make([]models.Product, 0)
 		for _, p := range products {
-			if p.Quantity <= 0 {
+			if helpers.ParseIntValue(p.Quantity) <= 0 {
 				filtered = append(filtered, p)
 			}
 		}
@@ -133,12 +82,12 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
 	pagedProducts, pagination := helpers.PaginateSlice(products, page, perPage)
-	prevPage := 0
-	nextPage := 0
-	if pagination.Page > 1 {
+	prevPage := -1
+	nextPage := -1
+	if pagination.Page > 0 {
 		prevPage = pagination.Page - 1
 	}
-	if pagination.Page < pagination.TotalPages {
+	if pagination.Page < pagination.TotalPages-1 {
 		nextPage = pagination.Page + 1
 	}
 
@@ -188,7 +137,7 @@ func HandleProductDetail(w http.ResponseWriter, r *http.Request) {
 	if err == nil && resp.StatusCode == 200 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		product = parseProductJSON(bodyBytes)
+		product = unmarshalProduct(bodyBytes)
 		if product.ID > 0 {
 			found = true
 		}
@@ -261,7 +210,7 @@ func HandleEditProduct(w http.ResponseWriter, r *http.Request) {
 	if err == nil && resp.StatusCode == 200 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		product = parseProductJSON(bodyBytes)
+		product = unmarshalProduct(bodyBytes)
 	} else {
 		if resp != nil {
 			resp.Body.Close()

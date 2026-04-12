@@ -43,7 +43,7 @@ func TestHandleDashboardRealData(t *testing.T) {
 
 	mux.HandleFunc("/api/v2/product/all", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		products := []models.Product{{ID: 10, Quantity: 7}, {ID: 11, Quantity: 3}}
+		products := []models.Product{{ID: 10, Quantity: "7"}, {ID: 11, Quantity: "3"}}
 		_ = json.NewEncoder(w).Encode(products)
 	})
 

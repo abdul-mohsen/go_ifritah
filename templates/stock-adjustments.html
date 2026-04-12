@@ -12,7 +12,6 @@
             <div>
                 <label class="form-label">{{ L "tpl.stock.product" }} <span class="required-mark">*</span></label>
                 <select name="product_id" id="product-select" class="w-full" required onchange="updateProductInfo()">
-                    <option value="">{{ L "tpl.stock.select_product" }}</option>
                     {{ range .products }}
                     <option value="{{ .ID }}" data-quantity="{{ .Quantity }}" data-name="{{ .PartName }}">
                         {{ if .PartName }}{{ .PartName }}{{ else }}{{ L "tpl.stock.part" }}{{ end }} #{{ .ID }} ({{ L "tpl.stock.qty_label" }} {{ .Quantity }})
@@ -23,7 +22,6 @@
             <div>
                 <label class="form-label">المخزن <span class="required-mark">*</span></label>
                 <select name="store_id" class="w-full" required>
-                    <option value="">اختر المخزن</option>
                     {{ range .stores }}
                     <option value="{{ .ID }}">{{ .Name }}</option>
                     {{ end }}
@@ -48,8 +46,7 @@
             <div>
                 <label class="form-label">{{ L "tpl.stock.reason" }} <span class="required-mark">*</span></label>
                 <select name="reason" class="w-full" required>
-                    <option value="">{{ L "tpl.stock.select_reason" }}</option>
-                    <option value="damaged">{{ L "tpl.stock.damaged" }}</option>
+                    <option value="damaged" selected>{{ L "tpl.stock.damaged" }}</option>
                     <option value="lost">{{ L "tpl.stock.lost" }}</option>
                     <option value="expired">{{ L "tpl.stock.expired" }}</option>
                     <option value="returned_supplier">{{ L "tpl.stock.returned_supplier" }}</option>

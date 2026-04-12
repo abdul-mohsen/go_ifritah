@@ -6,7 +6,6 @@
             <div>
                 <label class="form-label">{{ L "tpl.pb.store_label" }} <span class="required-mark">*</span></label>
                 <select name="store_id" class="w-full" required>
-                    <option value="">{{ L "tpl.pb.select_store" }}</option>
                     {{ range .stores }}
                     <option value="{{ .ID }}" {{ if eq .ID $.default_store_id }}selected{{ end }}>{{ .Name }}</option>
                     {{ end }}
@@ -15,7 +14,6 @@
             <div>
                 <label class="form-label">{{ L "tpl.pb.supplier" }} <span class="required-mark">*</span></label>
                 <select name="supplier_id" class="w-full" required>
-                    <option value="">{{ L "tpl.pb.select_supplier" }}</option>
                     {{ range .suppliers }}
                     <option value="{{ .ID }}">{{ .Name }}</option>
                     {{ end }}

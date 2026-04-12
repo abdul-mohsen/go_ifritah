@@ -42,12 +42,12 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
 	pagedClients, pagination := helpers.PaginateSlice(clients, page, perPage)
-	prevPage := 0
-	nextPage := 0
-	if pagination.Page > 1 {
+	prevPage := -1
+	nextPage := -1
+	if pagination.Page > 0 {
 		prevPage = pagination.Page - 1
 	}
-	if pagination.Page < pagination.TotalPages {
+	if pagination.Page < pagination.TotalPages-1 {
 		nextPage = pagination.Page + 1
 	}
 

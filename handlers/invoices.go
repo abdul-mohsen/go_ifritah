@@ -31,8 +31,8 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 
 	// Read pagination and filter parameters
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
-	if page < 1 {
-		page = 1
+	if page < 0 {
+		page = 0
 	}
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
 	if perPage < 1 {
@@ -94,31 +94,27 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	// Paginate client-side
+	pagedInvoices, pagination := helpers.PaginateSlice(displayInvoices, page, perPage)
+
 	// Add order numbers
-	offset := (page - 1) * perPage
-	for i := range displayInvoices {
-		displayInvoices[i]["order"] = offset + i + 1
+	offset := page * perPage
+	for i := range pagedInvoices {
+		pagedInvoices[i]["order"] = offset + i + 1
 	}
 
-	prevPage := 0
-	if page > 1 {
-		prevPage = page - 1
+	prevPage := -1
+	if pagination.Page > 0 {
+		prevPage = pagination.Page - 1
 	}
-	// Only show next page if we got a full page of results from backend
-	nextPage := 0
-	if len(invoices) >= perPage {
-		nextPage = page + 1
-	}
-
-	pagination := helpers.Pagination{
-		Page:    page,
-		PerPage: perPage,
-		Total:   len(displayInvoices),
+	nextPage := -1
+	if pagination.Page < pagination.TotalPages-1 {
+		nextPage = pagination.Page + 1
 	}
 
 	data := map[string]interface{}{
 		"title":      "الفواتير",
-		"invoices":   displayInvoices,
+		"invoices":   pagedInvoices,
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,

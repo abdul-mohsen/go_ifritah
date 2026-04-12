@@ -33,8 +33,8 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 	stateFilter := r.URL.Query().Get("state")
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
-	if page < 1 {
-		page = 1
+	if page < 0 {
+		page = 0
 	}
 
 	// Fetch ALL from backend (page=1 returns all), client-side pagination after state filter
@@ -80,12 +80,12 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pagedBills, pagination := helpers.PaginateSlice(displayBills, page, perPage)
-	prevPage := 0
-	nextPage := 0
-	if pagination.Page > 1 {
+	prevPage := -1
+	nextPage := -1
+	if pagination.Page > 0 {
 		prevPage = pagination.Page - 1
 	}
-	if pagination.Page < pagination.TotalPages {
+	if pagination.Page < pagination.TotalPages-1 {
 		nextPage = pagination.Page + 1
 	}
 
@@ -127,7 +127,8 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	// Prevent duplicate submissions: only one in-flight create per user session
 	if _, loaded := purchaseBillCreateLock.LoadOrStore(token, true); loaded {
 		log.Printf("[CREATE PURCHASE BILL] Duplicate request blocked for token=%s…", token[:8])
-		w.WriteHeader(http.StatusConflict)
+		// Return silently — the first request is still processing
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	defer purchaseBillCreateLock.Delete(token)

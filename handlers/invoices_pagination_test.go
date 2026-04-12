@@ -33,8 +33,8 @@ func TestHandleInvoicesPaginationLinks(t *testing.T) {
 			return
 		}
 
-		items := make([]models.Invoice, 0, 10)
-		for i := 0; i < 10; i++ {
+		items := make([]models.Invoice, 0, 30)
+		for i := 0; i < 30; i++ {
 			items = append(items, models.Invoice{
 				ID:             i + 1,
 				SequenceNumber: 1000 + i,
@@ -70,7 +70,7 @@ func TestHandleInvoicesPaginationLinks(t *testing.T) {
 		config.SessionTokensMutex.Unlock()
 	})
 
-	req := httptest.NewRequest("GET", "/dashboard/invoices?page=2&per=10", nil)
+	req := httptest.NewRequest("GET", "/dashboard/invoices?page=1&per=10", nil)
 	req.AddCookie(&http.Cookie{Name: "session_id", Value: "test-session"})
 	w := httptest.NewRecorder()
 
@@ -81,11 +81,11 @@ func TestHandleInvoicesPaginationLinks(t *testing.T) {
 	}
 
 	body := w.Body.String()
-	if !strings.Contains(body, "page=1") {
-		t.Fatalf("expected previous page link to include page=1")
+	if !strings.Contains(body, "page=0") {
+		t.Fatalf("expected previous page link to include page=0")
 	}
-	if !strings.Contains(body, "page=3") {
-		t.Fatalf("expected next page link to include page=3")
+	if !strings.Contains(body, "page=2") {
+		t.Fatalf("expected next page link to include page=2")
 	}
 	if !strings.Contains(body, "الصفحة 2") {
 		t.Fatalf("expected current page label to be 2")

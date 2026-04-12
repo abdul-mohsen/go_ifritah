@@ -67,7 +67,6 @@
             <div class="form-group">
                 <label class="form-label">{{ L "tpl.address.region" }}</label>
                 <select name="region" class="w-full">
-                    <option value="">{{ L "tpl.address.select_region" }}</option>
                     {{ range .regions }}
                     <option value="{{ . }}" {{ if eq (old $.old "region") . }}selected{{ end }}>{{ . }}</option>
                     {{ end }}

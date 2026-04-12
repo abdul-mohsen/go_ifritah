@@ -12,7 +12,7 @@
         <div class="form-group">
             <label class="form-label">{{ L "cash_voucher.voucher_type" }} *</label>
             <select name="voucher_type" required class="form-select" id="voucher_type">
-                <option value="disbursement">{{ L "cash_voucher_type.disbursement" }}</option>
+                <option value="disbursement" selected>{{ L "cash_voucher_type.disbursement" }}</option>
                 <option value="receipt">{{ L "cash_voucher_type.receipt" }}</option>
                 <option value="cash_box">{{ L "cash_voucher_type.cash_box" }}</option>
             </select>
@@ -32,7 +32,7 @@
         <div class="form-group">
             <label class="form-label">{{ L "cash_voucher.payment_method" }} *</label>
             <select name="payment_method" required class="form-select" id="payment_method" onchange="toggleBankFields()">
-                <option value="cash">{{ L "cash_voucher_method.cash" }}</option>
+                <option value="cash" selected>{{ L "cash_voucher_method.cash" }}</option>
                 <option value="bank_transfer">{{ L "cash_voucher_method.bank_transfer" }}</option>
             </select>
         </div>
@@ -52,7 +52,7 @@
         <div class="form-group">
             <label class="form-label">{{ L "cash_voucher.recipient_type" }} *</label>
             <select name="recipient_type" required class="form-select" id="recipient_type" onchange="toggleRecipientFields()">
-                <option value="supplier">{{ L "cash_voucher_recipient.supplier" }}</option>
+                <option value="supplier" selected>{{ L "cash_voucher_recipient.supplier" }}</option>
                 <option value="client">{{ L "cash_voucher_recipient.client" }}</option>
                 <option value="employee">{{ L "cash_voucher_recipient.employee" }}</option>
                 <option value="other">{{ L "cash_voucher_recipient.other" }}</option>
@@ -61,7 +61,6 @@
         <div class="form-group" id="supplier_select_group">
             <label class="form-label">{{ L "cash_voucher_recipient.supplier" }}</label>
             <select name="recipient_id" class="form-select" id="supplier_select" onchange="updateRecipientName(this)">
-                <option value="">-- {{ L "tpl.select" }} --</option>
                 {{ range .suppliers }}
                 <option value="{{ .ID }}" data-name="{{ .Name }}">{{ .Name }}</option>
                 {{ end }}
@@ -79,8 +78,7 @@
         <div class="form-group">
             <label class="form-label">{{ L "cash_voucher.reference" }}</label>
             <select name="reference_type" class="form-select">
-                <option value="">-- {{ L "tpl.select" }} --</option>
-                <option value="purchase_bill">{{ L "purchase_bill.type_label" }}</option>
+                <option value="purchase_bill" selected>{{ L "purchase_bill.type_label" }}</option>
                 <option value="bill">{{ L "tpl.invoice.type" }}</option>
                 <option value="expense">{{ L "cash_voucher_recipient.other" }}</option>
             </select>

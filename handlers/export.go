@@ -73,14 +73,14 @@ func HandleExportProductsCSV(w http.ResponseWriter, r *http.Request) {
 
 	for _, p := range products {
 		stockStatus := "متوفر"
-		if p.Quantity <= 0 {
+		if helpers.ParseIntValue(p.Quantity) <= 0 {
 			stockStatus = "منتهي"
 		}
 		_ = writer.Write([]string{
 			fmt.Sprintf("%d", p.ID),
 			p.PartName,
-			fmt.Sprintf("%.2f", p.Price),
-			fmt.Sprintf("%d", p.Quantity),
+			p.Price,
+			p.Quantity,
 			stockStatus,
 		})
 	}

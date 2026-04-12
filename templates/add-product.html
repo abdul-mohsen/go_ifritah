@@ -8,7 +8,6 @@
         <div class="form-group" style="margin-bottom:1.5rem">
             <label class="form-label">{{ L "tpl.product.store_label" }} <span class="required-mark">*</span></label>
             <select name="store_id" class="w-full {{ if hasError .errors "store_id" }}input-error{{ end }}" required>
-                <option value="">{{ L "tpl.product.select_store" }}</option>
                 {{ range .stores }}
                 <option value="{{ .ID }}">{{ .Name }}</option>
                 {{ end }}

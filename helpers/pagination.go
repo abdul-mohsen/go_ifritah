@@ -13,8 +13,8 @@ func PaginateSlice[T any](items []T, page int, perPage int) ([]T, Pagination) {
 	if perPage <= 0 {
 		perPage = 10
 	}
-	if page <= 0 {
-		page = 1
+	if page < 0 {
+		page = 0
 	}
 
 	total := len(items)
@@ -23,7 +23,7 @@ func PaginateSlice[T any](items []T, page int, perPage int) ([]T, Pagination) {
 		totalPages = 1
 	}
 
-	start := (page - 1) * perPage
+	start := page * perPage
 	if start > total {
 		start = total
 	}

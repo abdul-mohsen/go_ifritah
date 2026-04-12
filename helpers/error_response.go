@@ -131,6 +131,7 @@ var backendMsgTranslations = map[string]string{
 	"token expired":                "انتهت صلاحية الجلسة",
 	"duplicate entry":              "هذا العنصر موجود بالفعل",
 	"already exists":               "هذا العنصر موجود بالفعل",
+	"supplier bill number already exists for this supplier": "رقم فاتورة المورد مكرر لهذا المورد، يرجى استخدام رقم مختلف",
 	"record not found":             "السجل غير موجود",
 	"no data found":                "لا توجد بيانات",
 	"file too large":               "حجم الملف كبير جداً",

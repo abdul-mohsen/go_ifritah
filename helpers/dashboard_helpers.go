@@ -10,6 +10,16 @@ import (
 	"time"
 )
 
+func toFloat(s string) float64 {
+	v, _ := strconv.ParseFloat(s, 64)
+	return v
+}
+
+func toInt(s string) int {
+	v, _ := strconv.Atoi(s)
+	return v
+}
+
 type topClientSummary struct {
 	Name    string
 	Count   int
@@ -45,7 +55,7 @@ func ComputeTopProducts(products []models.Product, maxItems int) ([]string, []in
 			labelID = len(labels) + 1
 		}
 		labels = append(labels, fmt.Sprintf("منتج %d", labelID))
-		values = append(values, p.Quantity)
+		values = append(values, toInt(p.Quantity))
 	}
 
 	return labels, values
@@ -588,7 +598,7 @@ func ComputeInventoryTurnover(products []models.Product, totalPurchases float64)
 	}
 	var totalValue float64
 	for _, p := range products {
-		totalValue += p.Price * float64(p.Quantity)
+		totalValue += toFloat(p.Price) * toFloat(p.Quantity)
 	}
 	avgInventory = totalValue
 	cogs = totalPurchases
@@ -809,16 +819,17 @@ func ComputeGrossMarginByTier(products []models.Product) []MarginTier {
 	totals := make([]float64, 4)
 
 	for _, p := range products {
+		price := toFloat(p.Price)
 		idx := 0
-		if p.Price >= 500 {
+		if price >= 500 {
 			idx = 3
-		} else if p.Price >= 200 {
+		} else if price >= 200 {
 			idx = 2
-		} else if p.Price >= 50 {
+		} else if price >= 50 {
 			idx = 1
 		}
 		counts[idx]++
-		totals[idx] += p.Price
+		totals[idx] += price
 	}
 	for i := range tiers {
 		tiers[i].Count = counts[i]
@@ -1129,7 +1140,7 @@ func ComputeAvgPaymentPeriod(apTurnover float64) float64 {
 func ComputeInventoryValue(products []models.Product) float64 {
 	var total float64
 	for _, p := range products {
-		total += p.Price * float64(p.Quantity)
+		total += toFloat(p.Price) * toFloat(p.Quantity)
 	}
 	return total
 }
@@ -1141,7 +1152,7 @@ func ComputeOutOfStock(products []models.Product) (int, float64) {
 	}
 	count := 0
 	for _, p := range products {
-		if p.Quantity <= 0 {
+		if toInt(p.Quantity) <= 0 {
 			count++
 		}
 	}

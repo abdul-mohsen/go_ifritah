@@ -151,10 +151,10 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type productResult struct {
-		ID       int     `json:"id"`
-		Name     string  `json:"name"`
-		Price    float64 `json:"price"`
-		Quantity int     `json:"quantity"`
+		ID       int    `json:"id"`
+		Name     string `json:"name"`
+		Price    string `json:"price"`
+		Quantity string `json:"quantity"`
 	}
 
 	var results []productResult

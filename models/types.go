@@ -145,16 +145,16 @@ type InvoiceDisplay struct {
 
 // Product represents a product/part
 type Product struct {
-	ID          int     `json:"id"`
-	PartName    string  `json:"part_name"`
-	Name        string  `json:"name"`
-	Price       float64 `json:"price"`
-	Quantity    int     `json:"quantity"`
-	PartID      int     `json:"article_id"`
-	StoreID     int     `json:"store_id"`
-	CostPrice   string  `json:"cost_price"`
-	ShelfNumber string  `json:"shelf_number"`
-	MinStock    int     `json:"min_stock"`
+	ID          int    `json:"id"`
+	PartName    string `json:"part_name"`
+	Name        string `json:"name"`
+	Price       string `json:"price"`
+	Quantity    string `json:"quantity"`
+	PartID      int    `json:"article_id"`
+	StoreID     int    `json:"store_id"`
+	CostPrice   string `json:"cost_price"`
+	ShelfNumber string `json:"shelf_number"`
+	MinStock    string `json:"min_stock"`
 }
 
 // ProductPayload represents the payload for creating/updating products

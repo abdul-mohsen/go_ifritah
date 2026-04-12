@@ -23,7 +23,7 @@
         </div>
         <div class="detail-field-v">
             <span class="detail-label">{{ L "tpl.product.selling_price" }}</span>
-            <p class="detail-value">{{ printf "%.2f" .product.Price }} {{ L "tpl.currency" }}</p>
+            <p class="detail-value">{{ if .product.Price }}{{ .product.Price }} {{ L "tpl.currency" }}{{ else }}<span class="text-gray-400">—</span>{{ end }}</p>
         </div>
         <div class="detail-field-v">
             <span class="detail-label">{{ L "tpl.product.cost_price" }}</span>
@@ -36,7 +36,7 @@
         <div class="detail-field-v">
             <span class="detail-label">{{ L "tpl.product.stock_status" }}</span>
             <p class="detail-value">
-                {{ if gt .product.Quantity 0 }}
+                {{ if and .product.Quantity (ne .product.Quantity "0") }}
                 <span class="badge badge-success">{{ L "tpl.product.in_stock" }}</span>
                 {{ else }}
                 <span class="badge badge-danger">{{ L "tpl.product.out_of_stock" }}</span>

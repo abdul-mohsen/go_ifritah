@@ -8,7 +8,6 @@
             <div>
                 <label class="form-label">{{ L "tpl.invoice.client_company" }} <span class="required-mark">*</span></label>
                 <select name="client_id" id="client-select" class="w-full" required onchange="fillClientInfo()">
-                    <option value="">{{ L "tpl.invoice.select_client" }}</option>
                     {{ range .clients }}
                     <option value="{{ .ID }}" data-name="{{ .Name }}" data-phone="{{ .Phone }}" data-company="{{ .CompanyName }}">{{ .Name }}{{ if .CompanyName }} — {{ .CompanyName }}{{ end }}</option>
                     {{ end }}
@@ -22,7 +21,6 @@
             <div>
                 <label class="form-label">{{ L "tpl.invoice.form.store" }} <span class="required-mark">*</span></label>
                 <select name="store_id" class="w-full" required>
-                    <option value="">{{ L "tpl.invoice.form.select_store" }}</option>
                     {{ range .stores }}
                     <option value="{{ .ID }}" {{ if eq .ID $.default_store_id }}selected{{ end }}>{{ .Name }}</option>
                     {{ end }}
@@ -31,7 +29,6 @@
             <div>
                 <label class="form-label">{{ L "tpl.invoice.form.branch" }} <span class="required-mark">*</span></label>
                 <select name="branch_id" class="w-full" required>
-                    <option value="">{{ L "tpl.invoice.form.select_branch" }}</option>
                     {{ range .branches }}
                     <option value="{{ .ID }}">{{ .Name }}</option>
                     {{ end }}

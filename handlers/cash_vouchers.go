@@ -27,23 +27,22 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 	voucherType := r.URL.Query().Get("type")
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
-	if page < 1 {
-		page = 1
+	if page < 0 {
+		page = 0
 	}
 	if perPage < 1 {
 		perPage = 10
 	}
 
-	vouchers, err := helpers.FetchCashVouchers(token, page, perPage, query, voucherType)
+	vouchers, err := helpers.FetchCashVouchers(token, 1, 10000, query, voucherType)
 	if err != nil {
 		log.Printf("[CASH VOUCHERS] Fetch error: %v", err)
 		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
 		return
 	}
 
-	offset := (page - 1) * perPage
 	displayVouchers := make([]map[string]interface{}, 0)
-	for i, cv := range vouchers {
+	for _, cv := range vouchers {
 		statusKey, statusClass := helpers.CashVoucherStatusByState(cv.State)
 		statusLabel := resources.L(statusKey)
 
@@ -56,7 +55,6 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 
 		displayVouchers = append(displayVouchers, map[string]interface{}{
 			"id":             cv.ID,
-			"order":          offset + i + 1,
 			"voucher_number": cv.VoucherNumber,
 			"voucher_type":   cv.VoucherType,
 			"type_label":     typeLabel,
@@ -70,30 +68,26 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	prevPage := 0
-	nextPage := 0
-	if page > 1 {
-		prevPage = page - 1
-	}
-	if len(vouchers) >= perPage {
-		nextPage = page + 1
+	pagedVouchers, pagination := helpers.PaginateSlice(displayVouchers, page, perPage)
+
+	// Add order numbers after pagination
+	offset := page * perPage
+	for i := range pagedVouchers {
+		pagedVouchers[i]["order"] = offset + i + 1
 	}
 
-	totalPages := page
-	if nextPage > 0 {
-		totalPages = page + 1
+	prevPage := -1
+	nextPage := -1
+	if pagination.Page > 0 {
+		prevPage = pagination.Page - 1
 	}
-
-	pagination := helpers.Pagination{
-		Page:       page,
-		PerPage:    perPage,
-		TotalPages: totalPages,
-		Total:      len(displayVouchers),
+	if pagination.Page < pagination.TotalPages-1 {
+		nextPage = pagination.Page + 1
 	}
 
 	helpers.Render(w, r, "cash-vouchers", map[string]interface{}{
 		"title":        resources.L("cash_voucher.list_title"),
-		"vouchers":     displayVouchers,
+		"vouchers":     pagedVouchers,
 		"pagination":   pagination,
 		"prev_page":    prevPage,
 		"next_page":    nextPage,

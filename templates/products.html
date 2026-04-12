@@ -46,10 +46,10 @@
             <tr>
                 <td>{{ .ID }}</td>
                 <td class="font-medium">{{ .PartName }}</td>
-                <td>{{ printf "%.2f" .Price }}</td>
+                <td>{{ .Price }}</td>
                 <td>{{ .Quantity }}</td>
                 <td>
-                    {{ if gt .Quantity 0 }}
+                    {{ if and .Quantity (ne .Quantity "0") }}
                     <span class="badge badge-success">{{ L "tpl.product.in_stock" }}</span>
                     {{ else }}
                     <span class="badge badge-danger">{{ L "tpl.product.out_of_stock" }}</span>

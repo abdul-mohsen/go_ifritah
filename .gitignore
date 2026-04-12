@@ -21,8 +21,14 @@ test.exe
 cookies.txt
 cookies_new.txt
 
-# Test output artifacts
-tests/*.txt
+# Test output artifacts (entire folder, local only)
+tests/
+
+# E2E tests (local only, not tracked)
+e2e/
+
+# Scripts (local only)
+scripts/
 
 # Package lock (use package.json only)
 package-lock.json

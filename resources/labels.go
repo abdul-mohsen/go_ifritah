@@ -480,6 +480,8 @@ var labels = map[string]Label{
 	"dashboard.kpi.total_invoices":   {Ar: "إجمالي الفواتير", En: "Total Invoices"},
 	"dashboard.kpi.total_revenue":    {Ar: "إجمالي الإيرادات", En: "Total Revenue"},
 	"dashboard.kpi.total_purchases":  {Ar: "إجمالي المشتريات", En: "Total Purchases"},
+	"dashboard.kpi.revenue_before_vat":    {Ar: "المبيعات بدون ضريبة", En: "Sales Before VAT"},
+	"dashboard.kpi.purchases_before_vat":  {Ar: "المشتريات بدون ضريبة", En: "Purchases Before VAT"},
 	"dashboard.kpi.net_profit":       {Ar: "صافي الربح", En: "Net Profit"},
 	"dashboard.kpi.products":         {Ar: "المنتجات", En: "Products"},
 	"dashboard.kpi.clients":          {Ar: "العملاء", En: "Clients"},

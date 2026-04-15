@@ -32,6 +32,8 @@ func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 		"purchases_total": "1200000.00",
 		"gross_profit":    "1150000.00",
 		"low_stock_count": "7",
+		"revenue_before_vat":   "2043478.26",
+		"purchases_before_vat": "1043478.26",
 	}
 
 	recentInvoices := []map[string]interface{}{
@@ -329,7 +331,9 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 
 	// ── Compute core stats ─────────────────────────────────────────
 	var totalRevenue float64
+	var totalRevenueBeforeVAT float64
 	var totalPurchases float64
+	var totalPurchasesBeforeVAT float64
 	var outputVAT float64
 	var inputVAT float64
 	var totalDiscount float64
@@ -337,6 +341,7 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	var creditNoteTotal float64
 	for _, inv := range filteredInvoices {
 		totalRevenue += inv.Total
+		totalRevenueBeforeVAT += inv.TotalBeforeVAT
 		outputVAT += inv.TotalVAT
 		totalDiscount += inv.Discount
 		if inv.CreditState == 1 {
@@ -346,6 +351,7 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, pb := range purchaseBills {
 		totalPurchases += pb.Total
+		totalPurchasesBeforeVAT += pb.TotalBeforeVAT
 		inputVAT += pb.TotalVAT
 	}
 	grossProfit := totalRevenue - totalPurchases
@@ -438,9 +444,11 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		"total_vat":         fmt.Sprintf("%.2f", outputVAT),
 		"purchase_vat":      fmt.Sprintf("%.2f", inputVAT),
 		"net_vat_payable":   fmt.Sprintf("%.2f", outputVAT-inputVAT),
-		"credit_note_count": fmt.Sprintf("%d", creditNoteCount),
-		"credit_note_total": fmt.Sprintf("%.2f", creditNoteTotal),
-		"total_discount":    fmt.Sprintf("%.2f", totalDiscount),
+		"credit_note_count":       fmt.Sprintf("%d", creditNoteCount),
+		"credit_note_total":       fmt.Sprintf("%.2f", creditNoteTotal),
+		"total_discount":          fmt.Sprintf("%.2f", totalDiscount),
+		"revenue_before_vat":      fmt.Sprintf("%.2f", totalRevenueBeforeVAT),
+		"purchases_before_vat":    fmt.Sprintf("%.2f", totalPurchasesBeforeVAT),
 	}
 	if invErr != nil {
 		stats["invoices"] = statPlaceholder
@@ -450,6 +458,7 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		stats["credit_note_count"] = statPlaceholder
 		stats["credit_note_total"] = statPlaceholder
 		stats["total_discount"] = statPlaceholder
+		stats["revenue_before_vat"] = statPlaceholder
 	}
 	if prodErr != nil {
 		stats["products"] = statPlaceholder
@@ -469,6 +478,7 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		stats["gross_profit"] = statPlaceholder
 		stats["purchase_vat"] = statPlaceholder
 		stats["net_vat_payable"] = statPlaceholder
+		stats["purchases_before_vat"] = statPlaceholder
 	}
 
 	recentInvoices := make([]map[string]interface{}, 0)

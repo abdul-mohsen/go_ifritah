@@ -164,6 +164,14 @@ func main() {
 	router.HandleFunc("/dashboard/settings", adminOnly(handlers.HandleSettingsPage)).Methods("GET")
 	router.HandleFunc("/dashboard/settings", adminOnly(handlers.HandleSaveSettings)).Methods("POST")
 
+	// ZATCA API routes (JSON) — Admin only
+	router.HandleFunc("/api/zatca/branch/{id}", adminOnly(handlers.HandleGetZatcaConfig)).Methods("GET")
+	router.HandleFunc("/api/zatca/branch/{id}", adminOnly(handlers.HandleSaveZatcaConfig)).Methods("PUT")
+	router.HandleFunc("/api/zatca/branch/{id}/onboard", adminOnly(handlers.HandleZatcaOnboard)).Methods("POST")
+
+	// ZATCA Monitor page — Admin only
+	router.HandleFunc("/dashboard/zatca-monitor", adminOnly(handlers.HandleZatcaMonitor)).Methods("GET")
+
 	// Notification routes
 	router.HandleFunc("/dashboard/notifications", handlers.HandleNotifications).Methods("GET")
 	router.HandleFunc("/api/notifications/{id}/read", handlers.HandleMarkNotificationRead).Methods("POST")

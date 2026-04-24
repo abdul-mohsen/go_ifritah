@@ -334,7 +334,6 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 		priceStr := getField(row, req.Mapping, "price")
 		qtyStr := getField(row, req.Mapping, "quantity")
 		discountStr := getField(row, req.Mapping, "discount")
-		dateStr := getField(row, req.Mapping, "date")
 		supplierIDStr := getField(row, req.Mapping, "supplier_id")
 
 		if partName == "" && priceStr == "" {
@@ -356,42 +355,21 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 			partName = "بند"
 		}
 
-		manualItem := models.BillManualItem{
-			PartName: partName,
+		manualItem := models.PurchaseBillProduct{
+			Name:     partName,
 			Price:    formatPrice(price),
 			Quantity: strconv.Itoa(qty),
 		}
 
-		// Generate a random product for the products array (backend requires it)
-		bigN, _ := rand.Int(rand.Reader, big.NewInt(900000))
-		randID := int(bigN.Int64()) + 100000
-		productItem := models.BillProductItem{
-			ID:       randID,
-			PartName: partName,
-			Price:    formatPrice(price),
-			Quantity: strconv.Itoa(qty),
-		}
-
-		effectiveDate := ""
-		if dateStr != "" {
-			effectiveDate = parseDateBare(dateStr)
-		}
-		if effectiveDate == "" {
-			effectiveDate = time.Now().Format("2006-01-02")
-		}
-
-		emptyPDF := ""
 		payload := models.PurchaseBillPayload{
-			StoreID:        req.StoreID,
-			SupplierID:     supplierID,
-			EffectiveDate:  effectiveDate,
-			Products:       []models.BillProductItem{productItem},
-			ManualProducts: []models.BillManualItem{manualItem},
+			StoreID:        int32(req.StoreID),
+			SupplierID:     int32(supplierID),
+			Products:       []models.PurchaseBillProduct{},
+			ManualProducts: []models.PurchaseBillProduct{manualItem},
 			Discount:       discount,
-			Subtotal:       price * float64(qty),
 			PaymentMethod:  10,
-			PDFLink:        &emptyPDF,
-			Attachments:    []string{},
+			State:          1,
+			PaidAmount:     "0",
 		}
 
 		jsonPayload, _ := json.Marshal(payload)

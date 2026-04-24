@@ -270,8 +270,8 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 	names := r.Form["products_part_name"]
 	costPrices := r.Form["products_cost_price"]
 
-	var products []models.BillProductItem
-	var manualProducts []models.BillManualItem
+	var products []models.PurchaseBillProduct
+	var manualProducts []models.PurchaseBillProduct
 
 	max := len(ids)
 	if len(prices) > max {
@@ -311,18 +311,17 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 		}
 
 		if id != 0 {
-			// Linked product — goes to "products"
-			products = append(products, models.BillProductItem{
-				ID:        id,
-				PartName:  name,
+			pid := int32(id)
+			products = append(products, models.PurchaseBillProduct{
+				ProductID: &pid,
+				Name:      name,
 				Price:     price,
 				Quantity:  qtyStr,
 				CostPrice: costPrice,
 			})
 		} else {
-			// Manual product from products_* with id=0 — goes to "manual_products"
-			manualProducts = append(manualProducts, models.BillManualItem{
-				PartName:  name,
+			manualProducts = append(manualProducts, models.PurchaseBillProduct{
+				Name:      name,
 				Price:     price,
 				Quantity:  qtyStr,
 				CostPrice: costPrice,
@@ -334,7 +333,6 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 	manualNames := r.Form["manual_part_name"]
 	manualPrices := r.Form["manual_price"]
 	manualQtys := r.Form["manual_quantity"]
-	manualPartNums := r.Form["manual_part_number"]
 	manualMax := len(manualNames)
 	if len(manualPrices) > manualMax {
 		manualMax = len(manualPrices)
@@ -361,63 +359,38 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 		if name == "" && price == "0" && qtyStr == "0" {
 			continue
 		}
-		partNum := ""
-		if i < len(manualPartNums) {
-			partNum = manualPartNums[i]
-		}
-		manualProducts = append(manualProducts, models.BillManualItem{
-			PartName:   name,
-			PartNumber: partNum,
-			Price:      price,
-			Quantity:   qtyStr,
+		manualProducts = append(manualProducts, models.PurchaseBillProduct{
+			Name:     name,
+			Price:    price,
+			Quantity: qtyStr,
 		})
 	}
 
 	// Ensure non-nil slices so JSON encodes as [] instead of null
 	if products == nil {
-		products = []models.BillProductItem{}
+		products = []models.PurchaseBillProduct{}
 	}
 	if manualProducts == nil {
-		manualProducts = []models.BillManualItem{}
+		manualProducts = []models.PurchaseBillProduct{}
 	}
 
-	supplierID := ParseIntValue(r.FormValue("supplier_id"))
+	supplierID := int32(ParseIntValue(r.FormValue("supplier_id")))
 
-	// All date fields: send as RFC3339 (ISO 8601) — "2024-01-15T00:00:00Z"
-	effectiveDate := DateToRFC3339(r.FormValue("payment_date"))
-
-	// payment_due_date and deliver_date use RFC3339
+	paymentDate := DateToRFC3339(r.FormValue("payment_date"))
 	paymentDueDate := DateToRFC3339(r.FormValue("payment_due_date"))
-	deliverDate := DateToRFC3339(r.FormValue("deliver_date"))
-
-	// pdf_link — send null if no file uploaded
-	var pdfLink *string
-	if pl := r.FormValue("pdf_link"); pl != "" {
-		pdfLink = &pl
-	}
-
-	// attachments — collect from form
-	attachments := r.Form["attachments"]
-	if attachments == nil {
-		attachments = []string{}
-	}
 
 	return models.PurchaseBillPayload{
-		StoreID:                ParseIntValue(r.FormValue("store_id")),
-		MerchantID:             supplierID,
+		StoreID:                int32(ParseIntValue(r.FormValue("store_id"))),
 		SupplierID:             supplierID,
-		SupplierSequenceNumber: ParseUint64Value(r.FormValue("supplier_sequance_number")),
-		EffectiveDate:          DerefString(effectiveDate),
+		SupplierSequenceNumber: int32(ParseIntValue(r.FormValue("supplier_sequance_number"))),
+		State:                  1,
+		PaymentDate:            paymentDate,
+		PaymentDueDate:         paymentDueDate,
 		Products:               products,
 		ManualProducts:         manualProducts,
 		Discount:               FormatStringPrice(r.FormValue("discount")),
-		Subtotal:               ParseFloatValue(r.FormValue("total_amount")),
-		PaymentDueDate:         paymentDueDate,
-		DeliverDate:            deliverDate,
-		PaymentMethod:          ParseIntValue(r.FormValue("payment_method")),
+		PaymentMethod:          int8(ParseIntValue(r.FormValue("payment_method"))),
 		PaidAmount:             FormatStringPrice(r.FormValue("paid_amount")),
-		PDFLink:                pdfLink,
-		Attachments:            attachments,
 	}
 }
 

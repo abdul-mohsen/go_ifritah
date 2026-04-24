@@ -61,24 +61,15 @@ func GetSessionIDFromRequest(r *http.Request) string {
 }
 
 func HandleUnauthorized(w http.ResponseWriter, r *http.Request) {
-	// Clear session cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session_id",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-	})
-
-	// Check if it's an HTMX request
-	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("HX-Redirect", "/")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	// Regular redirect
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	// Just write 401 — DO NOT delete session cookie or redirect here.
+	// The TokenRefreshMiddleware wraps the response, intercepts the 401,
+	// attempts a token refresh using the refresh token, and either:
+	//   - on success: clears pending headers and issues a redirect so the
+	//     browser retries the request with the new token
+	//   - on failure: clears the cookie and redirects to login
+	// If we delete the cookie or redirect here, the middleware can't
+	// recover the session and the user gets logged out unnecessarily.
+	w.WriteHeader(http.StatusUnauthorized)
 }
 
 func IsUnauthorizedError(err error) bool {

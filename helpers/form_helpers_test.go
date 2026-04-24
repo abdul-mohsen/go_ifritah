@@ -32,8 +32,8 @@ func TestBuildPurchaseBillPayload_ManualProducts(t *testing.T) {
 		t.Errorf("expected 2 manual_products, got %d", len(payload.ManualProducts))
 	}
 	for i, p := range payload.ManualProducts {
-		if p.PartName == "" {
-			t.Errorf("manual_product[%d] should have a part_name set", i)
+		if p.Name == "" {
+			t.Errorf("manual_product[%d] should have a name set", i)
 		}
 	}
 	// Products must NOT contain duplicates of manual items
@@ -118,13 +118,13 @@ func TestBuildPurchaseBillPayload_MixedCatalogAndManual(t *testing.T) {
 	}
 
 	// Verify no data leak between arrays
-	if len(payload.Products) > 0 && payload.Products[0].ID == 0 {
-		t.Error("catalog product must not have ID=0")
+	if len(payload.Products) > 0 && (payload.Products[0].ProductID == nil || *payload.Products[0].ProductID == 0) {
+		t.Error("catalog product must not have ProductID=0 or nil")
 	}
 	if len(payload.ManualProducts) > 0 {
 		mp := payload.ManualProducts[0]
-		if mp.PartName != "فلتر يدوي" {
-			t.Errorf("expected manual part name 'فلتر يدوي', got '%s'", mp.PartName)
+		if mp.Name != "فلتر يدوي" {
+			t.Errorf("expected manual name 'فلتر يدوي', got '%s'", mp.Name)
 		}
 	}
 }
@@ -164,8 +164,8 @@ func TestBuildPurchaseBillPayload_MixedProducts(t *testing.T) {
 	// Check the manual product data
 	if len(payload.ManualProducts) > 0 {
 		mp := payload.ManualProducts[0]
-		if mp.PartName != "فلتر يدوي" {
-			t.Errorf("expected manual part name 'فلتر يدوي', got '%s'", mp.PartName)
+		if mp.Name != "فلتر يدوي" {
+			t.Errorf("expected manual name 'فلتر يدوي', got '%s'", mp.Name)
 		}
 		if mp.Price != "30" {
 			t.Errorf("expected manual price '30', got '%s'", mp.Price)

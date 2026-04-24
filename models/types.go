@@ -94,18 +94,18 @@ type CashVoucherPayload struct {
 	EffectiveDate        string `json:"effective_date"`
 	Amount               string `json:"amount"`
 	PaymentMethod        string `json:"payment_method"`
-	RecipientType        string  `json:"recipient_type"`
-	RecipientID          int     `json:"recipient_id,omitempty"`
-	RecipientName        string  `json:"recipient_name"`
-	ReferenceType        string  `json:"reference_type,omitempty"`
-	ReferenceID          int     `json:"reference_id,omitempty"`
-	Description          string  `json:"description,omitempty"`
-	Note                 string  `json:"note,omitempty"`
-	BankName             string  `json:"bank_name,omitempty"`
-	BankAccount          string  `json:"bank_account,omitempty"`
-	TransactionReference string  `json:"transaction_reference,omitempty"`
-	StoreID              int     `json:"store_id"`
-	BranchID             int     `json:"branch_id"`
+	RecipientType        string `json:"recipient_type"`
+	RecipientID          int    `json:"recipient_id,omitempty"`
+	RecipientName        string `json:"recipient_name"`
+	ReferenceType        string `json:"reference_type,omitempty"`
+	ReferenceID          int    `json:"reference_id,omitempty"`
+	Description          string `json:"description,omitempty"`
+	Note                 string `json:"note,omitempty"`
+	BankName             string `json:"bank_name,omitempty"`
+	BankAccount          string `json:"bank_account,omitempty"`
+	TransactionReference string `json:"transaction_reference,omitempty"`
+	StoreID              int    `json:"store_id"`
+	BranchID             int    `json:"branch_id"`
 }
 
 // Invoice represents the invoice/bill structure from the API
@@ -302,14 +302,14 @@ type Store struct {
 
 // Branch represents a business branch
 type Branch struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Address     string `json:"address"`
-	Phone       string `json:"phone"`
-	ManagerName string `json:"manager_name"`
-	ManagerID   *int   `json:"manager_id,omitempty"`
-	IsActive    bool   `json:"is_active"`
-	StoreCount  int    `json:"store_count"`
+	ID          int     `json:"id"`
+	Name        string  `json:"name"`
+	Address     string  `json:"address"`
+	Phone       string  `json:"phone"`
+	ManagerName string  `json:"manager_name"`
+	ManagerID   *int    `json:"manager_id,omitempty"`
+	IsActive    bool    `json:"is_active"`
+	StoreCount  int     `json:"store_count"`
 	Stores      []Store `json:"stores,omitempty"`
 }
 
@@ -516,24 +516,29 @@ type PurchaseBillDisplay struct {
 	Date                   string  `json:"date"`
 }
 
-// PurchaseBillPayload represents the payload for purchase bills.
-// JSON tags use the backend API field names (from GET response).
+// PurchaseBillProduct matches backend AddPurchaseBillRequest.Products / ManualProducts.
+type PurchaseBillProduct struct {
+	ProductID   *int32 `json:"product_id"`
+	Name        string `json:"name"`
+	Price       string `json:"price"`
+	Quantity    string `json:"quantity"`
+	CostPrice   string `json:"cost_price,omitempty"`
+	ShelfNumber string `json:"shelf_number,omitempty"`
+}
+
+// PurchaseBillPayload matches backend AddPurchaseBillRequest exactly.
 type PurchaseBillPayload struct {
-	StoreID                int               `json:"store_id"`
-	MerchantID             int               `json:"merchant_id"`
-	SupplierID             int               `json:"supplier_id"`
-	SupplierSequenceNumber uint64            `json:"supplier_sequence_number"`
-	EffectiveDate          string            `json:"effective_date"`
-	Products               []BillProductItem `json:"products"`
-	ManualProducts         []BillManualItem  `json:"manual_products"`
-	Discount               string            `json:"discount"`
-	Subtotal               float64           `json:"subtotal"`
-	PaymentDueDate         *string           `json:"payment_due_date"`
-	DeliverDate            *string           `json:"deliver_date"`
-	PaymentMethod          int               `json:"payment_method"`
-	PaidAmount             string            `json:"paid_amount"`
-	PDFLink                *string           `json:"pdf_link"`
-	Attachments            []string          `json:"attachments"`
+	StoreID                int32                  `json:"store_id"`
+	State                  int32                  `json:"state"`
+	PaymentDueDate         *string                `json:"payment_due_date"`
+	PaymentDate            *string                `json:"payment_date"`
+	Discount               string                 `json:"discount"`
+	PaidAmount             string                 `json:"paidAmount"`
+	PaymentMethod          int8                   `json:"payment_method"`
+	Products               []PurchaseBillProduct  `json:"products"`
+	ManualProducts         []PurchaseBillProduct  `json:"manual_products"`
+	SupplierID             int32                  `json:"supplier_id"`
+	SupplierSequenceNumber int32                  `json:"supplier_sequence_number"`
 }
 
 // CreditNote represents a credit note for invoice adjustments
@@ -552,23 +557,23 @@ type CreditNote struct {
 
 // SupplierBillSummary holds aggregated stats for a supplier's bills
 type SupplierBillSummary struct {
-	BillCount        int     `json:"bill_count"`
-	TotalSpent       float64 `json:"total_spent"`
-	TotalBeforeVAT   float64 `json:"total_before_vat"`
-	TotalVAT         float64 `json:"total_vat"`
-	UnpaidTotal      float64 `json:"unpaid_total"`
-	PaidTotal        float64 `json:"paid_total"`
-	ReceivedCount    int     `json:"received_count"`
-	AvgBill          float64 `json:"avg_bill"`
-	TotalDiscount    float64 `json:"total_discount"`
-	CreditUtilPct    float64 `json:"credit_utilization"`
-	TotalPayments    float64 `json:"total_payments"`    // sum of cash voucher payments
-	PaymentCount     int     `json:"payment_count"`     // number of payments
-	ClosingBalance   float64 `json:"closing_balance"`   // unpaid after payments
-	OpeningBalance   float64 `json:"opening_balance"`   // balance before date range
-	OverdueAmount    float64 `json:"overdue_amount"`    // bills past due date
-	OverdueCount     int     `json:"overdue_count"`     // number of overdue bills
-	AvgPaymentDays   float64 `json:"avg_payment_days"`  // average days to pay
+	BillCount      int     `json:"bill_count"`
+	TotalSpent     float64 `json:"total_spent"`
+	TotalBeforeVAT float64 `json:"total_before_vat"`
+	TotalVAT       float64 `json:"total_vat"`
+	UnpaidTotal    float64 `json:"unpaid_total"`
+	PaidTotal      float64 `json:"paid_total"`
+	ReceivedCount  int     `json:"received_count"`
+	AvgBill        float64 `json:"avg_bill"`
+	TotalDiscount  float64 `json:"total_discount"`
+	CreditUtilPct  float64 `json:"credit_utilization"`
+	TotalPayments  float64 `json:"total_payments"`   // sum of cash voucher payments
+	PaymentCount   int     `json:"payment_count"`    // number of payments
+	ClosingBalance float64 `json:"closing_balance"`  // unpaid after payments
+	OpeningBalance float64 `json:"opening_balance"`  // balance before date range
+	OverdueAmount  float64 `json:"overdue_amount"`   // bills past due date
+	OverdueCount   int     `json:"overdue_count"`    // number of overdue bills
+	AvgPaymentDays float64 `json:"avg_payment_days"` // average days to pay
 }
 
 // SupplierReportBill represents a single bill row in the supplier report
@@ -604,12 +609,12 @@ type SupplierTopItem struct {
 // LedgerEntry represents a single line in the account statement (كشف حساب)
 type LedgerEntry struct {
 	Date        string  `json:"date"`
-	Type        string  `json:"type"`         // "bill", "payment", "opening"
+	Type        string  `json:"type"` // "bill", "payment", "opening"
 	Reference   string  `json:"reference"`
 	Description string  `json:"description"`
-	Debit       float64 `json:"debit"`        // bills increase debt
-	Credit      float64 `json:"credit"`       // payments reduce debt
-	Balance     float64 `json:"balance"`      // running balance
+	Debit       float64 `json:"debit"`   // bills increase debt
+	Credit      float64 `json:"credit"`  // payments reduce debt
+	Balance     float64 `json:"balance"` // running balance
 	LinkURL     string  `json:"link_url"`
 }
 
@@ -637,16 +642,16 @@ type MonthlySpend struct {
 // SupplierReportPageData is the template data for the supplier report page
 type SupplierReportPageData struct {
 	PageData
-	Supplier              Supplier                 `json:"supplier"`
-	Summary               SupplierBillSummary      `json:"summary"`
-	Bills                 []SupplierReportBill     `json:"bills"`
-	TopItems              []SupplierTopItem        `json:"top_items"`
-	Ledger                []LedgerEntry            `json:"ledger"`
-	Aging                 []AgingBucket            `json:"aging"`
-	PaymentMethods        []PaymentMethodBreakdown `json:"payment_methods"`
-	MonthlySpending       []MonthlySpend           `json:"monthly_spending"`
-	DateFrom              string                   `json:"date_from"`
-	DateTo                string                   `json:"date_to"`
+	Supplier        Supplier                 `json:"supplier"`
+	Summary         SupplierBillSummary      `json:"summary"`
+	Bills           []SupplierReportBill     `json:"bills"`
+	TopItems        []SupplierTopItem        `json:"top_items"`
+	Ledger          []LedgerEntry            `json:"ledger"`
+	Aging           []AgingBucket            `json:"aging"`
+	PaymentMethods  []PaymentMethodBreakdown `json:"payment_methods"`
+	MonthlySpending []MonthlySpend           `json:"monthly_spending"`
+	DateFrom        string                   `json:"date_from"`
+	DateTo          string                   `json:"date_to"`
 }
 
 // ============================================================================

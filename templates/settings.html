@@ -858,8 +858,8 @@
         </div>
     </div><!-- /panel-import -->
 
-    <!-- ── Sticky Save Button ─────────────────────────────────────── -->
-    <div class="sticky bottom-0 z-10 mt-6 py-4 px-4 flex items-center justify-between gap-4 rounded-lg"
+    <!-- ── Sticky Save Button (hidden on ZATCA tab — ZATCA has its own save) ─── -->
+    <div id="sticky-save-bar" class="sticky bottom-0 z-10 mt-6 py-4 px-4 flex items-center justify-between gap-4 rounded-lg"
         style="background: var(--md-sys-color-surface-container); border-top: 1px solid var(--md-sys-color-outline-variant)">
         <p class="text-sm text-gray-500">{{ L "tpl.settings.save_note" }}</p>
         <div class="flex gap-2">
@@ -960,6 +960,9 @@
                     tabBtn.classList.add('text-gray-500', 'hover:text-gray-700');
                 }
             });
+            // Hide sticky save bar on ZATCA tab (ZATCA has its own save button)
+            var stickyBar = document.getElementById('sticky-save-bar');
+            if (stickyBar) stickyBar.style.display = (tab === 'zatca') ? 'none' : '';
         };
         // Initialize: show general tab
         switchSettingsTab('general');
@@ -1101,15 +1104,17 @@
 
             // Update Connect button text based on status
             var btn = document.getElementById('zatca-connect-btn');
+            var btnIcon = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ';
             if (btn) {
                 if (status === 1) {
-                    btn.textContent = '{{ L "tpl.settings.zatca_status_active" }} ✓';
+                    btn.innerHTML = '{{ L "tpl.settings.zatca_status_active" }} ✓';
                     btn.disabled = true;
                 } else if (status === 2 || status === 4) {
-                    btn.textContent = '{{ L "tpl.settings.zatca_renew" }}';
-                    btn.disabled = false;
+                    btn.innerHTML = btnIcon + '{{ L "tpl.settings.zatca_renew" }}';
+                    // Still require saved config before allowing renew
+                    checkZatcaConnectReady();
                 } else {
-                    btn.textContent = '{{ L "tpl.settings.zatca_connect" }}';
+                    btn.innerHTML = btnIcon + '{{ L "tpl.settings.zatca_connect" }}';
                     checkZatcaConnectReady();
                 }
             }
@@ -1175,7 +1180,10 @@
         // Save ZATCA config via API
         window.saveZatcaConfig = function() {
             var branchId = document.getElementById('zatca-branch-id').value;
-            if (!branchId) return;
+            if (!branchId) {
+                if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_select_branch" }}', 'error');
+                return;
+            }
 
             var config = {};
             zatcaFieldNames.forEach(function(field) {
@@ -1183,40 +1191,68 @@
                 if (el) config[field] = el.value.trim();
             });
 
+            // Default country to SA if empty
+            if (!config['csr_country']) config['csr_country'] = 'SA';
+
             var btn = document.getElementById('zatca-save-btn');
             var statusEl = document.getElementById('zatca-save-status');
-            var origText = btn.textContent;
+            var origHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.textContent = '{{ L "ui.saving" }}...';
+            btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> {{ L "ui.saving" }}...';
+
+            // Disable form fields during save
+            var formFields = [];
+            zatcaFieldNames.forEach(function(name) {
+                var el = document.getElementById('zatca_' + name);
+                if (el) formFields.push(el);
+            });
+            formFields.forEach(function(f) { f.disabled = true; });
 
             fetch('/api/zatca/branch/' + branchId, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfValue },
                 body: JSON.stringify(config)
             })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
+            .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, status: r.status, data: data }; }); })
+            .then(function(result) {
                 btn.disabled = false;
-                btn.textContent = origText;
-                zatcaConfigSaved = true;
-                // Update local cache
-                zatcaBranchData[branchId] = config;
-                if (statusEl) {
-                    statusEl.textContent = '✓ {{ L "tpl.settings.zatca_saved_at" }} ' + new Date().toLocaleTimeString('ar-SA');
-                    statusEl.classList.remove('hidden');
-                    statusEl.style.color = 'var(--md-sys-color-primary)';
+                btn.innerHTML = origHtml;
+                formFields.forEach(function(f) { f.disabled = false; });
+                if (result.ok) {
+                    zatcaConfigSaved = true;
+                    // Update local cache
+                    zatcaBranchData[branchId] = config;
+                    if (statusEl) {
+                        statusEl.textContent = '✓ {{ L "tpl.settings.zatca_saved_at" }} ' + new Date().toLocaleTimeString('ar-SA');
+                        statusEl.classList.remove('hidden');
+                        statusEl.style.color = 'var(--md-sys-color-primary)';
+                    }
+                    checkZatcaConnectReady();
+                    if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_config_saved" }}', 'success');
+                } else {
+                    zatcaConfigSaved = false;
+                    var errMsg = (result.data && (result.data.detail || result.data.error)) || '{{ L "tpl.settings.zatca_save_failed" }}';
+                    if (statusEl) {
+                        statusEl.textContent = '✗ ' + errMsg;
+                        statusEl.classList.remove('hidden');
+                        statusEl.style.color = 'var(--md-sys-color-error)';
+                    }
+                    checkZatcaConnectReady();
+                    if (typeof showToast === 'function') showToast(errMsg, 'error');
                 }
-                checkZatcaConnectReady();
-                if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_config_saved" }}', 'success');
             })
             .catch(function() {
                 btn.disabled = false;
-                btn.textContent = origText;
+                btn.innerHTML = origHtml;
+                formFields.forEach(function(f) { f.disabled = false; });
+                zatcaConfigSaved = false;
+                var errMsg = '{{ L "tpl.settings.zatca_save_failed" }}';
                 if (statusEl) {
-                    statusEl.textContent = '✗ {{ L "tpl.settings.zatca_save_failed" }}';
+                    statusEl.textContent = '✗ ' + errMsg;
                     statusEl.classList.remove('hidden');
                     statusEl.style.color = 'var(--md-sys-color-error)';
                 }
+                if (typeof showToast === 'function') showToast(errMsg, 'error');
             });
         };
 
@@ -1302,20 +1338,26 @@
             errEl.classList.add('hidden');
 
             var branchId = document.getElementById('zatca-branch-id').value;
+            if (!branchId) {
+                errEl.textContent = '{{ L "tpl.settings.zatca_select_branch" }}';
+                errEl.classList.remove('hidden');
+                return;
+            }
+
             var btn = document.getElementById('zatca-otp-submit');
-            var origText = btn.textContent;
+            var origHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.textContent = '{{ L "tpl.settings.zatca_onboarding" }}';
+            btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> {{ L "tpl.settings.zatca_onboarding" }}';
 
             fetch('/api/zatca/branch/' + branchId + '/onboard', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfValue },
                 body: JSON.stringify({ otp: otp })
             })
             .then(function(r) { return r.json().then(function(data) { return { status: r.status, data: data }; }); })
             .then(function(result) {
                 btn.disabled = false;
-                btn.textContent = origText;
+                btn.innerHTML = origHtml;
                 if (result.status === 200) {
                     // Show success state in modal
                     document.getElementById('zatca-otp-form-state').classList.add('hidden');
@@ -1326,14 +1368,16 @@
                         showToast(result.data.detail || 'تم الربط بنجاح', 'success');
                     }
                 } else {
-                    errEl.textContent = result.data.detail || 'فشل الربط';
+                    var errMsg = (result.data && (result.data.detail || result.data.error)) || 'فشل الربط';
+                    errEl.textContent = errMsg;
                     errEl.classList.remove('hidden');
+                    if (typeof showToast === 'function') showToast(errMsg, 'error');
                 }
             })
             .catch(function() {
                 btn.disabled = false;
-                btn.textContent = origText;
-                errEl.textContent = 'خطأ في الاتصال';
+                btn.innerHTML = origHtml;
+                errEl.textContent = 'خطأ في الاتصال بالخادم';
                 errEl.classList.remove('hidden');
             });
         };

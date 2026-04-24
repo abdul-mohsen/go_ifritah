@@ -213,6 +213,8 @@ func main() {
 	router.HandleFunc("/dashboard/suppliers/{id}", protect("suppliers", "view", handlers.HandleSupplierDetail)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/edit", protect("suppliers", "edit", handlers.HandleEditSupplier)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/get", protect("suppliers", "view", handlers.HandleGetSupplier)).Methods("GET")
+	router.HandleFunc("/dashboard/suppliers/{id}/report", protect("suppliers", "view", handlers.HandleSupplierReport)).Methods("GET")
+	router.HandleFunc("/dashboard/suppliers/{id}/report/export-csv", protect("suppliers", "view", handlers.HandleExportSupplierReportCSV)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/update", protect("suppliers", "edit", handlers.HandleUpdateSupplier)).Methods("POST")
 	router.HandleFunc("/dashboard/suppliers/{id}/delete", protect("suppliers", "delete", handlers.HandleDeleteSupplier)).Methods("POST")
 

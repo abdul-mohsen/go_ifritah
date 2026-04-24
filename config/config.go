@@ -95,6 +95,46 @@ var templateFuncs = template.FuncMap{
 		v := toFloat64(amount)
 		return formatSAR(v)
 	},
+	// formatMoney formats a float with 2 decimal places and comma separators
+	"formatMoney": func(amount interface{}) string {
+		v := toFloat64(amount)
+		neg := ""
+		if v < 0 {
+			neg = "-"
+			v = -v
+		}
+		whole := int64(v)
+		frac := int64((v - float64(whole) + 0.005) * 100)
+		// Insert comma separators
+		s := fmt.Sprintf("%d", whole)
+		n := len(s)
+		if n > 3 {
+			var parts []string
+			for n > 3 {
+				parts = append([]string{s[n-3:]}, parts...)
+				n -= 3
+			}
+			parts = append([]string{s[:n]}, parts...)
+			s = strings.Join(parts, ",")
+		}
+		return fmt.Sprintf("%s%s.%02d", neg, s, frac)
+	},
+	// divFloat divides two numbers (for template math)
+	"divFloat": func(a, b interface{}) float64 {
+		bv := toFloat64(b)
+		if bv == 0 {
+			return 0
+		}
+		return toFloat64(a) / bv
+	},
+	// mulFloat multiplies two numbers (for template math)
+	"mulFloat": func(a, b interface{}) float64 {
+		return toFloat64(a) * toFloat64(b)
+	},
+	// subFloat subtracts b from a (for template math)
+	"subFloat": func(a, b interface{}) float64 {
+		return toFloat64(a) - toFloat64(b)
+	},
 }
 
 // toFloat64 converts any numeric type to float64 for template math operations.
@@ -280,6 +320,7 @@ func LoadTemplates() {
 		"add-supplier":          filepath.Join(BaseDir, "templates/add-supplier.html"),
 		"supplier-detail":       filepath.Join(BaseDir, "templates/supplier-detail.html"),
 		"edit-supplier":         filepath.Join(BaseDir, "templates/edit-supplier.html"),
+		"supplier-report":       filepath.Join(BaseDir, "templates/supplier-report.html"),
 		"purchase-bills":        filepath.Join(BaseDir, "templates/purchase-bills.html"),
 		"add-purchase-bill":     filepath.Join(BaseDir, "templates/add-purchase-bill.html"),
 		"purchase-bill-detail":  filepath.Join(BaseDir, "templates/purchase-bill-detail.html"),

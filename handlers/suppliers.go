@@ -2,10 +2,14 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/json"
+	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"afrita/config"
 	"afrita/helpers"
@@ -367,4 +371,171 @@ func HandleDeleteSupplier(w http.ResponseWriter, r *http.Request) {
 
 	helpers.APICache.Delete("suppliers")
 	helpers.WriteSuccessRedirect(w, "/dashboard/suppliers", "تم حذف المورد بنجاح")
+}
+
+// HandleSupplierReport displays the supplier report page with purchase bill analytics.
+// GET /dashboard/suppliers/{id}/report?from=&to=
+func HandleSupplierReport(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return
+	}
+
+	supplier, found := findSupplierByID(token, id)
+	if !found {
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, "المورد غير موجود")
+		return
+	}
+
+	// Parse date range — default: last 90 days
+	now := time.Now()
+	dateFrom := r.URL.Query().Get("from")
+	dateTo := r.URL.Query().Get("to")
+	if dateFrom == "" {
+		dateFrom = now.AddDate(0, 0, -90).Format("2006-01-02")
+	}
+	if dateTo == "" {
+		dateTo = now.Format("2006-01-02")
+	}
+
+	supplierID, _ := strconv.Atoi(id)
+	report, err := helpers.FetchSupplierReport(token, supplierID, dateFrom, dateTo)
+	if err != nil {
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل تقرير المورد")
+		return
+	}
+
+	// Compute credit utilization
+	if supplier.CreditLimit > 0 {
+		report.Summary.CreditUtilPct = math.Round(report.Summary.UnpaidTotal/float64(supplier.CreditLimit)*10000) / 100
+		if report.Summary.CreditUtilPct > 100 {
+			report.Summary.CreditUtilPct = 100
+		}
+	}
+
+	helpers.Render(w, r, "supplier-report", map[string]interface{}{
+		"title":            fmt.Sprintf("كشف حساب — %s", supplier.Name),
+		"supplier":         supplier,
+		"summary":          report.Summary,
+		"bills":            report.Bills,
+		"top_items":        report.TopItems,
+		"ledger":           report.Ledger,
+		"aging":            report.Aging,
+		"payment_methods":  report.PaymentMethods,
+		"monthly_spending": report.Monthly,
+		"date_from":        dateFrom,
+		"date_to":          dateTo,
+	})
+}
+
+// HandleExportSupplierReportCSV exports the supplier report as CSV.
+// GET /dashboard/suppliers/{id}/report/export-csv?from=&to=
+func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return
+	}
+
+	supplier, found := findSupplierByID(token, id)
+	if !found {
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, "المورد غير موجود")
+		return
+	}
+
+	supplierID, _ := strconv.Atoi(id)
+
+	now := time.Now()
+	dateFrom := r.URL.Query().Get("from")
+	dateTo := r.URL.Query().Get("to")
+	if dateFrom == "" {
+		dateFrom = now.AddDate(0, 0, -90).Format("2006-01-02")
+	}
+	if dateTo == "" {
+		dateTo = now.Format("2006-01-02")
+	}
+
+	report, err := helpers.FetchSupplierReport(token, supplierID, dateFrom, dateTo)
+	if err != nil {
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل تقرير المورد")
+		return
+	}
+
+	filename := fmt.Sprintf("supplier_report_%d_%s_%s.csv", supplierID, dateFrom, dateTo)
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
+	_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF}) // UTF-8 BOM
+
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+
+	// Header info
+	_ = writer.Write([]string{"كشف حساب المورد", supplier.Name})
+	_ = writer.Write([]string{"الفترة", dateFrom + " — " + dateTo})
+	_ = writer.Write([]string{"إجمالي المشتريات", fmt.Sprintf("%.2f", report.Summary.TotalSpent)})
+	_ = writer.Write([]string{"إجمالي المدفوعات", fmt.Sprintf("%.2f", report.Summary.TotalPayments)})
+	_ = writer.Write([]string{"الرصيد الختامي", fmt.Sprintf("%.2f", report.Summary.ClosingBalance)})
+	_ = writer.Write([]string{"غير مسدد", fmt.Sprintf("%.2f", report.Summary.UnpaidTotal)})
+	_ = writer.Write([]string{"عدد الفواتير", fmt.Sprintf("%d", report.Summary.BillCount)})
+	_ = writer.Write([]string{""})
+
+	// Account statement (ledger)
+	_ = writer.Write([]string{"كشف الحساب"})
+	_ = writer.Write([]string{"التاريخ", "النوع", "المرجع", "الوصف", "مدين", "دائن", "الرصيد"})
+	for _, entry := range report.Ledger {
+		typeName := "فاتورة"
+		if entry.Type == "payment" {
+			typeName = "سند صرف"
+		}
+		_ = writer.Write([]string{
+			entry.Date,
+			typeName,
+			entry.Reference,
+			entry.Description,
+			fmt.Sprintf("%.2f", entry.Debit),
+			fmt.Sprintf("%.2f", entry.Credit),
+			fmt.Sprintf("%.2f", entry.Balance),
+		})
+	}
+	_ = writer.Write([]string{""})
+
+	// Bills detail
+	_ = writer.Write([]string{"تفاصيل الفواتير"})
+	_ = writer.Write([]string{"رقم الفاتورة", "رقم المورد", "التاريخ", "الإجمالي", "قبل الضريبة", "ض.ق.م", "الخصم", "الحالة", "تاريخ الاستحقاق", "متأخر", "عدد الأصناف"})
+	for _, b := range report.Bills {
+		state := "مسودة"
+		if b.State >= 1 {
+			state = "مسدد"
+		}
+		overdue := ""
+		if b.IsOverdue {
+			overdue = fmt.Sprintf("%d يوم", b.DaysOverdue)
+		}
+		_ = writer.Write([]string{
+			fmt.Sprintf("%d", b.SequenceNumber),
+			b.SSN,
+			safeDate(b.EffectiveDate),
+			fmt.Sprintf("%.2f", b.Total),
+			fmt.Sprintf("%.2f", b.TotalBeforeVAT),
+			fmt.Sprintf("%.2f", b.TotalVAT),
+			fmt.Sprintf("%.2f", b.Discount),
+			state,
+			b.PaymentDueDate,
+			overdue,
+			fmt.Sprintf("%d", b.ItemCount),
+		})
+	}
+}
+
+// safeDate extracts YYYY-MM-DD from a date string safely.
+func safeDate(s string) string {
+	if len(s) >= 10 {
+		return s[:10]
+	}
+	return s
 }

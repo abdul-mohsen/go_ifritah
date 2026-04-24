@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -458,6 +459,733 @@ func FetchPurchaseBillDetail(token string, id string) (models.Invoice, []models.
 
 	inv, products, manualProducts, extra, err := ParseBillRaw(raw, id)
 	return inv, products, manualProducts, extra, err
+}
+
+// SupplierReportResult holds all data computed for the supplier account statement.
+type SupplierReportResult struct {
+	Bills          []models.SupplierReportBill
+	TopItems       []models.SupplierTopItem
+	Summary        models.SupplierBillSummary
+	Ledger         []models.LedgerEntry
+	Aging          []models.AgingBucket
+	PaymentMethods []models.PaymentMethodBreakdown
+	Monthly        []models.MonthlySpend
+}
+
+// FetchSupplierReport calls the backend supplier report endpoint (كشف حساب).
+// GET /api/v2/supplier/:id/report?from=&to=
+// Falls back to the old N+1 approach if the new endpoint isn't available (404).
+func FetchSupplierReport(token string, supplierID int, dateFrom, dateTo string) (SupplierReportResult, error) {
+	var result SupplierReportResult
+
+	// Build URL with query params
+	u := fmt.Sprintf("%s/api/v2/supplier/%d/report", config.BackendDomain, supplierID)
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return result, fmt.Errorf("build request: %w", err)
+	}
+	q := req.URL.Query()
+	if dateFrom != "" {
+		q.Set("from", dateFrom)
+	}
+	if dateTo != "" {
+		q.Set("to", dateTo)
+	}
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := DoAuthedRequest(req, token)
+	if err != nil {
+		return result, fmt.Errorf("supplier report request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// If the endpoint doesn't exist yet or fails, fall back to legacy N+1
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode >= http.StatusInternalServerError {
+		log.Printf("⚠️ [SUPPLIER REPORT] Backend endpoint returned %d, using legacy N+1 fetch", resp.StatusCode)
+		return fetchSupplierReportLegacy(token, supplierID, dateFrom, dateTo)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return result, fmt.Errorf("backend status %d", resp.StatusCode)
+	}
+
+	var raw map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return result, fmt.Errorf("decode response: %w", err)
+	}
+
+	now := time.Now()
+
+	// ── Parse summary ────────────────────────────────────────────────
+	if sm, ok := raw["summary"].(map[string]interface{}); ok {
+		if v, ok := CoerceFloat(sm["bill_count"]); ok {
+			result.Summary.BillCount = int(v)
+		}
+		if v, ok := CoerceFloat(sm["total_spent"]); ok {
+			result.Summary.TotalSpent = v
+		}
+		if v, ok := CoerceFloat(sm["total_before_vat"]); ok {
+			result.Summary.TotalBeforeVAT = v
+		}
+		if v, ok := CoerceFloat(sm["total_vat"]); ok {
+			result.Summary.TotalVAT = v
+		}
+		if v, ok := CoerceFloat(sm["unpaid_total"]); ok {
+			result.Summary.UnpaidTotal = v
+		}
+		if v, ok := CoerceFloat(sm["paid_total"]); ok {
+			result.Summary.PaidTotal = v
+		}
+		if v, ok := CoerceFloat(sm["received_count"]); ok {
+			result.Summary.ReceivedCount = int(v)
+		}
+		if v, ok := CoerceFloat(sm["avg_bill"]); ok {
+			result.Summary.AvgBill = v
+		}
+		if v, ok := CoerceFloat(sm["total_discount"]); ok {
+			result.Summary.TotalDiscount = v
+		}
+		if v, ok := CoerceFloat(sm["total_payments"]); ok {
+			result.Summary.TotalPayments = v
+		}
+		if v, ok := CoerceFloat(sm["payment_count"]); ok {
+			result.Summary.PaymentCount = int(v)
+		}
+		if v, ok := CoerceFloat(sm["closing_balance"]); ok {
+			result.Summary.ClosingBalance = v
+		}
+	}
+
+	// ── Parse bills ──────────────────────────────────────────────────
+	if billsRaw, ok := raw["bills"].([]interface{}); ok {
+		for _, bRaw := range billsRaw {
+			b, ok := bRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			rb := models.SupplierReportBill{}
+			if v, ok := CoerceFloat(b["id"]); ok {
+				rb.ID = int(v)
+			}
+			if v, ok := CoerceFloat(b["sequence_number"]); ok {
+				rb.SequenceNumber = int(v)
+			}
+			if v, ok := CoerceFloat(b["supplier_sequence_number"]); ok {
+				rb.SSN = fmt.Sprintf("%d", int(v))
+			} else if v, ok := b["supplier_sequence_number"].(string); ok {
+				rb.SSN = v
+			}
+			if v, ok := CoerceFloat(b["total"]); ok {
+				rb.Total = v
+			}
+			if v, ok := CoerceFloat(b["total_before_vat"]); ok {
+				rb.TotalBeforeVAT = v
+			}
+			if v, ok := CoerceFloat(b["total_vat"]); ok {
+				rb.TotalVAT = v
+			}
+			if v, ok := CoerceFloat(b["discount"]); ok {
+				rb.Discount = v
+			}
+			if v, ok := CoerceFloat(b["state"]); ok {
+				rb.State = int(v)
+			}
+			rb.EffectiveDate = safeStringDate(b["effective_date"])
+			rb.PaymentDueDate = safeStringDate(b["payment_due_date"])
+			rb.ReceivedAt = safeStringDate(b["received_at"])
+			if v, ok := CoerceFloat(b["received_by"]); ok && v > 0 {
+				rb.ReceivedBy = fmt.Sprintf("%d", int(v))
+			}
+
+			// Compute overdue on the frontend side
+			if rb.State == 0 && rb.PaymentDueDate != "" && len(rb.PaymentDueDate) >= 10 {
+				if dueDate, err := time.Parse("2006-01-02", rb.PaymentDueDate[:10]); err == nil {
+					if now.After(dueDate) {
+						rb.IsOverdue = true
+						rb.DaysOverdue = int(now.Sub(dueDate).Hours() / 24)
+					}
+				}
+			}
+
+			result.Bills = append(result.Bills, rb)
+		}
+	}
+
+	// Compute overdue summary from parsed bills
+	for _, b := range result.Bills {
+		if b.IsOverdue {
+			result.Summary.OverdueAmount += b.Total
+			result.Summary.OverdueCount++
+		}
+	}
+
+	// ── Parse payments → build PaymentMethods breakdown ──────────────
+	var supplierPayments []models.CashVoucher
+	payMethodAgg := map[string]*models.PaymentMethodBreakdown{}
+	if paymentsRaw, ok := raw["payments"].([]interface{}); ok {
+		for _, pRaw := range paymentsRaw {
+			p, ok := pRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			cv := models.CashVoucher{}
+			if v, ok := CoerceFloat(p["id"]); ok {
+				cv.ID = int(v)
+			}
+			if v, ok := CoerceFloat(p["voucher_number"]); ok {
+				cv.VoucherNumber = int(v)
+			}
+			if v, ok := p["voucher_type"].(string); ok {
+				cv.VoucherType = v
+			}
+			cv.EffectiveDate = safeStringDate(p["effective_date"])
+			if v, ok := CoerceFloat(p["amount"]); ok {
+				cv.Amount = v
+			}
+			if v, ok := p["payment_method"].(string); ok {
+				cv.PaymentMethod = v
+			}
+			if v, ok := p["description"].(string); ok {
+				cv.Description = v
+			}
+			supplierPayments = append(supplierPayments, cv)
+
+			// Aggregate by payment method label
+			label := cv.PaymentMethod
+			if label == "" {
+				label = "غير محدد"
+			} else if label == "cash" {
+				label = "نقدي"
+			} else if label == "bank_transfer" {
+				label = "تحويل بنكي"
+			}
+			if _, ok := payMethodAgg[label]; !ok {
+				payMethodAgg[label] = &models.PaymentMethodBreakdown{Method: label}
+			}
+			payMethodAgg[label].Amount += cv.Amount
+			payMethodAgg[label].Count++
+		}
+	}
+	// Also add payment_breakdown from backend for cases with no individual payments listed
+	if breakdown, ok := raw["payment_breakdown"].(map[string]interface{}); ok {
+		if len(payMethodAgg) == 0 {
+			if v, ok := CoerceFloat(breakdown["cash_total"]); ok && v > 0 {
+				payMethodAgg["نقدي"] = &models.PaymentMethodBreakdown{Method: "نقدي", Amount: v}
+			}
+			if v, ok := CoerceFloat(breakdown["bank_transfer_total"]); ok && v > 0 {
+				payMethodAgg["تحويل بنكي"] = &models.PaymentMethodBreakdown{Method: "تحويل بنكي", Amount: v}
+			}
+		}
+	}
+	for _, pm := range payMethodAgg {
+		result.PaymentMethods = append(result.PaymentMethods, *pm)
+	}
+
+	// ── Parse top items ──────────────────────────────────────────────
+	if topRaw, ok := raw["top_items"].([]interface{}); ok {
+		for _, tRaw := range topRaw {
+			t, ok := tRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			item := models.SupplierTopItem{}
+			if v, ok := t["item_name"].(string); ok {
+				item.Name = v
+			}
+			if v, ok := CoerceFloat(t["total_qty"]); ok {
+				item.TotalQty = int(v)
+			}
+			if v, ok := CoerceFloat(t["total_value"]); ok {
+				item.TotalVal = v
+			}
+			if v, ok := CoerceFloat(t["avg_price"]); ok {
+				item.AvgPrice = v
+			}
+			if v, ok := CoerceFloat(t["bill_count"]); ok {
+				item.BillCount = int(v)
+			}
+			result.TopItems = append(result.TopItems, item)
+		}
+	}
+
+	// ── Parse aging ──────────────────────────────────────────────────
+	agingLabels := map[string]string{
+		"current": "جاري (غير مستحق)",
+		"1-30":    "1-30 يوم",
+		"31-60":   "31-60 يوم",
+		"61-90":   "61-90 يوم",
+		"90+":     "أكثر من 90 يوم",
+	}
+	// Start with all 5 buckets to match template expectations
+	agingBuckets := []models.AgingBucket{
+		{Label: "جاري (غير مستحق)"},
+		{Label: "1-30 يوم"},
+		{Label: "31-60 يوم"},
+		{Label: "61-90 يوم"},
+		{Label: "أكثر من 90 يوم"},
+	}
+	agingIdx := map[string]int{"current": 0, "1-30": 1, "31-60": 2, "61-90": 3, "90+": 4}
+	if agingRaw, ok := raw["aging"].([]interface{}); ok {
+		for _, aRaw := range agingRaw {
+			a, ok := aRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			bucket, _ := a["bucket"].(string)
+			if idx, ok := agingIdx[bucket]; ok {
+				if v, ok := CoerceFloat(a["bill_count"]); ok {
+					agingBuckets[idx].Count = int(v)
+				}
+				if v, ok := CoerceFloat(a["bucket_total"]); ok {
+					agingBuckets[idx].Amount = v
+				}
+				if label, ok := agingLabels[bucket]; ok {
+					agingBuckets[idx].Label = label
+				}
+			}
+		}
+	}
+	result.Aging = agingBuckets
+
+	// ── Parse monthly spending ───────────────────────────────────────
+	monthMap := map[string]*models.MonthlySpend{}
+	if monthlyRaw, ok := raw["monthly_spending"].([]interface{}); ok {
+		for _, mRaw := range monthlyRaw {
+			m, ok := mRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			ms := &models.MonthlySpend{}
+			if v, ok := m["month"].(string); ok {
+				ms.Month = v
+			}
+			if v, ok := CoerceFloat(m["total_spent"]); ok {
+				ms.Amount = v
+			}
+			monthMap[ms.Month] = ms
+		}
+	}
+	// Add payment amounts per month from parsed vouchers
+	for _, cv := range supplierPayments {
+		if cv.EffectiveDate != "" && len(cv.EffectiveDate) >= 7 {
+			monthKey := cv.EffectiveDate[:7]
+			if _, ok := monthMap[monthKey]; !ok {
+				monthMap[monthKey] = &models.MonthlySpend{Month: monthKey}
+			}
+			monthMap[monthKey].Payments += cv.Amount
+		}
+	}
+	for _, m := range monthMap {
+		result.Monthly = append(result.Monthly, *m)
+	}
+	// Sort monthly by month ascending
+	for i := 0; i < len(result.Monthly); i++ {
+		for j := i + 1; j < len(result.Monthly); j++ {
+			if result.Monthly[j].Month < result.Monthly[i].Month {
+				result.Monthly[i], result.Monthly[j] = result.Monthly[j], result.Monthly[i]
+			}
+		}
+	}
+
+	// ── Build ledger (still client-side — merges bills + payments chronologically) ──
+	result.Ledger = buildSupplierLedger(result.Bills, supplierPayments)
+
+	return result, nil
+}
+
+// safeStringDate extracts a date string from a JSON value that may be
+// a plain string or a nested {"Time":"...", "Valid":true} object.
+func safeStringDate(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	if s, ok := v.(string); ok {
+		return s
+	}
+	if m, ok := v.(map[string]interface{}); ok {
+		if t, ok := m["Time"].(string); ok {
+			return t
+		}
+	}
+	return ""
+}
+
+// fetchSupplierReportLegacy is the old N+1 approach used when the backend
+// doesn't have the dedicated supplier report endpoint yet.
+func fetchSupplierReportLegacy(token string, supplierID int, dateFrom, dateTo string) (SupplierReportResult, error) {
+	var result SupplierReportResult
+
+	allBills, err := FetchPurchaseBillsAll(token, 1, "")
+	if err != nil {
+		return result, fmt.Errorf("fetch bills: %w", err)
+	}
+
+	// Fetch all cash vouchers (payments to supplier)
+	allVouchers, err := FetchCashVouchers(token, 1, 10000, "", "")
+	if err != nil {
+		log.Printf("⚠️ [SUPPLIER REPORT] Could not fetch vouchers: %v", err)
+		allVouchers = nil // non-fatal, continue without payment data
+	}
+
+	now := time.Now()
+	itemAgg := map[string]*models.SupplierTopItem{}
+	payMethodAgg := map[int]*models.PaymentMethodBreakdown{}
+	monthAgg := map[string]*models.MonthlySpend{}
+
+	// Collect all supplier bills
+	for _, bill := range allBills {
+		idStr := strconv.Itoa(bill.ID)
+		raw, err := FetchPurchaseBillRaw(token, idStr)
+		if err != nil {
+			continue
+		}
+
+		sid := 0
+		if v, ok := CoerceFloat(raw["supplier_id"]); ok {
+			sid = int(v)
+		}
+		if sid != supplierID {
+			continue
+		}
+
+		// Parse effective_date
+		effDate := ""
+		if ed, ok := raw["effective_date"].(map[string]interface{}); ok {
+			if t, ok := ed["Time"].(string); ok {
+				effDate = t
+			}
+		} else if ed, ok := raw["effective_date"].(string); ok {
+			effDate = ed
+		}
+
+		// Filter by date range
+		if effDate != "" && (dateFrom != "" || dateTo != "") {
+			d := effDate[:10]
+			if dateFrom != "" && d < dateFrom {
+				continue
+			}
+			if dateTo != "" && d > dateTo {
+				continue
+			}
+		}
+
+		inv, products, manualProducts, extra, _ := ParseBillRaw(raw, idStr)
+
+		rb := models.SupplierReportBill{
+			ID:             inv.ID,
+			SequenceNumber: inv.SequenceNumber,
+			Total:          inv.Total,
+			TotalBeforeVAT: inv.TotalBeforeVAT,
+			TotalVAT:       inv.TotalVAT,
+			Discount:       inv.Discount,
+			State:          inv.State,
+			EffectiveDate:  effDate,
+			ItemCount:      len(products) + len(manualProducts),
+		}
+		if v, ok := extra["supplier_sequence_number"]; ok {
+			rb.SSN = fmt.Sprintf("%v", v)
+		}
+		if v, ok := extra["payment_due_date"]; ok {
+			rb.PaymentDueDate = fmt.Sprintf("%v", v)
+		}
+		if v, ok := extra["deliver_date"]; ok {
+			rb.DeliverDate = fmt.Sprintf("%v", v)
+		}
+		if v, ok := extra["payment_method"]; ok {
+			if f, ok2 := CoerceFloat(v); ok2 {
+				rb.PaymentMethod = int(f)
+			}
+		}
+
+		// Check overdue — any bill with a past-due date is overdue
+		if rb.PaymentDueDate != "" && len(rb.PaymentDueDate) >= 10 {
+			if dueDate, err := time.Parse("2006-01-02", rb.PaymentDueDate[:10]); err == nil {
+				if now.After(dueDate) {
+					rb.IsOverdue = true
+					rb.DaysOverdue = int(now.Sub(dueDate).Hours() / 24)
+				}
+			}
+		}
+
+		result.Bills = append(result.Bills, rb)
+
+		// Aggregate summary
+		result.Summary.BillCount++
+		result.Summary.TotalSpent += inv.Total
+		result.Summary.TotalBeforeVAT += inv.TotalBeforeVAT
+		result.Summary.TotalVAT += inv.TotalVAT
+		result.Summary.TotalDiscount += inv.Discount
+		// PaidTotal and UnpaidTotal are recomputed after voucher processing
+		// based on actual payments, not bill state
+		if rb.IsOverdue {
+			result.Summary.OverdueAmount += inv.Total
+			result.Summary.OverdueCount++
+		}
+
+		// Payment method aggregation
+		pm := rb.PaymentMethod
+		if _, ok := payMethodAgg[pm]; !ok {
+			payMethodAgg[pm] = &models.PaymentMethodBreakdown{Method: paymentMethodLabel(pm)}
+		}
+		payMethodAgg[pm].Amount += inv.Total
+		payMethodAgg[pm].Count++
+
+		// Monthly aggregation
+		if effDate != "" && len(effDate) >= 7 {
+			monthKey := effDate[:7] // YYYY-MM
+			if _, ok := monthAgg[monthKey]; !ok {
+				monthAgg[monthKey] = &models.MonthlySpend{Month: monthKey}
+			}
+			monthAgg[monthKey].Amount += inv.Total
+		}
+
+		// Aggregate items
+		allItems := append(products, manualProducts...)
+		for _, item := range allItems {
+			name := item.PartName
+			if name == "" {
+				name = item.PartNumber
+			}
+			if name == "" {
+				name = "غير معروف"
+			}
+			if existing, ok := itemAgg[name]; ok {
+				existing.TotalQty += item.Quantity
+				existing.TotalVal += item.TotalBeforeVAT
+				existing.BillCount++
+			} else {
+				itemAgg[name] = &models.SupplierTopItem{
+					Name:      name,
+					TotalQty:  item.Quantity,
+					TotalVal:  item.TotalBeforeVAT,
+					AvgPrice:  item.Price,
+					BillCount: 1,
+				}
+			}
+		}
+	}
+
+	// Filter vouchers for this supplier (payments)
+	var supplierPayments []models.CashVoucher
+	for _, v := range allVouchers {
+		if v.RecipientType != "supplier" || v.RecipientID != supplierID {
+			continue
+		}
+		// Parse voucher date for range filter
+		vDate := ""
+		if len(v.EffectiveDate) >= 10 {
+			vDate = v.EffectiveDate[:10]
+		}
+		if vDate != "" {
+			if dateFrom != "" && vDate < dateFrom {
+				continue
+			}
+			if dateTo != "" && vDate > dateTo {
+				continue
+			}
+		}
+		supplierPayments = append(supplierPayments, v)
+		result.Summary.TotalPayments += v.Amount
+		result.Summary.PaymentCount++
+
+		// Monthly payment aggregation
+		if vDate != "" && len(vDate) >= 7 {
+			monthKey := vDate[:7]
+			if _, ok := monthAgg[monthKey]; !ok {
+				monthAgg[monthKey] = &models.MonthlySpend{Month: monthKey}
+			}
+			monthAgg[monthKey].Payments += v.Amount
+		}
+	}
+
+	// Closing balance = total bills - total payments
+	result.Summary.ClosingBalance = result.Summary.TotalSpent - result.Summary.TotalPayments
+
+	// PaidTotal/UnpaidTotal based on actual payments, not bill state
+	result.Summary.PaidTotal = result.Summary.TotalPayments
+	result.Summary.UnpaidTotal = result.Summary.ClosingBalance
+	if result.Summary.UnpaidTotal < 0 {
+		result.Summary.UnpaidTotal = 0
+	}
+
+	// Compute averages
+	if result.Summary.BillCount > 0 {
+		result.Summary.AvgBill = result.Summary.TotalSpent / float64(result.Summary.BillCount)
+	}
+
+	// Build ledger (chronological account statement)
+	result.Ledger = buildSupplierLedger(result.Bills, supplierPayments)
+
+	// Build aging buckets
+	result.Aging = buildAgingBuckets(result.Bills, now)
+
+	// Sort top items by TotalVal descending, take top 20
+	topItems := make([]models.SupplierTopItem, 0, len(itemAgg))
+	for _, item := range itemAgg {
+		if item.TotalQty > 0 {
+			item.AvgPrice = item.TotalVal / float64(item.TotalQty)
+		}
+		topItems = append(topItems, *item)
+	}
+	for i := 0; i < len(topItems); i++ {
+		for j := i + 1; j < len(topItems); j++ {
+			if topItems[j].TotalVal > topItems[i].TotalVal {
+				topItems[i], topItems[j] = topItems[j], topItems[i]
+			}
+		}
+	}
+	if len(topItems) > 20 {
+		topItems = topItems[:20]
+	}
+	result.TopItems = topItems
+
+	// Payment methods
+	for _, pm := range payMethodAgg {
+		result.PaymentMethods = append(result.PaymentMethods, *pm)
+	}
+
+	// Monthly spending (sorted by month)
+	for _, m := range monthAgg {
+		result.Monthly = append(result.Monthly, *m)
+	}
+	for i := 0; i < len(result.Monthly); i++ {
+		for j := i + 1; j < len(result.Monthly); j++ {
+			if result.Monthly[j].Month < result.Monthly[i].Month {
+				result.Monthly[i], result.Monthly[j] = result.Monthly[j], result.Monthly[i]
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// paymentMethodLabel converts a payment method int to Arabic label.
+func paymentMethodLabel(pm int) string {
+	switch pm {
+	case 10:
+		return "نقدي"
+	case 30:
+		return "بطاقة ائتمان"
+	case 42:
+		return "تحويل بنكي"
+	case 48:
+		return "آجل"
+	default:
+		if pm == 0 {
+			return "غير محدد"
+		}
+		return fmt.Sprintf("طريقة %d", pm)
+	}
+}
+
+// buildSupplierLedger builds a chronological ledger from bills + payments.
+func buildSupplierLedger(bills []models.SupplierReportBill, payments []models.CashVoucher) []models.LedgerEntry {
+	var entries []models.LedgerEntry
+
+	// Add bill entries
+	for _, b := range bills {
+		date := ""
+		if len(b.EffectiveDate) >= 10 {
+			date = b.EffectiveDate[:10]
+		}
+		ref := fmt.Sprintf("PB-%d", b.SequenceNumber)
+		if b.SSN != "" {
+			ref = b.SSN
+		}
+		entries = append(entries, models.LedgerEntry{
+			Date:        date,
+			Type:        "bill",
+			Reference:   ref,
+			Description: fmt.Sprintf("فاتورة مشتريات #%d", b.SequenceNumber),
+			Debit:       b.Total,
+			LinkURL:     fmt.Sprintf("/dashboard/purchase-bills/%d", b.ID),
+		})
+	}
+
+	// Add payment entries
+	for _, p := range payments {
+		date := ""
+		if len(p.EffectiveDate) >= 10 {
+			date = p.EffectiveDate[:10]
+		}
+		ref := fmt.Sprintf("CV-%d", p.VoucherNumber)
+		desc := "سند صرف"
+		if p.Description != "" {
+			desc = p.Description
+		}
+		entries = append(entries, models.LedgerEntry{
+			Date:        date,
+			Type:        "payment",
+			Reference:   ref,
+			Description: desc,
+			Credit:      p.Amount,
+			LinkURL:     fmt.Sprintf("/dashboard/cash-vouchers/%d", p.ID),
+		})
+	}
+
+	// Sort by date ascending
+	for i := 0; i < len(entries); i++ {
+		for j := i + 1; j < len(entries); j++ {
+			if entries[j].Date < entries[i].Date {
+				entries[i], entries[j] = entries[j], entries[i]
+			}
+		}
+	}
+
+	// Calculate running balance
+	balance := 0.0
+	for i := range entries {
+		balance += entries[i].Debit - entries[i].Credit
+		entries[i].Balance = balance
+	}
+
+	return entries
+}
+
+// buildAgingBuckets categorizes unpaid bills into aging periods.
+func buildAgingBuckets(bills []models.SupplierReportBill, now time.Time) []models.AgingBucket {
+	buckets := []models.AgingBucket{
+		{Label: "جاري (غير مستحق)"},
+		{Label: "1-30 يوم"},
+		{Label: "31-60 يوم"},
+		{Label: "61-90 يوم"},
+		{Label: "أكثر من 90 يوم"},
+	}
+
+	for _, b := range bills {
+		// Include all bills with a due date in aging analysis
+		if b.PaymentDueDate == "" || len(b.PaymentDueDate) < 10 {
+			buckets[0].Amount += b.Total
+			buckets[0].Count++
+			continue
+		}
+		dueDate, err := time.Parse("2006-01-02", b.PaymentDueDate[:10])
+		if err != nil {
+			buckets[0].Amount += b.Total
+			buckets[0].Count++
+			continue
+		}
+		days := int(now.Sub(dueDate).Hours() / 24)
+		switch {
+		case days <= 0:
+			buckets[0].Amount += b.Total
+			buckets[0].Count++
+		case days <= 30:
+			buckets[1].Amount += b.Total
+			buckets[1].Count++
+		case days <= 60:
+			buckets[2].Amount += b.Total
+			buckets[2].Count++
+		case days <= 90:
+			buckets[3].Amount += b.Total
+			buckets[3].Count++
+		default:
+			buckets[4].Amount += b.Total
+			buckets[4].Count++
+		}
+	}
+
+	return buckets
 }
 
 // FetchBillDetail fetches a single bill by ID and returns an Invoice with product details.

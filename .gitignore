@@ -36,6 +36,9 @@ package-lock.json
 # Uploaded files (user-generated content)
 uploads/
 
+# Backend performance suggestions (local only)
+backend_suggestion/
+
 # Created by https://www.toptal.com/developers/gitignore/api/go
 # Edit at https://www.toptal.com/developers/gitignore?templates=go
 

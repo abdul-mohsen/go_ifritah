@@ -7,6 +7,25 @@ import (
 	"strconv"
 )
 
+// DerefString safely dereferences a *string, returning "" if nil.
+func DerefString(s *string) string {
+if s == nil {
+return ""
+}
+return *s
+}
+
+func ParseUint64Value(value string) uint64 {
+	if value == "" {
+		return 0
+	}
+	v, err := strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
 func ParseIntValue(value string) int {
 	if value == "" {
 		return 0
@@ -364,9 +383,8 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 
 	supplierID := ParseIntValue(r.FormValue("supplier_id"))
 
-	// Purchase bill backend parses effective_date with time.DateOnly ("YYYY-MM-DD")
-	// — send bare date, do NOT append T00:00:00Z
-	effectiveDate := r.FormValue("payment_date")
+	// All date fields: send as RFC3339 (ISO 8601) — "2024-01-15T00:00:00Z"
+	effectiveDate := DateToRFC3339(r.FormValue("payment_date"))
 
 	// payment_due_date and deliver_date use RFC3339
 	paymentDueDate := DateToRFC3339(r.FormValue("payment_due_date"))
@@ -388,8 +406,8 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 		StoreID:                ParseIntValue(r.FormValue("store_id")),
 		MerchantID:             supplierID,
 		SupplierID:             supplierID,
-		SupplierSequenceNumber: ParseIntValue(r.FormValue("supplier_sequance_number")),
-		EffectiveDate:          effectiveDate,
+		SupplierSequenceNumber: ParseUint64Value(r.FormValue("supplier_sequance_number")),
+		EffectiveDate:          DerefString(effectiveDate),
 		Products:               products,
 		ManualProducts:         manualProducts,
 		Discount:               FormatStringPrice(r.FormValue("discount")),

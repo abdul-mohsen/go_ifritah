@@ -219,12 +219,25 @@ func HandleSettingsPage(w http.ResponseWriter, r *http.Request) {
 	stores, _ := helpers.FetchStores(token)
 	settings := getSettings()
 
+	// Load ZATCA config per branch
+	sessionID := helpers.GetSessionIDFromRequest(r)
+	zatcaByBranch := map[int]map[string]string{}
+	zatcaStatusByBranch := map[int]int{}
+	for _, b := range branches {
+		status, err := FetchZatcaConfigForBranch(sessionID, b.ID)
+		if err == nil {
+			zatcaByBranch[b.ID] = status.Config
+			zatcaStatusByBranch[b.ID] = status.ZatcaStatus
+		}
+	}
+
 	helpers.Render(w, r, "settings", map[string]interface{}{
-		"title":         "الإعدادات",
-		"Settings":      settings,
-		"Branches":      branches,
-		"Stores":        stores,
-		"ZatcaByBranch": map[int]map[string]string{},
+		"title":               "الإعدادات",
+		"Settings":            settings,
+		"Branches":            branches,
+		"Stores":              stores,
+		"ZatcaByBranch":       zatcaByBranch,
+		"ZatcaStatusByBranch": zatcaStatusByBranch,
 	})
 }
 

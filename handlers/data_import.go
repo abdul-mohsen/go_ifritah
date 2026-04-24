@@ -390,6 +390,7 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 			Discount:       discount,
 			Subtotal:       price * float64(qty),
 			PaymentMethod:  10,
+			State:          1,
 			PDFLink:        &emptyPDF,
 			Attachments:    []string{},
 		}

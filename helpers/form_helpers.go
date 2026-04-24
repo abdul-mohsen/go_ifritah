@@ -407,6 +407,7 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 		MerchantID:             supplierID,
 		SupplierID:             supplierID,
 		SupplierSequenceNumber: ParseUint64Value(r.FormValue("supplier_sequance_number")),
+		State:                  1,
 		EffectiveDate:          DerefString(effectiveDate),
 		Products:               products,
 		ManualProducts:         manualProducts,

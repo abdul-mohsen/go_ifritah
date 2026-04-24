@@ -523,6 +523,7 @@ type PurchaseBillPayload struct {
 	MerchantID             int               `json:"merchant_id"`
 	SupplierID             int               `json:"supplier_id"`
 	SupplierSequenceNumber uint64            `json:"supplier_sequence_number"`
+	State                  int               `json:"state"`
 	EffectiveDate          string            `json:"effective_date"`
 	Products               []BillProductItem `json:"products"`
 	ManualProducts         []BillManualItem  `json:"manual_products"`

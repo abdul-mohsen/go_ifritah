@@ -1,0 +1,623 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/suppliers" "section_label" (L "tpl.supplier.section") "current" (printf "%s — %s" (L "tpl.report.title") .supplier.Name) }}
+
+<!-- Date Range Filter -->
+<div class="section-card mb-6">
+    <form id="dateForm" method="get" class="flex flex-wrap items-end gap-3">
+        <!-- Period type selector -->
+        <div>
+            <label class="detail-label block mb-1">{{ L "tpl.report.period" }}</label>
+            <select id="periodType" class="form-input" style="min-width:120px" onchange="onPeriodChange()">
+                <option value="month">{{ L "tpl.report.period_month" }}</option>
+                <option value="quarter">{{ L "tpl.report.period_quarter" }}</option>
+                <option value="year">{{ L "tpl.report.period_year" }}</option>
+                <option value="custom">{{ L "tpl.report.period_custom" }}</option>
+            </select>
+        </div>
+        <!-- Month picker (shown for month mode) -->
+        <div id="monthPicker">
+            <label class="detail-label block mb-1">{{ L "tpl.report.period_month" }}</label>
+            <input type="month" id="monthValue" class="form-input" style="min-width:160px" onchange="updateDatesFromPreset()">
+        </div>
+        <!-- Quarter picker (shown for quarter mode) -->
+        <div id="quarterPicker" style="display:none">
+            <label class="detail-label block mb-1">{{ L "tpl.report.period_quarter" }}</label>
+            <div class="flex gap-2">
+                <select id="quarterValue" class="form-input" style="min-width:100px" onchange="updateDatesFromPreset()">
+                    <option value="1">{{ L "tpl.report.quarter_q1" }}</option>
+                    <option value="2">{{ L "tpl.report.quarter_q2" }}</option>
+                    <option value="3">{{ L "tpl.report.quarter_q3" }}</option>
+                    <option value="4">{{ L "tpl.report.quarter_q4" }}</option>
+                </select>
+                <select id="quarterYear" class="form-input" style="min-width:90px" onchange="updateDatesFromPreset()">
+                </select>
+            </div>
+        </div>
+        <!-- Year picker (shown for year mode) -->
+        <div id="yearPicker" style="display:none">
+            <label class="detail-label block mb-1">{{ L "tpl.report.period_year" }}</label>
+            <select id="yearValue" class="form-input" style="min-width:100px" onchange="updateDatesFromPreset()">
+            </select>
+        </div>
+        <!-- Custom date pickers (shown for custom mode) -->
+        <div id="customFrom" style="display:none">
+            <label class="detail-label block mb-1">{{ L "tpl.report.date_from" }}</label>
+            <input type="date" id="fromDate" name="from" value="{{ .date_from }}" class="form-input" style="min-width:160px">
+        </div>
+        <div id="customTo" style="display:none">
+            <label class="detail-label block mb-1">{{ L "tpl.report.date_to" }}</label>
+            <input type="date" id="toDate" name="to" value="{{ .date_to }}" class="form-input" style="min-width:160px">
+        </div>
+        <!-- Hidden fields that always carry from/to -->
+        <input type="hidden" id="hiddenFrom" name="from" value="{{ .date_from }}">
+        <input type="hidden" id="hiddenTo" name="to" value="{{ .date_to }}">
+        <button type="submit" class="btn btn-filled btn-sm">{{ L "tpl.report.apply_filter" }}</button>
+        <div class="mr-auto"></div>
+        <a id="csvLink" href="/dashboard/suppliers/{{ .supplier.ID }}/report/export-csv?from={{ .date_from }}&to={{ .date_to }}" class="btn btn-tonal btn-sm">
+            <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            CSV
+        </a>
+        <button type="button" onclick="window.print()" class="btn btn-tonal btn-sm">
+            <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            {{ L "tpl.report.print" }}
+        </button>
+    </form>
+</div>
+
+<!-- Supplier Info Bar -->
+<div class="section-card mb-6">
+    <div class="flex flex-wrap items-center gap-6">
+        <div>
+            <h3 class="section-card-title" style="margin-bottom:0">{{ .supplier.Name }}</h3>
+            {{ if .supplier.VATNumber }}<span class="detail-label text-xs">{{ L "tpl.supplier.vat_number" }}: {{ .supplier.VATNumber }}</span>{{ end }}
+        </div>
+        {{ if .supplier.PhoneNumber }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.phone" }}</span>
+            <span class="detail-value">{{ .supplier.PhoneNumber }}</span>
+        </div>
+        {{ end }}
+        {{ if .supplier.CR }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.cr" }}</span>
+            <span class="detail-value">{{ .supplier.CR }}</span>
+        </div>
+        {{ end }}
+        {{ if gt .supplier.PaymentTermsDays 0 }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.payment_terms_days" }}</span>
+            <span class="detail-value">{{ .supplier.PaymentTermsDays }} {{ L "tpl.days" }}</span>
+        </div>
+        {{ end }}
+        {{ if gt .supplier.CreditLimit 0 }}
+        <div class="detail-field">
+            <span class="detail-label">{{ L "tpl.supplier.credit_limit" }}</span>
+            <span class="detail-value">{{ .supplier.CreditLimit }} {{ L "tpl.currency_sar" }}</span>
+        </div>
+        {{ end }}
+    </div>
+</div>
+
+<!-- ═══════════════ Summary Cards ═══════════════ -->
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.closing_balance" }}</div>
+        <div class="text-xl font-bold" style="color:{{ if gt .summary.ClosingBalance 0.0 }}var(--md-sys-color-error){{ else }}var(--md-sys-color-primary){{ end }}">{{ formatMoney .summary.ClosingBalance }}</div>
+        <div class="detail-label text-xs">{{ L "tpl.currency_sar" }}</div>
+    </div>
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.total_spent" }}</div>
+        <div class="text-xl font-bold" style="color:var(--md-sys-color-primary)">{{ formatMoney .summary.TotalSpent }}</div>
+        <div class="detail-label text-xs">{{ L "tpl.currency_sar" }}</div>
+    </div>
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.total_payments" }}</div>
+        <div class="text-xl font-bold" style="color:var(--md-sys-color-tertiary)">{{ formatMoney .summary.TotalPayments }}</div>
+        <div class="detail-label text-xs">{{ L "tpl.currency_sar" }}</div>
+    </div>
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.bill_count" }}</div>
+        <div class="text-xl font-bold" style="color:var(--md-sys-color-on-surface)">{{ .summary.BillCount }}</div>
+        <div class="detail-label text-xs">{{ L "tpl.report.bills" }}</div>
+    </div>
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.overdue" }}</div>
+        <div class="text-xl font-bold {{ if gt .summary.OverdueCount 0 }}text-red-600{{ end }}">{{ .summary.OverdueCount }}</div>
+        <div class="detail-label text-xs">{{ formatMoney .summary.OverdueAmount }} {{ L "tpl.currency_sar" }}</div>
+    </div>
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.avg_bill" }}</div>
+        <div class="text-xl font-bold" style="color:var(--md-sys-color-secondary)">{{ formatMoney .summary.AvgBill }}</div>
+        <div class="detail-label text-xs">{{ L "tpl.currency_sar" }}</div>
+    </div>
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.total_vat" }}</div>
+        <div class="text-xl font-bold" style="color:var(--md-sys-color-tertiary)">{{ formatMoney .summary.TotalVAT }}</div>
+        <div class="detail-label text-xs">{{ L "tpl.currency_sar" }}</div>
+    </div>
+    <!-- Credit Utilization -->
+    {{ if gt .supplier.CreditLimit 0 }}
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.credit_util" }}</div>
+        <div class="text-xl font-bold {{ if gt .summary.CreditUtilPct 80.0 }}text-red-600{{ else if gt .summary.CreditUtilPct 50.0 }}text-amber-600{{ else }}text-green-600{{ end }}">{{ printf "%.1f" .summary.CreditUtilPct }}%</div>
+        <div class="detail-label text-xs">{{ L "tpl.report.of_limit" }}</div>
+    </div>
+    {{ else }}
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.payment_count" }}</div>
+        <div class="text-xl font-bold" style="color:var(--md-sys-color-tertiary)">{{ .summary.PaymentCount }}</div>
+        <div class="detail-label text-xs">{{ formatMoney .summary.TotalPayments }} {{ L "tpl.currency_sar" }}</div>
+    </div>
+    {{ end }}
+</div>
+
+<!-- Paid vs Unpaid Bar -->
+{{ if gt .summary.TotalSpent 0.0 }}
+<div class="section-card mb-6">
+    <div class="flex items-center justify-between mb-2">
+        <span class="detail-label">{{ L "tpl.report.payment_status" }}</span>
+        <span class="detail-label">{{ L "tpl.report.paid" }}: {{ formatMoney .summary.PaidTotal }} | {{ L "tpl.report.unpaid" }}: {{ formatMoney .summary.UnpaidTotal }} | {{ L "tpl.report.total_payments" }}: {{ formatMoney .summary.TotalPayments }}</span>
+    </div>
+    <div class="w-full rounded-full h-4 overflow-hidden" style="background:#fecaca">
+        {{ $paidPct := divFloat .summary.PaidTotal .summary.TotalSpent }}
+        <div class="rounded-full" style="width:{{ printf "%.1f" (mulFloat $paidPct 100.0) }}%;height:100%;background:#16a34a"></div>
+    </div>
+</div>
+{{ end }}
+
+<!-- ═══════════════ Aging Analysis ═══════════════ -->
+{{ if .aging }}
+<div class="section-card mb-6">
+    <h4 class="section-card-title">{{ L "tpl.report.aging_analysis" }}</h4>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {{ range $i, $bucket := .aging }}
+        <div class="p-3 rounded-lg text-center" style="background:var(--md-sys-color-surface-container)">
+            <div class="detail-label text-xs mb-1">{{ $bucket.Label }}</div>
+            <div class="text-lg font-bold {{ if and (gt $i 0) (gt $bucket.Amount 0.0) }}text-red-600{{ else if and (eq $i 0) (gt $bucket.Amount 0.0) }}text-green-600{{ end }}">{{ formatMoney $bucket.Amount }}</div>
+            <div class="text-xs" style="color:var(--md-sys-color-on-surface-variant)">{{ $bucket.Count }} {{ L "tpl.report.bills" }}</div>
+        </div>
+        {{ end }}
+    </div>
+</div>
+{{ end }}
+
+<!-- ═══════════════ Account Ledger (كشف الحساب) ═══════════════ -->
+<div class="section-card mb-6">
+    <div class="flex items-center justify-between mb-4">
+        <h4 class="section-card-title" style="margin-bottom:0">{{ L "tpl.report.account_ledger" }}</h4>
+        <span class="detail-label text-sm">{{ len .ledger }} {{ L "tpl.report.entries" }}</span>
+    </div>
+    <div class="data-table-wrapper">
+        <table id="ledgerTable" aria-label="{{ L "tpl.report.account_ledger" }}">
+            <thead>
+                <tr>
+                    <th>{{ L "tpl.report.date" }}</th>
+                    <th>{{ L "tpl.report.entry_type" }}</th>
+                    <th>{{ L "tpl.report.reference" }}</th>
+                    <th>{{ L "tpl.report.description" }}</th>
+                    <th style="color:var(--md-sys-color-error)">{{ L "tpl.report.debit" }}</th>
+                    <th style="color:var(--md-sys-color-primary)">{{ L "tpl.report.credit" }}</th>
+                    <th>{{ L "tpl.report.balance" }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ if not .ledger }}
+                <tr><td colspan="7" class="text-center p-8 detail-label">{{ L "tpl.report.no_entries" }}</td></tr>
+                {{ end }}
+                {{ range .ledger }}
+                <tr>
+                    <td class="text-sm">{{ .Date }}</td>
+                    <td>
+                        {{ if eq .Type "bill" }}
+                        <span class="badge badge-draft">{{ L "tpl.report.type_bill" }}</span>
+                        {{ else if eq .Type "payment" }}
+                        <span class="badge badge-issued">{{ L "tpl.report.type_payment" }}</span>
+                        {{ end }}
+                    </td>
+                    <td>
+                        {{ if .LinkURL }}<a href="{{ .LinkURL }}" class="action-link" style="color:var(--md-sys-color-primary)">{{ .Reference }}</a>{{ else }}{{ .Reference }}{{ end }}
+                    </td>
+                    <td class="text-sm">{{ .Description }}</td>
+                    <td class="font-medium" style="color:var(--md-sys-color-error)">{{ if gt .Debit 0.0 }}{{ formatMoney .Debit }}{{ end }}</td>
+                    <td class="font-medium" style="color:var(--md-sys-color-primary)">{{ if gt .Credit 0.0 }}{{ formatMoney .Credit }}{{ end }}</td>
+                    <td class="font-bold">{{ formatMoney .Balance }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+            {{ if .ledger }}
+            <tfoot>
+                <tr style="background:var(--md-sys-color-surface-container);font-weight:bold">
+                    <td colspan="4" class="text-left">{{ L "tpl.report.totals" }}</td>
+                    <td style="color:var(--md-sys-color-error)">{{ formatMoney .summary.TotalSpent }}</td>
+                    <td style="color:var(--md-sys-color-primary)">{{ formatMoney .summary.TotalPayments }}</td>
+                    <td>{{ formatMoney .summary.ClosingBalance }}</td>
+                </tr>
+            </tfoot>
+            {{ end }}
+        </table>
+    </div>
+</div>
+
+<!-- ═══════════════ Bills Table ═══════════════ -->
+<div class="section-card mb-6">
+    <div class="flex items-center justify-between mb-4">
+        <h4 class="section-card-title" style="margin-bottom:0">{{ L "tpl.report.bills_list" }}</h4>
+        <div class="flex items-center gap-2">
+            <select id="billFilter" onchange="filterBills()" class="form-input text-sm" style="min-width:140px">
+                <option value="all">{{ L "tpl.report.filter_all" }}</option>
+                <option value="unpaid">{{ L "tpl.report.filter_unpaid" }}</option>
+                <option value="paid">{{ L "tpl.report.filter_paid" }}</option>
+                <option value="overdue">{{ L "tpl.report.filter_overdue" }}</option>
+                <option value="received">{{ L "tpl.report.filter_received" }}</option>
+                <option value="pending">{{ L "tpl.report.filter_pending" }}</option>
+            </select>
+        </div>
+    </div>
+    <div class="data-table-wrapper">
+        <table id="billsTable" aria-label="{{ L "tpl.report.bills_list" }}">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>{{ L "tpl.report.ssn" }}</th>
+                    <th>{{ L "tpl.report.date" }}</th>
+                    <th>{{ L "tpl.report.total" }}</th>
+                    <th>{{ L "tpl.report.before_vat" }}</th>
+                    <th>{{ L "tpl.report.vat" }}</th>
+                    <th>{{ L "tpl.report.discount_label" }}</th>
+                    <th>{{ L "tpl.report.status" }}</th>
+                    <th>{{ L "tpl.report.due_date" }}</th>
+                    <th>{{ L "tpl.report.overdue_days" }}</th>
+                    <th>{{ L "tpl.report.items" }}</th>
+                    <th>{{ L "tpl.report.received" }}</th>
+                    <th>{{ L "tpl.actions" }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ if not .bills }}
+                <tr><td colspan="13" class="text-center p-8 detail-label">{{ L "tpl.report.no_bills" }}</td></tr>
+                {{ end }}
+                {{ range .bills }}
+                <tr data-bill-id="{{ .ID }}" data-state="{{ .State }}" data-overdue="{{ .IsOverdue }}" data-received="">
+                    <td>{{ .SequenceNumber }}</td>
+                    <td class="font-medium" style="color:var(--md-sys-color-primary)">{{ .SSN }}</td>
+                    <td>{{ if .EffectiveDate }}{{ slice .EffectiveDate 0 10 }}{{ end }}</td>
+                    <td class="font-medium">{{ formatMoney .Total }}</td>
+                    <td>{{ formatMoney .TotalBeforeVAT }}</td>
+                    <td>{{ formatMoney .TotalVAT }}</td>
+                    <td>{{ if gt .Discount 0.0 }}{{ formatMoney .Discount }}{{ else }}—{{ end }}</td>
+                    <td>
+                        {{ if eq .State 0 }}
+                        <span class="badge badge-draft">{{ L "tpl.invoice.status_draft" }}</span>
+                        {{ else if eq .State 1 }}
+                        <span class="badge badge-processing">{{ L "tpl.invoice.status_processing" }}</span>
+                        {{ else }}
+                        <span class="badge badge-issued">{{ L "tpl.invoice.status_issued" }}</span>
+                        {{ end }}
+                    </td>
+                    <td>{{ if and .PaymentDueDate (ge (len .PaymentDueDate) 10) }}{{ slice .PaymentDueDate 0 10 }}{{ else }}{{ .PaymentDueDate }}{{ end }}</td>
+                    <td class="text-center">
+                        {{ if .IsOverdue }}
+                        <span class="text-red-600 font-medium">{{ .DaysOverdue }} {{ L "tpl.days" }}</span>
+                        {{ else }}
+                        <span style="color:var(--md-sys-color-on-surface-variant)">—</span>
+                        {{ end }}
+                    </td>
+                    <td class="text-center">{{ .ItemCount }}</td>
+                    <td class="text-center">
+                        <button onclick="toggleReceived({{ .ID }})" class="receipt-btn p-1 rounded"
+                                title="{{ L "tpl.report.toggle_received" }}">
+                            <svg class="w-5 h-5 receipt-icon-pending" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <svg class="w-5 h-5 receipt-icon-done hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--md-sys-color-primary)">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </button>
+                    </td>
+                    <td>
+                        <a href="/dashboard/purchase-bills/{{ .ID }}" class="action-link action-view">{{ L "tpl.view" }}</a>
+                    </td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ═══════════════ Monthly Spending Trend ═══════════════ -->
+{{ if .monthly_spending }}
+<div class="section-card mb-6">
+    <h4 class="section-card-title">{{ L "tpl.report.monthly_trend" }}</h4>
+    <div class="data-table-wrapper">
+        <table aria-label="{{ L "tpl.report.monthly_trend" }}">
+            <thead>
+                <tr>
+                    <th>{{ L "tpl.report.month" }}</th>
+                    <th>{{ L "tpl.report.purchases" }}</th>
+                    <th>{{ L "tpl.report.payments_col" }}</th>
+                    <th>{{ L "tpl.report.net" }}</th>
+                    <th style="width:40%">{{ L "tpl.report.chart" }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ range .monthly_spending }}
+                <tr>
+                    <td class="font-medium">{{ .Month }}</td>
+                    <td style="color:var(--md-sys-color-error)">{{ formatMoney .Amount }}</td>
+                    <td style="color:var(--md-sys-color-primary)">{{ formatMoney .Payments }}</td>
+                    <td class="font-medium">{{ formatMoney (subFloat .Amount .Payments) }}</td>
+                    <td>
+                        <div class="flex gap-1 items-end" style="height:24px">
+                            <div class="rounded" style="background:var(--md-sys-color-error-container);height:100%;flex:{{ printf "%.0f" .Amount }}" title="{{ L "tpl.report.purchases" }}: {{ formatMoney .Amount }}"></div>
+                            <div class="rounded" style="background:var(--md-sys-color-primary-container);height:100%;flex:{{ printf "%.0f" .Payments }}" title="{{ L "tpl.report.payments_col" }}: {{ formatMoney .Payments }}"></div>
+                        </div>
+                    </td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{ end }}
+
+<!-- ═══════════════ Payment Method & Insights ═══════════════ -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    {{ if .payment_methods }}
+    <div class="section-card">
+        <h4 class="section-card-title">{{ L "tpl.report.payment_breakdown" }}</h4>
+        <div class="space-y-3">
+            {{ range .payment_methods }}
+            <div class="flex items-center justify-between p-2 rounded" style="background:var(--md-sys-color-surface-container)">
+                <div>
+                    <span class="font-medium">{{ .Method }}</span>
+                    <span class="detail-label text-xs mr-2">({{ .Count }} {{ L "tpl.report.bills" }})</span>
+                </div>
+                <span class="font-bold" style="color:var(--md-sys-color-primary)">{{ formatMoney .Amount }} {{ L "tpl.currency_sar" }}</span>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+    {{ end }}
+
+    <!-- Negotiation Insights -->
+    <div class="section-card">
+        <h4 class="section-card-title">{{ L "tpl.report.negotiation_insights" }}</h4>
+        <div class="space-y-3">
+            <div class="flex items-center justify-between p-2 rounded" style="background:var(--md-sys-color-surface-container)">
+                <span class="detail-label">{{ L "tpl.report.total_discount" }}</span>
+                <span class="font-bold">{{ formatMoney .summary.TotalDiscount }} {{ L "tpl.currency_sar" }}</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded" style="background:var(--md-sys-color-surface-container)">
+                <span class="detail-label">{{ L "tpl.report.discount_pct" }}</span>
+                <span class="font-bold">
+                    {{ if gt .summary.TotalSpent 0.0 }}{{ printf "%.1f" (mulFloat (divFloat .summary.TotalDiscount .summary.TotalSpent) 100.0) }}%{{ else }}—{{ end }}
+                </span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded" style="background:var(--md-sys-color-surface-container)">
+                <span class="detail-label">{{ L "tpl.report.before_vat" }}</span>
+                <span class="font-bold">{{ formatMoney .summary.TotalBeforeVAT }} {{ L "tpl.currency_sar" }}</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded" style="background:var(--md-sys-color-surface-container)">
+                <span class="detail-label">{{ L "tpl.report.vat_paid" }}</span>
+                <span class="font-bold">{{ formatMoney .summary.TotalVAT }} {{ L "tpl.currency_sar" }}</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded" style="background:var(--md-sys-color-surface-container)">
+                <span class="detail-label">{{ L "tpl.report.payment_count" }}</span>
+                <span class="font-bold">{{ .summary.PaymentCount }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ Top Items ═══════════════ -->
+{{ if .top_items }}
+<div class="section-card mb-6">
+    <h4 class="section-card-title">{{ L "tpl.report.top_items" }}</h4>
+    <div class="data-table-wrapper">
+        <table aria-label="{{ L "tpl.report.top_items" }}">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>{{ L "tpl.report.item_name" }}</th>
+                    <th>{{ L "tpl.report.total_qty" }}</th>
+                    <th>{{ L "tpl.report.total_value" }}</th>
+                    <th>{{ L "tpl.report.avg_price" }}</th>
+                    <th>{{ L "tpl.report.in_bills" }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ range $i, $item := .top_items }}
+                <tr>
+                    <td>{{ add $i 1 }}</td>
+                    <td class="font-medium">{{ $item.Name }}</td>
+                    <td>{{ $item.TotalQty }}</td>
+                    <td class="font-medium">{{ formatMoney $item.TotalVal }}</td>
+                    <td>{{ formatMoney $item.AvgPrice }}</td>
+                    <td>{{ $item.BillCount }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{ end }}
+
+<script>
+// ── Date Range Preset Logic ──────────────────────────────────────
+(function() {
+    var currentFrom = '{{ .date_from }}';
+    var currentTo = '{{ .date_to }}';
+    var now = new Date();
+    var currentYear = now.getFullYear();
+
+    // Populate year dropdowns (last 5 years + current)
+    var yearOpts = '';
+    for (var y = currentYear; y >= currentYear - 5; y--) {
+        yearOpts += '<option value="' + y + '">' + y + '</option>';
+    }
+    document.getElementById('yearValue').innerHTML = yearOpts;
+    document.getElementById('quarterYear').innerHTML = yearOpts;
+
+    // Detect which mode matches the current from/to
+    function detectMode() {
+        var from = new Date(currentFrom + 'T00:00:00');
+        var to = new Date(currentTo + 'T00:00:00');
+        if (isNaN(from) || isNaN(to)) return 'custom';
+
+        // Check year: Jan 1 → Dec 31
+        if (from.getMonth() === 0 && from.getDate() === 1 && to.getMonth() === 11 && to.getDate() === 31 && from.getFullYear() === to.getFullYear()) {
+            return 'year';
+        }
+        // Check quarter: 3-month blocks starting Jan/Apr/Jul/Oct, day 1 → last day
+        var qStartMonths = [0, 3, 6, 9];
+        var fMonth = from.getMonth();
+        if (qStartMonths.indexOf(fMonth) !== -1 && from.getDate() === 1 && from.getFullYear() === to.getFullYear()) {
+            var qEndMonth = fMonth + 2;
+            var qEndDay = new Date(from.getFullYear(), qEndMonth + 1, 0).getDate();
+            if (to.getMonth() === qEndMonth && to.getDate() === qEndDay) {
+                return 'quarter';
+            }
+        }
+        // Check month: 1st → last day of same month
+        if (from.getDate() === 1 && from.getFullYear() === to.getFullYear() && from.getMonth() === to.getMonth()) {
+            var lastDay = new Date(from.getFullYear(), from.getMonth() + 1, 0).getDate();
+            if (to.getDate() === lastDay) return 'month';
+        }
+        return 'custom';
+    }
+
+    var mode = detectMode();
+    document.getElementById('periodType').value = mode;
+
+    // Set initial values for pickers based on detected mode
+    var fromD = new Date(currentFrom + 'T00:00:00');
+    if (!isNaN(fromD)) {
+        var yy = fromD.getFullYear();
+        var mm = fromD.getMonth();
+        document.getElementById('monthValue').value = yy + '-' + String(mm + 1).padStart(2, '0');
+        document.getElementById('yearValue').value = yy;
+        document.getElementById('quarterYear').value = yy;
+        var q = Math.floor(mm / 3) + 1;
+        document.getElementById('quarterValue').value = q;
+    }
+
+    onPeriodChange();
+})();
+
+function onPeriodChange() {
+    var mode = document.getElementById('periodType').value;
+    document.getElementById('monthPicker').style.display = mode === 'month' ? '' : 'none';
+    document.getElementById('quarterPicker').style.display = mode === 'quarter' ? '' : 'none';
+    document.getElementById('yearPicker').style.display = mode === 'year' ? '' : 'none';
+    document.getElementById('customFrom').style.display = mode === 'custom' ? '' : 'none';
+    document.getElementById('customTo').style.display = mode === 'custom' ? '' : 'none';
+
+    // Toggle hidden vs visible name attrs so only one pair of from/to is submitted
+    var hiddenFrom = document.getElementById('hiddenFrom');
+    var hiddenTo = document.getElementById('hiddenTo');
+    var fromDate = document.getElementById('fromDate');
+    var toDate = document.getElementById('toDate');
+    if (mode === 'custom') {
+        hiddenFrom.removeAttribute('name');
+        hiddenTo.removeAttribute('name');
+        fromDate.setAttribute('name', 'from');
+        toDate.setAttribute('name', 'to');
+    } else {
+        fromDate.removeAttribute('name');
+        toDate.removeAttribute('name');
+        hiddenFrom.setAttribute('name', 'from');
+        hiddenTo.setAttribute('name', 'to');
+        updateDatesFromPreset();
+    }
+}
+
+function updateDatesFromPreset() {
+    var mode = document.getElementById('periodType').value;
+    var from, to;
+
+    if (mode === 'month') {
+        var mv = document.getElementById('monthValue').value; // "2026-04"
+        if (!mv) return;
+        var parts = mv.split('-');
+        var y = parseInt(parts[0]), m = parseInt(parts[1]);
+        from = mv + '-01';
+        var lastDay = new Date(y, m, 0).getDate();
+        to = mv + '-' + String(lastDay).padStart(2, '0');
+    } else if (mode === 'quarter') {
+        var qy = parseInt(document.getElementById('quarterYear').value);
+        var qv = parseInt(document.getElementById('quarterValue').value);
+        var startMonth = (qv - 1) * 3; // 0-based
+        from = qy + '-' + String(startMonth + 1).padStart(2, '0') + '-01';
+        var endMonth = startMonth + 2;
+        var lastDay2 = new Date(qy, endMonth + 1, 0).getDate();
+        to = qy + '-' + String(endMonth + 1).padStart(2, '0') + '-' + String(lastDay2).padStart(2, '0');
+    } else if (mode === 'year') {
+        var yv = document.getElementById('yearValue').value;
+        from = yv + '-01-01';
+        to = yv + '-12-31';
+    } else {
+        return; // custom mode — user controls from/to directly
+    }
+
+    document.getElementById('hiddenFrom').value = from;
+    document.getElementById('hiddenTo').value = to;
+}
+</script>
+
+<script>
+// Receipt verification via localStorage
+var STORAGE_KEY = 'supplier_receipt_{{ .supplier.ID }}';
+
+function getReceivedBills() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+    catch(e) { return {}; }
+}
+
+function saveReceivedBills(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function toggleReceived(billId) {
+    var data = getReceivedBills();
+    if (data[billId]) { delete data[billId]; }
+    else { data[billId] = new Date().toISOString(); }
+    saveReceivedBills(data);
+    renderReceipts();
+}
+
+function renderReceipts() {
+    var data = getReceivedBills();
+    var rows = document.querySelectorAll('#billsTable tbody tr[data-bill-id]');
+    rows.forEach(function(row) {
+        var id = row.getAttribute('data-bill-id');
+        var isReceived = !!data[id];
+        row.setAttribute('data-received', isReceived ? 'yes' : '');
+        var pending = row.querySelector('.receipt-icon-pending');
+        var done = row.querySelector('.receipt-icon-done');
+        if (pending && done) {
+            pending.classList.toggle('hidden', isReceived);
+            done.classList.toggle('hidden', !isReceived);
+        }
+    });
+}
+
+function filterBills() {
+    var filter = document.getElementById('billFilter').value;
+    var rows = document.querySelectorAll('#billsTable tbody tr[data-bill-id]');
+    rows.forEach(function(row) {
+        var state = parseInt(row.getAttribute('data-state') || '0');
+        var overdue = row.getAttribute('data-overdue') === 'true';
+        var received = row.getAttribute('data-received') === 'yes';
+        var show = true;
+        if (filter === 'unpaid') show = (state === 0);
+        else if (filter === 'paid') show = (state >= 1);
+        else if (filter === 'overdue') show = overdue;
+        else if (filter === 'received') show = received;
+        else if (filter === 'pending') show = !received;
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', renderReceipts);
+</script>
+{{ end }}

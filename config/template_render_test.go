@@ -32,7 +32,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"add-user", "users", "edit-user",
 		"settings", "parts-search", "cars-search", "import-bills",
 		"cash-vouchers", "add-cash-voucher", "cash-voucher-detail", "edit-cash-voucher",
-		"stock-adjustments", "notifications",
+		"stock-adjustments", "notifications", "zatca-monitor", "supplier-report",
 		// Standalone pages
 		"login", "register", "forgot-password",
 		"invoice-preview", "invoice-print", "error-page",
@@ -142,8 +142,13 @@ func TestAllTemplatesExecute(t *testing.T) {
 
 		// Supplier specific
 		"supplier": map[string]interface{}{
-			"ID":   0,
-			"Name": "",
+			"ID":               0,
+			"Name":             "",
+			"PaymentTermsDays": 0,
+			"CreditLimit":      0,
+			"VATNumber":        "",
+			"PhoneNumber":      "",
+			"CR":               "",
 		},
 
 		// Store specific
@@ -265,6 +270,35 @@ func TestAllTemplatesExecute(t *testing.T) {
 
 		// Credit note
 		"credit_note": map[string]interface{}{},
+
+		// Supplier report
+		"summary": map[string]interface{}{
+			"BillCount":      0,
+			"TotalSpent":     0.0,
+			"TotalBeforeVAT": 0.0,
+			"TotalVAT":       0.0,
+			"UnpaidTotal":    0.0,
+			"PaidTotal":      0.0,
+			"ReceivedCount":  0,
+			"AvgBill":        0.0,
+			"TotalDiscount":  0.0,
+			"CreditUtilPct":  0.0,
+			"TotalPayments":  0.0,
+			"PaymentCount":   0,
+			"ClosingBalance": 0.0,
+			"OpeningBalance": 0.0,
+			"OverdueAmount":  0.0,
+			"OverdueCount":   0,
+			"AvgPaymentDays": 0.0,
+		},
+		"bills":            []interface{}{},
+		"top_items":        []interface{}{},
+		"ledger":           []interface{}{},
+		"aging":            []interface{}{},
+		"payment_methods":  []interface{}{},
+		"monthly_spending": []interface{}{},
+		"date_from":        "2025-01-01",
+		"date_to":          "2025-03-31",
 
 		// Clients and Stores for modals
 		"Clients": []interface{}{},

@@ -164,6 +164,14 @@ func main() {
 	router.HandleFunc("/dashboard/settings", adminOnly(handlers.HandleSettingsPage)).Methods("GET")
 	router.HandleFunc("/dashboard/settings", adminOnly(handlers.HandleSaveSettings)).Methods("POST")
 
+	// ZATCA API routes (JSON) — Admin only
+	router.HandleFunc("/api/zatca/branch/{id}", adminOnly(handlers.HandleGetZatcaConfig)).Methods("GET")
+	router.HandleFunc("/api/zatca/branch/{id}", adminOnly(handlers.HandleSaveZatcaConfig)).Methods("PUT")
+	router.HandleFunc("/api/zatca/branch/{id}/onboard", adminOnly(handlers.HandleZatcaOnboard)).Methods("POST")
+
+	// ZATCA Monitor page — Admin only
+	router.HandleFunc("/dashboard/zatca-monitor", adminOnly(handlers.HandleZatcaMonitor)).Methods("GET")
+
 	// Notification routes
 	router.HandleFunc("/dashboard/notifications", handlers.HandleNotifications).Methods("GET")
 	router.HandleFunc("/api/notifications/{id}/read", handlers.HandleMarkNotificationRead).Methods("POST")
@@ -205,6 +213,8 @@ func main() {
 	router.HandleFunc("/dashboard/suppliers/{id}", protect("suppliers", "view", handlers.HandleSupplierDetail)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/edit", protect("suppliers", "edit", handlers.HandleEditSupplier)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/get", protect("suppliers", "view", handlers.HandleGetSupplier)).Methods("GET")
+	router.HandleFunc("/dashboard/suppliers/{id}/report", protect("suppliers", "view", handlers.HandleSupplierReport)).Methods("GET")
+	router.HandleFunc("/dashboard/suppliers/{id}/report/export-csv", protect("suppliers", "view", handlers.HandleExportSupplierReportCSV)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/update", protect("suppliers", "edit", handlers.HandleUpdateSupplier)).Methods("POST")
 	router.HandleFunc("/dashboard/suppliers/{id}/delete", protect("suppliers", "delete", handlers.HandleDeleteSupplier)).Methods("POST")
 

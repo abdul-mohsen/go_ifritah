@@ -48,6 +48,7 @@
                     <div class="action-cell">
                         <div class="action-links">
                             <a href="/dashboard/suppliers/{{ .ID }}" class="action-link action-view">{{ L "tpl.view" }}</a>
+                            <a href="/dashboard/suppliers/{{ .ID }}/report" class="action-link" style="color:var(--md-sys-color-tertiary)">{{ L "tpl.report.view_report" }}</a>
                             <a href="/dashboard/suppliers/{{ .ID }}/edit" class="action-link action-edit">{{ L "tpl.edit" }}</a>
                             <a href="#" hx-post="/dashboard/suppliers/{{ .ID }}/delete"
                                 hx-confirm="{{ L "tpl.supplier.confirm_delete" }}" class="action-link action-delete">{{ L "tpl.delete" }}</a>

@@ -7,8 +7,10 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"afrita/config"
+	"afrita/helpers"
 	"afrita/models"
 )
 
@@ -50,11 +52,23 @@ func TokenRefreshMiddleware(next http.Handler) http.Handler {
 			accessToken:    accessToken,
 			refreshToken:   refreshToken,
 			hasRefresh:     hasRefresh,
+			originalPath:   r.URL.RequestURI(),
 		}
 
 		next.ServeHTTP(wrapper, r)
 
-		// If we detected a 401 and attempted refresh, check the result
+		// Token was refreshed — redirect so the browser retries with the new token
+		if wrapper.refreshedOK {
+			if r.Header.Get("HX-Request") == "true" {
+				w.Header().Set("HX-Redirect", wrapper.originalPath)
+				w.WriteHeader(http.StatusOK)
+			} else {
+				http.Redirect(w, r, wrapper.originalPath, http.StatusSeeOther)
+			}
+			return
+		}
+
+		// If we detected a 401 and refresh failed, redirect to login
 		if wrapper.needsLoginRedirect {
 			// Clear session cookie
 			http.SetCookie(w, &http.Cookie{
@@ -87,7 +101,9 @@ type responseWrapper struct {
 	hasRefresh         bool
 	statusCode         int
 	needsLoginRedirect bool
+	refreshedOK        bool
 	headerWritten      bool
+	originalPath       string
 }
 
 func (rw *responseWrapper) WriteHeader(statusCode int) {
@@ -98,11 +114,10 @@ func (rw *responseWrapper) WriteHeader(statusCode int) {
 		log.Printf("🔄 Detected 401 Unauthorized, attempting token refresh for session: %s", rw.sessionID)
 
 		if rw.attemptTokenRefresh() {
-			log.Printf("✅ Token refreshed successfully for session: %s", rw.sessionID)
-			// Token refreshed successfully, but we can't retry the request from here
-			// The handler should implement retry logic using DoAuthedRequestWithRetry
-			rw.ResponseWriter.WriteHeader(statusCode)
-			rw.headerWritten = true
+			log.Printf("✅ Token refreshed successfully for session: %s — marking for redirect", rw.sessionID)
+			// Token refreshed: signal outer handler to redirect so the
+			// request is retried with the fresh token.
+			rw.refreshedOK = true
 			return
 		}
 
@@ -116,7 +131,7 @@ func (rw *responseWrapper) WriteHeader(statusCode int) {
 }
 
 func (rw *responseWrapper) Write(b []byte) (int, error) {
-	if rw.needsLoginRedirect {
+	if rw.needsLoginRedirect || rw.refreshedOK {
 		// Silently discard writes — middleware will handle redirect
 		return len(b), nil
 	}
@@ -162,15 +177,32 @@ func (rw *responseWrapper) attemptTokenRefresh() bool {
 		return false
 	}
 
-	// Update session with new tokens
+	// Update session with new tokens AND expiry
+	newExpiry := time.Now().Add(15 * time.Minute)
 	config.SessionTokensMutex.Lock()
 	config.SessionTokens[rw.sessionID] = authResp.AccessToken
 	if authResp.RefreshToken != "" {
 		config.SessionRefreshTokens[rw.sessionID] = authResp.RefreshToken
 	}
+	config.SessionTokenExpiry[rw.sessionID] = newExpiry
 	config.SessionTokensMutex.Unlock()
 
-	log.Printf("🔑 Token refreshed and stored for session: %s", rw.sessionID)
+	// Persist to disk so token survives app restart
+	refTok := rw.refreshToken
+	if authResp.RefreshToken != "" {
+		refTok = authResp.RefreshToken
+	}
+	token := &models.Token{
+		AccessToken:  authResp.AccessToken,
+		RefreshToken: refTok,
+		ExpiresAt:    newExpiry,
+		CreatedAt:    time.Now(),
+	}
+	if err := helpers.SaveTokenToFile(rw.sessionID, token); err != nil {
+		log.Printf("⚠️  Failed to persist refreshed token: %v", err)
+	}
+
+	log.Printf("🔑 Token refreshed, expiry updated, and persisted for session: %s", rw.sessionID)
 	return true
 }
 
@@ -215,13 +247,30 @@ func RefreshTokenIfNeeded(sessionID string) error {
 		return fmt.Errorf("refresh response missing access token")
 	}
 
-	// Update session with new tokens
+	// Update session with new tokens AND expiry
+	newExpiry := time.Now().Add(15 * time.Minute)
 	config.SessionTokensMutex.Lock()
 	config.SessionTokens[sessionID] = authResp.AccessToken
 	if authResp.RefreshToken != "" {
 		config.SessionRefreshTokens[sessionID] = authResp.RefreshToken
 	}
+	config.SessionTokenExpiry[sessionID] = newExpiry
 	config.SessionTokensMutex.Unlock()
+
+	// Persist to disk
+	refTok := refreshToken
+	if authResp.RefreshToken != "" {
+		refTok = authResp.RefreshToken
+	}
+	token := &models.Token{
+		AccessToken:  authResp.AccessToken,
+		RefreshToken: refTok,
+		ExpiresAt:    newExpiry,
+		CreatedAt:    time.Now(),
+	}
+	if err := helpers.SaveTokenToFile(sessionID, token); err != nil {
+		log.Printf("⚠️  Failed to persist refreshed token: %v", err)
+	}
 
 	log.Printf("✅ Token proactively refreshed for session: %s", sessionID)
 	return nil

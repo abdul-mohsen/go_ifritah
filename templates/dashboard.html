@@ -76,6 +76,14 @@
     .stats.gross_profit "suffix" (L "ui.currency") "trend_arrow" $t4.Arrow "trend_percent" $t4.Percent "trend_class" $t4.Class }}
 </div>
 
+<!-- KPI Cards Row 1b: Before VAT -->
+<div class="grid grid-cols-2 gap-3 mb-4">
+    {{ template "kpi-card-lg" dict "href" "/dashboard/invoices" "gradient" "kpi-emerald" "label_color"
+    "kpi-label" "label" (L "dashboard.kpi.revenue_before_vat") "value" .stats.revenue_before_vat "suffix" (L "ui.currency") }}
+    {{ template "kpi-card-lg" dict "href" "/dashboard/purchase-bills" "gradient" "kpi-rose" "label_color"
+    "kpi-label" "label" (L "dashboard.kpi.purchases_before_vat") "value" .stats.purchases_before_vat "suffix" (L "ui.currency") }}
+</div>
+
 <!-- KPI Cards Row 2 -->
 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
     {{ template "kpi-card-sm" dict "href" "/dashboard/products" "dot_color" "bg-purple-500" "value_color"

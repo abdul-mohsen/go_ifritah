@@ -143,10 +143,10 @@ func PeriodicTokenCleanup() {
 		now := time.Now()
 		expiredSessions := []string{}
 
-		// Find expired tokens
+		// Find sessions where access token expired more than 7 days ago
 		config.SessionTokensMutex.RLock()
 		for sessionID, expiryTime := range config.SessionTokenExpiry {
-			if now.After(expiryTime) {
+			if now.After(expiryTime.Add(7 * 24 * time.Hour)) {
 				expiredSessions = append(expiredSessions, sessionID)
 			}
 		}

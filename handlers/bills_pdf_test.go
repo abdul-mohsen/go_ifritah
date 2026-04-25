@@ -77,9 +77,10 @@ func TestHandleBillPDF_NoSession(t *testing.T) {
 	w := httptest.NewRecorder()
 	HandleBillPDF(w, req)
 
-	// Should redirect to login (303 See Other)
-	if w.Code != http.StatusSeeOther {
-		t.Errorf("expected 303 redirect, got %d", w.Code)
+	// HandleUnauthorized now writes 401 — middleware (not present in this
+	// unit test) is responsible for the actual redirect to login.
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
 	}
 }
 

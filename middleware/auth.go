@@ -26,7 +26,7 @@ func TokenRefreshMiddleware(next http.Handler) http.Handler {
 		// Get session ID from cookie
 		cookie, err := r.Cookie("session_id")
 		if err != nil {
-			// No session cookie, let the handler deal with it
+			log.Printf("🔍 [AUTH] %s %s — no session_id cookie (err=%v)", r.Method, r.URL.Path, err)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -37,10 +37,48 @@ func TokenRefreshMiddleware(next http.Handler) http.Handler {
 		config.SessionTokensMutex.RLock()
 		accessToken, hasAccess := config.SessionTokens[sessionID]
 		refreshToken, hasRefresh := config.SessionRefreshTokens[sessionID]
+		expiry, hasExpiry := config.SessionTokenExpiry[sessionID]
 		config.SessionTokensMutex.RUnlock()
 
+		log.Printf("🔍 [AUTH] %s %s session=%s hasAccess=%v hasRefresh=%v expiry=%v idleSinceExpiry=%v",
+			r.Method, r.URL.Path, sessionID[:min(8, len(sessionID))],
+			hasAccess, hasRefresh,
+			hasExpiry, func() string {
+				if !hasExpiry {
+					return "n/a"
+				}
+				return time.Since(expiry).Round(time.Second).String()
+			}())
+
 		if !hasAccess {
-			// No access token, let the handler redirect to login
+			// No access token — try refresh if we have a refresh token
+			config.SessionTokensMutex.RLock()
+			refreshToken, hasRefresh := config.SessionRefreshTokens[sessionID]
+			config.SessionTokensMutex.RUnlock()
+
+			if hasRefresh && refreshToken != "" {
+				log.Printf("🔄 No access token but have refresh token, attempting refresh for session: %s", sessionID)
+				wrapper := &responseWrapper{
+					ResponseWriter: w,
+					sessionID:      sessionID,
+					refreshToken:   refreshToken,
+					hasRefresh:     true,
+					originalPath:   r.URL.RequestURI(),
+				}
+				if wrapper.attemptTokenRefresh() {
+					log.Printf("✅ Token refreshed (no access token path) for session: %s", sessionID)
+					if r.Header.Get("HX-Request") == "true" {
+						w.Header().Set("HX-Redirect", r.URL.RequestURI())
+						w.WriteHeader(http.StatusOK)
+					} else {
+						http.Redirect(w, r, r.URL.RequestURI(), http.StatusSeeOther)
+					}
+					return
+				}
+				log.Printf("❌ Refresh failed (no access token path) for session: %s", sessionID)
+			}
+
+			// No refresh token or refresh failed — let the handler deal with it
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -115,6 +153,14 @@ func (rw *responseWrapper) WriteHeader(statusCode int) {
 
 		if rw.attemptTokenRefresh() {
 			log.Printf("✅ Token refreshed successfully for session: %s — marking for redirect", rw.sessionID)
+			// Clear any pending headers set by the failed handler (e.g. cookie
+			// deletion from HandleUnauthorized, HX-Redirect to login page).
+			// Otherwise the browser would drop the session cookie and follow
+			// the redirect anonymously, ending up at the login page.
+			h := rw.ResponseWriter.Header()
+			for k := range h {
+				delete(h, k)
+			}
 			// Token refreshed: signal outer handler to redirect so the
 			// request is retried with the fresh token.
 			rw.refreshedOK = true

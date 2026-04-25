@@ -40,6 +40,10 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 	// Fetch ALL from backend (page=1 returns all), client-side pagination after state filter
 	bills, err := helpers.FetchPurchaseBillsAll(token, 1, query)
 	if err != nil {
+		if helpers.IsUnauthorizedError(err) {
+			helpers.HandleUnauthorized(w, r)
+			return
+		}
 		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
 		return
 	}

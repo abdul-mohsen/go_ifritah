@@ -84,7 +84,7 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 			"subtotal":        fmt.Sprintf("%.2f", inv.TotalBeforeVAT),
 			"vat":             fmt.Sprintf("%.2f", inv.TotalVAT),
 			"discount":        fmt.Sprintf("%.2f", inv.Discount),
-			"date":            helpers.FormatInvoiceDate(inv.EffectiveDate.Time),
+			"date":            helpers.ToDisplayDate(inv.EffectiveDate.Time),
 			"type":            invoiceType,
 			"status":          status,
 			"status_class":    statusClass,

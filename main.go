@@ -169,6 +169,15 @@ func main() {
 	router.HandleFunc("/api/zatca/branch/{id}", adminOnly(handlers.HandleSaveZatcaConfig)).Methods("PUT")
 	router.HandleFunc("/api/zatca/branch/{id}/onboard", adminOnly(handlers.HandleZatcaOnboard)).Methods("POST")
 
+	// Company info (proxy to backend `/api/v2/company`) — Admin only
+	router.HandleFunc("/api/company", adminOnly(handlers.HandleGetCompany)).Methods("GET")
+	router.HandleFunc("/api/company", adminOnly(handlers.HandleUpdateCompany)).Methods("PUT")
+
+	// Branch store-address bridge (city/street/etc. live in `store`, not
+	// branch_zatca_config — daemon requires store.city for ZATCA onboarding).
+	router.HandleFunc("/api/branch/{id}/store-address", adminOnly(handlers.HandleGetBranchStoreAddress)).Methods("GET")
+	router.HandleFunc("/api/branch/{id}/store-address", adminOnly(handlers.HandleUpdateBranchStoreAddress)).Methods("PUT")
+
 	// ZATCA Monitor page — Admin only
 	router.HandleFunc("/dashboard/zatca-monitor", adminOnly(handlers.HandleZatcaMonitor)).Methods("GET")
 

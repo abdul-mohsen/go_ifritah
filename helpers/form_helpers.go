@@ -62,19 +62,6 @@ func FormatStringPrice(value string) string {
 	return value
 }
 
-// DateToRFC3339 converts a bare YYYY-MM-DD date to RFC3339 format.
-// Returns nil if the input is empty.
-func DateToRFC3339(date string) *string {
-	if date == "" {
-		return nil
-	}
-	if len(date) == 10 {
-		rfc := date + "T00:00:00Z"
-		return &rfc
-	}
-	return &date
-}
-
 func BuildBillPayload(r *http.Request) models.BillPayload {
 	_ = r.ParseForm()
 
@@ -88,11 +75,11 @@ func BuildBillPayload(r *http.Request) models.BillPayload {
 	discount := FormatStringPrice(r.FormValue("discount"))
 	maintenanceCost := FormatStringPrice(r.FormValue("maintenance_cost"))
 
-	// Bill backend parses effective_date, payment_due_date with time.RFC3339
-	// deliver_date is *time.Time (JSON binding expects RFC3339)
-	deliverDate := DateToRFC3339(r.FormValue("deliver_date"))
-	effectiveDate := DateToRFC3339(r.FormValue("effective_date"))
-	paymentDueDate := DateToRFC3339(r.FormValue("payment_due_date"))
+	// All outgoing date fields go through helpers.ToBackendDate* so they carry
+	// the Riyadh offset (+03:00).
+	deliverDate := ToBackendDatePtr(r.FormValue("deliver_date"))
+	effectiveDate := ToBackendDatePtr(r.FormValue("effective_date"))
+	paymentDueDate := ToBackendDatePtr(r.FormValue("payment_due_date"))
 
 	// client_id — optional
 	var clientID *int
@@ -383,12 +370,10 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 
 	supplierID := ParseIntValue(r.FormValue("supplier_id"))
 
-	// All date fields: send as RFC3339 (ISO 8601) — "2024-01-15T00:00:00Z"
-	effectiveDate := DateToRFC3339(r.FormValue("payment_date"))
-
-	// payment_due_date and deliver_date use RFC3339
-	paymentDueDate := DateToRFC3339(r.FormValue("payment_due_date"))
-	deliverDate := DateToRFC3339(r.FormValue("deliver_date"))
+	// All outgoing date fields use ToBackendDate* (RFC3339 + Riyadh offset).
+	effectiveDate := ToBackendDate(r.FormValue("payment_date"))
+	paymentDueDate := ToBackendDatePtr(r.FormValue("payment_due_date"))
+	deliverDate := ToBackendDatePtr(r.FormValue("deliver_date"))
 
 	// pdf_link — send null if no file uploaded
 	var pdfLink *string
@@ -408,7 +393,7 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 		SupplierID:             supplierID,
 		SupplierSequenceNumber: ParseUint64Value(r.FormValue("supplier_sequance_number")),
 		State:                  1,
-		EffectiveDate:          DerefString(effectiveDate),
+		EffectiveDate:          effectiveDate,
 		Products:               products,
 		ManualProducts:         manualProducts,
 		Discount:               FormatStringPrice(r.FormValue("discount")),

@@ -563,7 +563,6 @@
     <!-- Net Income & OpEx (Mock) -->
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
         <div class="p-4 transition-shadow relative" data-testid="net-income" style="background: var(--md-sys-color-surface-container-lowest); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-md)">
-            <span class="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{{ L "dashboard.badge.mock" }}</span>
             <div class="flex items-center gap-2 mb-1.5">
                 <div class="w-2.5 h-2.5 rounded-full bg-violet-500"></div>
                 <p class="text-xs font-medium" style="color: var(--md-sys-color-on-surface-variant)">{{ L "dashboard.kpi.net_income" }}</p>
@@ -571,7 +570,6 @@
             <p class="text-xl font-bold text-violet-600">{{ .net_income }} <span class="text-xs opacity-70">{{ L "ui.currency" }}</span></p>
         </div>
         <div class="p-4 transition-shadow relative" data-testid="opex-ratio" style="background: var(--md-sys-color-surface-container-lowest); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-md)">
-            <span class="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{{ L "dashboard.badge.mock" }}</span>
             <div class="flex items-center gap-2 mb-1.5">
                 <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
                 <p class="text-xs font-medium" style="color: var(--md-sys-color-on-surface-variant)">{{ L "dashboard.kpi.opex_ratio" }}</p>
@@ -601,7 +599,6 @@
     <!-- OpEx Breakdown (Mock) -->
     {{ if .mock_opex }}
     <div class="section-card mb-4 relative">
-        <span class="absolute top-2 left-2 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{{ L "dashboard.badge.mock" }}</span>
         <h3 class="section-card-title">{{ L "dashboard.section.opex_breakdown" }}</h3>
         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div class="p-3 rounded-lg" style="background: var(--md-sys-color-surface-container-low)">
@@ -722,7 +719,6 @@
     <!-- Payment Tracking (Mock) -->
     {{ if .mock_payment }}
     <div class="section-card mb-4 relative">
-        <span class="absolute top-2 left-2 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{{ L "dashboard.badge.mock" }}</span>
         <h3 class="section-card-title">{{ L "dashboard.section.payment_tracking" }}</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div class="p-3 rounded-lg" style="background: var(--md-sys-color-surface-container-low)">
@@ -759,7 +755,6 @@
 <div class="mt-2">
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
         <div class="p-4 transition-shadow relative" data-testid="current-ratio" style="background: var(--md-sys-color-surface-container-lowest); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-md)">
-            <span class="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{{ L "dashboard.badge.mock" }}</span>
             <div class="flex items-center gap-2 mb-1.5">
                 <div class="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
                 <p class="text-xs font-medium" style="color: var(--md-sys-color-on-surface-variant)">{{ L "dashboard.kpi.current_ratio" }}</p>
@@ -767,7 +762,6 @@
             <p class="text-xl font-bold text-blue-600">{{ .current_ratio }}x</p>
         </div>
         <div class="p-4 transition-shadow relative" data-testid="quick-ratio" style="background: var(--md-sys-color-surface-container-lowest); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-md)">
-            <span class="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{{ L "dashboard.badge.mock" }}</span>
             <div class="flex items-center gap-2 mb-1.5">
                 <div class="w-2.5 h-2.5 rounded-full bg-teal-500"></div>
                 <p class="text-xs font-medium" style="color: var(--md-sys-color-on-surface-variant)">{{ L "dashboard.kpi.quick_ratio" }}</p>
@@ -775,7 +769,6 @@
             <p class="text-xl font-bold text-teal-600">{{ .quick_ratio }}x</p>
         </div>
         <div class="p-4 transition-shadow relative" data-testid="debt-to-equity" style="background: var(--md-sys-color-surface-container-lowest); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-md)">
-            <span class="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{{ L "dashboard.badge.mock" }}</span>
             <div class="flex items-center gap-2 mb-1.5">
                 <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
                 <p class="text-xs font-medium" style="color: var(--md-sys-color-on-surface-variant)">{{ L "dashboard.kpi.debt_to_equity" }}</p>
@@ -856,7 +849,6 @@
     {{ if .mock_zatca }}
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <div class="p-4 transition-shadow relative" data-testid="zatca-compliance" style="background: var(--md-sys-color-surface-container-lowest); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-md)">
-            <span class="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{{ L "dashboard.badge.mock" }}</span>
             <div class="flex items-center gap-2 mb-1.5">
                 <div class="w-2.5 h-2.5 rounded-full bg-green-500"></div>
                 <p class="text-xs font-medium" style="color: var(--md-sys-color-on-surface-variant)">{{ L "dashboard.kpi.zatca_compliance" }}</p>
@@ -864,7 +856,6 @@
             <p class="text-xl font-bold text-green-600">{{ printf "%.1f" .mock_zatca.ComplianceRate }}%</p>
         </div>
         <div class="p-4 transition-shadow relative" data-testid="zatca-submitted" style="background: var(--md-sys-color-surface-container-lowest); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-md)">
-            <span class="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{{ L "dashboard.badge.mock" }}</span>
             <div class="flex items-center gap-2 mb-1.5">
                 <div class="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
                 <p class="text-xs font-medium" style="color: var(--md-sys-color-on-surface-variant)">{{ L "dashboard.kpi.zatca_submitted" }}</p>
@@ -872,7 +863,6 @@
             <p class="text-xl font-bold text-blue-600">{{ .mock_zatca.SubmittedCount }}</p>
         </div>
         <div class="p-4 transition-shadow relative" data-testid="zatca-rejected" style="background: var(--md-sys-color-surface-container-lowest); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-md)">
-            <span class="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{{ L "dashboard.badge.mock" }}</span>
             <div class="flex items-center gap-2 mb-1.5">
                 <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
                 <p class="text-xs font-medium" style="color: var(--md-sys-color-on-surface-variant)">{{ L "dashboard.kpi.zatca_rejected" }}</p>

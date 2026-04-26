@@ -119,9 +119,10 @@ func HandleAddPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	suppliers, _ := helpers.FetchSuppliers(token)
 
 	helpers.Render(w, r, "add-purchase-bill", map[string]interface{}{
-		"title":     "إضافة فاتورة مشتريات",
-		"stores":    stores,
-		"suppliers": suppliers,
+		"title":           "إضافة فاتورة مشتريات",
+		"stores":          stores,
+		"suppliers":       suppliers,
+		"pb_pdf_required": GetSettingValue("pb_pdf_required"),
 	})
 }
 
@@ -463,6 +464,7 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		"edit_date":      editDate,
 		"bill_products":  billProducts,
 		"bill_manual":    billManual,
+		"pb_pdf_required": GetSettingValue("pb_pdf_required"),
 	})
 }
 

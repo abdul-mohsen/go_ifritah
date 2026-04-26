@@ -87,6 +87,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	config.SessionTokens[sessionID] = backendResp.AccessToken
 	config.SessionRefreshTokens[sessionID] = backendResp.RefreshToken
 	config.SessionTokenExpiry[sessionID] = expiryTime
+	config.SessionUserRoles[sessionID] = helpers.DecodeJWTRole(backendResp.AccessToken)
 	config.SessionTokensMutex.Unlock()
 
 	// Persist tokens to disk for app restart recovery

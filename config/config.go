@@ -228,6 +228,7 @@ var (
 	SessionTokens        = make(map[string]string)    // sessionID -> accessToken
 	SessionRefreshTokens = make(map[string]string)    // sessionID -> refreshToken
 	SessionTokenExpiry   = make(map[string]time.Time) // sessionID -> expiryTime
+	SessionUserRoles     = make(map[string]string)    // sessionID -> role (admin|manager|employee)
 	SessionTokensMutex   sync.RWMutex
 )
 

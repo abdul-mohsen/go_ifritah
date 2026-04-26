@@ -2119,10 +2119,62 @@ func InvoiceTypeLabel(inv models.Invoice) string {
 //
 // For now, returns "admin" for all authenticated sessions.
 func GetUserRole(r *http.Request) string {
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		return ""
+	}
+	config.SessionTokensMutex.RLock()
+	role := config.SessionUserRoles[cookie.Value]
+	config.SessionTokensMutex.RUnlock()
+	if role != "" {
+		return role
+	}
+	// Fallback: try to decode the JWT directly so existing sessions (created
+	// before role tracking was added) still work.
 	token := GetTokenFromRequest(r)
 	if token == "" {
 		return ""
 	}
-	// TODO: look up config.SessionUserRoles[sessionID] once backend provides role
+	if r := DecodeJWTRole(token); r != "" {
+		return r
+	}
 	return "admin"
+}
+
+// DecodeJWTRole extracts the "role" claim from a JWT without verifying its
+// signature. We trust the backend that issued the token; this is for routing
+// frontend RBAC only — every privileged action is also enforced by the
+// backend. Returns "" if the role can't be parsed.
+//
+// Special case: the "ssda" owner account is treated as admin even if the
+// backend JWT issues a lower role — mirrors handlers.parseUserFromJWT.
+func DecodeJWTRole(token string) string {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		seg := parts[1]
+		switch len(seg) % 4 {
+		case 2:
+			seg += "=="
+		case 3:
+			seg += "="
+		}
+		payload, err = base64.URLEncoding.DecodeString(seg)
+		if err != nil {
+			return ""
+		}
+	}
+	var claims map[string]interface{}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return ""
+	}
+	role, _ := claims["role"].(string)
+	username, _ := claims["username"].(string)
+	if username == "ssda" {
+		return "admin"
+	}
+	return role
 }

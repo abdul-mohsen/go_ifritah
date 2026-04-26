@@ -27,6 +27,7 @@ func WriteErrorResponse(w http.ResponseWriter, statusCode int, backendResp *http
 	}
 
 	triggerToast(w, msg, "error")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(statusCode)
 	// Write the message as body too (for non-HTMX consumers)
 	_, _ = w.Write([]byte(msg))
@@ -222,6 +223,7 @@ func WriteErrorResponseFromBytes(w http.ResponseWriter, statusCode int, body []b
 	}
 
 	triggerToast(w, msg, "error")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(statusCode)
 	_, _ = w.Write([]byte(msg))
 }

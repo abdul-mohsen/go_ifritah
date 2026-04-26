@@ -109,7 +109,7 @@ func ComputeTopClients(orders []map[string]interface{}, maxItems int) []map[stri
 
 		rawDate := firstNonEmptyString(order, "date", "created_at", "updated_at")
 		if rawDate != "" {
-			parsed, ok := ParseFlexibleTime(rawDate)
+			parsed, ok := parseDate(rawDate)
 			if ok {
 				if summary.Last.IsZero() || parsed.After(summary.Last) {
 					summary.Last = parsed
@@ -287,48 +287,20 @@ func isPendingStatus(status string) bool {
 		strings.Contains(status, "جديد")
 }
 
-func ParseFlexibleTime(value string) (time.Time, bool) {
-	layouts := []string{
-		time.RFC3339Nano,
-		time.RFC3339,
-		"2006-01-02",
-		"2006-01-02 15:04:05",
-	}
-	for _, layout := range layouts {
-		parsed, err := time.Parse(layout, value)
-		if err == nil {
-			return parsed, true
-		}
-	}
-	return time.Time{}, false
-}
-
+// ParseFilterDate parses a filter input value (start or end of a date range)
+// using the canonical Riyadh-aware parser. When isEnd is true and the input
+// is a bare YYYY-MM-DD, the returned time is the inclusive end-of-day
+// (23:59:59.999999999) in Riyadh.
 func ParseFilterDate(value string, isEnd bool) *time.Time {
-	if value == "" {
-		return nil
-	}
-	parsed, ok := ParseFlexibleTime(value)
+	parsed, ok := parseDate(value)
 	if !ok {
 		return nil
 	}
-
-	if isEnd && len(value) == 10 && strings.Count(value, "T") == 0 {
-		inclusive := parsed.Add(24*time.Hour - time.Nanosecond)
-		return &inclusive
+	if isEnd && len(strings.TrimSpace(value)) == 10 {
+		end := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 23, 59, 59, int(time.Second-time.Nanosecond), Riyadh)
+		return &end
 	}
-
 	return &parsed
-}
-
-func FormatInvoiceDate(raw string) string {
-	if raw == "" {
-		return ""
-	}
-	parsed, ok := ParseFlexibleTime(raw)
-	if !ok {
-		return raw
-	}
-	return parsed.Format("2006-01-02")
 }
 
 func ParseFloatString(value string) (float64, error) {
@@ -455,7 +427,7 @@ func parseInvoiceTime(inv models.Invoice) time.Time {
 	if inv.EffectiveDate.Time == "" {
 		return time.Time{}
 	}
-	t, ok := ParseFlexibleTime(inv.EffectiveDate.Time)
+	t, ok := parseDate(inv.EffectiveDate.Time)
 	if !ok {
 		return time.Time{}
 	}
@@ -974,7 +946,7 @@ func ComputeAvgProcessingTime(orders []map[string]interface{}, invoices []models
 		for _, key := range []string{"created_at", "date", "order_date"} {
 			if v, ok := o[key]; ok {
 				if s, ok := v.(string); ok {
-					if t, ok := ParseFlexibleTime(s); ok {
+					if t, ok := parseDate(s); ok {
 						orderDates = append(orderDates, t)
 						break
 					}

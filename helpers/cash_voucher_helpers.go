@@ -107,10 +107,7 @@ func BuildCashVoucherPayload(r *http.Request) models.CashVoucherPayload {
 		branchID = 1
 	}
 
-	effectiveDate := r.FormValue("effective_date")
-	if effectiveDate != "" && len(effectiveDate) == 10 {
-		effectiveDate = effectiveDate + "T00:00:00Z"
-	}
+	effectiveDate := ToBackendDate(r.FormValue("effective_date"))
 
 	return models.CashVoucherPayload{
 		VoucherType:          r.FormValue("voucher_type"),

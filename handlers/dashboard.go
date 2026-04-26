@@ -6,7 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -23,15 +23,15 @@ func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	stats := map[string]interface{}{
-		"invoices":        "156",
-		"products":        "342",
-		"clients":         "89",
-		"revenue":         "2350000.00",
-		"suppliers":       "42",
-		"pending_orders":  "12",
-		"purchases_total": "1200000.00",
-		"gross_profit":    "1150000.00",
-		"low_stock_count": "7",
+		"invoices":             "156",
+		"products":             "342",
+		"clients":              "89",
+		"revenue":              "2350000.00",
+		"suppliers":            "42",
+		"pending_orders":       "12",
+		"purchases_total":      "1200000.00",
+		"gross_profit":         "1150000.00",
+		"low_stock_count":      "7",
 		"revenue_before_vat":   "2043478.26",
 		"purchases_before_vat": "1043478.26",
 	}
@@ -68,20 +68,20 @@ func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]interface{}{
-		"title":              "لوحة التحكم",
-		"stats":              stats,
+		"title": "لوحة التحكم",
+		"stats": stats,
 		"kpi_trends": map[string]interface{}{
 			"invoices":        map[string]interface{}{"Arrow": "↑", "Percent": "12.5%", "Class": "text-green-500"},
 			"revenue":         map[string]interface{}{"Arrow": "↑", "Percent": "8.2%", "Class": "text-green-500"},
 			"purchases_total": map[string]interface{}{"Arrow": "↓", "Percent": "3.1%", "Class": "text-red-500"},
 			"gross_profit":    map[string]interface{}{"Arrow": "↑", "Percent": "15.0%", "Class": "text-green-500"},
 		},
-		"chart_labels":       template.JS(labelsJSON),
-		"chart_revenue":      template.JS(revenueJSON),
-		"chart_purchases":    template.JS(purchasesJSON),
-		"chart_status":       template.JS(statusJSON),
-		"recent_invoices":    recentInvoices,
-		"status_counts":      statusCountsTemplate,
+		"chart_labels":    template.JS(labelsJSON),
+		"chart_revenue":   template.JS(revenueJSON),
+		"chart_purchases": template.JS(purchasesJSON),
+		"chart_status":    template.JS(statusJSON),
+		"recent_invoices": recentInvoices,
+		"status_counts":   statusCountsTemplate,
 		"low_stock_products": []map[string]interface{}{
 			{"id": 101, "price": "45.00", "quantity": "2"},
 			{"id": 102, "price": "120.00", "quantity": "0"},
@@ -124,11 +124,11 @@ func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 		"pnl_profit":  template.JS(`[100000, 110000, 120000, 120000, 120000, 130000]`),
 
 		// Analytics — P1 KPIs
-		"inv_turnover":    "2.50",
+		"inv_turnover":     "2.50",
 		"fulfillment_rate": "78.5",
 		"return_rate": map[string]interface{}{
 			"ReturnRate":    4.2,
-			"CreditNotes":  8,
+			"CreditNotes":   8,
 			"TotalInvoices": 190,
 		},
 		"avg_processing_time": "3.2",
@@ -167,47 +167,80 @@ func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 		"client_dist_values": template.JS(`[45, 35, 20]`),
 
 		// Advanced metrics (test mock values)
-		"avg_invoice_value":       "15064.10",
-		"revenue_per_client":      "26404.49",
-		"mom_growth":              template.JS(`[0, 20, -8.3, 18.2, 7.7, 16.7]`),
-		"purchase_to_sales_ratio": "51.1",
-		"discount_rate":           "2.50",
-		"effective_vat_rate":      "14.85",
-		"draft_to_issued_rate":    "13.3",
-		"rev_by_status":           template.JS(`[120000, 80000, 350000, 1800000]`),
-		"inventory_value":         "456000.00",
-		"out_of_stock_count":      5,
-		"out_of_stock_rate":       "1.5",
+		"avg_invoice_value":        "15064.10",
+		"revenue_per_client":       "26404.49",
+		"mom_growth":               template.JS(`[0, 20, -8.3, 18.2, 7.7, 16.7]`),
+		"purchase_to_sales_ratio":  "51.1",
+		"discount_rate":            "2.50",
+		"effective_vat_rate":       "14.85",
+		"draft_to_issued_rate":     "13.3",
+		"rev_by_status":            template.JS(`[120000, 80000, 350000, 1800000]`),
+		"inventory_value":          "456000.00",
+		"out_of_stock_count":       5,
+		"out_of_stock_rate":        "1.5",
 		"inventory_to_sales_ratio": "1.9",
-		"dio":                     "146.0",
-		"ar_total":                "56000.00",
-		"ar_count":                28,
-		"ap_total":                "45000.00",
-		"ap_count":                21,
-		"net_cash_position":       "11000.00",
-		"recv_turnover":           "41.96",
-		"avg_collection_period":   "8.7",
-		"ap_turnover_val":         "26.67",
-		"avg_payment_period":      "13.7",
-		"dso":                     "8.7",
-		"dpo":                     "13.7",
-		"ccc":                     "141.0",
-		"cash_burn_rate":          "0.00",
-		"client_concentration":    "65.3",
+		"dio":                      "146.0",
+		"ar_total":                 "56000.00",
+		"ar_count":                 28,
+		"ap_total":                 "45000.00",
+		"ap_count":                 21,
+		"net_cash_position":        "11000.00",
+		"recv_turnover":            "41.96",
+		"avg_collection_period":    "8.7",
+		"ap_turnover_val":          "26.67",
+		"avg_payment_period":       "13.7",
+		"dso":                      "8.7",
+		"dpo":                      "13.7",
+		"ccc":                      "141.0",
+		"cash_burn_rate":           "0.00",
+		"client_concentration":     "65.3",
 		"vat_quarterly": []map[string]interface{}{
 			{"Quarter": "Q1/2026", "OutputVAT": 52500.0, "InputVAT": 27000.0, "NetVAT": 25500.0},
 			{"Quarter": "Q4/2025", "OutputVAT": 48000.0, "InputVAT": 25000.0, "NetVAT": 23000.0},
 		},
-		"mock_balance_sheet": helpers.GetMockBalanceSheet(2350000, 1200000),
-		"mock_opex":          helpers.GetMockOperatingExpenses(2350000, 1150000),
-		"mock_zatca":         helpers.GetMockZATCACompliance(156),
-		"mock_payment":       helpers.GetMockPaymentTracking(156, 2350000),
-		"mock_liquidity":     helpers.GetMockLiquidityRatios(helpers.GetMockBalanceSheet(2350000, 1200000), 456000),
-		"net_income":         "450000.00",
-		"opex_ratio":         "29.8",
-		"current_ratio":      "2.52",
-		"quick_ratio":        "1.71",
-		"debt_to_equity":     "0.22",
+		"mock_balance_sheet": helpers.DashboardBalanceSheet{
+			CurrentAssets:      1057500,
+			CurrentLiabilities: 420000,
+			TotalAssets:        1880000,
+			TotalDebt:          300000,
+			Equity:             1580000,
+			Cash:               352500,
+		},
+		"mock_opex": helpers.DashboardOperatingExpenses{
+			Rent:      117500,
+			Salaries:  352500,
+			Utilities: 47000,
+			Marketing: 70500,
+			Other:     117500,
+			TotalOpEx: 705000,
+			NetIncome: 445000,
+			OpExRatio: 30.0,
+		},
+		"mock_zatca": helpers.DashboardZATCACompliance{
+			UUIDCount:          156,
+			QRCodeCount:        156,
+			SubmittedCount:     143,
+			RejectedCount:      3,
+			ComplianceRate:     91.7,
+			LastSubmissionDate: "2026-02-01",
+		},
+		"mock_payment": helpers.DashboardPaymentTrackingPanel{
+			CollectionEfficiency: 78.5,
+			OnTimeRate:           72.3,
+			OverdueCount:         23,
+			OverdueAmount:        282000,
+			AvgDaysToPay:         23.5,
+		},
+		"mock_liquidity": helpers.DashboardLiquidityRatios{
+			CurrentRatio: 2.52,
+			QuickRatio:   1.43,
+			DebtToEquity: 0.19,
+		},
+		"net_income":     "450000.00",
+		"opex_ratio":     "29.8",
+		"current_ratio":  "2.52",
+		"quick_ratio":    "1.71",
+		"debt_to_equity": "0.22",
 	}
 
 	if config.DashboardTestTemplate == nil {
@@ -222,7 +255,8 @@ func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HandleDashboard renders the live dashboard.
+// HandleDashboard renders the live dashboard backed by the consolidated
+// /api/v2/dashboard and /api/v2/dashboard/analytics backend endpoints.
 func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -236,31 +270,24 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	endDate := r.URL.Query().Get("end_date")
 
 	var (
-		invoices      []models.Invoice
-		products      []models.Product
-		clients       []models.Client
-		suppliers     []models.Supplier
-		orders        []map[string]interface{}
-		purchaseBills []models.Invoice
-		invErr        error
-		prodErr       error
-		clientErr     error
-		suppErr       error
-		orderErr      error
-		pbErr         error
+		summary                  *helpers.DashboardAPIResponse
+		analytics                *helpers.DashboardAnalyticsAPIResponse
+		summaryErr, analyticsErr error
 	)
 	var wg sync.WaitGroup
-	wg.Add(6)
-	go func() { defer wg.Done(); invoices, invErr = helpers.FetchAllInvoicesUnpaginated(token) }()
-	go func() { defer wg.Done(); products, prodErr = helpers.FetchProducts(token) }()
-	go func() { defer wg.Done(); clients, clientErr = helpers.FetchClients(token) }()
-	go func() { defer wg.Done(); suppliers, suppErr = helpers.FetchSuppliers(token) }()
-	go func() { defer wg.Done(); orders, orderErr = helpers.FetchOrders(token) }()
-	go func() { defer wg.Done(); purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "") }()
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		summary, summaryErr = helpers.FetchDashboardSummary(token, stateFilter, startDate, endDate, 6)
+	}()
+	go func() {
+		defer wg.Done()
+		analytics, analyticsErr = helpers.FetchDashboardAnalytics(token, startDate, endDate, 6)
+	}()
 	wg.Wait()
 
 	// Check auth errors
-	for _, err := range []error{invErr, prodErr, clientErr, suppErr, orderErr, pbErr} {
+	for _, err := range []error{summaryErr, analyticsErr} {
 		if err != nil && helpers.IsUnauthorizedError(err) {
 			helpers.HandleUnauthorized(w, r)
 			return
@@ -269,349 +296,290 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 
 	// Collect warning sections for partial API failures
 	var dashboardWarnings []string
-	if invErr != nil {
-		dashboardWarnings = append(dashboardWarnings, "الفواتير")
+	if summaryErr != nil {
+		log.Printf("dashboard summary error: %v", summaryErr)
+		dashboardWarnings = append(dashboardWarnings, "ملخص لوحة التحكم")
 	}
-	if prodErr != nil {
-		dashboardWarnings = append(dashboardWarnings, "المنتجات")
-	}
-	if clientErr != nil {
-		dashboardWarnings = append(dashboardWarnings, "العملاء")
-	}
-	if suppErr != nil {
-		dashboardWarnings = append(dashboardWarnings, "الموردين")
-	}
-	if orderErr != nil {
-		dashboardWarnings = append(dashboardWarnings, "الطلبات")
-	}
-	if pbErr != nil {
-		dashboardWarnings = append(dashboardWarnings, "فواتير الشراء")
+	if analyticsErr != nil {
+		log.Printf("dashboard analytics error: %v", analyticsErr)
+		dashboardWarnings = append(dashboardWarnings, "التحليلات")
 	}
 
-	// ── Filter invoices ────────────────────────────────────────────
-	filteredInvoices := invoices
-	if stateFilter != "" {
-		stateValue := helpers.ParseIntValue(stateFilter)
-		filtered := make([]models.Invoice, 0)
-		for _, inv := range invoices {
-			if inv.State == stateValue {
-				filtered = append(filtered, inv)
-			}
+	// Defensive: if both failed, render an empty shell so the page still loads.
+	if summary == nil {
+		summary = &helpers.DashboardAPIResponse{}
+	}
+	if analytics == nil {
+		analytics = &helpers.DashboardAnalyticsAPIResponse{}
+	}
+
+	// ── Helper parsers (backend returns numerics as formatted strings) ─
+	parseF := func(s string) float64 {
+		if s == "" {
+			return 0
 		}
-		filteredInvoices = filtered
-	}
-
-	if startDate != "" || endDate != "" {
-		start := helpers.ParseFilterDate(startDate, false)
-		end := helpers.ParseFilterDate(endDate, true)
-		if start != nil || end != nil {
-			filtered := make([]models.Invoice, 0)
-			for _, inv := range filteredInvoices {
-				if inv.EffectiveDate.Time == "" {
-					continue
-				}
-				parsed, err := time.Parse(time.RFC3339, inv.EffectiveDate.Time)
-				if err != nil {
-					parsed, err = time.Parse(time.RFC3339Nano, inv.EffectiveDate.Time)
-					if err != nil {
-						continue
-					}
-				}
-				if start != nil && parsed.Before(*start) {
-					continue
-				}
-				if end != nil && parsed.After(*end) {
-					continue
-				}
-				filtered = append(filtered, inv)
-			}
-			filteredInvoices = filtered
-		}
-	}
-
-	// ── Compute core stats ─────────────────────────────────────────
-	var totalRevenue float64
-	var totalRevenueBeforeVAT float64
-	var totalPurchases float64
-	var totalPurchasesBeforeVAT float64
-	var outputVAT float64
-	var inputVAT float64
-	var totalDiscount float64
-	var creditNoteCount int
-	var creditNoteTotal float64
-	for _, inv := range filteredInvoices {
-		totalRevenue += inv.Total
-		totalRevenueBeforeVAT += inv.TotalBeforeVAT
-		outputVAT += inv.TotalVAT
-		totalDiscount += inv.Discount
-		if inv.CreditState == 1 {
-			creditNoteCount++
-			creditNoteTotal += inv.Total
-		}
-	}
-	for _, pb := range purchaseBills {
-		totalPurchases += pb.Total
-		totalPurchasesBeforeVAT += pb.TotalBeforeVAT
-		inputVAT += pb.TotalVAT
-	}
-	grossProfit := totalRevenue - totalPurchases
-
-	statusCounts := map[int]int{0: 0, 1: 0, 2: 0, 3: 0}
-	for _, inv := range filteredInvoices {
-		statusCounts[inv.State]++
-	}
-
-	// ── Monthly revenue (last 6 months) ────────────────────────────
-	now := time.Now()
-	monthLabels := make([]string, 0, 6)
-	revenueByMonth := make(map[string]float64)
-	purchasesByMonth := make(map[string]float64)
-	for i := 5; i >= 0; i-- {
-		m := now.AddDate(0, -i, 0)
-		monthLabels = append(monthLabels, m.Format("01/2006"))
-	}
-	for _, inv := range filteredInvoices {
-		if inv.EffectiveDate.Time == "" {
-			continue
-		}
-		parsed, err := time.Parse(time.RFC3339, inv.EffectiveDate.Time)
+		v, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			parsed, err = time.Parse(time.RFC3339Nano, inv.EffectiveDate.Time)
-			if err != nil {
-				continue
-			}
+			return 0
 		}
-		revenueByMonth[parsed.Format("01/2006")] += inv.Total
+		return v
 	}
-	for _, pb := range purchaseBills {
-		if pb.EffectiveDate.Time == "" {
-			continue
+	parseFSlice := func(in []string) []float64 {
+		out := make([]float64, len(in))
+		for i, s := range in {
+			out[i] = parseF(s)
 		}
-		parsed, err := time.Parse(time.RFC3339, pb.EffectiveDate.Time)
-		if err != nil {
-			parsed, err = time.Parse(time.RFC3339Nano, pb.EffectiveDate.Time)
-			if err != nil {
-				continue
-			}
-		}
-		purchasesByMonth[parsed.Format("01/2006")] += pb.Total
+		return out
+	}
+	jsJSON := func(v interface{}) template.JS {
+		b, _ := json.Marshal(v)
+		return template.JS(b)
 	}
 
-	revenueSeries := make([]float64, 0, 6)
-	purchaseSeries := make([]float64, 0, 6)
-	for _, label := range monthLabels {
-		revenueSeries = append(revenueSeries, revenueByMonth[label])
-		purchaseSeries = append(purchaseSeries, purchasesByMonth[label])
-	}
-
-	// ── Low-stock products ─────────────────────────────────────────
-	lowStockProducts := make([]map[string]interface{}, 0)
-	if prodErr == nil {
-		for _, p := range products {
-			if helpers.ParseIntValue(p.Quantity) <= 5 {
-				lowStockProducts = append(lowStockProducts, map[string]interface{}{
-					"id":       p.ID,
-					"price":    p.Price,
-					"quantity": p.Quantity,
-				})
-			}
-		}
-		sort.Slice(lowStockProducts, func(i, j int) bool {
-			qi := helpers.ParseIntValue(fmt.Sprint(lowStockProducts[i]["quantity"]))
-			qj := helpers.ParseIntValue(fmt.Sprint(lowStockProducts[j]["quantity"]))
-			return qi < qj
-		})
-		if len(lowStockProducts) > 10 {
-			lowStockProducts = lowStockProducts[:10]
-		}
-	}
-
-	pendingOrders := 0
-	if orderErr == nil {
-		pendingOrders = helpers.ComputePendingOrders(orders)
-	}
+	// ── Stats map ──────────────────────────────────────────────────
+	s := summary.Stats
+	totalRevenue := parseF(s.TotalRevenue)
+	totalPurchases := parseF(s.TotalPurchases)
+	outputVAT := parseF(s.TotalVAT)
+	inputVAT := parseF(s.TotalPurchaseVAT)
 
 	stats := map[string]string{
-		"invoices":          fmt.Sprintf("%d", len(filteredInvoices)),
-		"products":          fmt.Sprintf("%d", len(products)),
-		"clients":           fmt.Sprintf("%d", len(clients)),
-		"revenue":           fmt.Sprintf("%.2f", totalRevenue),
-		"suppliers":         fmt.Sprintf("%d", len(suppliers)),
-		"pending_orders":    fmt.Sprintf("%d", pendingOrders),
-		"purchases_total":   fmt.Sprintf("%.2f", totalPurchases),
-		"gross_profit":      fmt.Sprintf("%.2f", grossProfit),
-		"low_stock_count":   fmt.Sprintf("%d", len(lowStockProducts)),
-		"total_vat":         fmt.Sprintf("%.2f", outputVAT),
-		"purchase_vat":      fmt.Sprintf("%.2f", inputVAT),
-		"net_vat_payable":   fmt.Sprintf("%.2f", outputVAT-inputVAT),
-		"credit_note_count":       fmt.Sprintf("%d", creditNoteCount),
-		"credit_note_total":       fmt.Sprintf("%.2f", creditNoteTotal),
-		"total_discount":          fmt.Sprintf("%.2f", totalDiscount),
-		"revenue_before_vat":      fmt.Sprintf("%.2f", totalRevenueBeforeVAT),
-		"purchases_before_vat":    fmt.Sprintf("%.2f", totalPurchasesBeforeVAT),
+		"invoices":             fmt.Sprintf("%d", s.TotalInvoices),
+		"products":             fmt.Sprintf("%d", s.TotalProducts),
+		"clients":              fmt.Sprintf("%d", s.TotalClients),
+		"suppliers":            fmt.Sprintf("%d", s.TotalSuppliers),
+		"revenue":              s.TotalRevenue,
+		"purchases_total":      s.TotalPurchases,
+		"gross_profit":         s.GrossProfit,
+		"low_stock_count":      fmt.Sprintf("%d", s.LowStockCount),
+		"pending_orders":       fmt.Sprintf("%d", s.PendingOrders),
+		"total_vat":            s.TotalVAT,
+		"purchase_vat":         s.TotalPurchaseVAT,
+		"net_vat_payable":      fmt.Sprintf("%.2f", outputVAT-inputVAT),
+		"credit_note_count":    fmt.Sprintf("%d", s.CreditNoteCount),
+		"credit_note_total":    s.CreditNoteTotal,
+		"total_discount":       s.TotalDiscount,
+		"revenue_before_vat":   fmt.Sprintf("%.2f", totalRevenue-outputVAT),
+		"purchases_before_vat": fmt.Sprintf("%.2f", totalPurchases-inputVAT),
 	}
-	if invErr != nil {
-		stats["invoices"] = statPlaceholder
-		stats["revenue"] = statPlaceholder
-		stats["total_vat"] = statPlaceholder
-		stats["net_vat_payable"] = statPlaceholder
-		stats["credit_note_count"] = statPlaceholder
-		stats["credit_note_total"] = statPlaceholder
-		stats["total_discount"] = statPlaceholder
-		stats["revenue_before_vat"] = statPlaceholder
-	}
-	if prodErr != nil {
-		stats["products"] = statPlaceholder
-		stats["low_stock_count"] = statPlaceholder
-	}
-	if clientErr != nil {
-		stats["clients"] = statPlaceholder
-	}
-	if suppErr != nil {
-		stats["suppliers"] = statPlaceholder
-	}
-	if orderErr != nil {
-		stats["pending_orders"] = statPlaceholder
-	}
-	if pbErr != nil {
-		stats["purchases_total"] = statPlaceholder
-		stats["gross_profit"] = statPlaceholder
-		stats["purchase_vat"] = statPlaceholder
-		stats["net_vat_payable"] = statPlaceholder
-		stats["purchases_before_vat"] = statPlaceholder
+	if summaryErr != nil {
+		for _, k := range []string{
+			"invoices", "products", "clients", "suppliers", "revenue",
+			"purchases_total", "gross_profit", "low_stock_count", "pending_orders",
+			"total_vat", "purchase_vat", "net_vat_payable",
+			"credit_note_count", "credit_note_total", "total_discount",
+			"revenue_before_vat", "purchases_before_vat",
+		} {
+			stats[k] = statPlaceholder
+		}
 	}
 
-	recentInvoices := make([]map[string]interface{}, 0)
-	for i, inv := range filteredInvoices {
-		if i >= 10 {
-			break
+	// ── status_counts (template expects keys: draft/processing/processed/issued)
+	stateBy := map[int]int{0: 0, 1: 0, 2: 0, 3: 0}
+	for k, v := range summary.StatusCounts {
+		// Backend may key by numeric string ("0","1","2","3") or label.
+		switch k {
+		case "0", "draft":
+			stateBy[0] += int(v)
+		case "1", "pending", "processing":
+			stateBy[1] += int(v)
+		case "2", "processed":
+			stateBy[2] += int(v)
+		case "3", "issued":
+			stateBy[3] += int(v)
 		}
-		status, statusClass := helpers.InvoiceStatus(inv)
-		status = helpers.TranslateInvoiceStatus(status)
+	}
+	statusCountsTemplate := map[string]int{
+		"draft":      stateBy[0],
+		"processing": stateBy[1],
+		"processed":  stateBy[2],
+		"issued":     stateBy[3],
+	}
+
+	// ── Recent invoices ────────────────────────────────────────────
+	statusClassFor := func(state int) string {
+		switch state {
+		case 0:
+			return "badge-gray"
+		case 1:
+			return "badge-yellow"
+		case 2:
+			return "badge-green"
+		case 3:
+			return "badge-blue"
+		default:
+			return "badge-gray"
+		}
+	}
+	recentInvoices := make([]map[string]interface{}, 0, len(summary.RecentInvoices))
+	for _, inv := range summary.RecentInvoices {
 		recentInvoices = append(recentInvoices, map[string]interface{}{
 			"id":              inv.ID,
 			"sequence_number": inv.SequenceNumber,
-			"total":           fmt.Sprintf("%.2f", inv.Total),
-			"date":            helpers.FormatInvoiceDate(inv.EffectiveDate.Time),
-			"status":          status,
-			"status_class":    statusClass,
+			"total":           inv.Total,
+			"date":            helpers.ToDisplayDate(inv.Date),
+			"status":          helpers.TranslateInvoiceStatus(inv.StateLabel),
+			"status_class":    statusClassFor(inv.State),
 		})
 	}
 
-	statusCountsTemplate := map[string]int{
-		"draft":      statusCounts[0],
-		"processing": statusCounts[1],
-		"processed":  statusCounts[2],
-		"issued":     statusCounts[3],
+	// ── Low-stock products ─────────────────────────────────────────
+	lowStockProducts := make([]map[string]interface{}, 0, len(summary.LowStockProducts))
+	for _, p := range summary.LowStockProducts {
+		lowStockProducts = append(lowStockProducts, map[string]interface{}{
+			"id":       p.ID,
+			"price":    p.Price,
+			"quantity": p.Quantity,
+		})
 	}
 
-	labelsJSON, _ := json.Marshal(monthLabels)
-	revenueJSON, _ := json.Marshal(revenueSeries)
-	purchasesJSON, _ := json.Marshal(purchaseSeries)
-	statusJSON, _ := json.Marshal([]int{
-		statusCounts[0], statusCounts[1], statusCounts[2], statusCounts[3],
-	})
+	// ── Charts ────────────────────────────────────────────────────
+	c := summary.Charts
+	monthLabels := c.MonthLabels
+	revenueSeries := parseFSlice(c.MonthlyRevenue)
+	purchaseSeries := parseFSlice(c.MonthlyPurchases)
+	chartLabelsJSON := jsJSON(monthLabels)
+	chartRevenueJSON := jsJSON(revenueSeries)
+	chartPurchasesJSON := jsJSON(purchaseSeries)
+	chartStatusJSON := jsJSON([]int{stateBy[0], stateBy[1], stateBy[2], stateBy[3]})
 
-	// Build KPI trends from real data
-	kpiTrends := map[string]interface{}{}
-	realTrends := helpers.ComputeKPITrends(invoices, purchaseBills, products, clients, orders, startDate, endDate)
-	for k, v := range realTrends {
-		kpiTrends[k] = map[string]interface{}{"Arrow": v.Arrow, "Percent": v.Percent, "Class": v.Class}
+	// ── KPI trends ────────────────────────────────────────────────
+	cls := func(direction string) string {
+		switch direction {
+		case "up":
+			return "text-green-500"
+		case "down":
+			return "text-red-500"
+		default:
+			return "text-gray-400"
+		}
+	}
+	tr := func(t helpers.DashboardAPITrend) map[string]interface{} {
+		return map[string]interface{}{"Arrow": t.Arrow, "Percent": t.Percent, "Class": cls(t.Direction)}
+	}
+	kpiTrends := map[string]interface{}{
+		"invoices":        tr(analytics.KPITrends.Invoices),
+		"revenue":         tr(analytics.KPITrends.Revenue),
+		"purchases_total": tr(analytics.KPITrends.PurchasesTotal),
+		"gross_profit":    tr(analytics.KPITrends.GrossProfit),
 	}
 
-	// ── Analytics computations ─────────────────────────────────────
-	// AR / AP Aging
-	arAging := helpers.ComputeAgingAnalysis(filteredInvoices)
-	apAging := helpers.ComputeAPAging(purchaseBills)
-
-	// Cash flow
-	cfPoints := helpers.ComputeCashFlow(filteredInvoices, purchaseBills, monthLabels)
-	cfInflow := make([]float64, len(cfPoints))
-	cfOutflow := make([]float64, len(cfPoints))
-	cfNet := make([]float64, len(cfPoints))
-	for i, p := range cfPoints {
-		cfInflow[i] = p.Inflow
-		cfOutflow[i] = p.Outflow
-		cfNet[i] = p.Net
-	}
-	cfInflowJSON, _ := json.Marshal(cfInflow)
-	cfOutflowJSON, _ := json.Marshal(cfOutflow)
-	cfNetJSON, _ := json.Marshal(cfNet)
-
-	// P&L
-	pnl := helpers.ComputePnL(filteredInvoices, purchaseBills, monthLabels)
-	pnlRevenueJSON, _ := json.Marshal(pnl.MonthRevenue)
-	pnlCOGSJSON, _ := json.Marshal(pnl.MonthCOGS)
-	pnlProfitJSON, _ := json.Marshal(pnl.MonthProfit)
-
-	// Inventory turnover
-	turnoverRatio, _, _ := helpers.ComputeInventoryTurnover(products, totalPurchases)
-
-	// Fulfillment rate
-	fulfillmentRate := helpers.ComputeFulfillmentRate(orders, filteredInvoices)
-
-	// Return rate
-	returnRateData := helpers.ComputeReturnRate(filteredInvoices, monthLabels)
-	returnMonthlyJSON, _ := json.Marshal(returnRateData.MonthlyRates)
-
-	// Processing time
-	avgProcessingTime := helpers.ComputeAvgProcessingTime(orders, filteredInvoices)
-
-	// CLV — top clients
-	clvMap := helpers.ComputeCLV(orders)
-	topCLV := make([]map[string]interface{}, 0)
-	if orderErr == nil {
-		topClients := helpers.ComputeTopClients(orders, 10)
-		for _, tc := range topClients {
-			name, _ := tc["name"].(string)
-			value := 0.0
-			if v, ok := clvMap[name]; ok {
-				value = v
-			}
-			topCLV = append(topCLV, map[string]interface{}{
-				"name":  name,
-				"value": fmt.Sprintf("%.2f", value),
+	// ── AR / AP aging ─────────────────────────────────────────────
+	mapBuckets := func(in []helpers.DashboardAPIAgingBucket) []map[string]interface{} {
+		out := make([]map[string]interface{}, 0, len(in))
+		for _, b := range in {
+			out = append(out, map[string]interface{}{
+				"Label": b.Label,
+				"Count": b.Count,
+				"Total": parseF(b.Total),
 			})
+		}
+		return out
+	}
+	arAging := mapBuckets(analytics.ARAging)
+	apAging := mapBuckets(analytics.APAging)
+
+	// ── Cash flow ─────────────────────────────────────────────────
+	cfInflow := make([]float64, 0, len(analytics.CashFlow))
+	cfOutflow := make([]float64, 0, len(analytics.CashFlow))
+	cfNet := make([]float64, 0, len(analytics.CashFlow))
+	for _, m := range analytics.CashFlow {
+		cfInflow = append(cfInflow, parseF(m.Inflow))
+		cfOutflow = append(cfOutflow, parseF(m.Outflow))
+		cfNet = append(cfNet, parseF(m.Net))
+	}
+
+	// ── P&L ───────────────────────────────────────────────────────
+	pnl := analytics.PnL
+	pnlMap := map[string]interface{}{
+		"Revenue":     parseF(pnl.Revenue),
+		"COGS":        parseF(pnl.COGS),
+		"GrossProfit": parseF(pnl.GrossProfit),
+		"GrossMargin": parseF(pnl.GrossMargin),
+	}
+
+	// ── Margin tiers / supplier perf / top clients reshape ───────
+	marginTiers := make([]map[string]interface{}, 0, len(summary.MarginTiers))
+	for _, t := range summary.MarginTiers {
+		marginTiers = append(marginTiers, map[string]interface{}{
+			"Label":    t.Label,
+			"Count":    t.Count,
+			"AvgPrice": parseF(t.AvgPrice),
+		})
+	}
+	supplierPerf := make([]map[string]interface{}, 0, len(summary.SupplierPerf))
+	for _, sp := range summary.SupplierPerf {
+		supplierPerf = append(supplierPerf, map[string]interface{}{
+			"Name":       sp.Name,
+			"BillCount":  sp.BillCount,
+			"TotalSpent": parseF(sp.TotalSpent),
+			"AvgTotal":   parseF(sp.AvgTotal),
+		})
+	}
+	topCLV := make([]map[string]interface{}, 0, len(summary.TopCLV))
+	for _, cl := range summary.TopCLV {
+		topCLV = append(topCLV, map[string]interface{}{
+			"name":  cl.Name,
+			"value": cl.Value,
+		})
+	}
+
+	// ── Weekday revenue / monthly returns / yoy / moving avg ────
+	weekdayRevenue := make([]map[string]interface{}, 0, len(c.WeekdayRevenue))
+	for _, w := range c.WeekdayRevenue {
+		weekdayRevenue = append(weekdayRevenue, map[string]interface{}{
+			"DayName":    w.DayName,
+			"AvgRevenue": parseF(w.AvgRevenue),
+		})
+	}
+	returnMonthlyRates := make([]float64, 0, len(c.MonthlyReturns))
+	for _, m := range c.MonthlyReturns {
+		returnMonthlyRates = append(returnMonthlyRates, parseF(m.Rate))
+	}
+	yoyRevenue := parseFSlice(c.YoYRevenue)
+
+	// 3-month moving average over revenue series
+	movingAvg := make([]float64, len(revenueSeries))
+	for i := range revenueSeries {
+		start := i - 2
+		if start < 0 {
+			start = 0
+		}
+		var sum float64
+		for j := start; j <= i; j++ {
+			sum += revenueSeries[j]
+		}
+		movingAvg[i] = sum / float64(i-start+1)
+	}
+
+	// MoM growth (% vs previous month)
+	momGrowth := make([]float64, len(revenueSeries))
+	for i := 1; i < len(revenueSeries); i++ {
+		if revenueSeries[i-1] > 0 {
+			momGrowth[i] = (revenueSeries[i] - revenueSeries[i-1]) * 100 / revenueSeries[i-1]
 		}
 	}
 
-	// Margin tiers
-	marginTiers := helpers.ComputeGrossMarginByTier(products)
+	// ── Top products / client distribution ───────────────────────
+	topProdLabels := make([]string, 0, len(summary.TopProducts))
+	topProdValues := make([]float64, 0, len(summary.TopProducts))
+	for _, p := range summary.TopProducts {
+		topProdLabels = append(topProdLabels, p.ArticleNumber)
+		topProdValues = append(topProdValues, parseF(p.Quantity))
+	}
+	clientDistLabels := []string{"نشط", "غير نشط"}
+	clientDistValues := []int64{summary.ClientDistribution.Active, summary.ClientDistribution.Inactive}
 
-	// Supplier performance
-	supplierPerf := helpers.ComputeSupplierPerformance(suppliers, purchaseBills, 10)
-
-	// YoY revenue
-	yoyRevenue := helpers.ComputeYoYRevenue(invoices, monthLabels)
-	yoyJSON, _ := json.Marshal(yoyRevenue)
-
-	// Moving average (3-month window on revenue)
-	movingAvg := helpers.ComputeMovingAverage(revenueSeries, 3)
-	movingAvgJSON, _ := json.Marshal(movingAvg)
-
-	// Weekday revenue
-	weekdayRevenue := helpers.ComputeWeekdayRevenue(filteredInvoices)
-	weekdayJSON, _ := json.Marshal(weekdayRevenue)
-
-	// Top products
-	topProdLabels, topProdValues := helpers.ComputeTopProducts(products, 5)
-	topProdLabelsJSON, _ := json.Marshal(topProdLabels)
-	topProdValuesJSON, _ := json.Marshal(topProdValues)
-
-	// Client distribution
-	clientDistLabels, clientDistValues := helpers.ComputeClientsDistribution(clients, orders)
-	clientDistLabelsJSON, _ := json.Marshal(clientDistLabels)
-	clientDistValuesJSON, _ := json.Marshal(clientDistValues)
-
+	// ── Build base data map ──────────────────────────────────────
 	data := map[string]interface{}{
 		"title":              "لوحة التحكم",
 		"dashboard_warnings": dashboardWarnings,
 		"stats":              stats,
 		"kpi_trends":         kpiTrends,
-		"chart_labels":       template.JS(labelsJSON),
-		"chart_revenue":      template.JS(revenueJSON),
-		"chart_purchases":    template.JS(purchasesJSON),
-		"chart_status":       template.JS(statusJSON),
+		"chart_labels":       chartLabelsJSON,
+		"chart_revenue":      chartRevenueJSON,
+		"chart_purchases":    chartPurchasesJSON,
+		"chart_status":       chartStatusJSON,
 		"recent_invoices":    recentInvoices,
 		"status_counts":      statusCountsTemplate,
 		"low_stock_products": lowStockProducts,
@@ -621,131 +589,230 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		"user_role":          helpers.GetUserRole(r),
 		"version":            config.AppVersion,
 
-		// Analytics — Aging
+		// Aging
 		"ar_aging": arAging,
 		"ap_aging": apAging,
 
-		// Analytics — Cash Flow
-		"cf_inflow":  template.JS(cfInflowJSON),
-		"cf_outflow": template.JS(cfOutflowJSON),
-		"cf_net":     template.JS(cfNetJSON),
+		// Cash flow
+		"cf_inflow":  jsJSON(cfInflow),
+		"cf_outflow": jsJSON(cfOutflow),
+		"cf_net":     jsJSON(cfNet),
 
-		// Analytics — P&L
-		"pnl": map[string]interface{}{
-			"Revenue":     pnl.Revenue,
-			"COGS":        pnl.COGS,
-			"GrossProfit": pnl.GrossProfit,
-			"GrossMargin": pnl.GrossMargin,
-		},
-		"pnl_revenue": template.JS(pnlRevenueJSON),
-		"pnl_cogs":    template.JS(pnlCOGSJSON),
-		"pnl_profit":  template.JS(pnlProfitJSON),
+		// P&L
+		"pnl":         pnlMap,
+		"pnl_revenue": jsJSON(parseFSlice(pnl.MonthRevenue)),
+		"pnl_cogs":    jsJSON(parseFSlice(pnl.MonthCOGS)),
+		"pnl_profit":  jsJSON(parseFSlice(pnl.MonthProfit)),
 
-		// Analytics — KPIs
-		"inv_turnover":    fmt.Sprintf("%.2f", turnoverRatio),
-		"fulfillment_rate": fmt.Sprintf("%.1f", fulfillmentRate),
+		// KPI scalars
+		"inv_turnover":     s.InvTurnover,
+		"fulfillment_rate": s.FulfillmentRate,
 		"return_rate": map[string]interface{}{
-			"ReturnRate":    returnRateData.ReturnRate,
-			"CreditNotes":  returnRateData.CreditNotes,
-			"TotalInvoices": returnRateData.TotalInvoices,
+			"ReturnRate":    parseF(s.ReturnRate),
+			"CreditNotes":   s.CreditNoteCount,
+			"TotalInvoices": s.TotalInvoices,
 		},
-		"avg_processing_time": fmt.Sprintf("%.1f", avgProcessingTime),
+		"avg_processing_time": s.AvgProcessingDays,
 
-		// Analytics — Tables
+		// Tables
 		"top_clv":       topCLV,
 		"margin_tiers":  marginTiers,
 		"supplier_perf": supplierPerf,
 
-		// Analytics — Charts
-		"yoy_revenue":     template.JS(yoyJSON),
-		"moving_avg":      template.JS(movingAvgJSON),
-		"weekday_revenue": template.JS(weekdayJSON),
-		"return_monthly":  template.JS(returnMonthlyJSON),
+		// Charts
+		"yoy_revenue":     jsJSON(yoyRevenue),
+		"moving_avg":      jsJSON(movingAvg),
+		"weekday_revenue": jsJSON(weekdayRevenue),
+		"return_monthly":  jsJSON(returnMonthlyRates),
 
-		// Analytics — Product & Client distribution
-		"top_prod_labels":    template.JS(topProdLabelsJSON),
-		"top_prod_values":    template.JS(topProdValuesJSON),
-		"client_dist_labels": template.JS(clientDistLabelsJSON),
-		"client_dist_values": template.JS(clientDistValuesJSON),
+		// Distributions
+		"top_prod_labels":    jsJSON(topProdLabels),
+		"top_prod_values":    jsJSON(topProdValues),
+		"client_dist_labels": jsJSON(clientDistLabels),
+		"client_dist_values": jsJSON(clientDistValues),
 	}
 
-	// ── Advanced Metrics (Score ≥ 8) ───────────────────────────────
-	// Profitability & Revenue
-	avgInvoiceValue := helpers.ComputeAverageInvoiceValue(filteredInvoices)
-	revenuePerClient := helpers.ComputeRevenuePerClient(totalRevenue, len(clients))
-	momGrowth := helpers.ComputeMoMGrowth(revenueSeries)
-	momGrowthJSON, _ := json.Marshal(momGrowth)
-	purchaseToSalesRatio := helpers.ComputePurchaseToSalesRatio(totalPurchases, totalRevenue)
-	discountRate := helpers.ComputeDiscountRate(totalDiscount, totalRevenue)
-	effectiveVATRate := helpers.ComputeEffectiveVATRate(outputVAT, totalRevenue)
-	draftToIssuedRate := helpers.ComputeDraftToIssuedRate(statusCounts)
-	revenueByStatus := helpers.ComputeRevenueByStatus(filteredInvoices)
+	// ── Advanced metrics derived from totals ─────────────────────
+	avgInvoiceValue := parseF(s.AvgInvoiceValue)
+	revenuePerClient := 0.0
+	if s.TotalClients > 0 {
+		revenuePerClient = totalRevenue / float64(s.TotalClients)
+	}
+	purchaseToSalesRatio := 0.0
+	if totalRevenue > 0 {
+		purchaseToSalesRatio = totalPurchases * 100 / totalRevenue
+	}
+	totalDiscount := parseF(s.TotalDiscount)
+	discountRate := 0.0
+	if totalRevenue > 0 {
+		discountRate = totalDiscount * 100 / totalRevenue
+	}
+	effectiveVATRate := 0.0
+	if totalRevenue > 0 {
+		effectiveVATRate = outputVAT * 100 / totalRevenue
+	}
+	draftToIssuedRate := 0.0
+	if stateBy[3] > 0 {
+		draftToIssuedRate = float64(stateBy[0]) * 100 / float64(stateBy[3])
+	}
+	revByStatusJSON := jsJSON([]float64{0, 0, 0, totalRevenue}) // backend not yet exposing per-status revenue split
 
 	// Inventory
-	inventoryValue := helpers.ComputeInventoryValue(products)
-	outOfStockCount, outOfStockRate := helpers.ComputeOutOfStock(products)
-	currentMonthRevenue := 0.0
-	if len(revenueSeries) > 0 {
-		currentMonthRevenue = revenueSeries[len(revenueSeries)-1]
+	inventoryValue := 0.0
+	for _, t := range marginTiers {
+		if cnt, ok := t["Count"].(int); ok {
+			if avg, ok2 := t["AvgPrice"].(float64); ok2 {
+				inventoryValue += float64(cnt) * avg
+			}
+		}
 	}
-	inventoryToSalesRatio := helpers.ComputeInventoryToSalesRatio(inventoryValue, currentMonthRevenue)
-	dio := helpers.ComputeDIO(turnoverRatio)
-
-	// AR/AP & Liquidity
-	arTotal, arCount := helpers.ComputeTotalAROutstanding(arAging)
-	apTotal, apCount := helpers.ComputeTotalAPOutstanding(apAging)
-	netCashPosition := helpers.ComputeNetCashPosition(arTotal, apTotal)
-	recvTurnover := helpers.ComputeReceivablesTurnover(totalRevenue, arTotal)
-	avgCollectionPeriod := helpers.ComputeAvgCollectionPeriod(recvTurnover)
-	apTurnoverVal := helpers.ComputeAPTurnover(totalPurchases, apTotal)
-	avgPaymentPeriod := helpers.ComputeAvgPaymentPeriod(apTurnoverVal)
-	dso := helpers.ComputeDSO(arTotal, totalRevenue, 365)
-	dpo := helpers.ComputeDPO(apTotal, totalPurchases, 365)
-	cashConversionCycle := helpers.ComputeCashConversionCycle(dio, dso, dpo)
-	cashBurnRate := helpers.ComputeCashBurnRate(cfPoints)
-
-	// Concentration risk from client values
-	clientValues := make([]float64, 0, len(clvMap))
-	for _, v := range clvMap {
-		clientValues = append(clientValues, v)
+	turnoverRatio := parseF(s.InvTurnover)
+	dio := 0.0
+	if turnoverRatio > 0 {
+		dio = 365 / turnoverRatio
 	}
-	clientConcentration := helpers.ComputeConcentrationRisk(clientValues, 3)
+	monthlyAvgRev := totalRevenue / 12
+	inventoryToSalesRatio := 0.0
+	if monthlyAvgRev > 0 {
+		inventoryToSalesRatio = inventoryValue * 100 / monthlyAvgRev
+	}
+	outOfStockCount := 0
+	for _, p := range summary.LowStockProducts {
+		if parseF(p.Quantity) <= 0 {
+			outOfStockCount++
+		}
+	}
+	outOfStockRate := 0.0
+	if s.TotalProducts > 0 {
+		outOfStockRate = float64(outOfStockCount) * 100 / float64(s.TotalProducts)
+	}
+
+	// AR/AP totals from analytics (sum of buckets)
+	arTotal, arCount := 0.0, 0
+	for _, b := range analytics.ARAging {
+		arTotal += parseF(b.Total)
+		arCount += b.Count
+	}
+	apTotal, apCount := 0.0, 0
+	for _, b := range analytics.APAging {
+		apTotal += parseF(b.Total)
+		apCount += b.Count
+	}
+
+	pt := analytics.PaymentTracking
+	netCashPosition := parseF(pt.NetCashPosition)
+	if netCashPosition == 0 {
+		netCashPosition = arTotal - apTotal
+	}
+	recvTurnover := 0.0
+	if arTotal > 0 {
+		recvTurnover = totalRevenue / arTotal
+	}
+	avgCollectionPeriod := 0.0
+	if recvTurnover > 0 {
+		avgCollectionPeriod = 365 / recvTurnover
+	}
+	apTurnoverVal := 0.0
+	if apTotal > 0 {
+		apTurnoverVal = totalPurchases / apTotal
+	}
+	avgPaymentPeriod := 0.0
+	if apTurnoverVal > 0 {
+		avgPaymentPeriod = 365 / apTurnoverVal
+	}
+	dso := 0.0
+	if totalRevenue > 0 {
+		dso = arTotal * 365 / totalRevenue
+	}
+	dpo := 0.0
+	if totalPurchases > 0 {
+		dpo = apTotal * 365 / totalPurchases
+	}
+	cashConversionCycle := dio + dso - dpo
+
+	cashBurnRate := 0.0
+	if len(cfNet) > 0 {
+		var sumNet float64
+		for _, n := range cfNet {
+			sumNet += n
+		}
+		cashBurnRate = sumNet / float64(len(cfNet))
+	}
 
 	// VAT quarterly
-	vatQuarterly := helpers.ComputeVATQuarterly(filteredInvoices, purchaseBills)
+	vatQuarterly := make([]map[string]interface{}, 0, len(analytics.VATQuarterly))
+	for _, q := range analytics.VATQuarterly {
+		vatQuarterly = append(vatQuarterly, map[string]interface{}{
+			"Quarter":   q.Quarter,
+			"OutputVAT": parseF(q.OutputVAT),
+			"InputVAT":  parseF(q.InputVAT),
+			"NetVAT":    parseF(q.NetVAT),
+		})
+	}
 
-	// Revenue by status for chart
-	revDraft := revenueByStatus[0]
-	revProcessing := revenueByStatus[1]
-	revProcessed := revenueByStatus[2]
-	revIssued := revenueByStatus[3]
-	revByStatusJSON, _ := json.Marshal([]float64{revDraft, revProcessing, revProcessed, revIssued})
+	// ── Panel structs populated from analytics endpoint ─────────
+	mockBS := helpers.DashboardBalanceSheet{
+		TotalAssets: parseF(analytics.BalanceSheet.TotalAssets),
+		TotalDebt:   parseF(analytics.BalanceSheet.TotalLiabilities),
+		Equity:      parseF(analytics.BalanceSheet.TotalEquity),
+	}
 
-	// Mock data for metrics requiring backend data not yet available
-	mockBS := helpers.GetMockBalanceSheet(totalRevenue, totalPurchases)
-	mockOpEx := helpers.GetMockOperatingExpenses(totalRevenue, grossProfit)
-	mockZATCA := helpers.GetMockZATCACompliance(len(filteredInvoices))
-	mockPayment := helpers.GetMockPaymentTracking(len(filteredInvoices), totalRevenue)
-	mockLiquidity := helpers.GetMockLiquidityRatios(mockBS, inventoryValue)
+	mockOpEx := helpers.DashboardOperatingExpenses{
+		TotalOpEx: parseF(analytics.OpEx.TotalOpEx),
+		NetIncome: parseF(analytics.OpEx.NetIncome),
+		OpExRatio: parseF(analytics.OpEx.OpExRatio),
+	}
+	for _, cat := range analytics.OpEx.ByCategory {
+		amt := parseF(cat.TotalAmount)
+		switch cat.Code {
+		case "RENT":
+			mockOpEx.Rent += amt
+		case "SALARIES", "PAYROLL":
+			mockOpEx.Salaries += amt
+		case "UTILITIES":
+			mockOpEx.Utilities += amt
+		case "MARKETING":
+			mockOpEx.Marketing += amt
+		default:
+			mockOpEx.Other += amt
+		}
+	}
 
-	// Add advanced metrics to data map
+	mockZATCA := helpers.DashboardZATCACompliance{
+		SubmittedCount: int(analytics.ZATCA.SubmittedCount + analytics.ZATCA.AcceptedCount),
+		RejectedCount:  int(analytics.ZATCA.RejectedCount),
+		ComplianceRate: parseF(analytics.ZATCA.AcceptanceRate),
+	}
+
+	mockPayment := helpers.DashboardPaymentTrackingPanel{
+		OverdueCount:  int(pt.AROutstandingCount),
+		OverdueAmount: parseF(pt.AROutstandingTotal),
+	}
+
+	mockLiquidity := helpers.DashboardLiquidityRatios{
+		CurrentRatio: parseF(analytics.Liquidity.CurrentRatio),
+		QuickRatio:   parseF(analytics.Liquidity.QuickRatio),
+		DebtToEquity: parseF(analytics.Liquidity.DebtToEquity),
+	}
+
+	clientConcentration := parseF(s.ClientConcentration)
+
+	// ── Add advanced/derived keys ────────────────────────────────
 	data["avg_invoice_value"] = fmt.Sprintf("%.2f", avgInvoiceValue)
 	data["revenue_per_client"] = fmt.Sprintf("%.2f", revenuePerClient)
-	data["mom_growth"] = template.JS(momGrowthJSON)
+	data["mom_growth"] = jsJSON(momGrowth)
 	data["purchase_to_sales_ratio"] = fmt.Sprintf("%.1f", purchaseToSalesRatio)
 	data["discount_rate"] = fmt.Sprintf("%.2f", discountRate)
 	data["effective_vat_rate"] = fmt.Sprintf("%.2f", effectiveVATRate)
 	data["draft_to_issued_rate"] = fmt.Sprintf("%.1f", draftToIssuedRate)
-	data["rev_by_status"] = template.JS(revByStatusJSON)
+	data["rev_by_status"] = revByStatusJSON
 
-	// Inventory metrics
 	data["inventory_value"] = fmt.Sprintf("%.2f", inventoryValue)
 	data["out_of_stock_count"] = outOfStockCount
 	data["out_of_stock_rate"] = fmt.Sprintf("%.1f", outOfStockRate)
 	data["inventory_to_sales_ratio"] = fmt.Sprintf("%.1f", inventoryToSalesRatio)
 	data["dio"] = fmt.Sprintf("%.1f", dio)
 
-	// AR/AP metrics
 	data["ar_total"] = fmt.Sprintf("%.2f", arTotal)
 	data["ar_count"] = arCount
 	data["ap_total"] = fmt.Sprintf("%.2f", apTotal)
@@ -762,7 +829,6 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	data["client_concentration"] = fmt.Sprintf("%.1f", clientConcentration)
 	data["vat_quarterly"] = vatQuarterly
 
-	// Mock-based metrics
 	data["mock_balance_sheet"] = mockBS
 	data["mock_opex"] = mockOpEx
 	data["mock_zatca"] = mockZATCA
@@ -786,75 +852,6 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// comparePeriodStats filters invoices & purchase bills for a date range and returns KPIs.
-func comparePeriodStats(invoices, purchaseBills []models.Invoice, start, end time.Time) map[string]string {
-	var filtered []models.Invoice
-	var filteredPB []models.Invoice
-	for _, inv := range invoices {
-		if inv.EffectiveDate.Time == "" {
-			continue
-		}
-		parsed, err := time.Parse(time.RFC3339, inv.EffectiveDate.Time)
-		if err != nil {
-			parsed, err = time.Parse(time.RFC3339Nano, inv.EffectiveDate.Time)
-			if err != nil {
-				continue
-			}
-		}
-		if !parsed.Before(start) && !parsed.After(end) {
-			filtered = append(filtered, inv)
-		}
-	}
-	for _, pb := range purchaseBills {
-		if pb.EffectiveDate.Time == "" {
-			continue
-		}
-		parsed, err := time.Parse(time.RFC3339, pb.EffectiveDate.Time)
-		if err != nil {
-			parsed, err = time.Parse(time.RFC3339Nano, pb.EffectiveDate.Time)
-			if err != nil {
-				continue
-			}
-		}
-		if !parsed.Before(start) && !parsed.After(end) {
-			filteredPB = append(filteredPB, pb)
-		}
-	}
-
-	var revenue, purchases, pending float64
-	statusCounts := map[int]int{0: 0, 1: 0, 2: 0, 3: 0}
-	for _, inv := range filtered {
-		revenue += inv.Total
-		statusCounts[inv.State]++
-		if inv.State == 0 || inv.State == 1 {
-			pending += inv.Total
-		}
-	}
-	for _, pb := range filteredPB {
-		purchases += pb.Total
-	}
-	profit := revenue - purchases
-	avg := 0.0
-	if len(filtered) > 0 {
-		avg = revenue / float64(len(filtered))
-	}
-	margin := 0.0
-	if revenue > 0 {
-		margin = profit * 100 / revenue
-	}
-	return map[string]string{
-		"invoices":    fmt.Sprintf("%d", len(filtered)),
-		"revenue":     fmt.Sprintf("%.2f", revenue),
-		"purchases":   fmt.Sprintf("%.2f", purchases),
-		"profit":      fmt.Sprintf("%.2f", profit),
-		"avg_invoice": fmt.Sprintf("%.2f", avg),
-		"pending":     fmt.Sprintf("%.2f", pending),
-		"margin":      fmt.Sprintf("%.1f", margin),
-		"issued":      fmt.Sprintf("%d", statusCounts[3]),
-		"draft":       fmt.Sprintf("%d", statusCounts[0]),
-	}
-}
-
 // HandleDashboardCompare returns an HTMX partial comparing two periods.
 func HandleDashboardCompare(w http.ResponseWriter, r *http.Request) {
 	token, ok := helpers.GetTokenOrRedirect(w, r)
@@ -873,37 +870,20 @@ func HandleDashboardCompare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parseDate := func(s string) time.Time {
-		t, err := time.Parse("2006-01-02", s)
-		if err != nil {
-			return time.Time{}
-		}
-		return t
-	}
-
-	periodAStart := parseDate(aStart)
-	periodAEnd := parseDate(aEnd).Add(23*time.Hour + 59*time.Minute + 59*time.Second)
-	periodBStart := parseDate(bStart)
-	periodBEnd := parseDate(bEnd).Add(23*time.Hour + 59*time.Minute + 59*time.Second)
-
-	// Fetch invoices & purchase bills
-	var invoices, purchaseBills []models.Invoice
-	var invErr, pbErr error
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() { defer wg.Done(); invoices, invErr = helpers.FetchAllInvoicesUnpaginated(token) }()
-	go func() { defer wg.Done(); purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "") }()
-	wg.Wait()
-
-	for _, err := range []error{invErr, pbErr} {
-		if err != nil && helpers.IsUnauthorizedError(err) {
+	resp, err := helpers.FetchDashboardCompareData(token, aStart, aEnd, bStart, bEnd)
+	if err != nil {
+		if helpers.IsUnauthorizedError(err) {
 			helpers.HandleUnauthorized(w, r)
 			return
 		}
+		log.Printf("dashboard compare error: %v", err)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, `<div class="text-center text-red-500 text-sm py-4">تعذر تحميل بيانات المقارنة</div>`)
+		return
 	}
 
-	a := comparePeriodStats(invoices, purchaseBills, periodAStart, periodAEnd)
-	b := comparePeriodStats(invoices, purchaseBills, periodBStart, periodBEnd)
+	a := resp.PeriodA
+	b := resp.PeriodB
 
 	type row struct {
 		Label string
@@ -911,15 +891,15 @@ func HandleDashboardCompare(w http.ResponseWriter, r *http.Request) {
 		B     string
 	}
 	rows := []row{
-		{"عدد الفواتير", a["invoices"], b["invoices"]},
-		{"الإيرادات", a["revenue"], b["revenue"]},
-		{"المشتريات", a["purchases"], b["purchases"]},
-		{"الربح", a["profit"], b["profit"]},
-		{"متوسط الفاتورة", a["avg_invoice"], b["avg_invoice"]},
-		{"المعلقات", a["pending"], b["pending"]},
-		{"هامش الربح %", a["margin"] + "%", b["margin"] + "%"},
-		{"فواتير صادرة", a["issued"], b["issued"]},
-		{"مسودات", a["draft"], b["draft"]},
+		{"عدد الفواتير", fmt.Sprintf("%d", a.Invoices), fmt.Sprintf("%d", b.Invoices)},
+		{"الإيرادات", a.Revenue, b.Revenue},
+		{"المشتريات", a.Purchases, b.Purchases},
+		{"الربح", a.Profit, b.Profit},
+		{"متوسط الفاتورة", a.AvgInvoice, b.AvgInvoice},
+		{"المعلقات", a.Pending, b.Pending},
+		{"هامش الربح %", a.Margin + "%", b.Margin + "%"},
+		{"فواتير صادرة", fmt.Sprintf("%d", a.Issued), fmt.Sprintf("%d", b.Issued)},
+		{"مسودات", fmt.Sprintf("%d", a.Draft), fmt.Sprintf("%d", b.Draft)},
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

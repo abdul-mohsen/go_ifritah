@@ -363,10 +363,21 @@ type StockCheckItem struct {
 	Quantity  int `json:"quantity"`
 }
 
+// StockCheckResultItem is one entry in the stock check response.
+// Backend returns available/requested as strings; keep them as strings here.
+type StockCheckResultItem struct {
+	ProductID  int    `json:"product_id"`
+	StoreID    int    `json:"store_id"`
+	Requested  string `json:"requested"`
+	Available  string `json:"available"`
+	Sufficient bool   `json:"sufficient"`
+}
+
 // StockCheckResponse is the response from a stock availability check
 type StockCheckResponse struct {
-	Enforcement   string `json:"enforcement"`
-	AllSufficient bool   `json:"all_sufficient"`
+	Enforcement   string                 `json:"enforcement"`
+	AllSufficient bool                   `json:"all_sufficient"`
+	Items         []StockCheckResultItem `json:"items"`
 }
 
 // StockEnforcementResponse holds the current enforcement mode

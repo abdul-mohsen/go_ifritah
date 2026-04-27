@@ -1,14 +1,11 @@
-//go:build ignore
-// +build ignore
-
-// Disabled: references BillType field that doesn't exist on models.Invoice.
-
 package handlers
 
 import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -17,38 +14,56 @@ import (
 	"afrita/models"
 )
 
-// TestCreditNoteButton_OnlyForSubmittedNonCreditBills verifies that:
-// 1. Submitted bills (state=1) with credit_state=0 → SHOW credit note button
-// 2. Draft bills (state=0) → HIDE credit note button
-// 3. Credit note bills (credit_state>=1) → HIDE credit note button
-// 4. ZATCA issued bills (state=3) with credit_state=0 → HIDE credit note button
-func TestCreditNoteButton_OnlyForSubmittedNonCreditBills(t *testing.T) {
-	testCases := []struct {
-		name            string
-		state           int
-		creditState     int
-		expectCreditBtn bool
+// TestCreditNoteButton_Visibility verifies which combinations of (state,
+// credit_state) render the "Credit Note" action link in the invoices list.
+//
+// Per ZATCA regulations, a credit note IS the official mechanism to reverse
+// a cleared invoice, so the button must remain visible for state=3
+// (ZATCA-issued) too — as long as credit_state == 0.
+//
+// Matrix:
+//   state=1, credit_state=0  -> SHOW   (submitted, not credited)
+//   state=3, credit_state=0  -> SHOW   (ZATCA-issued, not credited) <- bug fix
+//   state=0, credit_state=0  -> HIDE   (draft)
+//   state=1, credit_state=1  -> HIDE   (already credited)
+//   state=3, credit_state=3  -> HIDE   (already credited)
+func TestCreditNoteButton_Visibility(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	root := filepath.Dir(cwd)
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("chdir to repo root: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	cases := []struct {
+		name        string
+		state       int
+		creditState int
+		expectShow  bool
 	}{
-		{"submitted_no_credit", 1, 0, true},     // AC2: submitted + not credit → SHOW
-		{"draft", 0, 0, false},                  // AC1: draft → HIDE
-		{"credit_note_processing", 1, 1, false}, // AC3: already credit note → HIDE
-		{"credit_note_issued", 1, 3, false},     // AC3: credit note issued → HIDE
-		{"zatca_issued", 3, 0, false},           // AC4: ZATCA issued → HIDE
+		{"submitted_not_credited", 1, 0, true},
+		{"zatca_issued_not_credited", 3, 0, true},
+		{"draft", 0, 0, false},
+		{"submitted_already_credited", 1, 1, false},
+		{"zatca_issued_already_credited", 3, 3, false},
 	}
 
-	for _, tc := range testCases {
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			invoices := []models.Invoice{
 				{
 					ID:             42,
 					SequenceNumber: 100,
-					Total:          100.0,
-					TotalBeforeVAT: 87.0,
-					TotalVAT:       13.0,
+					Total:          115.0,
+					TotalBeforeVAT: 100.0,
+					TotalVAT:       15.0,
 					Discount:       0.0,
 					State:          tc.state,
 					CreditState:    tc.creditState,
-					BillType:       true,
+					Type:           true,
 					EffectiveDate: struct {
 						Time  string `json:"Time"`
 						Valid bool   `json:"Valid"`
@@ -57,6 +72,10 @@ func TestCreditNoteButton_OnlyForSubmittedNonCreditBills(t *testing.T) {
 			}
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/api/v2/bill/all" {
+					http.NotFound(w, r)
+					return
+				}
 				payload, _ := json.Marshal(invoices)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
@@ -89,17 +108,14 @@ func TestCreditNoteButton_OnlyForSubmittedNonCreditBills(t *testing.T) {
 			}
 
 			body := w.Body.String()
-			creditLink := "invoices/credit/42"
+			creditLink := `href="/dashboard/invoices/credit/42"`
+			has := strings.Contains(body, creditLink)
 
-			hasCreditBtn := strings.Contains(body, creditLink)
-
-			if tc.expectCreditBtn && !hasCreditBtn {
-				t.Errorf("expected credit note button for state=%d credit_state=%d, but not found in HTML",
-					tc.state, tc.creditState)
+			if tc.expectShow && !has {
+				t.Errorf("expected credit-note link for state=%d credit_state=%d, but it was hidden", tc.state, tc.creditState)
 			}
-			if !tc.expectCreditBtn && hasCreditBtn {
-				t.Errorf("credit note button should NOT appear for state=%d credit_state=%d, but found in HTML",
-					tc.state, tc.creditState)
+			if !tc.expectShow && has {
+				t.Errorf("expected credit-note link to be hidden for state=%d credit_state=%d, but it was rendered", tc.state, tc.creditState)
 			}
 		})
 	}

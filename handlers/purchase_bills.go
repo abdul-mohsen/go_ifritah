@@ -440,31 +440,92 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	billProducts := helpers.ParseBillItemsPublic(bill["products"])
 	billManual := helpers.ParseBillItemsPublic(bill["manual_products"])
 
-	// Resolve float64 IDs from JSON to int for template comparison
+	// Resolve float64 IDs from JSON to int for template comparison.
+	// supplier_id is the actual supplier reference; merchant_id is the
+	// company/tenant. The detail page already distinguishes them — the
+	// edit form must use supplier_id, otherwise the supplier dropdown
+	// renders blank and the user has to re-select on every edit.
 	billStoreID := int(helpers.SafeFloat(bill["store_id"]))
-	billSupplierID := int(helpers.SafeFloat(bill["merchant_id"]))
+	billSupplierID := int(helpers.SafeFloat(bill["supplier_id"]))
+	if billSupplierID == 0 {
+		billSupplierID = int(helpers.SafeFloat(bill["merchant_id"]))
+	}
 
-	// Format effective_date for the date input
+	// Format effective_date for the date input. The backend may return it
+	// as a {Time, Valid} wrapper, a plain string, or omit it entirely.
 	editDate := ""
 	if ed, ok := bill["effective_date"].(map[string]interface{}); ok {
 		if t, ok := ed["Time"].(string); ok && len(t) >= 10 {
 			editDate = t[:10]
 		}
+	} else if s, ok := bill["effective_date"].(string); ok && len(s) >= 10 {
+		editDate = s[:10]
+	}
+	if editDate == "" {
+		if s, ok := bill["payment_date"].(string); ok && len(s) >= 10 {
+			editDate = s[:10]
+		}
+	}
+
+	// Extract additional fields the edit template references but the
+	// previous handler did not pass. Without these the inputs render as
+	// empty strings and silently overwrite real values on save.
+	paymentDueDate := ""
+	if ed, ok := bill["payment_due_date"].(map[string]interface{}); ok {
+		if t, ok := ed["Time"].(string); ok && len(t) >= 10 {
+			paymentDueDate = t[:10]
+		}
+	} else if s, ok := bill["payment_due_date"].(string); ok && len(s) >= 10 {
+		paymentDueDate = s[:10]
+	}
+	deliverDate := ""
+	if ed, ok := bill["deliver_date"].(map[string]interface{}); ok {
+		if t, ok := ed["Time"].(string); ok && len(t) >= 10 {
+			deliverDate = t[:10]
+		}
+	} else if s, ok := bill["deliver_date"].(string); ok && len(s) >= 10 {
+		deliverDate = s[:10]
+	}
+	supplierSeqNum := ""
+	if v, ok := bill["supplier_sequance_number"].(string); ok {
+		supplierSeqNum = v
+	} else if v, ok := bill["supplier_sequence_number"].(string); ok {
+		supplierSeqNum = v
+	}
+	billPaymentMethod := ""
+	if v, ok := helpers.CoerceFloat(bill["payment_method"]); ok && v > 0 {
+		billPaymentMethod = fmt.Sprintf("%d", int(v))
+	}
+	discount := 0.0
+	if v, ok := helpers.CoerceFloat(bill["discount"]); ok {
+		discount = v
+	}
+	subtotal := 0.0
+	if v, ok := helpers.CoerceFloat(bill["total_amount"]); ok {
+		subtotal = v
+	} else if v, ok := helpers.CoerceFloat(bill["total"]); ok {
+		subtotal = v
 	}
 
 	helpers.Render(w, r, "edit-purchase-bill", map[string]interface{}{
-		"title":          "تعديل فاتورة المشتريات",
-		"bill":           bill,
-		"bill_id":        id,
-		"stores":         stores,
-		"suppliers":      suppliers,
-		"all_products":   products,
-		"store_id":       billStoreID,
-		"supplier_id":    billSupplierID,
-		"edit_date":      editDate,
-		"bill_products":  billProducts,
-		"bill_manual":    billManual,
-		"pb_pdf_required": GetSettingValue("pb_pdf_required"),
+		"title":                    "تعديل فاتورة المشتريات",
+		"bill":                     bill,
+		"bill_id":                  id,
+		"stores":                   stores,
+		"suppliers":                suppliers,
+		"all_products":             products,
+		"store_id":                 billStoreID,
+		"supplier_id":              billSupplierID,
+		"edit_date":                editDate,
+		"payment_due_date":         paymentDueDate,
+		"deliver_date":             deliverDate,
+		"supplier_sequence_number": supplierSeqNum,
+		"bill_payment_method":      billPaymentMethod,
+		"discount":                 discount,
+		"subtotal":                 subtotal,
+		"bill_products":            billProducts,
+		"bill_manual":              billManual,
+		"pb_pdf_required":          GetSettingValue("pb_pdf_required"),
 	})
 }
 

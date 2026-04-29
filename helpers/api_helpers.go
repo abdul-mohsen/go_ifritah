@@ -468,6 +468,13 @@ type SupplierReportResult struct {
 // Falls back to the old N+1 approach if the new endpoint isn't available (404).
 func FetchSupplierReport(token string, supplierID int, dateFrom, dateTo string) (SupplierReportResult, error) {
 	var result SupplierReportResult
+	cacheKey := fmt.Sprintf("supplier_report_%d_%s_%s", supplierID, dateFrom, dateTo)
+	if cached, ok := APICache.Get(cacheKey); ok {
+		if v, ok := cached.(SupplierReportResult); ok {
+			log.Printf("⚡ [CACHE HIT] %s", cacheKey)
+			return v, nil
+		}
+	}
 
 	// Build URL with query params
 	u := fmt.Sprintf("%s/api/v2/supplier/%d/report", config.BackendDomain, supplierID)
@@ -490,10 +497,16 @@ func FetchSupplierReport(token string, supplierID int, dateFrom, dateTo string) 
 	}
 	defer resp.Body.Close()
 
-	// If the endpoint doesn't exist yet or fails, fall back to legacy N+1
-	if resp.StatusCode == http.StatusNotFound || resp.StatusCode >= http.StatusInternalServerError {
+	// If the aggregate endpoint is missing or failing, keep the report usable via
+	// the legacy path. Successful fallback results are cached below so repeated
+	// exports for the same filter do not repeat the N+1 request pattern.
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusMethodNotAllowed || resp.StatusCode >= http.StatusInternalServerError {
 		log.Printf("⚠️ [SUPPLIER REPORT] Backend endpoint returned %d, using legacy N+1 fetch", resp.StatusCode)
-		return fetchSupplierReportLegacy(token, supplierID, dateFrom, dateTo)
+		legacy, err := fetchSupplierReportLegacy(token, supplierID, dateFrom, dateTo)
+		if err == nil {
+			APICache.Set(cacheKey, legacy, CacheTTLReports)
+		}
+		return legacy, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -781,6 +794,7 @@ func FetchSupplierReport(token string, supplierID int, dateFrom, dateTo string) 
 	// ── Build ledger (still client-side — merges bills + payments chronologically) ──
 	result.Ledger = buildSupplierLedger(result.Bills, supplierPayments)
 
+	APICache.Set(cacheKey, result, CacheTTLReports)
 	return result, nil
 }
 

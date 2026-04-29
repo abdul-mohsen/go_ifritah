@@ -109,4 +109,5 @@ const (
 	CacheTTLOrders    = 1 * time.Minute  // orders are active
 	CacheTTLInvoices  = 30 * time.Second // invoices are most volatile
 	CacheTTLPurchBill = 1 * time.Minute  // purchase bills change moderately
+	CacheTTLReports   = 30 * time.Second // reports are expensive but should stay fresh
 )

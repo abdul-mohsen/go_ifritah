@@ -2,6 +2,36 @@
 
 Backend repo: https://github.com/abdul-mohsen/ifritah-go/tree/dev
 
+## Conclusion
+
+The report is slow because the frontend currently has to fall back to an expensive `1 + N + 1` backend call pattern when the aggregate supplier report endpoint fails:
+
+- one call to load all purchase bills,
+- one detail call for each purchase bill so the frontend can discover whether it belongs to the selected supplier and read its item lines,
+- one call to load cash vouchers.
+
+The backend should implement/fix one aggregate report endpoint that returns the complete filtered supplier statement in a single response. Then the frontend can render the page and generate Excel/PDF from that same report shape without calling purchase bill details one by one.
+
+Backend implementation target:
+
+`GET /api/v2/supplier/{supplier_id}/report?from=YYYY-MM-DD&to=YYYY-MM-DD`
+
+This endpoint should do the supplier/date filtering and aggregation in the backend database layer. The frontend should not need to loop through every purchase bill and request every purchase bill detail.
+
+## What The Frontend Needs
+
+For a selected supplier and date filter, return all data needed by the visible page and downloads:
+
+- `summary`: totals, VAT, paid/unpaid, closing balance, bill/payment counts.
+- `bills`: every purchase bill for the supplier in the selected date range, including supplier bill number, totals, state, effective date, due date, received info, and item count.
+- `payments`: every supplier cash voucher in the selected date range.
+- `top_items`: aggregated purchased items for that supplier/filter.
+- `aging`: current, 1-30, 31-60, 61-90, and 90+ buckets.
+- `monthly_spending`: purchases per month, and enough payment data for the frontend to show monthly net.
+- `payment_breakdown`: totals by payment method.
+
+If this endpoint returns `200` with the full shape below, the frontend can avoid spamming the backend.
+
 ## Problem
 
 The frontend supplier account statement page calls:

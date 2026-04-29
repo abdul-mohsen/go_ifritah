@@ -528,7 +528,7 @@ func HandleEditInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]interface{}{
-		"title":                "تعديل الفاتورة",
+		"title":               "تعديل الفاتورة",
 		"id":                  id,
 		"invoice":             bill,
 		"stores":              stores,
@@ -572,7 +572,7 @@ func HandleUpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم تحديث الفاتورة بنجاح")
 }
 
-// HandleSubmitDraftInvoice converts a draft bill into a real bill by POSTing to /api/v2/bill/{id}.
+// HandleSubmitDraftInvoice converts a draft bill into a real bill by PUTing to /api/v2/bill/{id}.
 // The backend expects the same payload as creating a new bill.
 func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -625,6 +625,22 @@ func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 		storeID = int(v)
 	}
 
+	branchID := 0
+	if v, ok := helpers.CoerceFloat(extra["branch_id"]); ok {
+		branchID = int(v)
+	}
+
+	paymentMethod := 0
+	if v, ok := helpers.CoerceFloat(extra["payment_method"]); ok {
+		paymentMethod = int(v)
+	}
+
+	var clientID *int
+	if v, ok := helpers.CoerceFloat(extra["client_id"]); ok && v > 0 {
+		id := int(v)
+		clientID = &id
+	}
+
 	payload := models.BillPayload{
 		StoreID:         storeID,
 		Products:        prodItems,
@@ -633,9 +649,23 @@ func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 		Discount:        fmt.Sprintf("%g", inv.Discount),
 		MaintenanceCost: "0",
 		State:           1, // submit as processing
+		VIN:             helpers.SafeString(extra["vin"]),
 		UserName:        helpers.SafeString(extra["user_name"]),
 		UserPhoneNumber: helpers.SafeString(extra["user_phone_number"]),
 		Note:            helpers.SafeString(extra["note"]),
+		PaymentMethod:   paymentMethod,
+		ClientID:        clientID,
+		BranchID:        branchID,
+	}
+
+	if inv.EffectiveDate.Valid {
+		payload.EffectiveDate = helpers.ToBackendDatePtr(inv.EffectiveDate.Time)
+	}
+	if date := helpers.SafeString(extra["payment_due_date"]); date != "" {
+		payload.PaymentDueDate = helpers.ToBackendDatePtr(date)
+	}
+	if date := helpers.SafeString(extra["deliver_date"]); date != "" {
+		payload.DeliverDate = helpers.ToBackendDatePtr(date)
 	}
 
 	if v, ok := helpers.CoerceFloat(extra["maintenance_cost"]); ok && v > 0 {
@@ -645,7 +675,7 @@ func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	jsonPayload, _ := json.Marshal(payload)
 	log.Printf("[SUBMIT DRAFT] ID=%s Payload: %s", id, string(jsonPayload))
 
-	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill/"+id, bytes.NewBuffer(jsonPayload))
+	req, _ := http.NewRequest("PUT", config.BackendDomain+"/api/v2/bill/"+id, bytes.NewBuffer(jsonPayload))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {

@@ -1355,7 +1355,7 @@ func ParseBillRaw(raw map[string]interface{}, id string) (models.Invoice, []mode
 		"maintenance_cost", "url", "credit_note", "qr_code",
 		"supplier_id", "supplier_sequence_number",
 		"payment_method", "branch_id", "branch_name", "deliver_date",
-		"pdf_link", "attachments",
+		"client_id", "vin", "pdf_link", "attachments",
 	} {
 		if v, exists := raw[key]; exists {
 			extra[key] = v

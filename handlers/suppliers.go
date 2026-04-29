@@ -442,7 +442,7 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	supplier, found := findSupplierByID(token, id)
+	_, found := findSupplierByID(token, id)
 	if !found {
 		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, "المورد غير موجود")
 		return
@@ -474,25 +474,14 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	// Header info
-	_ = writer.Write([]string{"كشف حساب المورد", supplier.Name})
-	_ = writer.Write([]string{"الفترة", dateFrom + " — " + dateTo})
-	_ = writer.Write([]string{"إجمالي المشتريات", fmt.Sprintf("%.2f", report.Summary.TotalSpent)})
-	_ = writer.Write([]string{"إجمالي المدفوعات", fmt.Sprintf("%.2f", report.Summary.TotalPayments)})
-	_ = writer.Write([]string{"الرصيد الختامي", fmt.Sprintf("%.2f", report.Summary.ClosingBalance)})
-	_ = writer.Write([]string{"غير مسدد", fmt.Sprintf("%.2f", report.Summary.UnpaidTotal)})
-	_ = writer.Write([]string{"عدد الفواتير", fmt.Sprintf("%d", report.Summary.BillCount)})
-	_ = writer.Write([]string{""})
-
-	// Account statement (ledger)
-	_ = writer.Write([]string{"كشف الحساب"})
-	_ = writer.Write([]string{"التاريخ", "النوع", "المرجع", "الوصف", "مدين", "دائن", "الرصيد"})
+	_ = writer.Write([]string{"رقم الفاتورة", "التاريخ", "النوع", "المرجع", "الوصف", "مدين", "دائن", "الرصيد"})
 	for _, entry := range report.Ledger {
 		typeName := "فاتورة"
 		if entry.Type == "payment" {
 			typeName = "سند صرف"
 		}
 		_ = writer.Write([]string{
+			supplierReportBillNumber(entry, report.Bills),
 			entry.Date,
 			typeName,
 			entry.Reference,
@@ -502,34 +491,18 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("%.2f", entry.Balance),
 		})
 	}
-	_ = writer.Write([]string{""})
+}
 
-	// Bills detail
-	_ = writer.Write([]string{"تفاصيل الفواتير"})
-	_ = writer.Write([]string{"رقم الفاتورة", "رقم المورد", "التاريخ", "الإجمالي", "قبل الضريبة", "ض.ق.م", "الخصم", "الحالة", "تاريخ الاستحقاق", "متأخر", "عدد الأصناف"})
-	for _, b := range report.Bills {
-		state := "مسودة"
-		if b.State >= 1 {
-			state = "مسدد"
-		}
-		overdue := ""
-		if b.IsOverdue {
-			overdue = fmt.Sprintf("%d يوم", b.DaysOverdue)
-		}
-		_ = writer.Write([]string{
-			fmt.Sprintf("%d", b.SequenceNumber),
-			b.SSN,
-			safeDate(b.EffectiveDate),
-			fmt.Sprintf("%.2f", b.Total),
-			fmt.Sprintf("%.2f", b.TotalBeforeVAT),
-			fmt.Sprintf("%.2f", b.TotalVAT),
-			fmt.Sprintf("%.2f", b.Discount),
-			state,
-			b.PaymentDueDate,
-			overdue,
-			fmt.Sprintf("%d", b.ItemCount),
-		})
+func supplierReportBillNumber(entry models.LedgerEntry, bills []models.SupplierReportBill) string {
+	if entry.Type != "bill" {
+		return ""
 	}
+	for _, bill := range bills {
+		if entry.LinkURL == fmt.Sprintf("/dashboard/purchase-bills/%d", bill.ID) {
+			return fmt.Sprintf("%d", bill.SequenceNumber)
+		}
+	}
+	return ""
 }
 
 // safeDate extracts YYYY-MM-DD from a date string safely.

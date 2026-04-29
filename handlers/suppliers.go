@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"html"
 	"math"
 	"net/http"
 	"strconv"
@@ -80,11 +81,11 @@ func composeSupplierAddress(r *http.Request) string {
 func buildSupplierPayload(r *http.Request) map[string]interface{} {
 	address := composeSupplierAddress(r)
 	payload := map[string]interface{}{
-		"name":         r.FormValue("name"),
-		"address":      address,
-		"short_address": r.FormValue("short_address"),
-		"phone_number": r.FormValue("phone_number"),
-		"number":       r.FormValue("number"),
+		"name":                    r.FormValue("name"),
+		"address":                 address,
+		"short_address":           r.FormValue("short_address"),
+		"phone_number":            r.FormValue("phone_number"),
+		"number":                  r.FormValue("number"),
 		"vat_number":              r.FormValue("vat_number"),
 		"commercial_registration": r.FormValue("commercial_registration"),
 		"bank_account":            r.FormValue("bank_account"),
@@ -491,6 +492,166 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("%.2f", entry.Balance),
 		})
 	}
+}
+
+func HandleExportSupplierReportExcel(w http.ResponseWriter, r *http.Request) {
+	supplier, report, dateFrom, dateTo, ok := loadSupplierReportForDownload(w, r)
+	if !ok {
+		return
+	}
+
+	filename := fmt.Sprintf("supplier_report_%d_%s_%s.xls", supplier.ID, dateFrom, dateTo)
+	w.Header().Set("Content-Type", "application/vnd.ms-excel; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
+	_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF})
+	writeSupplierReportDocument(w, supplier, report, dateFrom, dateTo, true)
+}
+
+func HandleExportSupplierReportPDF(w http.ResponseWriter, r *http.Request) {
+	supplier, report, dateFrom, dateTo, ok := loadSupplierReportForDownload(w, r)
+	if !ok {
+		return
+	}
+
+	filename := fmt.Sprintf("supplier_report_%d_%s_%s.html", supplier.ID, dateFrom, dateTo)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Disposition", "inline; filename="+filename)
+	writeSupplierReportDocument(w, supplier, report, dateFrom, dateTo, false)
+}
+
+func loadSupplierReportForDownload(w http.ResponseWriter, r *http.Request) (models.Supplier, helpers.SupplierReportResult, string, string, bool) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return models.Supplier{}, helpers.SupplierReportResult{}, "", "", false
+	}
+
+	supplier, found := findSupplierByID(token, id)
+	if !found {
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, "المورد غير موجود")
+		return models.Supplier{}, helpers.SupplierReportResult{}, "", "", false
+	}
+
+	supplierID, err := strconv.Atoi(id)
+	if err != nil {
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "رقم المورد غير صحيح")
+		return models.Supplier{}, helpers.SupplierReportResult{}, "", "", false
+	}
+
+	dateFrom, dateTo := supplierReportDateRange(r)
+	report, err := helpers.FetchSupplierReport(token, supplierID, dateFrom, dateTo)
+	if err != nil {
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل تقرير المورد")
+		return models.Supplier{}, helpers.SupplierReportResult{}, "", "", false
+	}
+	applySupplierCreditUtilization(&report, supplier)
+
+	return supplier, report, dateFrom, dateTo, true
+}
+
+func supplierReportDateRange(r *http.Request) (string, string) {
+	now := time.Now()
+	dateFrom := r.URL.Query().Get("from")
+	dateTo := r.URL.Query().Get("to")
+	if dateFrom == "" {
+		dateFrom = now.AddDate(0, 0, -90).Format("2006-01-02")
+	}
+	if dateTo == "" {
+		dateTo = now.Format("2006-01-02")
+	}
+	return dateFrom, dateTo
+}
+
+func applySupplierCreditUtilization(report *helpers.SupplierReportResult, supplier models.Supplier) {
+	if supplier.CreditLimit <= 0 {
+		return
+	}
+	report.Summary.CreditUtilPct = math.Round(report.Summary.UnpaidTotal/float64(supplier.CreditLimit)*10000) / 100
+	if report.Summary.CreditUtilPct > 100 {
+		report.Summary.CreditUtilPct = 100
+	}
+}
+
+func writeSupplierReportDocument(w http.ResponseWriter, supplier models.Supplier, report helpers.SupplierReportResult, dateFrom, dateTo string, excel bool) {
+	title := fmt.Sprintf("Supplier Account Statement - %s", supplier.Name)
+	media := "screen"
+	if !excel {
+		media = "print"
+	}
+	fmt.Fprintf(w, `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>%s</title><style>
+	body{font-family:Arial,Tahoma,sans-serif;color:#111827;margin:24px}h1{font-size:22px;margin:0 0 6px}h2{font-size:16px;margin:24px 0 8px}.meta{color:#4b5563;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.metric{border:1px solid #d1d5db;padding:8px}.label{color:#4b5563;font-size:12px}.value{font-weight:700}table{border-collapse:collapse;width:100%%;margin-bottom:16px}th,td{border:1px solid #d1d5db;padding:6px;text-align:right;vertical-align:top}th{background:#f3f4f6}@media %s{body{margin:12mm}.no-print{display:none}}
+	</style></head><body>`, html.EscapeString(title), media)
+	if !excel {
+		fmt.Fprint(w, `<button class="no-print" onclick="window.print()" style="margin-bottom:16px">Print / Save PDF</button>`)
+	}
+	fmt.Fprintf(w, `<h1>%s</h1><div class="meta">Supplier: %s | From: %s | To: %s</div>`, html.EscapeString(title), html.EscapeString(supplier.Name), html.EscapeString(dateFrom), html.EscapeString(dateTo))
+
+	fmt.Fprint(w, `<h2>Summary - الملخص</h2><div class="grid">`)
+	writeMetric(w, "Closing Balance", report.Summary.ClosingBalance)
+	writeMetric(w, "Total Spent", report.Summary.TotalSpent)
+	writeMetric(w, "Total Payments", report.Summary.TotalPayments)
+	writeMetric(w, "Bill Count", report.Summary.BillCount)
+	writeMetric(w, "Overdue Count", report.Summary.OverdueCount)
+	writeMetric(w, "Average Bill", report.Summary.AvgBill)
+	writeMetric(w, "Total VAT", report.Summary.TotalVAT)
+	writeMetric(w, "Payment Count", report.Summary.PaymentCount)
+	fmt.Fprint(w, `</div>`)
+
+	fmt.Fprint(w, `<h2>Account Ledger - دفتر الأستاذ</h2><table><thead><tr><th>Bill No</th><th>Date</th><th>Type</th><th>Reference</th><th>Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead><tbody>`)
+	for _, entry := range report.Ledger {
+		entryType := "Bill"
+		if entry.Type == "payment" {
+			entryType = "Payment"
+		}
+		fmt.Fprintf(w, `<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>`,
+			esc(supplierReportBillNumber(entry, report.Bills)), esc(entry.Date), esc(entryType), esc(entry.Reference), esc(entry.Description), money(entry.Debit), money(entry.Credit), money(entry.Balance))
+	}
+	fmt.Fprint(w, `</tbody></table>`)
+
+	fmt.Fprint(w, `<h2>Bills - الفواتير</h2><table><thead><tr><th>#</th><th>Supplier No</th><th>Date</th><th>Total</th><th>Before VAT</th><th>VAT</th><th>Discount</th><th>Status</th><th>Due Date</th><th>Items</th></tr></thead><tbody>`)
+	for _, bill := range report.Bills {
+		fmt.Fprintf(w, `<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td><td>%d</td></tr>`,
+			bill.SequenceNumber, esc(bill.SSN), esc(safeDate(bill.EffectiveDate)), money(bill.Total), money(bill.TotalBeforeVAT), money(bill.TotalVAT), money(bill.Discount), bill.State, esc(safeDate(bill.PaymentDueDate)), bill.ItemCount)
+	}
+	fmt.Fprint(w, `</tbody></table>`)
+
+	fmt.Fprint(w, `<h2>Monthly Spending - المصروف الشهري</h2><table><thead><tr><th>Month</th><th>Purchases</th><th>Payments</th><th>Net</th></tr></thead><tbody>`)
+	for _, month := range report.Monthly {
+		fmt.Fprintf(w, `<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>`, esc(month.Month), money(month.Amount), money(month.Payments), money(month.Amount-month.Payments))
+	}
+	fmt.Fprint(w, `</tbody></table>`)
+
+	fmt.Fprint(w, `<h2>Payment Methods - طرق الدفع</h2><table><thead><tr><th>Method</th><th>Amount</th><th>Count</th></tr></thead><tbody>`)
+	for _, method := range report.PaymentMethods {
+		fmt.Fprintf(w, `<tr><td>%s</td><td>%s</td><td>%d</td></tr>`, esc(method.Method), money(method.Amount), method.Count)
+	}
+	fmt.Fprint(w, `</tbody></table>`)
+
+	fmt.Fprint(w, `<h2>Aging - أعمار الديون</h2><table><thead><tr><th>Bucket</th><th>Amount</th><th>Count</th></tr></thead><tbody>`)
+	for _, bucket := range report.Aging {
+		fmt.Fprintf(w, `<tr><td>%s</td><td>%s</td><td>%d</td></tr>`, esc(bucket.Label), money(bucket.Amount), bucket.Count)
+	}
+	fmt.Fprint(w, `</tbody></table>`)
+
+	fmt.Fprint(w, `<h2>Top Items - أفضل الأصناف</h2><table><thead><tr><th>Item</th><th>Quantity</th><th>Total Value</th><th>Average Price</th><th>Bill Count</th></tr></thead><tbody>`)
+	for _, item := range report.TopItems {
+		fmt.Fprintf(w, `<tr><td>%s</td><td>%d</td><td>%s</td><td>%s</td><td>%d</td></tr>`, esc(item.Name), item.TotalQty, money(item.TotalVal), money(item.AvgPrice), item.BillCount)
+	}
+	fmt.Fprint(w, `</tbody></table></body></html>`)
+}
+
+func writeMetric(w http.ResponseWriter, label string, value interface{}) {
+	fmt.Fprintf(w, `<div class="metric"><div class="label">%s</div><div class="value">%s</div></div>`, esc(label), esc(fmt.Sprint(value)))
+}
+
+func esc(value string) string {
+	return html.EscapeString(value)
+}
+
+func money(value float64) string {
+	return fmt.Sprintf("%.2f", value)
 }
 
 func supplierReportBillNumber(entry models.LedgerEntry, bills []models.SupplierReportBill) string {

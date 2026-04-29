@@ -50,7 +50,7 @@ function parseCsv(text) {
 }
 
 test.describe('Supplier account report export', () => {
-  test('CSV export is a single rectangular table and includes visible bill numbers', async ({ page }) => {
+  async function firstSupplierReportId(page) {
     await login(page);
     await page.goto('/dashboard/suppliers');
     await page.waitForLoadState('domcontentloaded');
@@ -60,6 +60,11 @@ test.describe('Supplier account report export', () => {
 
     const supplierId = (reportHref.match(/\/dashboard\/suppliers\/(\d+)\/report/) || [])[1];
     expect(supplierId, `could not parse supplier id from ${reportHref}`).toBeTruthy();
+    return supplierId;
+  }
+
+  test('CSV export is a single rectangular table and includes visible bill numbers', async ({ page }) => {
+    const supplierId = await firstSupplierReportId(page);
 
     const exportHref = `/dashboard/suppliers/${supplierId}/report/export-csv?from=2000-01-01&to=2099-12-31`;
     const response = await page.request.get(exportHref);
@@ -81,5 +86,28 @@ test.describe('Supplier account report export', () => {
     const billNoIdx = header.indexOf('رقم الفاتورة');
     const exportedBillNumbers = rows.slice(1).map((r) => (r[billNoIdx] || '').trim()).filter(Boolean);
     expect(exportedBillNumbers.length, 'bill number column exists but has no bill values').toBeGreaterThan(0);
+  });
+
+  test('Excel and PDF exports include the full filtered report sections', async ({ page }) => {
+    const supplierId = await firstSupplierReportId(page);
+    const from = '2000-01-01';
+    const to = '2099-12-31';
+    const expectedSections = ['Account Ledger', 'Bills', 'Monthly Spending', 'Payment Methods', 'Aging', 'Top Items', `From: ${from}`, `To: ${to}`];
+
+    const excel = await page.request.get(`/dashboard/suppliers/${supplierId}/report/export-excel?from=${from}&to=${to}`);
+    expect(excel.ok(), `Excel export failed with ${excel.status()}`).toBeTruthy();
+    expect(excel.headers()['content-type']).toContain('application/vnd.ms-excel');
+    const excelBody = await excel.text();
+    for (const section of expectedSections) {
+      expect(excelBody, `Excel export missing ${section}`).toContain(section);
+    }
+
+    const pdf = await page.request.get(`/dashboard/suppliers/${supplierId}/report/export-pdf?from=${from}&to=${to}`);
+    expect(pdf.ok(), `PDF export page failed with ${pdf.status()}`).toBeTruthy();
+    expect(pdf.headers()['content-type']).toContain('text/html');
+    const pdfBody = await pdf.text();
+    for (const section of expectedSections) {
+      expect(pdfBody, `PDF export missing ${section}`).toContain(section);
+    }
   });
 });

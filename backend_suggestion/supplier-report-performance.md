@@ -18,6 +18,38 @@ Backend implementation target:
 
 This endpoint should do the supplier/date filtering and aggregation in the backend database layer. The frontend should not need to loop through every purchase bill and request every purchase bill detail.
 
+## Concrete Backend Replacement
+
+I added copy-ready backend implementation files in this folder, following the same Gin + sqlc layout used by the existing backend suggestions:
+
+| Destination in backend repo | Replacement / new file in this repo |
+|---|---|
+| `pkg/model/supplier_report.go` | `backend_suggestion/model/supplier_report.go` |
+| `pkg/db/queries/supplier_report.sql` | `backend_suggestion/queries/supplier_report.sql` |
+| `pkg/handlers/supplier_report.go` | `backend_suggestion/handler/supplier_report.go` |
+| DB migration | `backend_suggestion/migrations/009_supplier_report_indexes.sql` |
+
+Backend wiring steps:
+
+1. Copy `backend_suggestion/model/supplier_report.go` to `pkg/model/supplier_report.go`.
+2. Copy `backend_suggestion/queries/supplier_report.sql` to `pkg/db/queries/supplier_report.sql`.
+3. Run `sqlc generate` in the backend repo.
+4. Copy `backend_suggestion/handler/supplier_report.go` to `pkg/handlers/supplier_report.go`.
+5. Register the route with the existing supplier API group:
+
+```go
+apiV2.GET("/supplier/:id/report", h.GetSupplierReport)
+```
+
+6. Apply `backend_suggestion/migrations/009_supplier_report_indexes.sql` after checking duplicate index names. If `001_dashboard_indexes.sql` is already applied, skip the duplicate `purchase_bill_product(bill_id)` index line.
+
+What this replacement changes:
+
+- The backend filters `purchase_bill` by `supplier_id` and `effective_date` directly.
+- The backend joins `purchase_bill_product` once to compute bill totals, item counts, and top items.
+- The backend filters `cash_voucher` by `recipient_type='supplier'`, `recipient_id`, and `effective_date` directly.
+- The frontend receives the full page/export report in one response and no longer needs to request every purchase bill detail.
+
 ## What The Frontend Needs
 
 For a selected supplier and date filter, return all data needed by the visible page and downloads:

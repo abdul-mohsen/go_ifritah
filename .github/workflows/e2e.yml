@@ -57,7 +57,9 @@ jobs:
         run: npm run build:css
 
       - name: Build Go binary
-        run: go build -o afrita ./...
+        # Build only the root package; backend_suggestion/ contains
+        # reference Go files for the backend repo and won't compile here.
+        run: go build -o afrita .
 
       - name: Start frontend server
         run: |

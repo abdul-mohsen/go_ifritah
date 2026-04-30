@@ -29,10 +29,9 @@ func TestAllTemplatesParse(t *testing.T) {
 		"stores", "add-store", "store-detail", "edit-store",
 		"suppliers", "add-supplier", "supplier-detail", "edit-supplier",
 		"purchase-bills", "add-purchase-bill", "purchase-bill-detail", "edit-purchase-bill",
-		"add-user", "users", "edit-user",
 		"settings", "parts-search", "cars-search", "import-bills",
 		"cash-vouchers", "add-cash-voucher", "cash-voucher-detail", "edit-cash-voucher",
-		"stock-adjustments", "notifications", "zatca-monitor", "supplier-report",
+		"stock-adjustments", "notifications", "supplier-report",
 		// Standalone pages
 		"login", "register", "forgot-password",
 		"invoice-preview", "invoice-print", "error-page",
@@ -369,8 +368,8 @@ func TestTemplateCount(t *testing.T) {
 	io.Copy(&stderrBuf, r)
 	os.Stderr = oldStderr
 
-	if len(Templates) < 55 {
-		t.Errorf("Expected at least 55 templates, got %d. Some templates failed to parse.", len(Templates))
+	if len(Templates) < 50 {
+		t.Errorf("Expected at least 50 templates, got %d. Some templates failed to parse.", len(Templates))
 		t.Logf("Stderr output during LoadTemplates:\n%s", stderrBuf.String())
 	}
 }

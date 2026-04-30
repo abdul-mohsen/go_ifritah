@@ -1100,6 +1100,8 @@ func buildSupplierLedger(bills []models.SupplierReportBill, payments []models.Ca
 		entries = append(entries, models.LedgerEntry{
 			Date:        date,
 			Type:        "bill",
+			SystemID:    b.ID,
+			SupplierNo:  b.SSN,
 			Reference:   ref,
 			Description: fmt.Sprintf("فاتورة مشتريات #%d", b.SequenceNumber),
 			Debit:       b.Total,
@@ -1121,6 +1123,7 @@ func buildSupplierLedger(bills []models.SupplierReportBill, payments []models.Ca
 		entries = append(entries, models.LedgerEntry{
 			Date:        date,
 			Type:        "payment",
+			SystemID:    p.ID,
 			Reference:   ref,
 			Description: desc,
 			Credit:      p.Amount,
@@ -1825,6 +1828,78 @@ func FetchStores(token string) ([]models.Store, error) {
 	}
 	APICache.Set("stores", stores, CacheTTLStores)
 	return stores, nil
+}
+
+// FetchStoreByID retrieves a single store with full address fields.
+// Endpoint: GET /api/v2/store/:id  (returns {"detail": {...}})
+func FetchStoreByID(token string, id int) (models.Store, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v2/store/%d", config.BackendDomain, id), nil)
+	if err != nil {
+		return models.Store{}, fmt.Errorf("new request: %w", err)
+	}
+	resp, err := DoAuthedRequest(req, token)
+	if err != nil {
+		return models.Store{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return models.Store{}, fmt.Errorf("backend status %d", resp.StatusCode)
+	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return models.Store{}, err
+	}
+	var wrapper struct {
+		Detail models.Store `json:"detail"`
+	}
+	if err := json.Unmarshal(bodyBytes, &wrapper); err == nil && wrapper.Detail.ID != 0 {
+		return wrapper.Detail, nil
+	}
+	var direct models.Store
+	if err := json.Unmarshal(bodyBytes, &direct); err != nil {
+		return models.Store{}, err
+	}
+	return direct, nil
+}
+
+// FetchBranchLinkedStore returns the first store linked to a branch, with
+// full address fields. Returns (Store{}, false) if the branch has no store.
+func FetchBranchLinkedStore(token string, branchID int) (models.Store, bool) {
+	url := fmt.Sprintf("%s/api/v2/branch/%d", config.BackendDomain, branchID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return models.Store{}, false
+	}
+	resp, err := DoAuthedRequest(req, token)
+	if err != nil {
+		return models.Store{}, false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return models.Store{}, false
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return models.Store{}, false
+	}
+	var wrapper struct {
+		Detail struct {
+			Stores []struct {
+				ID int `json:"id"`
+			} `json:"stores"`
+		} `json:"detail"`
+	}
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return models.Store{}, false
+	}
+	if len(wrapper.Detail.Stores) == 0 || wrapper.Detail.Stores[0].ID == 0 {
+		return models.Store{}, false
+	}
+	store, err := FetchStoreByID(token, wrapper.Detail.Stores[0].ID)
+	if err != nil {
+		return models.Store{}, false
+	}
+	return store, true
 }
 
 // FetchBranches retrieves the list of branches from the backend.

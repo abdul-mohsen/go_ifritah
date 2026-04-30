@@ -38,6 +38,19 @@ func WriteSuccessToast(w http.ResponseWriter, msg string) {
 	triggerToast(w, msg, "success")
 }
 
+// WriteErrorToast sends an error toast notification via HX-Trigger and tells
+// HTMX not to swap any response body. Use this for inline form errors (e.g.
+// failed login) where the page should stay put and only the toast should fire.
+// The HX-Trigger payload is JSON-encoded and ASCII-escaped, so Arabic / any
+// non-ASCII text travels safely through the HTTP header.
+func WriteErrorToast(w http.ResponseWriter, msg string) {
+	if msg == "" {
+		msg = DefaultErrorMessage
+	}
+	w.Header().Set("HX-Reswap", "none")
+	triggerToast(w, msg, "error")
+}
+
 // WriteSuccessRedirect sets a flash cookie + HX-Redirect.
 // The flash cookie is read on the target page to show a success toast.
 // This solves the problem of HX-Trigger not firing on HX-Redirect.

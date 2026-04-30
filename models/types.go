@@ -296,8 +296,20 @@ type Supplier struct {
 
 // Store represents a store/branch location
 type Store struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID               int    `json:"id"`
+	Name             string `json:"name"`
+	BranchID         *int   `json:"branch_id,omitempty"`
+	BranchName       string `json:"branch_name,omitempty"`
+	AddressName      string `json:"address_name,omitempty"`
+	BuildingNumber   string `json:"building_number,omitempty"`
+	StreetName       string `json:"street_name,omitempty"`
+	District         string `json:"district,omitempty"`
+	City             string `json:"city,omitempty"`
+	Region           string `json:"region,omitempty"`
+	PostalCode       string `json:"postal_code,omitempty"`
+	AdditionalNumber string `json:"additional_number,omitempty"`
+	UnitNumber       string `json:"unit_number,omitempty"`
+	Country          string `json:"country,omitempty"`
 }
 
 // Branch represents a business branch
@@ -617,6 +629,8 @@ type SupplierTopItem struct {
 type LedgerEntry struct {
 	Date        string  `json:"date"`
 	Type        string  `json:"type"`         // "bill", "payment", "opening"
+	SystemID    int     `json:"system_id"`    // our internal id (bill.id / voucher.id)
+	SupplierNo  string  `json:"supplier_no"`  // supplier_sequence_number for bills
 	Reference   string  `json:"reference"`
 	Description string  `json:"description"`
 	Debit       float64 `json:"debit"`        // bills increase debt

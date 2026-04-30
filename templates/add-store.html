@@ -11,6 +11,18 @@
             {{ if hasError .errors "name" }}<p class="field-error">{{ fieldError .errors "name" }}</p>{{ end }}
         </div>
 
+        <div class="form-group">
+            <label class="form-label" for="branch_id">{{ L "tpl.store.branch" }}</label>
+            <select id="branch_id" name="branch_id" class="w-full">
+                <option value="">{{ L "tpl.store.no_branch" }}</option>
+                {{ $sel := .selected_branch }}
+                {{ range .branches }}
+                <option value="{{ .ID }}" {{ if eq .ID $sel }}selected{{ end }}>{{ .Name }}</option>
+                {{ end }}
+            </select>
+            <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.store.branch_help" }}</p>
+        </div>
+
         <!-- العنوان الوطني -->
         <h3 class="form-section-title mt-6 mb-4" style="font-size:1.1rem; font-weight:600; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;">{{ L "tpl.address.national" }}</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -12,43 +12,55 @@
             {{ if hasError .errors "name" }}<p class="field-error">{{ fieldError .errors "name" }}</p>{{ end }}
         </div>
 
+        <div class="form-group">
+            <label class="form-label" for="branch_id">{{ L "tpl.store.branch" }}</label>
+            <select id="branch_id" name="branch_id" class="w-full">
+                <option value="">{{ L "tpl.store.no_branch" }}</option>
+                {{ $sel := .selected_branch }}
+                {{ range .branches }}
+                <option value="{{ .ID }}" {{ if eq .ID $sel }}selected{{ end }}>{{ .Name }}</option>
+                {{ end }}
+            </select>
+            <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.store.branch_help" }}</p>
+        </div>
+
         <!-- العنوان الوطني -->
-        <h3 class="form-section-title mt-6 mb-4" style="font-size:1.1rem; font-weight:600; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;">{{ L "tpl.address.national" }}</h3>
+        <h3 class="form-section-title mt-6 mb-4" style="font-size:1.1rem; font-weight:600; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;">{{ L "tpl.store.national" }}</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label class="form-label">{{ L "tpl.address.building_number" }}</label>
+                <label class="form-label">{{ L "tpl.store.building_number" }}</label>
                 <input type="text" name="building_number" placeholder="{{ L "tpl.store.example_building" }}" class="w-full"
-                    maxlength="4" pattern="\d{0,4}" value="{{ if .old }}{{ old .old "building_number" }}{{ else }}{{ .address.BuildingNumber }}{{ end }}">
+                    maxlength="4" pattern="\d{0,4}" value="{{ if .old }}{{ old .old "building_number" }}{{ else }}{{ .store.BuildingNumber }}{{ end }}">
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.address.street_name" }}</label>
-                <input type="text" name="street_name" placeholder="{{ L "tpl.address.street_name" }}" class="w-full"
-                    maxlength="200" value="{{ if .old }}{{ old .old "street_name" }}{{ else }}{{ .address.StreetName }}{{ end }}">
+                <label class="form-label">{{ L "tpl.store.street_name" }}</label>
+                <input type="text" name="street_name" placeholder="{{ L "tpl.store.street_name" }}" class="w-full"
+                    maxlength="200" value="{{ if .old }}{{ old .old "street_name" }}{{ else }}{{ .store.StreetName }}{{ end }}">
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.address.district" }}</label>
-                <input type="text" name="district" placeholder="{{ L "tpl.address.district" }}" class="w-full"
-                    maxlength="100" value="{{ if .old }}{{ old .old "district" }}{{ else }}{{ .address.District }}{{ end }}">
+                <label class="form-label">{{ L "tpl.store.district" }}</label>
+                <input type="text" name="district" placeholder="{{ L "tpl.store.district" }}" class="w-full"
+                    maxlength="100" value="{{ if .old }}{{ old .old "district" }}{{ else }}{{ .store.District }}{{ end }}">
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.address.city" }}</label>
-                <input type="text" name="city" placeholder="{{ L "tpl.address.city" }}" class="w-full"
-                    maxlength="100" value="{{ if .old }}{{ old .old "city" }}{{ else }}{{ .address.City }}{{ end }}">
+                <label class="form-label">{{ L "tpl.store.city" }}</label>
+                <input type="text" name="city" placeholder="{{ L "tpl.store.city" }}" class="w-full"
+                    maxlength="100" value="{{ if .old }}{{ old .old "city" }}{{ else }}{{ .store.City }}{{ end }}">
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.address.postal_code" }}</label>
+                <label class="form-label">{{ L "tpl.store.postal_code" }}</label>
                 <input type="text" name="postal_code" placeholder="{{ L "tpl.store.example_postal" }}" class="w-full"
-                    maxlength="5" pattern="\d{0,5}" value="{{ if .old }}{{ old .old "postal_code" }}{{ else }}{{ .address.PostalCode }}{{ end }}">
+                    maxlength="5" pattern="\d{0,5}" value="{{ if .old }}{{ old .old "postal_code" }}{{ else }}{{ .store.PostalCode }}{{ end }}">
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.address.additional_number" }}</label>
+                <label class="form-label">{{ L "tpl.store.additional_number" }}</label>
                 <input type="text" name="additional_number" placeholder="{{ L "tpl.store.example_additional" }}" class="w-full"
-                    maxlength="4" pattern="\d{0,4}" value="{{ if .old }}{{ old .old "additional_number" }}{{ else }}{{ .address.AdditionalNumber }}{{ end }}">
+                    maxlength="4" pattern="\d{0,4}" value="{{ if .old }}{{ old .old "additional_number" }}{{ else }}{{ .store.AdditionalNumber }}{{ end }}">
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.address.unit_number" }}</label>
+                <label class="form-label">{{ L "tpl.store.unit_number" }}</label>
                 <input type="text" name="unit_number" placeholder="{{ L "tpl.store.unit_placeholder" }}" class="w-full"
-                    maxlength="20" value="{{ if .old }}{{ old .old "unit_number" }}{{ else }}{{ .address.UnitNumber }}{{ end }}">
+                    maxlength="20" value="{{ if .old }}{{ old .old "unit_number" }}{{ else }}{{ .store.UnitNumber }}{{ end }}">
             </div>
         </div>
 

@@ -60,11 +60,20 @@ func HandleStores(w http.ResponseWriter, r *http.Request) {
 
 // HandleAddStore displays the add store form
 func HandleAddStore(w http.ResponseWriter, r *http.Request) {
-	if _, ok := helpers.GetTokenOrRedirect(w, r); !ok {
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
 		return
 	}
+	branches, _ := helpers.FetchBranches(token)
+	// Optional ?branch_id=N preselect — used by the ZATCA "add store" deep-link.
+	selectedBranch := 0
+	if b := r.URL.Query().Get("branch_id"); b != "" {
+		selectedBranch, _ = strconv.Atoi(b)
+	}
 	helpers.Render(w, r, "add-store", map[string]interface{}{
-		"title": "إضافة مخزن",
+		"title":           "إضافة مخزن",
+		"branches":        branches,
+		"selected_branch": selectedBranch,
 	})
 }
 
@@ -117,14 +126,27 @@ func HandleEditStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	store, found := findStoreByID(token, id)
-	if !found {
-		store = models.Store{ID: helpers.ParseIntValue(id), Name: ""}
+	idInt, _ := strconv.Atoi(id)
+	store, err := helpers.FetchStoreByID(token, idInt)
+	if err != nil || store.ID == 0 {
+		// Fallback to list lookup so the page still renders
+		if s, found := findStoreByID(token, id); found {
+			store = s
+		} else {
+			store = models.Store{ID: idInt}
+		}
+	}
+	branches, _ := helpers.FetchBranches(token)
+	selectedBranch := 0
+	if store.BranchID != nil {
+		selectedBranch = *store.BranchID
 	}
 
 	helpers.Render(w, r, "edit-store", map[string]interface{}{
-		"title": "تعديل المخزن",
-		"store": store,
+		"title":           "تعديل المخزن",
+		"store":           store,
+		"branches":        branches,
+		"selected_branch": selectedBranch,
 	})
 }
 
@@ -149,7 +171,7 @@ func HandleCreateStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload := map[string]string{"name": r.FormValue("name")}
+	payload := buildStorePayload(r)
 	jsonPayload, _ := json.Marshal(payload)
 	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/store", bytes.NewBuffer(jsonPayload))
 	req.Header.Set("Content-Type", "application/json")
@@ -188,7 +210,7 @@ func HandleUpdateStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload := map[string]string{"name": r.FormValue("name")}
+	payload := buildStorePayload(r)
 	jsonPayload, _ := json.Marshal(payload)
 	req, _ := http.NewRequest("PUT", config.BackendDomain+"/api/v2/store/"+id, bytes.NewBuffer(jsonPayload))
 	req.Header.Set("Content-Type", "application/json")
@@ -227,4 +249,29 @@ func HandleDeleteStore(w http.ResponseWriter, r *http.Request) {
 
 	helpers.APICache.Delete("stores")
 	helpers.WriteSuccessRedirect(w, "/dashboard/stores", "تم حذف المتجر بنجاح")
+}
+
+// buildStorePayload extracts store fields from the form, including the full
+// national-address breakdown so that ZATCA + branch UIs can read a single
+// canonical address per store.
+func buildStorePayload(r *http.Request) map[string]interface{} {
+	payload := map[string]interface{}{
+		"name":              r.FormValue("name"),
+		"building_number":   r.FormValue("building_number"),
+		"street_name":       r.FormValue("street_name"),
+		"district":          r.FormValue("district"),
+		"city":              r.FormValue("city"),
+		"region":            r.FormValue("region"),
+		"postal_code":       r.FormValue("postal_code"),
+		"additional_number": r.FormValue("additional_number"),
+		"unit_number":       r.FormValue("unit_number"),
+		"country":           r.FormValue("country"),
+		"address_name":      r.FormValue("address_name"),
+	}
+	if branchStr := r.FormValue("branch_id"); branchStr != "" {
+		if v, err := strconv.Atoi(branchStr); err == nil {
+			payload["branch_id"] = v
+		}
+	}
+	return payload
 }

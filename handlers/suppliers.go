@@ -475,14 +475,19 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	_ = writer.Write([]string{"رقم الفاتورة", "التاريخ", "النوع", "المرجع", "الوصف", "مدين", "دائن", "الرصيد"})
+	_ = writer.Write([]string{"رقم النظام", "رقم المورد", "التاريخ", "النوع", "المرجع", "الوصف", "مدين", "دائن", "الرصيد"})
 	for _, entry := range report.Ledger {
 		typeName := "فاتورة"
 		if entry.Type == "payment" {
 			typeName = "سند صرف"
 		}
+		systemID := ""
+		if entry.SystemID > 0 {
+			systemID = fmt.Sprintf("%d", entry.SystemID)
+		}
 		_ = writer.Write([]string{
-			supplierReportBillNumber(entry, report.Bills),
+			systemID,
+			entry.SupplierNo,
 			entry.Date,
 			typeName,
 			entry.Reference,
@@ -599,21 +604,25 @@ func writeSupplierReportDocument(w http.ResponseWriter, supplier models.Supplier
 	writeMetric(w, "Payment Count", report.Summary.PaymentCount)
 	fmt.Fprint(w, `</div>`)
 
-	fmt.Fprint(w, `<h2>Account Ledger - دفتر الأستاذ</h2><table><thead><tr><th>Bill No</th><th>Date</th><th>Type</th><th>Reference</th><th>Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead><tbody>`)
+	fmt.Fprint(w, `<h2>Account Ledger - دفتر الأستاذ</h2><table><thead><tr><th>System ID</th><th>Supplier No</th><th>Date</th><th>Type</th><th>Reference</th><th>Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead><tbody>`)
 	for _, entry := range report.Ledger {
 		entryType := "Bill"
 		if entry.Type == "payment" {
 			entryType = "Payment"
 		}
-		fmt.Fprintf(w, `<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>`,
-			esc(supplierReportBillNumber(entry, report.Bills)), esc(entry.Date), esc(entryType), esc(entry.Reference), esc(entry.Description), money(entry.Debit), money(entry.Credit), money(entry.Balance))
+		sysID := ""
+		if entry.SystemID > 0 {
+			sysID = fmt.Sprintf("%d", entry.SystemID)
+		}
+		fmt.Fprintf(w, `<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>`,
+			esc(sysID), esc(entry.SupplierNo), esc(entry.Date), esc(entryType), esc(entry.Reference), esc(entry.Description), money(entry.Debit), money(entry.Credit), money(entry.Balance))
 	}
 	fmt.Fprint(w, `</tbody></table>`)
 
-	fmt.Fprint(w, `<h2>Bills - الفواتير</h2><table><thead><tr><th>#</th><th>Supplier No</th><th>Date</th><th>Total</th><th>Before VAT</th><th>VAT</th><th>Discount</th><th>Status</th><th>Due Date</th><th>Items</th></tr></thead><tbody>`)
+	fmt.Fprint(w, `<h2>Bills - الفواتير</h2><table><thead><tr><th>System ID</th><th>Supplier No</th><th>Date</th><th>Total</th><th>Before VAT</th><th>VAT</th><th>Discount</th><th>Status</th><th>Due Date</th><th>Items</th></tr></thead><tbody>`)
 	for _, bill := range report.Bills {
 		fmt.Fprintf(w, `<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td><td>%d</td></tr>`,
-			bill.SequenceNumber, esc(bill.SSN), esc(safeDate(bill.EffectiveDate)), money(bill.Total), money(bill.TotalBeforeVAT), money(bill.TotalVAT), money(bill.Discount), bill.State, esc(safeDate(bill.PaymentDueDate)), bill.ItemCount)
+			bill.ID, esc(bill.SSN), esc(safeDate(bill.EffectiveDate)), money(bill.Total), money(bill.TotalBeforeVAT), money(bill.TotalVAT), money(bill.Discount), bill.State, esc(safeDate(bill.PaymentDueDate)), bill.ItemCount)
 	}
 	fmt.Fprint(w, `</tbody></table>`)
 
@@ -652,18 +661,6 @@ func esc(value string) string {
 
 func money(value float64) string {
 	return fmt.Sprintf("%.2f", value)
-}
-
-func supplierReportBillNumber(entry models.LedgerEntry, bills []models.SupplierReportBill) string {
-	if entry.Type != "bill" {
-		return ""
-	}
-	for _, bill := range bills {
-		if entry.LinkURL == fmt.Sprintf("/dashboard/purchase-bills/%d", bill.ID) {
-			return fmt.Sprintf("%d", bill.SequenceNumber)
-		}
-	}
-	return ""
 }
 
 // safeDate extracts YYYY-MM-DD from a date string safely.

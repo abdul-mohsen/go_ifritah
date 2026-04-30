@@ -252,11 +252,6 @@ func TestAllPagesRender(t *testing.T) {
 		{name: "branch-detail", handler: HandleBranchDetail, path: "/dashboard/branches/1", vars: map[string]string{"id": "1"}},
 		{name: "edit-branch", handler: HandleEditBranch, path: "/dashboard/branches/1/edit", vars: map[string]string{"id": "1"}},
 
-		// ── User pages (mock data) ──
-		{name: "users-list", handler: HandleUsers, path: "/dashboard/users"},
-		{name: "add-user", handler: HandleAddUser, path: "/dashboard/users/add"},
-		{name: "edit-user", handler: HandleEditUser, path: "/dashboard/users/1/edit", vars: map[string]string{"id": "1"}},
-
 		// ── Settings ──
 		{name: "settings", handler: HandleSettingsPage, path: "/dashboard/settings"},
 

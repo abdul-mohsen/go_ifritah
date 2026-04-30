@@ -151,14 +151,8 @@ func main() {
 	router.HandleFunc("/dashboard/branches/{id}/update", protect("branches", "edit", handlers.HandleUpdateBranch)).Methods("POST")
 	router.HandleFunc("/dashboard/branches/{id}/delete", protect("branches", "delete", handlers.HandleDeleteBranch)).Methods("POST")
 
-	// User routes — Admin/Manager only
-	router.HandleFunc("/dashboard/users", managerUp(handlers.HandleUsers)).Methods("GET")
-	router.HandleFunc("/dashboard/users/add", managerUp(handlers.HandleAddUser)).Methods("GET")
-	router.HandleFunc("/dashboard/users/create", managerUp(handlers.HandleCreateUser)).Methods("POST")
-	router.HandleFunc("/dashboard/users/{id}/edit", managerUp(handlers.HandleEditUser)).Methods("GET")
-	router.HandleFunc("/dashboard/users/{id}/update", managerUp(handlers.HandleUpdateUser)).Methods("POST")
-	router.HandleFunc("/dashboard/users/{id}/delete", adminOnly(handlers.HandleDeleteUser)).Methods("POST")
-	router.HandleFunc("/dashboard/users/{id}/permissions", adminOnly(handlers.HandleUpdateUserPermissions)).Methods("POST")
+	// User routes — backend lacks /api/v2/users CRUD endpoints; mock pages
+	// were removed. See _BACKEND_TODO.md for the API surface to add.
 
 	// Settings routes — Admin only
 	router.HandleFunc("/dashboard/settings", adminOnly(handlers.HandleSettingsPage)).Methods("GET")
@@ -178,8 +172,8 @@ func main() {
 	router.HandleFunc("/api/branch/{id}/store-address", adminOnly(handlers.HandleGetBranchStoreAddress)).Methods("GET")
 	router.HandleFunc("/api/branch/{id}/store-address", adminOnly(handlers.HandleUpdateBranchStoreAddress)).Methods("PUT")
 
-	// ZATCA Monitor page — Admin only
-	router.HandleFunc("/dashboard/zatca-monitor", adminOnly(handlers.HandleZatcaMonitor)).Methods("GET")
+	// ZATCA Monitor page removed — backend has no /api/v2/zatca/monitor/*
+	// endpoints yet. See _BACKEND_TODO.md for the API surface to add.
 
 	// Notification routes
 	router.HandleFunc("/dashboard/notifications", handlers.HandleNotifications).Methods("GET")

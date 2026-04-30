@@ -505,6 +505,9 @@
                 <div class="w-full h-2 rounded-full mb-4" style="background: var(--md-sys-color-surface-container-highest)">
                     <div id="zatca-progress-bar" class="h-2 rounded-full transition-all duration-500" style="width: 0%; background: var(--md-sys-color-primary)"></div>
                 </div>
+                <!-- Missing-fields hint (shown when progress < 100%) -->
+                <div id="zatca-missing-list" class="hidden text-xs mb-3 p-2 rounded"
+                     style="background: var(--md-sys-color-error-container, #fef2f2); color: var(--md-sys-color-on-error-container, #991b1b)"></div>
                 <!-- 3 Steps -->
                 <div class="grid grid-cols-3 gap-2">
                     <div class="flex items-center gap-2" id="zatca-step1">
@@ -679,29 +682,39 @@
                     </svg>
                 </button>
                 <div id="zatca-acc-address" class="px-5 py-4" style="background: var(--md-sys-color-surface)">
+                    <!-- Address comes from the linked store (single source of truth).
+                         These inputs are readonly so the user edits the address only
+                         on the store page. The values are still posted to
+                         branch_zatca_config via saveZatcaConfig so the daemon keeps
+                         working unchanged. -->
+                    <div id="zatca-address-no-store" class="hidden p-3 mb-3 rounded" style="background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container)">
+                        <div class="text-sm font-medium">{{ L "tpl.settings.zatca_no_store" }}</div>
+                        <a id="zatca-create-store-link" href="/dashboard/stores/add" class="action-link text-sm" style="color:var(--md-sys-color-primary)">{{ L "tpl.settings.zatca_create_store" }}</a>
+                    </div>
+                    <div id="zatca-address-source" class="hidden p-3 mb-3 rounded text-sm flex items-center justify-between gap-3" style="background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant)">
+                        <span>{{ L "tpl.settings.zatca_address_from_store" }}</span>
+                        <a id="zatca-edit-store-link" href="#" class="action-link" style="color:var(--md-sys-color-primary)">{{ L "tpl.settings.zatca_edit_store" }}</a>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="form-label">{{ L "tpl.settings.zatca_street" }} <span class="text-red-500">*</span></label>
-                            <input type="text" name="zatca_street" id="zatca_street" placeholder="{{ L "tpl.settings.ph_street" }}">
-                            <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.help_street" }}</p>
+                            <input type="text" name="zatca_street" id="zatca_street" placeholder="{{ L "tpl.settings.ph_street" }}" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                         <div>
                             <label class="form-label">{{ L "tpl.settings.zatca_building" }} <span class="text-red-500">*</span></label>
-                            <input type="text" name="zatca_building" id="zatca_building" placeholder="{{ L "tpl.settings.ph_building" }}">
+                            <input type="text" name="zatca_building" id="zatca_building" placeholder="{{ L "tpl.settings.ph_building" }}" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                         <div>
                             <label class="form-label">{{ L "tpl.settings.zatca_district" }} <span class="text-red-500">*</span></label>
-                            <input type="text" name="zatca_district" id="zatca_district" placeholder="{{ L "tpl.settings.ph_district" }}">
+                            <input type="text" name="zatca_district" id="zatca_district" placeholder="{{ L "tpl.settings.ph_district" }}" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                         <div>
                             <label class="form-label">{{ L "tpl.settings.zatca_postal" }} <span class="text-red-500">*</span></label>
-                            <input type="text" name="zatca_postal_code" id="zatca_postal_code" placeholder="12345" maxlength="5" inputmode="numeric">
-                            <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.help_postal" }}</p>
+                            <input type="text" name="zatca_postal_code" id="zatca_postal_code" placeholder="12345" maxlength="5" inputmode="numeric" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                         <div>
                             <label class="form-label">{{ L "tpl.settings.zatca_city" }} <span class="text-red-500">*</span></label>
-                            <input type="text" name="zatca_city" id="zatca_city" placeholder="{{ L "tpl.settings.ph_city" }}">
-                            <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.help_city" }}</p>
+                            <input type="text" name="zatca_city" id="zatca_city" placeholder="{{ L "tpl.settings.ph_city" }}" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                     </div>
                 </div>
@@ -1154,9 +1167,25 @@
 
             // Count filled fields for progress
             var filledCount = 0;
+            var missingFields = [];
             requiredZatcaFields.forEach(function(field) {
                 var el = document.getElementById(field);
-                if (el && el.value.trim().length > 0) filledCount++;
+                var filled = el && el.value.trim().length > 0;
+                if (filled) {
+                    filledCount++;
+                } else {
+                    missingFields.push(field);
+                }
+                // Highlight missing required fields with a red border + label colour.
+                if (el) {
+                    if (filled) {
+                        el.classList.remove('zatca-missing');
+                        el.style.borderColor = '';
+                    } else {
+                        el.classList.add('zatca-missing');
+                        el.style.borderColor = 'var(--md-sys-color-error, #dc2626)';
+                    }
+                }
             });
             var totalFields = requiredZatcaFields.length;
             var pct = Math.round((filledCount / totalFields) * 100);
@@ -1166,6 +1195,33 @@
             var barEl = document.getElementById('zatca-progress-bar');
             if (pctEl) pctEl.textContent = pct + '%';
             if (barEl) barEl.style.width = pct + '%';
+
+            // Surface the list of missing fields under the progress bar so
+            // the user knows exactly which ones are blocking 100%.
+            var missEl = document.getElementById('zatca-missing-list');
+            if (missEl) {
+                if (missingFields.length === 0) {
+                    missEl.classList.add('hidden');
+                    missEl.innerHTML = '';
+                } else {
+                    var labels = missingFields.map(function(id) {
+                        var input = document.getElementById(id);
+                        // Find the closest label[for=id] or preceding .form-label sibling.
+                        var lbl = document.querySelector('label[for="' + id + '"]');
+                        if (!lbl && input) {
+                            var p = input.previousElementSibling;
+                            while (p && !p.classList.contains('form-label')) p = p.previousElementSibling;
+                            lbl = p;
+                        }
+                        return lbl ? lbl.textContent.trim().replace(/\s*\*\s*$/, '') : id;
+                    });
+                    missEl.classList.remove('hidden');
+                    missEl.innerHTML = '<strong>{{ L "tpl.settings.zatca_missing_label" }}</strong> ' +
+                        labels.map(function(t){
+                            return '<span style="display:inline-block;margin:2px 4px;padding:2px 8px;border-radius:9999px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">' + t + '</span>';
+                        }).join('');
+                }
+            }
 
             // Update stepper icons
             updateStepperIcons(filledCount === totalFields, zatcaConfigSaved, status);
@@ -1206,18 +1262,37 @@
         }
 
         // ── Branch store-address bridge ───────────────────────────
-        // City is required for ZATCA onboarding but lives in `store.city`
-        // (branch_zatca_config has no city column). These helpers keep
-        // the city input synced with the first store linked to a branch.
+        // The store row linked to a branch is the SINGLE source of truth
+        // for the branch's national address. We mirror it into the ZATCA
+        // form fields (which are readonly) and persist them back into
+        // branch_zatca_config on save so the daemon keeps working.
         window.loadBranchStoreCity = function(branchId) {
-            var cityInput = document.getElementById('zatca_city');
-            if (!cityInput || !branchId) return Promise.resolve(null);
+            var ids = ['zatca_street','zatca_building','zatca_district','zatca_postal_code','zatca_city'];
+            var noStorePanel = document.getElementById('zatca-address-no-store');
+            var sourcePanel  = document.getElementById('zatca-address-source');
+            var editLink     = document.getElementById('zatca-edit-store-link');
+            var clear = function() { ids.forEach(function(i){ var el=document.getElementById(i); if(el) el.value=''; }); };
+            if (!branchId) { clear(); return Promise.resolve(null); }
             return fetch('/api/branch/' + branchId + '/store-address', { credentials: 'same-origin' })
                 .then(function(r) { return r.ok ? r.json() : null; })
                 .then(function(payload) {
-                    if (!payload || !payload.detail) { cityInput.value = ''; return null; }
-                    cityInput.value = payload.detail.city || '';
-                    return payload.detail;
+                    var d = payload && payload.detail;
+                    if (!d || !payload.linked) {
+                        clear();
+                        if (noStorePanel) noStorePanel.classList.remove('hidden');
+                        if (sourcePanel)  sourcePanel.classList.add('hidden');
+                        return null;
+                    }
+                    var setVal = function(id, v) { var el=document.getElementById(id); if(el) el.value = v || ''; };
+                    setVal('zatca_street',      d.street_name);
+                    setVal('zatca_building',    d.building_number);
+                    setVal('zatca_district',    d.district);
+                    setVal('zatca_postal_code', d.postal_code);
+                    setVal('zatca_city',        d.city);
+                    if (noStorePanel) noStorePanel.classList.add('hidden');
+                    if (sourcePanel)  sourcePanel.classList.remove('hidden');
+                    if (editLink && payload.store_id) editLink.setAttribute('href', '/dashboard/stores/' + payload.store_id + '/edit');
+                    return d;
                 })
                 .catch(function() { return null; });
         };
@@ -1238,6 +1313,12 @@
             var branchId = document.getElementById('zatca-branch-id').value;
             if (!branchId) {
                 if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_select_branch" }}', 'error');
+                return;
+            }
+            // Block if no store is linked — address must come from a store.
+            var noStorePanel = document.getElementById('zatca-address-no-store');
+            if (noStorePanel && !noStorePanel.classList.contains('hidden')) {
+                if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_no_store" }}', 'error');
                 return;
             }
 
@@ -1330,6 +1411,14 @@
 
         window.switchZatcaBranch = function(branchId) {
             document.getElementById('zatca-branch-id').value = branchId;
+            // Update the "create store" deep link so the new store is
+            // pre-linked to this branch (fixes: user adds a store but
+            // ZATCA panel still says "no store" because the new store
+            // had no branch_id set).
+            var createLink = document.getElementById('zatca-create-store-link');
+            if (createLink && branchId) {
+                createLink.setAttribute('href', '/dashboard/stores/add?branch_id=' + encodeURIComponent(branchId));
+            }
             var data = zatcaBranchData[branchId] || {};
             zatcaFieldNames.forEach(function(field) {
                 var el = document.getElementById('zatca_' + field);

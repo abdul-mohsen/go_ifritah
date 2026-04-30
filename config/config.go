@@ -234,6 +234,10 @@ var (
 
 // Initialize loads configuration from environment and sets up the application
 func Initialize() {
+	// .env.local (gitignored, per-developer overrides) wins over .env.
+	// godotenv.Load does not overwrite vars already set, so loading .env.local
+	// first makes its values authoritative.
+	_ = godotenv.Load(".env.local")
 	_ = godotenv.Load() // .env file is optional
 
 	BackendDomain = os.Getenv("BACKEND_URL")
@@ -326,9 +330,6 @@ func LoadTemplates() {
 		"add-purchase-bill":     filepath.Join(BaseDir, "templates/add-purchase-bill.html"),
 		"purchase-bill-detail":  filepath.Join(BaseDir, "templates/purchase-bill-detail.html"),
 		"edit-purchase-bill":    filepath.Join(BaseDir, "templates/edit-purchase-bill.html"),
-		"add-user":              filepath.Join(BaseDir, "templates/add-user.html"),
-		"users":                 filepath.Join(BaseDir, "templates/users.html"),
-		"edit-user":             filepath.Join(BaseDir, "templates/edit-user.html"),
 		"settings":              filepath.Join(BaseDir, "templates/settings.html"),
 		"parts-search":          filepath.Join(BaseDir, "templates/parts-search.html"),
 		"cars-search":           filepath.Join(BaseDir, "templates/cars-search.html"),
@@ -339,7 +340,6 @@ func LoadTemplates() {
 		"edit-cash-voucher":     filepath.Join(BaseDir, "templates/edit-cash-voucher.html"),
 		"stock-adjustments":     filepath.Join(BaseDir, "templates/stock-adjustments.html"),
 		"notifications":         filepath.Join(BaseDir, "templates/notifications.html"),
-		"zatca-monitor":         filepath.Join(BaseDir, "templates/zatca-monitor.html"),
 	}
 
 	for name, page := range layoutPages {

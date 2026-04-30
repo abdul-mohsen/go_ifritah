@@ -55,8 +55,10 @@ async function readDashboardNumber(page, labelFragment) {
 }
 
 function uniqueTag(prefix = 'QA') {
-  const ts = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
-  return `${prefix}-${ts}-${Math.floor(Math.random() * 1000)}`;
+  const ts = new Date().toISOString().replaceAll(/\D/g, '').slice(0, 14);
+  // NOSONAR S2245: non-cryptographic suffix used only to disambiguate test fixture names.
+  const suffix = Math.floor(Math.random() * 1000); // NOSONAR
+  return `${prefix}-${ts}-${suffix}`;
 }
 
 module.exports = { BASE, login, setSetting, readDashboardNumber, uniqueTag, expect };

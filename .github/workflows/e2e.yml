@@ -97,9 +97,13 @@ jobs:
         continue-on-error: true
         timeout-minutes: 75
         working-directory: e2e
+        env:
+          # Pass the user-supplied grep through an env var so it cannot be
+          # interpolated as shell syntax (Sonar githubactions:S7630).
+          GREP_FILTER: ${{ inputs.grep }}
         run: |
-          if [ -n "${{ inputs.grep }}" ]; then
-            npx playwright test --grep "${{ inputs.grep }}"
+          if [ -n "$GREP_FILTER" ]; then
+            npx playwright test --grep "$GREP_FILTER"
           else
             npx playwright test
           fi

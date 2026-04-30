@@ -1,0 +1,123 @@
+name: E2E (against dev backend)
+
+# Builds the Go frontend on the runner, starts it on :8001 wired to the
+# https://dev.ifritah.com backend, and runs the Playwright suite against it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      grep:
+        description: "Optional --grep filter passed to Playwright (e.g. qa-32)"
+        required: false
+        default: ""
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      PORT: "8001"
+      BACKEND_URL: "https://dev.ifritah.com"
+      APP_DOMAIN: "localhost:8001"
+      # Token store has to be writable; keep it inside the workspace so the
+      # cleanup step can wipe it.
+      AFRITA_TOKEN_DIR: ${{ github.workspace }}/.afrita-tokens
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install root npm deps (Tailwind)
+        run: npm ci || npm install
+
+      - name: Build CSS
+        run: npm run build:css
+
+      - name: Build Go binary
+        run: go build -o afrita ./...
+
+      - name: Start frontend server
+        run: |
+          mkdir -p "$AFRITA_TOKEN_DIR"
+          nohup ./afrita > server.log 2>&1 &
+          echo $! > server.pid
+          # Wait for the login page to be reachable
+          for i in $(seq 1 60); do
+            if curl -sf "http://localhost:${PORT}/login" >/dev/null; then
+              echo "Frontend is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Frontend did not start within 60s"
+          cat server.log
+          exit 1
+
+      - name: Verify backend reachability from runner
+        run: |
+          curl -sS -o /dev/null -w "dev backend HTTP %{http_code}\n" "$BACKEND_URL" || true
+
+      - name: Install e2e dependencies
+        working-directory: e2e
+        run: npm ci || npm install
+
+      - name: Install Playwright browsers
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: e2e
+        run: |
+          if [ -n "${{ inputs.grep }}" ]; then
+            npx playwright test --grep "${{ inputs.grep }}"
+          else
+            npx playwright test
+          fi
+
+      - name: Stop frontend server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill "$(cat server.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-server-log
+          path: server.log
+          if-no-files-found: ignore
+
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+          if-no-files-found: ignore

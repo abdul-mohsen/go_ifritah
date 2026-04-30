@@ -24,8 +24,16 @@ cookies_new.txt
 # Test output artifacts (entire folder, local only)
 tests/
 
-# E2E tests (local only, not tracked)
-e2e/
+# E2E: track the harness + spec files, ignore run artifacts and deps.
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+e2e/.auth/
+e2e/*.log
+e2e/*.err
+e2e/*.txt
+e2e/package-lock.json
+e2e/probe-*.js
 
 # Scripts (local only)
 scripts/

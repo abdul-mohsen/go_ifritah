@@ -21,8 +21,9 @@ test.exe
 cookies.txt
 cookies_new.txt
 
-# Test output artifacts (entire folder, local only)
-tests/
+# Test output artifacts (entire folder, local only) — anchored at repo root,
+# do NOT match e2e/tests/.
+/tests/
 
 # E2E: track the harness + spec files, ignore run artifacts and deps.
 e2e/node_modules/

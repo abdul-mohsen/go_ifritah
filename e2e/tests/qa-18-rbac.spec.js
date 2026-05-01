@@ -12,9 +12,9 @@
 const { test, expect } = require('@playwright/test');
 
 const USERS = [
-  { role: 'admin', user: 'admin', pass: 'admin123' },
-  { role: 'manager', user: 'manager', pass: 'manager123' },
-  { role: 'employee', user: 'employee', pass: 'employee123' },
+  { role: 'admin', user: 'admin', pass: 'admin' },
+  { role: 'manager', user: 'manager', pass: 'manager' },
+  { role: 'employee', user: 'employee', pass: 'employee' },
 ];
 
 async function loginAs(page, user, pass) {

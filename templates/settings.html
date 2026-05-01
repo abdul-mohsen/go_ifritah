@@ -452,6 +452,16 @@
                 </div>
             </div>
 
+            <!-- ZATCA Monitor / Submissions link -->
+            <div class="mb-4 flex items-center justify-between p-3 rounded-lg" style="background: var(--md-sys-color-surface-container); border: 1px solid var(--md-sys-color-outline-variant)">
+                <div class="text-sm" style="color: var(--md-sys-color-on-surface-variant)">
+                    {{ L "zatca_monitor.recent_submissions" }}
+                </div>
+                <a href="/dashboard/zatca-monitor" id="zatca-monitor-link" class="action-link text-sm font-medium" style="color: var(--md-sys-color-primary)">
+                    {{ L "zatca_monitor.title" }} →
+                </a>
+            </div>
+
             <!-- ── Company Info (saved separately from per-branch ZATCA config) ── -->
             <!-- Maps to `company` table: name, name_ar, vat_registration_number, commercial_registration_number, business_category. -->
             <!-- Arabic legal name is REQUIRED on every ZATCA e-invoice (CompanyNameAR / SellerInfo.NameAR). -->

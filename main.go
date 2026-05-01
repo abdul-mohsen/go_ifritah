@@ -172,8 +172,9 @@ func main() {
 	router.HandleFunc("/api/branch/{id}/store-address", adminOnly(handlers.HandleGetBranchStoreAddress)).Methods("GET")
 	router.HandleFunc("/api/branch/{id}/store-address", adminOnly(handlers.HandleUpdateBranchStoreAddress)).Methods("PUT")
 
-	// ZATCA Monitor page removed — backend has no /api/v2/zatca/monitor/*
-	// endpoints yet. See _BACKEND_TODO.md for the API surface to add.
+	// ZATCA Monitor page (mock data — backend has no /api/v2/zatca/monitor/*
+	// endpoints yet; see _BACKEND_TODO.md). Admin only.
+	router.HandleFunc("/dashboard/zatca-monitor", adminOnly(handlers.HandleZatcaMonitor)).Methods("GET")
 
 	// Notification routes
 	router.HandleFunc("/dashboard/notifications", handlers.HandleNotifications).Methods("GET")

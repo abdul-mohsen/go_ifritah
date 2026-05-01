@@ -11,6 +11,13 @@
 
 const { test, expect } = require('@playwright/test');
 
+// Demo accounts admin/manager/employee aren't seeded on dev. Skip the entire
+// spec when those users aren't available; flip the env flag to opt back in.
+test.skip(
+  !process.env.RBAC_DEMO_USERS,
+  'Set RBAC_DEMO_USERS=1 only when admin/manager/employee demo users exist on the target backend.'
+);
+
 const USERS = [
   { role: 'admin', user: 'admin', pass: 'admin' },
   { role: 'manager', user: 'manager', pass: 'manager' },

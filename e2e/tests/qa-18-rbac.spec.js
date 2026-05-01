@@ -11,13 +11,10 @@
 
 const { test, expect } = require('@playwright/test');
 
-// Dev backend only has the `ssda` account seeded. Use it for every role until
-// the demo manager/employee users are provisioned — manager/employee cases
-// will fail their negative-path assertions and that's expected for now.
 const USERS = [
-  { role: 'admin', user: 'ssda', pass: 'Qwerty123' },
-  { role: 'manager', user: 'ssda', pass: 'Qwerty123' },
-  { role: 'employee', user: 'ssda', pass: 'Qwerty123' },
+  { role: 'admin', user: 'admin', pass: 'admin123' },
+  { role: 'manager', user: 'manager', pass: 'manager123' },
+  { role: 'employee', user: 'employee', pass: 'employee123' },
 ];
 
 async function loginAs(page, user, pass) {

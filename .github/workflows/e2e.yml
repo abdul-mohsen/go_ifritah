@@ -90,20 +90,40 @@ jobs:
         working-directory: e2e
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright tests
-        id: playwright
-        timeout-minutes: 75
+      - name: Run Playwright tests (serial group)
+        id: playwright_serial
+        timeout-minutes: 30
         working-directory: e2e
         env:
           # Pass the user-supplied grep through an env var so it cannot be
           # interpolated as shell syntax (Sonar githubactions:S7630).
           GREP_FILTER: ${{ inputs.grep }}
+          PW_RESULTS_FILE: playwright-results-serial.json
+          PW_WORKERS: "1"
         run: |
           set +e
           if [ -n "$GREP_FILTER" ]; then
-            npx playwright test --grep "$GREP_FILTER"
+            npx playwright test --project=serial --workers=1 --grep "$GREP_FILTER"
           else
-            npx playwright test
+            npx playwright test --project=serial --workers=1
+          fi
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Run Playwright tests (parallel group)
+        id: playwright_parallel
+        if: always()
+        timeout-minutes: 60
+        working-directory: e2e
+        env:
+          GREP_FILTER: ${{ inputs.grep }}
+          PW_RESULTS_FILE: playwright-results-parallel.json
+          PW_WORKERS: "4"
+        run: |
+          set +e
+          if [ -n "$GREP_FILTER" ]; then
+            npx playwright test --project=parallel --workers=4 --grep "$GREP_FILTER"
+          else
+            npx playwright test --project=parallel --workers=4
           fi
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
@@ -113,12 +133,7 @@ jobs:
         run: |
           node -e '
             const fs = require("fs");
-            const path = "playwright-results.json";
-            if (!fs.existsSync(path)) {
-              console.log("No playwright-results.json found.");
-              process.exit(0);
-            }
-            const r = JSON.parse(fs.readFileSync(path, "utf8"));
+            const files = ["playwright-results-serial.json", "playwright-results-parallel.json"];
             let passed = 0, failed = 0, skipped = 0, flaky = 0, total = 0;
             const failures = [];
             const visit = (suite) => {
@@ -134,7 +149,11 @@ jobs:
                 }
               }
             };
-            for (const s of r.suites || []) visit(s);
+            for (const f of files) {
+              if (!fs.existsSync(f)) { console.log(`(missing ${f})`); continue; }
+              const r = JSON.parse(fs.readFileSync(f, "utf8"));
+              for (const s of r.suites || []) visit(s);
+            }
             const summary = `Playwright: ${passed}/${total} passed (failed=${failed}, skipped=${skipped}, flaky=${flaky})`;
             console.log(summary);
             if (failures.length) {
@@ -153,9 +172,10 @@ jobs:
           '
 
       - name: Fail if any Playwright test failed
-        if: always() && steps.playwright.outputs.exit_code != '0'
+        if: always() && (steps.playwright_serial.outputs.exit_code != '0' || steps.playwright_parallel.outputs.exit_code != '0')
         run: |
-          echo "Playwright exited with code ${{ steps.playwright.outputs.exit_code }}"
+          echo "Playwright serial   exit code: ${{ steps.playwright_serial.outputs.exit_code }}"
+          echo "Playwright parallel exit code: ${{ steps.playwright_parallel.outputs.exit_code }}"
           exit 1
 
       - name: Stop frontend server
@@ -182,4 +202,6 @@ jobs:
             e2e/test-results
             e2e/playwright-report
             e2e/playwright-results.json
+            e2e/playwright-results-serial.json
+            e2e/playwright-results-parallel.json
           if-no-files-found: ignore

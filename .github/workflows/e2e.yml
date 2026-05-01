@@ -91,10 +91,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright tests
-        # Backend on dev may not yet have all the features the suite covers.
-        # We still want the run to surface results (artifacts uploaded below),
-        # so don't fail the workflow on test failures.
-        continue-on-error: true
+        id: playwright
         timeout-minutes: 75
         working-directory: e2e
         env:
@@ -102,11 +99,64 @@ jobs:
           # interpolated as shell syntax (Sonar githubactions:S7630).
           GREP_FILTER: ${{ inputs.grep }}
         run: |
+          set +e
           if [ -n "$GREP_FILTER" ]; then
             npx playwright test --grep "$GREP_FILTER"
           else
             npx playwright test
           fi
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize Playwright results
+        if: always()
+        working-directory: e2e
+        run: |
+          node -e '
+            const fs = require("fs");
+            const path = "playwright-results.json";
+            if (!fs.existsSync(path)) {
+              console.log("No playwright-results.json found.");
+              process.exit(0);
+            }
+            const r = JSON.parse(fs.readFileSync(path, "utf8"));
+            let passed = 0, failed = 0, skipped = 0, flaky = 0, total = 0;
+            const failures = [];
+            const visit = (suite) => {
+              for (const s of suite.suites || []) visit(s);
+              for (const spec of suite.specs || []) {
+                for (const t of spec.tests || []) {
+                  total++;
+                  const status = t.status; // expected | unexpected | flaky | skipped
+                  if (status === "expected") passed++;
+                  else if (status === "skipped") skipped++;
+                  else if (status === "flaky") { flaky++; passed++; }
+                  else { failed++; failures.push(`${spec.file}:${spec.line} - ${spec.title}`); }
+                }
+              }
+            };
+            for (const s of r.suites || []) visit(s);
+            const summary = `Playwright: ${passed}/${total} passed (failed=${failed}, skipped=${skipped}, flaky=${flaky})`;
+            console.log(summary);
+            if (failures.length) {
+              console.log("\nFailures:");
+              for (const f of failures) console.log("  - " + f);
+            }
+            const out = process.env.GITHUB_STEP_SUMMARY;
+            if (out) {
+              let md = `### ${summary}\n`;
+              if (failures.length) {
+                md += "\n<details><summary>Failures</summary>\n\n";
+                md += failures.map(f => `- \`${f}\``).join("\n") + "\n\n</details>\n";
+              }
+              fs.appendFileSync(out, md);
+            }
+          '
+
+      - name: Fail if any Playwright test failed
+        if: always() && steps.playwright.outputs.exit_code != '0'
+        run: |
+          echo "Playwright exited with code ${{ steps.playwright.outputs.exit_code }}"
+          exit 1
 
       - name: Stop frontend server
         if: always()
@@ -131,4 +181,5 @@ jobs:
           path: |
             e2e/test-results
             e2e/playwright-report
+            e2e/playwright-results.json
           if-no-files-found: ignore

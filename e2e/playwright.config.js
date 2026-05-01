@@ -12,5 +12,8 @@ module.exports = defineConfig({
     baseURL: 'http://localhost:8001',
     headless: true,
   },
-  reporter: 'list',
+  reporter: [
+    ['list'],
+    ['json', { outputFile: 'playwright-results.json' }],
+  ],
 });

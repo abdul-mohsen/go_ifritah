@@ -14,16 +14,32 @@ const { test, expect } = require('@playwright/test');
 const { login } = require('../helpers/qa');
 
 async function firstBranchId(page) {
-  const r = await page.request.get('/api/branches/all');
+  // The frontend does not expose /api/branches/all; scrape the rendered
+  // /dashboard/branches HTML for the first branch's edit link.
+  const r = await page.request.get('/dashboard/branches');
   if (!r.ok()) return null;
-  const body = await r.json();
-  // Accept several backend shapes
-  const list = body.detail || body.branches || body || [];
-  for (const b of list) {
-    const id = b.id || b.ID;
-    if (id) return id;
+  const html = await r.text();
+  // Match the per-row edit link pattern emitted by templates/branches.html.
+  const m = html.match(/\/dashboard\/branches\/(\d+)\/edit/);
+  return m ? m[1] : null;
+}
+
+// Read csrf_token cookie set by the FE CSRFMiddleware so PUT/POST requests
+// pass the double-submit check (X-CSRF-Token must equal cookie value).
+async function csrfHeader(page) {
+  const cookies = await page.context().cookies();
+  const c = cookies.find((x) => x.name === 'csrf_token');
+  return c ? { 'X-CSRF-Token': c.value } : {};
+}
+
+// The /api/branch/{id}/store-address GET response is wrapped:
+//   { detail: { city, street_name, ... }, linked: bool, store_id: number }
+// Unwrap to the address fields.
+function addressFrom(body) {
+  if (body && typeof body === 'object' && body.detail && typeof body.detail === 'object') {
+    return body.detail;
   }
-  return null;
+  return body || {};
 }
 
 test.describe('Store-address bridge', () => {
@@ -32,12 +48,12 @@ test.describe('Store-address bridge', () => {
     const id = await firstBranchId(page);
     if (!id) test.skip(true, 'No branch available on dev backend.');
     const r = await page.request.get(`/api/branch/${id}/store-address`);
-    // Either 200 with body, or 404 if no store linked yet — both are valid
     if (r.status() === 404) test.skip(true, 'No linked store yet.');
     expect(r.ok()).toBeTruthy();
     const body = await r.json();
+    const address = addressFrom(body);
     // Body MUST expose city (the daemon-required field)
-    expect(body).toHaveProperty('city');
+    expect(address).toHaveProperty('city');
   });
 
   test('PUT with empty city is rejected', async ({ page }) => {
@@ -46,7 +62,7 @@ test.describe('Store-address bridge', () => {
     if (!id) test.skip(true, 'No branch available.');
     const r = await page.request.put(`/api/branch/${id}/store-address`, {
       data: { city: '', street_name: 'X' },
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await csrfHeader(page)) },
     });
     expect(r.status()).toBeGreaterThanOrEqual(400);
     expect(r.status()).toBeLessThan(500);
@@ -57,9 +73,11 @@ test.describe('Store-address bridge', () => {
     const id = await firstBranchId(page);
     if (!id) test.skip(true, 'No branch available.');
 
+    const csrf = await csrfHeader(page);
+
     // Read existing
     const before = await page.request.get(`/api/branch/${id}/store-address`);
-    const beforeBody = before.ok() ? await before.json() : {};
+    const beforeBody = before.ok() ? addressFrom(await before.json()) : {};
     const cityProbe = 'الرياض-QA23';
 
     const put = await page.request.put(`/api/branch/${id}/store-address`, {
@@ -71,20 +89,20 @@ test.describe('Store-address bridge', () => {
         postal_code: beforeBody.postal_code || '12345',
         country: beforeBody.country || 'SA',
       },
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrf },
     });
-    expect(put.ok()).toBeTruthy();
+    expect(put.ok(), `PUT must succeed (status ${put.status()})`).toBeTruthy();
 
     const after = await page.request.get(`/api/branch/${id}/store-address`);
     expect(after.ok()).toBeTruthy();
-    const afterBody = await after.json();
+    const afterBody = addressFrom(await after.json());
     expect(afterBody.city).toBe(cityProbe);
 
     // Restore previous city if there was one
     if (beforeBody.city && beforeBody.city !== cityProbe) {
       await page.request.put(`/api/branch/${id}/store-address`, {
         data: { ...beforeBody },
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...csrf },
       });
     }
   });

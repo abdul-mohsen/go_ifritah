@@ -80,16 +80,31 @@ test.describe('Edit-page round-trip — no field is silently dropped', () => {
   // ----------------------------------------------------------------------
   test('invoice: client, store, user_name, user_phone, dates round-trip', async ({ page }) => {
     await login(page);
-    const id = await findFirstEditId(page, '/dashboard/invoices?state=0', '/dashboard/invoices/edit/');
-    if (!id) test.skip(true, 'no draft invoice (state=0) to edit on dev backend');
 
-    await page.goto(`/dashboard/invoices/edit/${id}`);
+    // Collect candidate draft-invoice ids from the list page (most recent first).
+    await page.goto('/dashboard/invoices?state=0');
     await page.waitForLoadState('domcontentloaded');
+    const candidates = await page.evaluate(() => {
+      const ids = [];
+      const seen = new Set();
+      for (const a of document.querySelectorAll('a[href*="/dashboard/invoices/edit/"]')) {
+        const m = (a.getAttribute('href') || '').match(/\/dashboard\/invoices\/edit\/(\d+)/);
+        if (m && !seen.has(m[1])) { seen.add(m[1]); ids.push(m[1]); }
+      }
+      return ids;
+    });
+    if (candidates.length === 0) test.skip(true, 'no draft invoice (state=0) to edit on dev backend');
 
-    // The client_id <select> only renders for company invoices (is_company=true).
-    // Skip if the dev backend's first draft is personal-mode (no select).
-    const clientSelectCount = await page.locator('select[name="client_id"]').count();
-    if (clientSelectCount === 0) test.skip(true, 'first draft invoice is personal-mode (no client_id select)');
+    // Find the first draft that renders in company-mode (has client_id select).
+    // Personal-mode drafts don't expose the field, so the round-trip can't be
+    // verified there. Cap iteration to keep the test bounded.
+    let id = null;
+    for (const cand of candidates.slice(0, 5)) {
+      await page.goto(`/dashboard/invoices/edit/${cand}`);
+      await page.waitForLoadState('domcontentloaded');
+      if (await page.locator('select[name="client_id"]').count() > 0) { id = cand; break; }
+    }
+    if (!id) test.skip(true, 'no company-mode draft invoice on dev backend (all visible drafts are personal)');
 
     // client_id must be selected on the invoice edit form. The handler
     // currently does not pass .client_id → the select shows the

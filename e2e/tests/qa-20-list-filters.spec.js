@@ -79,9 +79,12 @@ test('cash-vouchers ?q=<known> filters to rows containing that text', async ({ p
     const rows = Array.from(document.querySelectorAll('tbody tr'));
     for (const r of rows) {
       const cells = r.querySelectorAll('td');
-      if (cells.length < 3) continue;
-      // recipient_name is the 3rd column per templates/cash-vouchers.html
-      const t = (cells[2]?.textContent || '').trim();
+      if (cells.length < 4) continue;
+      // Columns per templates/cash-vouchers.html:
+      //   0=#, 1=voucher_number, 2=voucher_type, 3=recipient_name, 4=amount, …
+      // Backend `?q=` matches recipient_name OR description OR note, so
+      // we pick the recipient_name cell.
+      const t = (cells[3]?.textContent || '').trim();
       if (t.length >= 3) return t;
     }
     return null;

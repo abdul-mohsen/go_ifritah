@@ -114,45 +114,69 @@ func BuildBillProductItems(ids []string, prices []string, quantities []string) [
 	return BuildBillProductItemsWithNames(ids, prices, quantities, nil)
 }
 
+// productRow holds the parsed values for one row of parallel product form
+// arrays (id/price/quantity, plus optional name and cost_price). It is
+// shared by BuildBillProductItemsWithNames and BuildPurchaseBillPayload to
+// avoid duplicating the index-bounds/empty-row logic.
+type productRow struct {
+	id        int
+	name      string
+	price     string
+	quantity  string
+	costPrice string
+}
+
+// readProductRow extracts row i from a set of parallel slices, applying
+// formatting and the "0" defaults that the backend expects. Any of the
+// secondary slices (names, costPrices) may be nil.
+func readProductRow(i int, ids, prices, quantities, names, costPrices []string) productRow {
+	row := productRow{price: "0", quantity: "0"}
+	if i < len(ids) {
+		row.id = ParseIntValue(ids[i])
+	}
+	if i < len(prices) {
+		row.price = FormatStringPrice(prices[i])
+	}
+	if i < len(quantities) {
+		if q := quantities[i]; q != "" {
+			row.quantity = q
+		}
+	}
+	if i < len(names) {
+		row.name = names[i]
+	}
+	if i < len(costPrices) {
+		row.costPrice = FormatStringPrice(costPrices[i])
+	}
+	return row
+}
+
+// productRowMaxLen returns the longest length across the supplied slices,
+// which is the number of iterations needed to read every row.
+func productRowMaxLen(slices ...[]string) int {
+	m := 0
+	for _, s := range slices {
+		if len(s) > m {
+			m = len(s)
+		}
+	}
+	return m
+}
+
 // BuildBillProductItemsWithNames builds product items including part_name (for purchase bills).
 func BuildBillProductItemsWithNames(ids []string, prices []string, quantities []string, names []string) []models.BillProductItem {
 	items := make([]models.BillProductItem, 0)
-	max := len(ids)
-	if len(prices) > max {
-		max = len(prices)
-	}
-	if len(quantities) > max {
-		max = len(quantities)
-	}
-
+	max := productRowMaxLen(ids, prices, quantities)
 	for i := 0; i < max; i++ {
-		id := 0
-		if i < len(ids) {
-			id = ParseIntValue(ids[i])
-		}
-		price := "0"
-		if i < len(prices) {
-			price = FormatStringPrice(prices[i])
-		}
-		qtyStr := "0"
-		if i < len(quantities) {
-			qtyStr = quantities[i]
-			if qtyStr == "" {
-				qtyStr = "0"
-			}
-		}
-		if id == 0 && price == "0" && qtyStr == "0" {
+		row := readProductRow(i, ids, prices, quantities, names, nil)
+		if row.id == 0 && row.price == "0" && row.quantity == "0" {
 			continue
 		}
-		name := ""
-		if i < len(names) {
-			name = names[i]
-		}
 		items = append(items, models.BillProductItem{
-			ID:       id,
-			PartName: name,
-			Price:    price,
-			Quantity: qtyStr,
+			ID:       row.id,
+			PartName: row.name,
+			Price:    row.price,
+			Quantity: row.quantity,
 		})
 	}
 	return items
@@ -260,59 +284,26 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 	var products []models.BillProductItem
 	var manualProducts []models.BillManualItem
 
-	max := len(ids)
-	if len(prices) > max {
-		max = len(prices)
-	}
-	if len(quantities) > max {
-		max = len(quantities)
-	}
-
+	max := productRowMaxLen(ids, prices, quantities)
 	for i := 0; i < max; i++ {
-		id := 0
-		if i < len(ids) {
-			id = ParseIntValue(ids[i])
-		}
-		price := "0"
-		if i < len(prices) {
-			price = FormatStringPrice(prices[i])
-		}
-		qtyStr := "0"
-		if i < len(quantities) {
-			qtyStr = quantities[i]
-			if qtyStr == "" {
-				qtyStr = "0"
-			}
-		}
-		name := ""
-		if i < len(names) {
-			name = names[i]
-		}
-		costPrice := ""
-		if i < len(costPrices) {
-			costPrice = FormatStringPrice(costPrices[i])
-		}
-
-		if id == 0 && price == "0" && qtyStr == "0" {
+		row := readProductRow(i, ids, prices, quantities, names, costPrices)
+		if row.id == 0 && row.price == "0" && row.quantity == "0" {
 			continue
 		}
-
-		if id != 0 {
-			// Linked product — goes to "products"
+		if row.id != 0 {
 			products = append(products, models.BillProductItem{
-				ID:        id,
-				PartName:  name,
-				Price:     price,
-				Quantity:  qtyStr,
-				CostPrice: costPrice,
+				ID:        row.id,
+				PartName:  row.name,
+				Price:     row.price,
+				Quantity:  row.quantity,
+				CostPrice: row.costPrice,
 			})
 		} else {
-			// Manual product from products_* with id=0 — goes to "manual_products"
 			manualProducts = append(manualProducts, models.BillManualItem{
-				PartName:  name,
-				Price:     price,
-				Quantity:  qtyStr,
-				CostPrice: costPrice,
+				PartName:  row.name,
+				Price:     row.price,
+				Quantity:  row.quantity,
+				CostPrice: row.costPrice,
 			})
 		}
 	}

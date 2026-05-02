@@ -387,7 +387,7 @@ func HandleSupplierReport(w http.ResponseWriter, r *http.Request) {
 
 	supplier, found := findSupplierByID(token, id)
 	if !found {
-		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, "المورد غير موجود")
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, msgSupplierNotFound)
 		return
 	}
 
@@ -405,7 +405,7 @@ func HandleSupplierReport(w http.ResponseWriter, r *http.Request) {
 	supplierID, _ := strconv.Atoi(id)
 	report, err := helpers.FetchSupplierReport(token, supplierID, dateFrom, dateTo)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل تقرير المورد")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, msgSupplierReportFailed)
 		return
 	}
 
@@ -445,7 +445,7 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 
 	_, found := findSupplierByID(token, id)
 	if !found {
-		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, "المورد غير موجود")
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, msgSupplierNotFound)
 		return
 	}
 
@@ -463,13 +463,13 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 
 	report, err := helpers.FetchSupplierReport(token, supplierID, dateFrom, dateTo)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل تقرير المورد")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, msgSupplierReportFailed)
 		return
 	}
 
 	filename := fmt.Sprintf("supplier_report_%d_%s_%s.csv", supplierID, dateFrom, dateTo)
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
+	w.Header().Set(headerContentDisp, "attachment; filename="+filename)
 	_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF}) // UTF-8 BOM
 
 	writer := csv.NewWriter(w)
@@ -477,25 +477,10 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 
 	_ = writer.Write([]string{"رقم الفاتورة", "التاريخ", "النوع", "المرجع", "الوصف", "مدين", "دائن", "الرصيد"})
 	for _, entry := range report.Ledger {
-		typeName := "فاتورة"
-		if entry.Type == "payment" {
-			typeName = "سند صرف"
-		}
-		billNo := entry.SupplierNo
-		if billNo == "" {
-			billNo = entry.Reference
-		}
-		if billNo == "" && entry.SystemID > 0 {
-			if entry.Type == "payment" {
-				billNo = fmt.Sprintf("CV-%d", entry.SystemID)
-			} else {
-				billNo = fmt.Sprintf("PB-%d", entry.SystemID)
-			}
-		}
 		_ = writer.Write([]string{
-			billNo,
+			ledgerBillNo(entry),
 			entry.Date,
-			typeName,
+			ledgerTypeName(entry),
 			entry.Reference,
 			entry.Description,
 			fmt.Sprintf("%.2f", entry.Debit),
@@ -503,6 +488,33 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("%.2f", entry.Balance),
 		})
 	}
+}
+
+// ledgerTypeName returns the Arabic display label for a supplier ledger entry.
+func ledgerTypeName(entry models.LedgerEntry) string {
+	if entry.Type == "payment" {
+		return "سند صرف"
+	}
+	return "فاتورة"
+}
+
+// ledgerBillNo picks the most informative identifier for a ledger row,
+// falling back to a synthetic CV-/PB- reference when the supplier-supplied
+// bill number is missing.
+func ledgerBillNo(entry models.LedgerEntry) string {
+	if entry.SupplierNo != "" {
+		return entry.SupplierNo
+	}
+	if entry.Reference != "" {
+		return entry.Reference
+	}
+	if entry.SystemID > 0 {
+		if entry.Type == "payment" {
+			return fmt.Sprintf("CV-%d", entry.SystemID)
+		}
+		return fmt.Sprintf("PB-%d", entry.SystemID)
+	}
+	return ""
 }
 
 func HandleExportSupplierReportExcel(w http.ResponseWriter, r *http.Request) {
@@ -513,7 +525,7 @@ func HandleExportSupplierReportExcel(w http.ResponseWriter, r *http.Request) {
 
 	filename := fmt.Sprintf("supplier_report_%d_%s_%s.xls", supplier.ID, dateFrom, dateTo)
 	w.Header().Set("Content-Type", "application/vnd.ms-excel; charset=utf-8")
-	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
+	w.Header().Set(headerContentDisp, "attachment; filename="+filename)
 	_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF})
 	writeSupplierReportDocument(w, supplier, report, dateFrom, dateTo, true)
 }
@@ -526,7 +538,7 @@ func HandleExportSupplierReportPDF(w http.ResponseWriter, r *http.Request) {
 
 	filename := fmt.Sprintf("supplier_report_%d_%s_%s.html", supplier.ID, dateFrom, dateTo)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Disposition", "inline; filename="+filename)
+	w.Header().Set(headerContentDisp, "inline; filename="+filename)
 	writeSupplierReportDocument(w, supplier, report, dateFrom, dateTo, false)
 }
 
@@ -541,7 +553,7 @@ func loadSupplierReportForDownload(w http.ResponseWriter, r *http.Request) (mode
 
 	supplier, found := findSupplierByID(token, id)
 	if !found {
-		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, "المورد غير موجود")
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, msgSupplierNotFound)
 		return models.Supplier{}, helpers.SupplierReportResult{}, "", "", false
 	}
 
@@ -554,7 +566,7 @@ func loadSupplierReportForDownload(w http.ResponseWriter, r *http.Request) (mode
 	dateFrom, dateTo := supplierReportDateRange(r)
 	report, err := helpers.FetchSupplierReport(token, supplierID, dateFrom, dateTo)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل تقرير المورد")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, msgSupplierReportFailed)
 		return models.Supplier{}, helpers.SupplierReportResult{}, "", "", false
 	}
 	applySupplierCreditUtilization(&report, supplier)

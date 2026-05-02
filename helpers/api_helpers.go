@@ -1968,77 +1968,16 @@ func FetchBranches(token string) ([]models.Branch, error) {
 // decodeInvoiceList parses the invoice/bill list response where numeric
 // fields (total, subtotal, total_before_vat, total_vat, discount, vat) may come as strings.
 func decodeInvoiceList(body []byte) ([]models.Invoice, error) {
-	var rawList []map[string]interface{}
-	if err := json.Unmarshal(body, &rawList); err != nil {
-		var wrapper map[string]json.RawMessage
-		if wErr := json.Unmarshal(body, &wrapper); wErr != nil {
-			return nil, err
-		}
-		for _, key := range []string{"data", "items", "results", "bills", "invoices"} {
-			if raw, ok := wrapper[key]; ok {
-				if json.Unmarshal(raw, &rawList) == nil {
-					break
-				}
-			}
-		}
-		if rawList == nil {
-			return nil, fmt.Errorf("unsupported response shape for invoices")
-		}
+	rawList, err := unmarshalListWithWrapper(body, []string{"data", "items", "results", "bills", "invoices"})
+	if err != nil {
+		return nil, err
 	}
-
 	invoices := make([]models.Invoice, 0, len(rawList))
 	for _, m := range rawList {
-		inv := models.Invoice{}
-		if v, ok := CoerceFloat(m["id"]); ok {
-			inv.ID = int(v)
-		}
-		if v, ok := CoerceFloat(m["sequence_number"]); ok {
-			inv.SequenceNumber = int(v)
-		}
+		inv := mapToInvoice(m)
 		if v, ok := CoerceFloat(m["subtotal"]); ok {
 			inv.Subtotal = v
 		}
-		if v, ok := CoerceFloat(m["total"]); ok {
-			inv.Total = v
-		}
-		if v, ok := CoerceFloat(m["total_vat"]); ok {
-			inv.TotalVAT = v
-		}
-		if v, ok := CoerceFloat(m["total_before_vat"]); ok {
-			inv.TotalBeforeVAT = v
-		}
-		if v, ok := CoerceFloat(m["discount"]); ok {
-			inv.Discount = v
-		}
-		if v, ok := CoerceFloat(m["vat"]); ok {
-			inv.VAT = v
-		}
-		if v, ok := CoerceFloat(m["state"]); ok {
-			inv.State = int(v)
-		}
-		if v, ok := CoerceFloat(m["credit_state"]); ok {
-			inv.CreditState = int(v)
-		}
-		if v, ok := m["bill_type"].(bool); ok {
-			inv.Type = v
-		} else if v, ok := m["type"].(bool); ok {
-			inv.Type = v
-		}
-
-		// Parse effective_date — may be string or {Time, Valid} object
-		if ed, ok := m["effective_date"].(string); ok {
-			inv.EffectiveDate.Time = ed
-			inv.EffectiveDate.Valid = ed != ""
-		} else if edMap, ok := m["effective_date"].(map[string]interface{}); ok {
-			if t, ok := edMap["Time"].(string); ok {
-				inv.EffectiveDate.Time = t
-			}
-			if v, ok := edMap["Valid"].(bool); ok {
-				inv.EffectiveDate.Valid = v
-			}
-		}
-
-		inv.PaymentDueDate = m["payment_due_date"]
 		invoices = append(invoices, inv)
 	}
 	return invoices, nil
@@ -2047,81 +1986,93 @@ func decodeInvoiceList(body []byte) ([]models.Invoice, error) {
 // decodePurchaseBillList parses the purchase bill list response where numeric
 // fields (total, total_before_vat, total_vat, discount) may come as strings.
 func decodePurchaseBillList(body []byte) ([]models.Invoice, error) {
-	var rawList []map[string]interface{}
-	if err := json.Unmarshal(body, &rawList); err != nil {
-		// Try wrapper format
-		var wrapper map[string]json.RawMessage
-		if wErr := json.Unmarshal(body, &wrapper); wErr != nil {
-			return nil, err
-		}
-		for _, key := range []string{"data", "items", "results", "bills"} {
-			if raw, ok := wrapper[key]; ok {
-				if json.Unmarshal(raw, &rawList) == nil {
-					break
-				}
-			}
-		}
-		if rawList == nil {
-			return nil, fmt.Errorf("unsupported response shape for purchase bills")
-		}
+	rawList, err := unmarshalListWithWrapper(body, []string{"data", "items", "results", "bills"})
+	if err != nil {
+		return nil, err
 	}
-
 	invoices := make([]models.Invoice, 0, len(rawList))
 	for _, m := range rawList {
-		inv := models.Invoice{}
-		if v, ok := CoerceFloat(m["id"]); ok {
-			inv.ID = int(v)
-		}
-		if v, ok := CoerceFloat(m["sequence_number"]); ok {
-			inv.SequenceNumber = int(v)
-		}
+		inv := mapToInvoice(m)
 		if v, ok := CoerceFloat(m["supplier_sequence_number"]); ok {
 			inv.SupplierSequenceNumber = int(v)
 		}
-		if v, ok := CoerceFloat(m["total"]); ok {
-			inv.Total = v
-		}
-		if v, ok := CoerceFloat(m["total_vat"]); ok {
-			inv.TotalVAT = v
-		}
-		if v, ok := CoerceFloat(m["total_before_vat"]); ok {
-			inv.TotalBeforeVAT = v
-		}
-		if v, ok := CoerceFloat(m["discount"]); ok {
-			inv.Discount = v
-		}
-		if v, ok := CoerceFloat(m["vat"]); ok {
-			inv.VAT = v
-		}
-		if v, ok := CoerceFloat(m["state"]); ok {
-			inv.State = int(v)
-		}
-		if v, ok := CoerceFloat(m["credit_state"]); ok {
-			inv.CreditState = int(v)
-		}
-		if v, ok := m["bill_type"].(bool); ok {
-			inv.Type = v
-		} else if v, ok := m["type"].(bool); ok {
-			inv.Type = v
-		}
-
-		// Parse effective_date — may be string or {Time, Valid} object
-		if ed, ok := m["effective_date"].(string); ok {
-			inv.EffectiveDate.Time = ed
-			inv.EffectiveDate.Valid = ed != ""
-		} else if edMap, ok := m["effective_date"].(map[string]interface{}); ok {
-			if t, ok := edMap["Time"].(string); ok {
-				inv.EffectiveDate.Time = t
-			}
-			if v, ok := edMap["Valid"].(bool); ok {
-				inv.EffectiveDate.Valid = v
-			}
-		}
-
-		inv.PaymentDueDate = m["payment_due_date"]
 		invoices = append(invoices, inv)
 	}
 	return invoices, nil
+}
+
+// unmarshalListWithWrapper decodes a JSON array, falling back to the named
+// keys of an object wrapper (e.g. {"data": [...]}, {"bills": [...]}) when the
+// top level isn't an array.
+func unmarshalListWithWrapper(body []byte, wrapperKeys []string) ([]map[string]interface{}, error) {
+	var rawList []map[string]interface{}
+	if err := json.Unmarshal(body, &rawList); err == nil {
+		return rawList, nil
+	}
+	var wrapper map[string]json.RawMessage
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return nil, err
+	}
+	for _, key := range wrapperKeys {
+		if raw, ok := wrapper[key]; ok {
+			if err := json.Unmarshal(raw, &rawList); err == nil {
+				return rawList, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("unsupported response shape")
+}
+
+// mapToInvoice extracts the fields shared by both bill and purchase-bill list
+// rows from a generic map. Caller-specific fields (e.g. subtotal,
+// supplier_sequence_number) should be set by the caller after invoking this.
+func mapToInvoice(m map[string]interface{}) models.Invoice {
+	inv := models.Invoice{}
+	if v, ok := CoerceFloat(m["id"]); ok {
+		inv.ID = int(v)
+	}
+	if v, ok := CoerceFloat(m["sequence_number"]); ok {
+		inv.SequenceNumber = int(v)
+	}
+	if v, ok := CoerceFloat(m["total"]); ok {
+		inv.Total = v
+	}
+	if v, ok := CoerceFloat(m["total_vat"]); ok {
+		inv.TotalVAT = v
+	}
+	if v, ok := CoerceFloat(m["total_before_vat"]); ok {
+		inv.TotalBeforeVAT = v
+	}
+	if v, ok := CoerceFloat(m["discount"]); ok {
+		inv.Discount = v
+	}
+	if v, ok := CoerceFloat(m["vat"]); ok {
+		inv.VAT = v
+	}
+	if v, ok := CoerceFloat(m["state"]); ok {
+		inv.State = int(v)
+	}
+	if v, ok := CoerceFloat(m["credit_state"]); ok {
+		inv.CreditState = int(v)
+	}
+	if v, ok := m["bill_type"].(bool); ok {
+		inv.Type = v
+	} else if v, ok := m["type"].(bool); ok {
+		inv.Type = v
+	}
+	if ed, ok := m["effective_date"].(string); ok {
+		inv.EffectiveDate.Time = ed
+		inv.EffectiveDate.Valid = ed != ""
+	} else if edMap, ok := m["effective_date"].(map[string]interface{}); ok {
+		if t, ok := edMap["Time"].(string); ok {
+			inv.EffectiveDate.Time = t
+		}
+		if v, ok := edMap["Valid"].(bool); ok {
+			inv.EffectiveDate.Valid = v
+		}
+	}
+	inv.PaymentDueDate = m["payment_due_date"]
+	return inv
 }
 
 func decodeListResponse[T any](body []byte) ([]T, error) {

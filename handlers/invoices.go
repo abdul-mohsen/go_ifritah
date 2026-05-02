@@ -637,67 +637,10 @@ func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build product items for payload
-	prodItems := make([]models.BillProductItem, 0, len(products))
-	for _, p := range products {
-		prodItems = append(prodItems, models.BillProductItem{
-			ID:       p.ProductID,
-			PartName: p.PartName,
-			Price:    fmt.Sprintf("%g", p.Price),
-			Quantity: strconv.Itoa(p.Quantity),
-		})
-	}
-	manualItems := make([]models.BillManualItem, 0, len(manualProducts))
-	for _, p := range manualProducts {
-		manualItems = append(manualItems, models.BillManualItem{
-			PartName:   p.PartName,
-			PartNumber: p.PartNumber,
-			Price:      fmt.Sprintf("%g", p.Price),
-			Quantity:   strconv.Itoa(p.Quantity),
-		})
-	}
+	prodItems := buildSubmitProductItems(products)
+	manualItems := buildSubmitManualItems(manualProducts)
 
-	// Resolve store_id from extra
-	storeID := 0
-	if v, ok := helpers.CoerceFloat(extra["store_id"]); ok {
-		storeID = int(v)
-	}
-
-	branchID := 0
-	if v, ok := helpers.CoerceFloat(extra["branch_id"]); ok {
-		branchID = int(v)
-	}
-
-	paymentMethod := 0
-	if v, ok := helpers.CoerceFloat(extra["payment_method"]); ok {
-		paymentMethod = int(v)
-	}
-
-	var clientID *int
-	if v, ok := helpers.CoerceFloat(extra["client_id"]); ok && v > 0 {
-		id := int(v)
-		clientID = &id
-	}
-
-	payload := models.BillPayload{
-		StoreID:         storeID,
-		Products:        prodItems,
-		ManualProducts:  manualItems,
-		TotalAmount:     inv.Total,
-		Discount:        fmt.Sprintf("%g", inv.Discount),
-		MaintenanceCost: "0",
-		State:           1, // submit as processing
-		VIN:             helpers.SafeString(extra["vin"]),
-		UserName:        helpers.SafeString(extra["user_name"]),
-		UserPhoneNumber: helpers.SafeString(extra["user_phone_number"]),
-		Note:            helpers.SafeString(extra["note"]),
-		PaymentMethod:   paymentMethod,
-		ClientID:        clientID,
-		BranchID:        branchID,
-	}
-
-	if inv.EffectiveDate.Valid {
-		payload.EffectiveDate = helpers.ToBackendDatePtr(inv.EffectiveDate.Time)
-	}
+	payload := buildSubmitDraftPayload(inv, extra, prodItems, manualItems)
 	if date := helpers.SafeString(extra["payment_due_date"]); date != "" {
 		payload.PaymentDueDate = helpers.ToBackendDatePtr(date)
 	}
@@ -784,4 +727,79 @@ func HandleCreateCompanyInvoice(w http.ResponseWriter, r *http.Request) {
 
 	helpers.APICache.Delete("invoices_all")
 	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم إنشاء فاتورة الشركة بنجاح")
+}
+
+// buildSubmitProductItems converts persisted bill product rows into the
+// API payload shape (string price, string quantity).
+func buildSubmitProductItems(products []models.BillItem) []models.BillProductItem {
+items := make([]models.BillProductItem, 0, len(products))
+for _, p := range products {
+items = append(items, models.BillProductItem{
+ID:       p.ProductID,
+PartName: p.PartName,
+Price:    fmt.Sprintf("%g", p.Price),
+Quantity: strconv.Itoa(p.Quantity),
+})
+}
+return items
+}
+
+// buildSubmitManualItems converts persisted manual-product rows into the
+// API payload shape (string price, string quantity).
+func buildSubmitManualItems(products []models.BillItem) []models.BillManualItem {
+items := make([]models.BillManualItem, 0, len(products))
+for _, p := range products {
+items = append(items, models.BillManualItem{
+PartName:   p.PartName,
+PartNumber: p.PartNumber,
+Price:      fmt.Sprintf("%g", p.Price),
+Quantity:   strconv.Itoa(p.Quantity),
+})
+}
+return items
+}
+
+// extraInt reads an int field from the loose-typed `extra` map returned by
+// FetchBillDetail; missing/invalid values become 0 to keep callers small.
+func extraInt(extra map[string]interface{}, key string) int {
+if v, ok := helpers.CoerceFloat(extra[key]); ok {
+return int(v)
+}
+return 0
+}
+
+// extraIntPtr is like extraInt but yields *int for fields that distinguish
+// "absent" from "zero" on the wire (e.g. client_id).
+func extraIntPtr(extra map[string]interface{}, key string) *int {
+if v, ok := helpers.CoerceFloat(extra[key]); ok && v > 0 {
+i := int(v)
+return &i
+}
+return nil
+}
+
+// buildSubmitDraftPayload assembles the BillPayload for the
+// draft-to-processing transition. Date and maintenance_cost overrides are
+// applied by the caller because they require their own conditional logic.
+func buildSubmitDraftPayload(inv models.Invoice, extra map[string]interface{}, prodItems []models.BillProductItem, manualItems []models.BillManualItem) models.BillPayload {
+p := models.BillPayload{
+StoreID:         extraInt(extra, "store_id"),
+Products:        prodItems,
+ManualProducts:  manualItems,
+TotalAmount:     inv.Total,
+Discount:        fmt.Sprintf("%g", inv.Discount),
+MaintenanceCost: "0",
+State:           1, // submit as processing
+VIN:             helpers.SafeString(extra["vin"]),
+UserName:        helpers.SafeString(extra["user_name"]),
+UserPhoneNumber: helpers.SafeString(extra["user_phone_number"]),
+Note:            helpers.SafeString(extra["note"]),
+PaymentMethod:   extraInt(extra, "payment_method"),
+ClientID:        extraIntPtr(extra, "client_id"),
+BranchID:        extraInt(extra, "branch_id"),
+}
+if inv.EffectiveDate.Valid {
+p.EffectiveDate = helpers.ToBackendDatePtr(inv.EffectiveDate.Time)
+}
+return p
 }

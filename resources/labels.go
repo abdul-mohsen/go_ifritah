@@ -8,6 +8,13 @@ type Label struct {
 	En string
 }
 
+// Common bilingual literals reused by multiple keys. Centralizing them
+// avoids the SonarCloud S1192 "string literal duplicated" warning.
+const (
+	arCity = "المدينة"
+	enCity = "City"
+)
+
 // labels is the master map of all user-facing strings.
 // Keys follow the pattern: "domain.context" (e.g. "auth.invalid_data").
 var labels = map[string]Label{
@@ -150,7 +157,7 @@ var labels = map[string]Label{
 	"supplier.label.building_number":   {Ar: "رقم المبنى", En: "Building Number"},
 	"supplier.label.street":            {Ar: "اسم الشارع", En: "Street Name"},
 	"supplier.label.district":          {Ar: "الحي", En: "District"},
-	"supplier.label.city":              {Ar: "المدينة", En: "City"},
+	"supplier.label.city":              {Ar: arCity, En: enCity},
 	"supplier.label.postal_code":       {Ar: "الرمز البريدي", En: "Postal Code"},
 	"supplier.label.additional_number": {Ar: "الرقم الإضافي", En: "Additional Number"},
 	"supplier.label.supplier_number":   {Ar: "رقم المورد", En: "Supplier Number"},
@@ -904,7 +911,7 @@ var labels = map[string]Label{
 	"tpl.address.building_title":    {Ar: "رقم المبنى يتكون من 4 أرقام", En: "Building number must be 4 digits"},
 	"tpl.address.street_name":       {Ar: "اسم الشارع", En: "Street Name"},
 	"tpl.address.district":          {Ar: "الحي", En: "District"},
-	"tpl.address.city":              {Ar: "المدينة", En: "City"},
+	"tpl.address.city":              {Ar: arCity, En: enCity},
 	"tpl.address.region":            {Ar: "المنطقة", En: "Region"},
 	"tpl.address.select_region":     {Ar: "-- اختر المنطقة --", En: "-- Select Region --"},
 	"tpl.address.postal_code":       {Ar: "الرمز البريدي", En: "Postal Code"},
@@ -1433,7 +1440,7 @@ var labels = map[string]Label{
 	"tpl.settings.zatca_building":                 {Ar: "رقم المبنى", En: "Building Number"},
 	"tpl.settings.zatca_district":                 {Ar: "الحي", En: "District"},
 	"tpl.settings.zatca_postal":                   {Ar: "الرمز البريدي", En: "Postal Code"},
-	"tpl.settings.zatca_city":                     {Ar: "المدينة", En: "City"},
+	"tpl.settings.zatca_city":                     {Ar: arCity, En: enCity},
 	"tpl.settings.help_city":                      {Ar: "تُحفظ في بيانات المخزن المرتبط بالفرع — مطلوبة لربط ZATCA", En: "Saved on the linked store record — required for ZATCA onboarding"},
 	"tpl.settings.ph_city":                        {Ar: "مثال: الرياض", En: "e.g. Riyadh"},
 	"tpl.settings.zatca_city_required":            {Ar: "المدينة مطلوبة لربط ZATCA", En: "City is required for ZATCA onboarding"},

@@ -14,10 +14,10 @@
 //   • role="alert" + aria-live so screen readers announce errors immediately.
 //   • CSS `.toast-out` animation is 200ms — keep DOM removal in sync.
 (function () {
-    var DURATION_BY_TYPE = { success: 5000, info: 5000, warning: 6000, error: 0 /* sticky */ };
-    var EXIT_MS = 200; // matches keyframes snackOut in style.css
-    var MAX_ON_SCREEN = 4;
-    var ICONS = {
+    const DURATION_BY_TYPE = { success: 5000, info: 5000, warning: 6000, error: 0 /* sticky */ };
+    const EXIT_MS = 200; // matches keyframes snackOut in style.css
+    const MAX_ON_SCREEN = 4;
+    const ICONS = {
         error: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>',
         success: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>',
         warning: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86l-8.6 14.86A1 1 0 002.56 20h18.88a1 1 0 00.87-1.28l-8.6-14.86a1 1 0 00-1.72 0z"/></svg>',
@@ -25,7 +25,7 @@
     };
 
     function ensureContainer() {
-        var c = document.getElementById('toast-container');
+        let c = document.getElementById('toast-container');
         if (c) return c;
         c = document.createElement('div');
         c.id = 'toast-container';
@@ -44,15 +44,15 @@
         type = (type && DURATION_BY_TYPE.hasOwnProperty(type)) ? type : 'error';
         if (!message) message = 'حدث خطأ، يرجى المحاولة مرة أخرى';
 
-        var container = ensureContainer();
+        const container = ensureContainer();
 
         // Cap stack so a server burst can't bury the page in toasts.
-        var existing = container.querySelectorAll('.toast:not(.toast-out)');
-        for (var i = 0; i <= existing.length - MAX_ON_SCREEN; i++) {
+        const existing = container.querySelectorAll('.toast:not(.toast-out)');
+        for (let i = 0; i <= existing.length - MAX_ON_SCREEN; i++) {
             dismiss(existing[i]);
         }
 
-        var toast = document.createElement('div');
+        const toast = document.createElement('div');
         toast.className = 'toast toast-' + type;
         toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
         toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
@@ -60,18 +60,18 @@
         toast.tabIndex = 0;
 
         // Icon (trusted constant).
-        var icon = document.createElement('span');
+        const icon = document.createElement('span');
         icon.className = 'toast-icon';
         icon.innerHTML = ICONS[type] || ICONS.error;
         toast.appendChild(icon);
 
         // Message — textContent prevents HTML injection from server payloads.
-        var text = document.createElement('span');
+        const text = document.createElement('span');
         text.className = 'toast-msg';
         text.textContent = String(message);
         toast.appendChild(text);
 
-        var close = document.createElement('button');
+        const close = document.createElement('button');
         close.type = 'button';
         close.className = 'toast-close';
         close.setAttribute('aria-label', 'إغلاق');
@@ -81,12 +81,12 @@
 
         container.appendChild(toast);
 
-        var duration = DURATION_BY_TYPE[type] || 0;
+        const duration = DURATION_BY_TYPE[type] || 0;
         if (duration > 0) {
-            var timer = setTimeout(function () { dismiss(toast); }, duration);
+            let timer = setTimeout(function () { dismiss(toast); }, duration);
             // Pause auto-dismiss while the user reads (hover / focus).
-            var pause = function () { clearTimeout(timer); timer = null; };
-            var resume = function () {
+            const pause = function () { clearTimeout(timer); timer = null; };
+            const resume = function () {
                 if (timer || toast.__dismissed) return;
                 timer = setTimeout(function () { dismiss(toast); }, duration);
             };
@@ -276,9 +276,9 @@ document.addEventListener("htmx:beforeSwap", function (evt) {
         // listener below will surface it. Don't pile on with a generic fallback
         // ("session expired", "server error"), and don't auto-redirect — the
         // server is in charge of UX for this response.
-        var hxTrigger = '';
-        try { hxTrigger = xhr.getResponseHeader('HX-Trigger') || ''; } catch (e) { }
-        if (hxTrigger.indexOf('showToast') !== -1) {
+        let hxTrigger = '';
+        try { hxTrigger = xhr.getResponseHeader('HX-Trigger') || ''; } catch (_e) { /* header not exposed by CORS */ }
+        if (hxTrigger.includes('showToast')) {
             return;
         }
 
@@ -329,7 +329,7 @@ document.addEventListener("htmx:beforeSwap", function (evt) {
 // handler to genuine transport failures (status 0 = aborted / DNS / refused).
 document.addEventListener("htmx:responseError", function (evt) {
     if (window.__hideLoading) window.__hideLoading();
-    var xhr = evt.detail && evt.detail.xhr;
+    const xhr = evt.detail?.xhr;
     if (xhr && xhr.status !== 0) return;
     window.showToast('تعذر الاتصال بالخادم، يرجى التحقق من الاتصال والمحاولة لاحقاً', 'error');
 });

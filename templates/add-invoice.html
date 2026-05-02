@@ -521,8 +521,7 @@
                         // Build warning message
                         var msg = '';
                         var resultItems = result.items || [];
-                        for (var j = 0; j < resultItems.length; j++) {
-                            var item = resultItems[j];
+                        for (const item of resultItems) {
                             if (!item.sufficient) {
                                 msg += '\u0645\u0646\u062a\u062c #' + item.product_id + ': \u0645\u062a\u0648\u0641\u0631 ' + item.available + ' / \u0645\u0637\u0644\u0648\u0628 ' + item.requested + '\n';
                             }

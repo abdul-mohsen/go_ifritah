@@ -476,11 +476,11 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                     <div>
-                        <label class="form-label">{{ L "tpl.settings.zatca_company_name" }} <span class="text-red-500">*</span></label>
+                        <label class="form-label" for="company_name">{{ L "tpl.settings.zatca_company_name" }} <span class="text-red-500">*</span></label>
                         <input type="text" id="company_name" name="company_name" placeholder="ACME LLC">
                     </div>
                     <div>
-                        <label class="form-label">{{ L "tpl.settings.zatca_company_name_ar" }} <span class="text-red-500">*</span></label>
+                        <label class="form-label" for="company_name_ar">{{ L "tpl.settings.zatca_company_name_ar" }} <span class="text-red-500">*</span></label>
                         <input type="text" id="company_name_ar" name="company_name_ar" placeholder="{{ L "tpl.settings.ph_org_name_ar" }}" dir="rtl" lang="ar">
                         <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.help_company_name_ar" }}</p>
                     </div>
@@ -719,11 +719,11 @@
                             <input type="text" name="zatca_district" id="zatca_district" placeholder="{{ L "tpl.settings.ph_district" }}" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                         <div>
-                            <label class="form-label">{{ L "tpl.settings.zatca_postal" }} <span class="text-red-500">*</span></label>
+                            <label class="form-label" for="zatca_postal_code">{{ L "tpl.settings.zatca_postal" }} <span class="text-red-500">*</span></label>
                             <input type="text" name="zatca_postal_code" id="zatca_postal_code" placeholder="12345" maxlength="5" inputmode="numeric" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                         <div>
-                            <label class="form-label">{{ L "tpl.settings.zatca_city" }} <span class="text-red-500">*</span></label>
+                            <label class="form-label" for="zatca_city">{{ L "tpl.settings.zatca_city" }} <span class="text-red-500">*</span></label>
                             <input type="text" name="zatca_city" id="zatca_city" placeholder="{{ L "tpl.settings.ph_city" }}" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                     </div>

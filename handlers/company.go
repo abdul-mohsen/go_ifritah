@@ -57,43 +57,55 @@ import (
 // keeps the form usable so QA can validate the UI flow.
 // ────────────────────────────────────────────────────────────────────────────
 
+// writeCompanyErr writes an error envelope as JSON. Centralizing this
+// keeps the proxy handlers small and avoids duplicating the
+// header/encode/return triplet at every error branch.
+func writeCompanyErr(w http.ResponseWriter, status int, msg string) {
+	w.Header().Set(headerContentType, mimeJSON)
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"detail": msg})
+}
+
+// dispatchCompany performs the authed backend request and copies its
+// response back to the caller. It maps transport errors to the same
+// 401/502 envelopes used by every branch of the proxy handlers.
+func dispatchCompany(w http.ResponseWriter, sessionID string, backendReq *http.Request) (*http.Response, bool) {
+	backendReq.Header.Set(headerContentType, mimeJSON)
+	resp, err := helpers.DoAuthedRequestWithRetry(backendReq, sessionID)
+	if err != nil {
+		log.Printf("[COMPANY] %s error: %v", backendReq.Method, err)
+		if helpers.IsUnauthorizedError(err) {
+			writeCompanyErr(w, http.StatusUnauthorized, "انتهت الجلسة")
+		} else {
+			writeCompanyErr(w, http.StatusBadGateway, "فشل الاتصال بالخادم")
+		}
+		return nil, false
+	}
+	return resp, true
+}
+
 // HandleGetCompany proxies GET /api/v2/company to the backend.
 func HandleGetCompany(w http.ResponseWriter, r *http.Request) {
 	sessionID := helpers.GetSessionIDFromRequest(r)
 	if sessionID == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(map[string]string{"detail": "غير مصرح - يرجى تسجيل الدخول"})
+		writeCompanyErr(w, http.StatusUnauthorized, "غير مصرح - يرجى تسجيل الدخول")
 		return
 	}
 
-	apiURL := config.BackendDomain + "/api/v2/company"
-	backendReq, err := http.NewRequest("GET", apiURL, nil)
+	backendReq, err := http.NewRequest("GET", config.BackendDomain+"/api/v2/company", nil)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"detail": "internal error"})
+		writeCompanyErr(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	backendReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := helpers.DoAuthedRequestWithRetry(backendReq, sessionID)
-	if err != nil {
-		log.Printf("[COMPANY] GET error: %v", err)
-		w.Header().Set("Content-Type", "application/json")
-		if helpers.IsUnauthorizedError(err) {
-			w.WriteHeader(http.StatusUnauthorized)
-			_ = json.NewEncoder(w).Encode(map[string]string{"detail": "انتهت الجلسة"})
-			return
-		}
-		w.WriteHeader(http.StatusBadGateway)
-		_ = json.NewEncoder(w).Encode(map[string]string{"detail": "فشل الاتصال بالخادم"})
+	resp, ok := dispatchCompany(w, sessionID, backendReq)
+	if !ok {
 		return
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	w.WriteHeader(resp.StatusCode)
 
 	// Backend returns either the bare company row or {"detail": {...}}.
@@ -116,47 +128,30 @@ func HandleGetCompany(w http.ResponseWriter, r *http.Request) {
 func HandleUpdateCompany(w http.ResponseWriter, r *http.Request) {
 	sessionID := helpers.GetSessionIDFromRequest(r)
 	if sessionID == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(map[string]string{"detail": "غير مصرح - يرجى تسجيل الدخول"})
+		writeCompanyErr(w, http.StatusUnauthorized, "غير مصرح - يرجى تسجيل الدخول")
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"detail": "invalid request body"})
+		writeCompanyErr(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	apiURL := config.BackendDomain + "/api/v2/company"
-	backendReq, err := http.NewRequest("PUT", apiURL, bytes.NewBuffer(body))
+	backendReq, err := http.NewRequest("PUT", config.BackendDomain+"/api/v2/company", bytes.NewBuffer(body))
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"detail": "internal error"})
+		writeCompanyErr(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	backendReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := helpers.DoAuthedRequestWithRetry(backendReq, sessionID)
-	if err != nil {
-		log.Printf("[COMPANY] PUT error: %v", err)
-		w.Header().Set("Content-Type", "application/json")
-		if helpers.IsUnauthorizedError(err) {
-			w.WriteHeader(http.StatusUnauthorized)
-			_ = json.NewEncoder(w).Encode(map[string]string{"detail": "انتهت الجلسة"})
-			return
-		}
-		w.WriteHeader(http.StatusBadGateway)
-		_ = json.NewEncoder(w).Encode(map[string]string{"detail": "فشل الاتصال بالخادم"})
+	resp, ok := dispatchCompany(w, sessionID, backendReq)
+	if !ok {
 		return
 	}
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	w.WriteHeader(resp.StatusCode)
 	w.Write(respBody)
 }

@@ -67,28 +67,9 @@ type branchStoreAddressBody struct {
 //
 //	{ "detail": { "id":..., "name":..., "stores":[{id,name},...], ... } }
 func fetchBranchDetail(sessionID, branchID string) (map[string]interface{}, int, error) {
-	url := config.BackendDomain + "/api/v2/branch/" + branchID
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, 0, err
-	}
-	resp, err := helpers.DoAuthedRequestWithRetry(req, sessionID)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, resp.StatusCode, fmt.Errorf("branch fetch %d: %s", resp.StatusCode, string(body))
-	}
-	var raw map[string]interface{}
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return nil, resp.StatusCode, err
-	}
-	if d, ok := raw["detail"].(map[string]interface{}); ok {
-		return d, resp.StatusCode, nil
-	}
-	return raw, resp.StatusCode, nil
+	return fetchDetailJSON(sessionID,
+		config.BackendDomain+"/api/v2/branch/"+branchID,
+		"branch fetch")
 }
 
 func firstStoreID(detail map[string]interface{}) (int, string, bool) {
@@ -106,7 +87,15 @@ func firstStoreID(detail map[string]interface{}) (int, string, bool) {
 }
 
 func fetchStoreDetail(sessionID string, storeID int) (map[string]interface{}, int, error) {
-	url := fmt.Sprintf("%s/api/v2/store/%d", config.BackendDomain, storeID)
+	return fetchDetailJSON(sessionID,
+		fmt.Sprintf("%s/api/v2/store/%d", config.BackendDomain, storeID),
+		"store fetch")
+}
+
+// fetchDetailJSON does an authed GET, parses the JSON body, and returns the
+// nested `detail` object if the BE wraps the row in one. Used by the branch
+// and store fetchers, which share an identical envelope shape.
+func fetchDetailJSON(sessionID, url, opLabel string) (map[string]interface{}, int, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, 0, err
@@ -118,7 +107,7 @@ func fetchStoreDetail(sessionID string, storeID int) (map[string]interface{}, in
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, resp.StatusCode, fmt.Errorf("store fetch %d: %s", resp.StatusCode, string(body))
+		return nil, resp.StatusCode, fmt.Errorf("%s %d: %s", opLabel, resp.StatusCode, string(body))
 	}
 	var raw map[string]interface{}
 	if err := json.Unmarshal(body, &raw); err != nil {
@@ -307,7 +296,7 @@ func intFromAny(v interface{}) int {
 }
 
 func writeBranchStoreJSON(w http.ResponseWriter, status int, body interface{}) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
 }
@@ -323,7 +312,7 @@ func proxyJSON(sessionID, method, url string, payload map[string]interface{}, w 
 		writeBranchStoreErr(w, http.StatusInternalServerError, "internal error")
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(headerContentType, mimeJSON)
 	resp, err := helpers.DoAuthedRequestWithRetry(req, sessionID)
 	if err != nil {
 		if helpers.IsUnauthorizedError(err) {
@@ -335,7 +324,7 @@ func proxyJSON(sessionID, method, url string, payload map[string]interface{}, w 
 	}
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, mimeJSON)
 	w.WriteHeader(resp.StatusCode)
 	_, _ = w.Write(respBody)
 	return nil

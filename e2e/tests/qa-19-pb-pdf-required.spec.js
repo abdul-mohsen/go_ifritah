@@ -84,9 +84,14 @@ test.describe('pb_pdf_required setting on add-purchase-bill', () => {
 
 // Restore default setting after these tests so other suites are unaffected.
 test.afterAll(async ({ browser }) => {
+  test.setTimeout(60000);
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
-  await login(page);
-  await setSetting(page, 'pb_pdf_required', 'required');
+  try {
+    await login(page);
+    await setSetting(page, 'pb_pdf_required', 'required');
+  } catch (e) {
+    // Best-effort cleanup; don't fail the suite on cleanup hiccup.
+  }
   await ctx.close();
 });

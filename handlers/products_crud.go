@@ -22,9 +22,6 @@ import (
 func unmarshalProduct(data []byte) models.Product {
 	var p models.Product
 	_ = json.Unmarshal(data, &p)
-	if p.ID == 0 && p.PartID > 0 {
-		p.ID = p.PartID
-	}
 	if p.PartName == "" && p.Name != "" {
 		p.PartName = p.Name
 	}

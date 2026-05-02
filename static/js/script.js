@@ -1,45 +1,107 @@
 // ── Toast Notification System ──────────────────────────────
-(function() {
-    var TOAST_DURATION = 5000;
-    var ICONS = {
-        error:   '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>',
+//
+// One renderer for the whole app (login + authenticated pages).
+// Receives messages either via direct `window.showToast(msg, type)` calls or
+// via the `showToast` HX-Trigger event (see listener further down).
+//
+// UX rules (Material 3 Snackbar guidance):
+//   • errors are sticky until the user closes them or another toast replaces
+//     them — long Arabic messages used to vanish before they could be read.
+//   • info / success / warning auto-dismiss after 5s, paused while hovered or
+//     keyboard-focused.
+//   • `textContent` (not innerHTML) for the message → no XSS even if a backend
+//     ever echoes user input.
+//   • role="alert" + aria-live so screen readers announce errors immediately.
+//   • CSS `.toast-out` animation is 200ms — keep DOM removal in sync.
+(function () {
+    const DURATION_BY_TYPE = { success: 5000, info: 5000, warning: 6000, error: 0 /* sticky */ };
+    const EXIT_MS = 200; // matches keyframes snackOut in style.css
+    const MAX_ON_SCREEN = 4;
+    const ICONS = {
+        error: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>',
         success: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>',
         warning: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86l-8.6 14.86A1 1 0 002.56 20h18.88a1 1 0 00.87-1.28l-8.6-14.86a1 1 0 00-1.72 0z"/></svg>',
-        info:    '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>'
+        info: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>'
     };
 
-    window.showToast = function(message, type) {
-        type = type || 'error';
+    function ensureContainer() {
+        let c = document.getElementById('toast-container');
+        if (c) return c;
+        c = document.createElement('div');
+        c.id = 'toast-container';
+        document.body.appendChild(c);
+        return c;
+    }
+
+    function dismiss(toast) {
+        if (!toast || toast.__dismissed) return;
+        toast.__dismissed = true;
+        toast.classList.add('toast-out');
+        setTimeout(function () { if (toast.parentElement) toast.remove(); }, EXIT_MS);
+    }
+
+    window.showToast = function (message, type) {
+        type = (type && DURATION_BY_TYPE.hasOwnProperty(type)) ? type : 'error';
         if (!message) message = 'حدث خطأ، يرجى المحاولة مرة أخرى';
-        var container = document.getElementById('toast-container');
-        if (!container) return;
 
-        var toast = document.createElement('div');
+        const container = ensureContainer();
+
+        // Cap stack so a server burst can't bury the page in toasts.
+        const existing = container.querySelectorAll('.toast:not(.toast-out)');
+        for (let i = 0; i <= existing.length - MAX_ON_SCREEN; i++) {
+            dismiss(existing[i]);
+        }
+
+        const toast = document.createElement('div');
         toast.className = 'toast toast-' + type;
-        toast.innerHTML = (ICONS[type] || ICONS.error) +
-            '<span>' + message + '</span>' +
-            '<button class="toast-close">&times;</button>';
+        toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+        toast.setAttribute('aria-atomic', 'true');
+        toast.tabIndex = 0;
 
-        toast.querySelector('.toast-close').onclick = function() {
-            toast.classList.add('toast-out');
-            setTimeout(function() { toast.remove(); }, 300);
-        };
+        // Icon (trusted constant).
+        const icon = document.createElement('span');
+        icon.className = 'toast-icon';
+        icon.innerHTML = ICONS[type] || ICONS.error;
+        toast.appendChild(icon);
+
+        // Message — textContent prevents HTML injection from server payloads.
+        const text = document.createElement('span');
+        text.className = 'toast-msg';
+        text.textContent = String(message);
+        toast.appendChild(text);
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'toast-close';
+        close.setAttribute('aria-label', 'إغلاق');
+        close.textContent = '\u00D7';
+        close.onclick = function () { dismiss(toast); };
+        toast.appendChild(close);
 
         container.appendChild(toast);
 
-        // Auto-remove
-        var ref = toast;
-        setTimeout(function() {
-            if (ref.parentElement) {
-                ref.classList.add('toast-out');
-                setTimeout(function() { ref.remove(); }, 300);
-            }
-        }, TOAST_DURATION);
+        const duration = DURATION_BY_TYPE[type] || 0;
+        if (duration > 0) {
+            let timer = setTimeout(function () { dismiss(toast); }, duration);
+            // Pause auto-dismiss while the user reads (hover / focus).
+            const pause = function () { clearTimeout(timer); timer = null; };
+            const resume = function () {
+                if (timer || toast.__dismissed) return;
+                timer = setTimeout(function () { dismiss(toast); }, duration);
+            };
+            toast.addEventListener('mouseenter', pause);
+            toast.addEventListener('focusin', pause);
+            toast.addEventListener('mouseleave', resume);
+            toast.addEventListener('focusout', resume);
+        }
+
+        return toast;
     };
 })();
 
 // ── PDF Opener (fetches PDF via JS, shows toast on error) ─────────
-(function() {
+(function () {
     function handlePDF(url, action) {
         // Pre-open the window synchronously (during the click event) so popup
         // blockers don't suppress it. We navigate or close it after fetch.
@@ -49,10 +111,10 @@
         }
 
         fetch(url, { credentials: 'same-origin' })
-            .then(function(resp) {
+            .then(function (resp) {
                 var ct = resp.headers.get('content-type') || '';
                 if (resp.ok && ct.indexOf('application/pdf') !== -1) {
-                    return resp.blob().then(function(blob) {
+                    return resp.blob().then(function (blob) {
                         var blobUrl = URL.createObjectURL(blob);
                         if (action === 'print') {
                             var iframe = document.createElement('iframe');
@@ -62,81 +124,81 @@
                             iframe.style.height = '0';
                             iframe.src = blobUrl;
                             document.body.appendChild(iframe);
-                            iframe.onload = function() {
+                            iframe.onload = function () {
                                 try {
                                     iframe.contentWindow.focus();
                                     iframe.contentWindow.print();
-                                } catch(e) {}
+                                } catch (e) { }
                                 // Use afterprint event to clean up after user finishes
                                 // Falls back to a long timeout if afterprint isn't supported
                                 var cleaned = false;
                                 function cleanup() {
                                     if (cleaned) return;
                                     cleaned = true;
-                                    try { document.body.removeChild(iframe); } catch(e) {}
+                                    try { document.body.removeChild(iframe); } catch (e) { }
                                     URL.revokeObjectURL(blobUrl);
                                 }
                                 try {
                                     iframe.contentWindow.addEventListener('afterprint', cleanup);
-                                } catch(e) {}
+                                } catch (e) { }
                                 // Fallback: clean up after 5 minutes if afterprint never fires
                                 setTimeout(cleanup, 300000);
                             };
                         } else if (win) {
                             win.location.href = blobUrl;
                             // Revoke after a delay so the new tab can render
-                            setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 120000);
+                            setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 120000);
                         }
                     });
                 }
                 // Error response — close pre-opened window and show toast
-                if (win) { try { win.close(); } catch(e) {} }
-                return resp.text().then(function(text) {
+                if (win) { try { win.close(); } catch (e) { } }
+                return resp.text().then(function (text) {
                     var msg = 'تعذر تحميل ملف PDF، يرجى المحاولة لاحقاً';
                     try {
                         var json = JSON.parse(text);
                         if (json.message) msg = json.message;
-                    } catch(e) {}
+                    } catch (e) { }
                     window.showToast(msg, 'error');
                 });
             })
-            .catch(function() {
-                if (win) { try { win.close(); } catch(e) {} }
+            .catch(function () {
+                if (win) { try { win.close(); } catch (e) { } }
                 window.showToast('تعذر الاتصال بالخادم، يرجى المحاولة لاحقاً', 'error');
             });
     }
 
-    window.openPDF = function(url) { handlePDF(url, 'open'); };
-    window.printPDF = function(url) { handlePDF(url, 'print'); };
+    window.openPDF = function (url) { handlePDF(url, 'open'); };
+    window.printPDF = function (url) { handlePDF(url, 'print'); };
 })();
 
 // ── Flash Cookie Reader (shows toast from redirected pages) ───────
-(function() {
+(function () {
     var match = document.cookie.match(/(?:^|;\s*)afrita_flash=([^;]*)/);
     if (match) {
         try {
             var flash = JSON.parse(decodeURIComponent(match[1]));
             if (flash.message && window.showToast) {
                 // Small delay to ensure DOM is ready
-                setTimeout(function() {
+                setTimeout(function () {
                     window.showToast(flash.message, flash.type || 'success');
                 }, 100);
             }
-        } catch(e) {}
+        } catch (e) { }
         // Clear the cookie
         document.cookie = 'afrita_flash=; path=/; max-age=0';
     }
 })();
 
 // ── Global Loading Overlay ────────────────────────────────────
-(function() {
+(function () {
     var loadingEl = document.getElementById('global-loading');
     var showTimer = null;
 
-    window.__showLoading = function() {
+    window.__showLoading = function () {
         // Debounce: only show after 200ms to avoid flicker on fast requests
         if (showTimer) return;
-        showTimer = setTimeout(function() {
+        showTimer = setTimeout(function () {
             if (loadingEl) {
                 loadingEl.style.display = '';
                 loadingEl.classList.remove('hidden');
@@ -144,7 +206,7 @@
         }, 200);
     };
 
-    window.__hideLoading = function() {
+    window.__hideLoading = function () {
         if (showTimer) {
             clearTimeout(showTimer);
             showTimer = null;
@@ -157,10 +219,10 @@
 })();
 
 // ── Disable Submit Buttons During HTMX Requests ──────────────
-(function() {
+(function () {
     var disabledButtons = [];
 
-    document.addEventListener("htmx:beforeRequest", function(evt) {
+    document.addEventListener("htmx:beforeRequest", function (evt) {
         // Show global loading
         if (window.__showLoading) window.__showLoading();
 
@@ -169,7 +231,7 @@
         if (form && form.tagName !== 'FORM') form = form.closest('form');
         if (form) {
             var btns = form.querySelectorAll('button[type="submit"], button:not([type])');
-            btns.forEach(function(btn) {
+            btns.forEach(function (btn) {
                 btn.disabled = true;
                 btn.classList.add('htmx-requesting');
             });
@@ -179,7 +241,7 @@
 
     function reEnableButtons() {
         if (window.__hideLoading) window.__hideLoading();
-        disabledButtons.forEach(function(btn) {
+        disabledButtons.forEach(function (btn) {
             btn.disabled = false;
             btn.classList.remove('htmx-requesting');
         });
@@ -192,7 +254,7 @@
 })();
 
 // HTMX helpers
-document.addEventListener("htmx:confirm", function(evt) {
+document.addEventListener("htmx:confirm", function (evt) {
     // Only confirm deletions
     var verb = evt.detail.requestConfig ? evt.detail.requestConfig.verb : '';
     var path = evt.detail.path || '';
@@ -204,11 +266,27 @@ document.addEventListener("htmx:confirm", function(evt) {
 });
 
 // Intercept non-2xx HTMX responses — show toast instead of swapping raw error text
-document.addEventListener("htmx:beforeSwap", function(evt) {
+document.addEventListener("htmx:beforeSwap", function (evt) {
     var xhr = evt.detail.xhr;
     if (xhr && xhr.status >= 400) {
         evt.detail.shouldSwap = false;
         if (window.__hideLoading) window.__hideLoading();
+
+        // If the server already raised a showToast via HX-Trigger, the dedicated
+        // listener below will surface it. Don't pile on with a generic fallback
+        // ("session expired", "server error"), and don't auto-redirect — the
+        // server is in charge of UX for this response.
+        let hxTrigger = '';
+        try {
+            hxTrigger = xhr.getResponseHeader('HX-Trigger') || '';
+        } catch (e) {
+            // CORS may forbid reading headers cross-origin; log and continue
+            // with the empty default so the rest of the handler still runs.
+            console.debug('HX-Trigger header unavailable:', e);
+        }
+        if (hxTrigger.includes('showToast')) {
+            return;
+        }
 
         // Extract message from response
         var msg = '';
@@ -218,7 +296,7 @@ document.addEventListener("htmx:beforeSwap", function(evt) {
             try {
                 var json = JSON.parse(text);
                 msg = json.detail || json.error || json.message || json.msg || '';
-            } catch(e) {
+            } catch (e) {
                 // Use plain text if short and not HTML
                 if (text.length < 200 && text.charAt(0) !== '<') {
                     msg = text;
@@ -247,46 +325,50 @@ document.addEventListener("htmx:beforeSwap", function(evt) {
 
         // Auto-redirect to login on 401
         if (xhr.status === 401) {
-            setTimeout(function() { window.location.href = '/login'; }, 2000);
+            setTimeout(function () { window.location.href = '/login'; }, 2000);
         }
     }
 });
 
-// Handle network errors (backend unreachable)
-document.addEventListener("htmx:responseError", function() {
+// Handle network errors (backend unreachable). htmx fires responseError for
+// any non-2xx, but htmx:beforeSwap above already toasts those. Limit this
+// handler to genuine transport failures (status 0 = aborted / DNS / refused).
+document.addEventListener("htmx:responseError", function (evt) {
     if (window.__hideLoading) window.__hideLoading();
+    const xhr = evt.detail?.xhr;
+    if (xhr && xhr.status !== 0) return;
     window.showToast('تعذر الاتصال بالخادم، يرجى التحقق من الاتصال والمحاولة لاحقاً', 'error');
 });
 
 // Handle request send failures (timeout, connection refused)
-document.addEventListener("htmx:sendError", function() {
+document.addEventListener("htmx:sendError", function () {
     if (window.__hideLoading) window.__hideLoading();
     window.showToast('فشل إرسال الطلب، يرجى التحقق من اتصالك بالإنترنت', 'error');
 });
 
 // Listen for HX-Trigger showToast events (sent by backend)
-document.addEventListener("showToast", function(evt) {
+document.addEventListener("showToast", function (evt) {
     var d = evt.detail || {};
     window.showToast(d.message || '', d.type || 'error');
 });
 
 // Hide loading indicator + auto-hide alerts after swap
-document.addEventListener("htmx:afterSwap", function(evt) {
+document.addEventListener("htmx:afterSwap", function (evt) {
     if (window.__hideLoading) window.__hideLoading();
     // Auto-hide alerts after 3 seconds
     var alerts = document.querySelectorAll("[role='alert']");
-    alerts.forEach(function(alert) {
-        setTimeout(function() {
+    alerts.forEach(function (alert) {
+        setTimeout(function () {
             alert.style.transition = 'opacity 0.3s ease';
             alert.style.opacity = '0';
-            setTimeout(function() { alert.remove(); }, 300);
+            setTimeout(function () { alert.remove(); }, 300);
         }, 3000);
     });
 });
 
 // ── Keyboard Shortcuts ────────────────────────────────────────
-(function() {
-    document.addEventListener('keydown', function(e) {
+(function () {
+    document.addEventListener('keydown', function (e) {
         // Ctrl+K or Cmd+K → focus search input
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
             e.preventDefault();
@@ -299,7 +381,7 @@ document.addEventListener("htmx:afterSwap", function(evt) {
         // Escape → close open modals
         if (e.key === 'Escape') {
             var modals = document.querySelectorAll('.fixed:not(.hidden)');
-            modals.forEach(function(modal) {
+            modals.forEach(function (modal) {
                 if (modal.id && modal.id !== 'global-loading' && modal.id !== 'sidebar-overlay') {
                     modal.classList.add('hidden');
                 }
@@ -309,8 +391,8 @@ document.addEventListener("htmx:afterSwap", function(evt) {
 })();
 
 // ── Delete Success Toast ──────────────────────────────────────
-(function() {
-    document.addEventListener('htmx:afterRequest', function(evt) {
+(function () {
+    document.addEventListener('htmx:afterRequest', function (evt) {
         var xhr = evt.detail.xhr;
         var path = evt.detail.pathInfo ? evt.detail.pathInfo.requestPath : '';
         var verb = (evt.detail.requestConfig && evt.detail.requestConfig.verb) || '';
@@ -322,8 +404,8 @@ document.addEventListener("htmx:afterSwap", function(evt) {
 })();
 
 // ── Search Form Loading State ──────────────────────────────────
-(function() {
-    document.addEventListener('submit', function(e) {
+(function () {
+    document.addEventListener('submit', function (e) {
         var form = e.target;
         if (form.tagName !== 'FORM' || form.method !== 'get') return;
         var btn = form.querySelector('button[type="submit"], button:not([type])');
@@ -335,10 +417,10 @@ document.addEventListener("htmx:afterSwap", function(evt) {
 })();
 
 // ── Client-Side Table Sorting ─────────────────────────────────
-(function() {
+(function () {
     function initSortable() {
         var headers = document.querySelectorAll('th[data-sortable]');
-        headers.forEach(function(th) {
+        headers.forEach(function (th) {
             if (th.dataset._sortBound) return;
             th.dataset._sortBound = '1';
             th.style.cursor = 'pointer';
@@ -349,7 +431,7 @@ document.addEventListener("htmx:afterSwap", function(evt) {
             indicator.textContent = '⇅';
             th.prepend(indicator);
 
-            th.addEventListener('click', function() {
+            th.addEventListener('click', function () {
                 var table = th.closest('table');
                 if (!table) return;
                 var tbody = table.querySelector('tbody');
@@ -361,7 +443,7 @@ document.addEventListener("htmx:afterSwap", function(evt) {
                 var asc = th.dataset.sortDir !== 'asc';
                 // Reset other headers
                 var allTh = table.querySelectorAll('th[data-sortable]');
-                allTh.forEach(function(h) {
+                allTh.forEach(function (h) {
                     h.dataset.sortDir = '';
                     var ind = h.querySelector('.sort-indicator');
                     if (ind) ind.textContent = '⇅';
@@ -369,7 +451,7 @@ document.addEventListener("htmx:afterSwap", function(evt) {
                 th.dataset.sortDir = asc ? 'asc' : 'desc';
                 indicator.textContent = asc ? '↑' : '↓';
 
-                rows.sort(function(a, b) {
+                rows.sort(function (a, b) {
                     var aCell = a.children[colIndex];
                     var bCell = b.children[colIndex];
                     if (!aCell || !bCell) return 0;
@@ -384,7 +466,7 @@ document.addEventListener("htmx:afterSwap", function(evt) {
                     // String comparison
                     return asc ? aText.localeCompare(bText, 'ar') : bText.localeCompare(aText, 'ar');
                 });
-                rows.forEach(function(row) { tbody.appendChild(row); });
+                rows.forEach(function (row) { tbody.appendChild(row); });
             });
         });
     }
@@ -394,7 +476,7 @@ document.addEventListener("htmx:afterSwap", function(evt) {
 })();
 
 // ── Table Scroll Shadow Indicators (C1) ───────────────────────
-(function() {
+(function () {
     function updateShadows(wrapper) {
         var sl = wrapper.scrollLeft;
         var maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
@@ -416,10 +498,10 @@ document.addEventListener("htmx:afterSwap", function(evt) {
 
     function initScrollShadows() {
         var wrappers = document.querySelectorAll('.data-table-wrapper');
-        wrappers.forEach(function(wrapper) {
+        wrappers.forEach(function (wrapper) {
             if (wrapper.dataset._shadowBound) return;
             wrapper.dataset._shadowBound = '1';
-            wrapper.addEventListener('scroll', function() { updateShadows(wrapper); });
+            wrapper.addEventListener('scroll', function () { updateShadows(wrapper); });
             // Initial check
             updateShadows(wrapper);
         });
@@ -427,24 +509,24 @@ document.addEventListener("htmx:afterSwap", function(evt) {
 
     document.addEventListener('DOMContentLoaded', initScrollShadows);
     document.addEventListener('htmx:afterSwap', initScrollShadows);
-    window.addEventListener('resize', function() {
+    window.addEventListener('resize', function () {
         document.querySelectorAll('.data-table-wrapper').forEach(updateShadows);
     });
 })();
 
 // ── Action Overflow Dropdown (C2) ─────────────────────────────
-(function() {
+(function () {
     function initActionDropdowns() {
         var btns = document.querySelectorAll('.action-overflow-btn');
-        btns.forEach(function(btn) {
+        btns.forEach(function (btn) {
             if (btn.dataset._dropBound) return;
             btn.dataset._dropBound = '1';
-            btn.addEventListener('click', function(e) {
+            btn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 var links = btn.parentElement.querySelector('.action-links');
                 if (!links) return;
                 // Close all other open dropdowns
-                document.querySelectorAll('.action-links.show').forEach(function(d) {
+                document.querySelectorAll('.action-links.show').forEach(function (d) {
                     if (d !== links) d.classList.remove('show');
                 });
                 links.classList.toggle('show');
@@ -453,8 +535,8 @@ document.addEventListener("htmx:afterSwap", function(evt) {
     }
 
     // Close dropdowns on outside click
-    document.addEventListener('click', function() {
-        document.querySelectorAll('.action-links.show').forEach(function(d) {
+    document.addEventListener('click', function () {
+        document.querySelectorAll('.action-links.show').forEach(function (d) {
             d.classList.remove('show');
         });
     });

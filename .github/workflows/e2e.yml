@@ -1,0 +1,215 @@
+name: E2E (against dev backend)
+
+# Builds the Go frontend on the runner, starts it on :8001 wired to the
+# https://dev.ifritah.com backend, and runs the Playwright suite against it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      grep:
+        description: "Optional --grep filter passed to Playwright (e.g. qa-32)"
+        required: false
+        default: ""
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    env:
+      PORT: "8001"
+      BACKEND_URL: "https://dev.ifritah.com"
+      APP_DOMAIN: "localhost:8001"
+      # Token store has to be writable; keep it inside the workspace so the
+      # cleanup step can wipe it.
+      AFRITA_TOKEN_DIR: ${{ github.workspace }}/.afrita-tokens
+      # Go 1.21 made action interpolation inside JS template literals (backticks)
+      # an html/template execute error. Several of our templates (add-invoice,
+      # add-purchase-bill, etc.) embed `{{ L "..." }}` calls inside JS template
+      # literal helpers. Restore the pre-1.21 behavior so the runtime renders
+      # those pages instead of returning a 23-byte error stub.
+      # See https://pkg.go.dev/html/template#hdr-Security_Model and
+      # https://github.com/golang/go/issues/59234 .
+      GODEBUG: "jstmpllitinterp=1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install root npm deps (Tailwind)
+        run: npm ci || npm install
+
+      - name: Build CSS
+        run: npm run build:css
+
+      - name: Build Go binary
+        # Build only the root package; backend_suggestion/ contains
+        # reference Go files for the backend repo and won't compile here.
+        run: go build -o afrita .
+
+      - name: Start frontend server
+        run: |
+          mkdir -p "$AFRITA_TOKEN_DIR"
+          nohup ./afrita > server.log 2>&1 &
+          echo $! > server.pid
+          # Wait for the login page to be reachable
+          for i in $(seq 1 60); do
+            if curl -sf "http://localhost:${PORT}/login" >/dev/null; then
+              echo "Frontend is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Frontend did not start within 60s"
+          cat server.log
+          exit 1
+
+      - name: Verify backend reachability from runner
+        run: |
+          curl -sS -o /dev/null -w "dev backend HTTP %{http_code}\n" "$BACKEND_URL" || true
+
+      - name: Install e2e dependencies
+        working-directory: e2e
+        run: npm ci || npm install
+
+      - name: Install Playwright browsers
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests (serial group)
+        id: playwright_serial
+        timeout-minutes: 30
+        working-directory: e2e
+        env:
+          # Pass the user-supplied grep through an env var so it cannot be
+          # interpolated as shell syntax (Sonar githubactions:S7630).
+          GREP_FILTER: ${{ inputs.grep }}
+          PW_RESULTS_FILE: playwright-results-serial.json
+          PW_WORKERS: "1"
+        run: |
+          set +e
+          if [ -n "$GREP_FILTER" ]; then
+            npx playwright test --project=serial --workers=1 --grep "$GREP_FILTER"
+          else
+            npx playwright test --project=serial --workers=1
+          fi
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Run Playwright tests (parallel group)
+        id: playwright_parallel
+        if: always()
+        timeout-minutes: 60
+        working-directory: e2e
+        env:
+          GREP_FILTER: ${{ inputs.grep }}
+          PW_RESULTS_FILE: playwright-results-parallel.json
+          PW_WORKERS: "4"
+        run: |
+          set +e
+          if [ -n "$GREP_FILTER" ]; then
+            npx playwright test --project=parallel --workers=4 --grep "$GREP_FILTER"
+          else
+            npx playwright test --project=parallel --workers=4
+          fi
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize Playwright results
+        if: always()
+        working-directory: e2e
+        run: |
+          node -e '
+            const fs = require("fs");
+            const files = ["playwright-results-serial.json", "playwright-results-parallel.json"];
+            let passed = 0, failed = 0, skipped = 0, flaky = 0, total = 0;
+            const failures = [];
+            const visit = (suite) => {
+              for (const s of suite.suites || []) visit(s);
+              for (const spec of suite.specs || []) {
+                for (const t of spec.tests || []) {
+                  total++;
+                  const status = t.status; // expected | unexpected | flaky | skipped
+                  if (status === "expected") passed++;
+                  else if (status === "skipped") skipped++;
+                  else if (status === "flaky") { flaky++; passed++; }
+                  else { failed++; failures.push(`${spec.file}:${spec.line} - ${spec.title}`); }
+                }
+              }
+            };
+            for (const f of files) {
+              if (!fs.existsSync(f)) { console.log(`(missing ${f})`); continue; }
+              const r = JSON.parse(fs.readFileSync(f, "utf8"));
+              for (const s of r.suites || []) visit(s);
+            }
+            const summary = `Playwright: ${passed}/${total} passed (failed=${failed}, skipped=${skipped}, flaky=${flaky})`;
+            console.log(summary);
+            if (failures.length) {
+              console.log("\nFailures:");
+              for (const f of failures) console.log("  - " + f);
+            }
+            const out = process.env.GITHUB_STEP_SUMMARY;
+            if (out) {
+              let md = `### ${summary}\n`;
+              if (failures.length) {
+                md += "\n<details><summary>Failures</summary>\n\n";
+                md += failures.map(f => `- \`${f}\``).join("\n") + "\n\n</details>\n";
+              }
+              fs.appendFileSync(out, md);
+            }
+          '
+
+      - name: Fail if any Playwright test failed
+        if: always() && (steps.playwright_serial.outputs.exit_code != '0' || steps.playwright_parallel.outputs.exit_code != '0')
+        run: |
+          echo "Playwright serial   exit code: ${{ steps.playwright_serial.outputs.exit_code }}"
+          echo "Playwright parallel exit code: ${{ steps.playwright_parallel.outputs.exit_code }}"
+          exit 1
+
+      - name: Stop frontend server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill "$(cat server.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-server-log
+          path: server.log
+          if-no-files-found: ignore
+
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+            e2e/playwright-results.json
+            e2e/playwright-results-serial.json
+            e2e/playwright-results-parallel.json
+          if-no-files-found: ignore

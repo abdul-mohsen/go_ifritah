@@ -296,8 +296,20 @@ type Supplier struct {
 
 // Store represents a store/branch location
 type Store struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID               int    `json:"id"`
+	Name             string `json:"name"`
+	BranchID         *int   `json:"branch_id,omitempty"`
+	BranchName       string `json:"branch_name,omitempty"`
+	AddressName      string `json:"address_name,omitempty"`
+	BuildingNumber   string `json:"building_number,omitempty"`
+	StreetName       string `json:"street_name,omitempty"`
+	District         string `json:"district,omitempty"`
+	City             string `json:"city,omitempty"`
+	Region           string `json:"region,omitempty"`
+	PostalCode       string `json:"postal_code,omitempty"`
+	AdditionalNumber string `json:"additional_number,omitempty"`
+	UnitNumber       string `json:"unit_number,omitempty"`
+	Country          string `json:"country,omitempty"`
 }
 
 // Branch represents a business branch
@@ -363,10 +375,21 @@ type StockCheckItem struct {
 	Quantity  int `json:"quantity"`
 }
 
+// StockCheckResultItem is one entry in the stock check response.
+// Backend returns available/requested as strings; keep them as strings here.
+type StockCheckResultItem struct {
+	ProductID  int    `json:"product_id"`
+	StoreID    int    `json:"store_id"`
+	Requested  string `json:"requested"`
+	Available  string `json:"available"`
+	Sufficient bool   `json:"sufficient"`
+}
+
 // StockCheckResponse is the response from a stock availability check
 type StockCheckResponse struct {
-	Enforcement   string `json:"enforcement"`
-	AllSufficient bool   `json:"all_sufficient"`
+	Enforcement   string                 `json:"enforcement"`
+	AllSufficient bool                   `json:"all_sufficient"`
+	Items         []StockCheckResultItem `json:"items"`
 }
 
 // StockEnforcementResponse holds the current enforcement mode
@@ -606,6 +629,8 @@ type SupplierTopItem struct {
 type LedgerEntry struct {
 	Date        string  `json:"date"`
 	Type        string  `json:"type"`         // "bill", "payment", "opening"
+	SystemID    int     `json:"system_id"`    // our internal id (bill.id / voucher.id)
+	SupplierNo  string  `json:"supplier_no"`  // supplier_sequence_number for bills
 	Reference   string  `json:"reference"`
 	Description string  `json:"description"`
 	Debit       float64 `json:"debit"`        // bills increase debt

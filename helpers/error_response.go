@@ -27,6 +27,7 @@ func WriteErrorResponse(w http.ResponseWriter, statusCode int, backendResp *http
 	}
 
 	triggerToast(w, msg, "error")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(statusCode)
 	// Write the message as body too (for non-HTMX consumers)
 	_, _ = w.Write([]byte(msg))
@@ -35,6 +36,19 @@ func WriteErrorResponse(w http.ResponseWriter, statusCode int, backendResp *http
 // WriteSuccessToast sends a success toast notification via HX-Trigger.
 func WriteSuccessToast(w http.ResponseWriter, msg string) {
 	triggerToast(w, msg, "success")
+}
+
+// WriteErrorToast sends an error toast notification via HX-Trigger and tells
+// HTMX not to swap any response body. Use this for inline form errors (e.g.
+// failed login) where the page should stay put and only the toast should fire.
+// The HX-Trigger payload is JSON-encoded and ASCII-escaped, so Arabic / any
+// non-ASCII text travels safely through the HTTP header.
+func WriteErrorToast(w http.ResponseWriter, msg string) {
+	if msg == "" {
+		msg = DefaultErrorMessage
+	}
+	w.Header().Set("HX-Reswap", "none")
+	triggerToast(w, msg, "error")
 }
 
 // WriteSuccessRedirect sets a flash cookie + HX-Redirect.
@@ -222,6 +236,7 @@ func WriteErrorResponseFromBytes(w http.ResponseWriter, statusCode int, body []b
 	}
 
 	triggerToast(w, msg, "error")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(statusCode)
 	_, _ = w.Write([]byte(msg))
 }

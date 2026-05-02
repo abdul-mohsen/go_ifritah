@@ -57,10 +57,14 @@
             <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             CSV
         </a>
-        <button type="button" onclick="window.print()" class="btn btn-tonal btn-sm">
+        <a id="excelLink" href="/dashboard/suppliers/{{ .supplier.ID }}/report/export-excel?from={{ .date_from }}&to={{ .date_to }}" class="btn btn-tonal btn-sm">
+            <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Excel
+        </a>
+        <a id="pdfLink" href="/dashboard/suppliers/{{ .supplier.ID }}/report/export-pdf?from={{ .date_from }}&to={{ .date_to }}" target="_blank" class="btn btn-tonal btn-sm">
             <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-            {{ L "tpl.report.print" }}
-        </button>
+            PDF
+        </a>
     </form>
 </div>
 
@@ -191,6 +195,8 @@
         <table id="ledgerTable" aria-label="{{ L "tpl.report.account_ledger" }}">
             <thead>
                 <tr>
+                    <th>{{ L "tpl.report.system_id" }}</th>
+                    <th>{{ L "tpl.report.ssn" }}</th>
                     <th>{{ L "tpl.report.date" }}</th>
                     <th>{{ L "tpl.report.entry_type" }}</th>
                     <th>{{ L "tpl.report.reference" }}</th>
@@ -202,10 +208,12 @@
             </thead>
             <tbody>
                 {{ if not .ledger }}
-                <tr><td colspan="7" class="text-center p-8 detail-label">{{ L "tpl.report.no_entries" }}</td></tr>
+                <tr><td colspan="9" class="text-center p-8 detail-label">{{ L "tpl.report.no_entries" }}</td></tr>
                 {{ end }}
                 {{ range .ledger }}
                 <tr>
+                    <td class="text-sm">{{ if gt .SystemID 0 }}{{ .SystemID }}{{ end }}</td>
+                    <td class="text-sm font-medium" style="color:var(--md-sys-color-primary)">{{ .SupplierNo }}</td>
                     <td class="text-sm">{{ .Date }}</td>
                     <td>
                         {{ if eq .Type "bill" }}
@@ -227,7 +235,7 @@
             {{ if .ledger }}
             <tfoot>
                 <tr style="background:var(--md-sys-color-surface-container);font-weight:bold">
-                    <td colspan="4" class="text-left">{{ L "tpl.report.totals" }}</td>
+                    <td colspan="6" class="text-left">{{ L "tpl.report.totals" }}</td>
                     <td style="color:var(--md-sys-color-error)">{{ formatMoney .summary.TotalSpent }}</td>
                     <td style="color:var(--md-sys-color-primary)">{{ formatMoney .summary.TotalPayments }}</td>
                     <td>{{ formatMoney .summary.ClosingBalance }}</td>
@@ -257,7 +265,7 @@
         <table id="billsTable" aria-label="{{ L "tpl.report.bills_list" }}">
             <thead>
                 <tr>
-                    <th>#</th>
+                    <th>{{ L "tpl.report.system_id" }}</th>
                     <th>{{ L "tpl.report.ssn" }}</th>
                     <th>{{ L "tpl.report.date" }}</th>
                     <th>{{ L "tpl.report.total" }}</th>
@@ -278,7 +286,7 @@
                 {{ end }}
                 {{ range .bills }}
                 <tr data-bill-id="{{ .ID }}" data-state="{{ .State }}" data-overdue="{{ .IsOverdue }}" data-received="">
-                    <td>{{ .SequenceNumber }}</td>
+                    <td>{{ .ID }}</td>
                     <td class="font-medium" style="color:var(--md-sys-color-primary)">{{ .SSN }}</td>
                     <td>{{ if .EffectiveDate }}{{ slice .EffectiveDate 0 10 }}{{ end }}</td>
                     <td class="font-medium">{{ formatMoney .Total }}</td>

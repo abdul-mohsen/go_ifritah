@@ -29,6 +29,26 @@ test('ZATCA connect button is disabled when fields are empty', async ({ page }) 
   await login(page);
   await page.goto('/dashboard/settings');
   await page.click('#tab-zatca');
+  await page.waitForTimeout(400);
+  // Default branch may already have saved config — clear inputs AND fire
+  // input events so the in-IIFE listener marks zatcaConfigSaved=false and
+  // re-runs checkZatcaConnectReady. The exhaustive matrix lives in
+  // qa-27-zatca-connect-matrix.spec.js.
+  await page.evaluate(() => {
+    const ids = [
+      'zatca_csr_org_identifier', 'zatca_csr_org_unit', 'zatca_csr_org_name',
+      'zatca_csr_country', 'zatca_csr_location', 'zatca_csr_business_category',
+      'zatca_seller_vat', 'zatca_seller_crn',
+      'zatca_street', 'zatca_building', 'zatca_district', 'zatca_postal_code',
+    ];
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.value = '';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('blur', { bubbles: true }));
+    }
+  });
   await expect(page.locator('#zatca-connect-btn')).toBeDisabled();
 });
 

@@ -116,7 +116,6 @@ func TestNavigationSidebar(t *testing.T) {
 		"/dashboard/suppliers",
 		"/dashboard/clients",
 		"/dashboard/orders",
-		"/dashboard/users",
 		"/dashboard/settings",
 		"/logout",
 	}

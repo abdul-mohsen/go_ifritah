@@ -84,7 +84,7 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 			"subtotal":        fmt.Sprintf("%.2f", inv.TotalBeforeVAT),
 			"vat":             fmt.Sprintf("%.2f", inv.TotalVAT),
 			"discount":        fmt.Sprintf("%.2f", inv.Discount),
-			"date":            helpers.FormatInvoiceDate(inv.EffectiveDate.Time),
+			"date":            helpers.ToDisplayDate(inv.EffectiveDate.Time),
 			"type":            invoiceType,
 			"status":          status,
 			"status_class":    statusClass,
@@ -528,7 +528,7 @@ func HandleEditInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]interface{}{
-		"title":                "تعديل الفاتورة",
+		"title":               "تعديل الفاتورة",
 		"id":                  id,
 		"invoice":             bill,
 		"stores":              stores,
@@ -537,7 +537,44 @@ func HandleEditInvoice(w http.ResponseWriter, r *http.Request) {
 		"bill_payment_method": billPaymentMethod,
 		"payment_due_date":    paymentDueDate,
 		"deliver_date":        deliverDate,
+		"is_company":          inv.Type,
 	}
+
+	if inv.Type {
+		clientID := ""
+		if v, ok := helpers.CoerceFloat(extra["client_id"]); ok && v > 0 {
+			clientID = fmt.Sprintf("%d", int(v))
+		} else if s, ok := extra["client_id"].(string); ok {
+			clientID = s
+		}
+		data["client_id"] = clientID
+		clients, _ := helpers.FetchClients(token)
+		// Ensure the bill's client is in the dropdown even if it was excluded
+		// from /client/all (e.g. soft-deleted or filtered). Otherwise the
+		// <select> renders with no selected option and the form would
+		// submit an empty client_id.
+		if clientID != "" {
+			found := false
+			for _, c := range clients {
+				if c.ID == clientID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				if c, err := helpers.FetchClientByID(token, clientID); err == nil && c.ID != "" {
+					clients = append([]models.Client{c}, clients...)
+				} else {
+					// Detail endpoint may 404/500 for soft-deleted clients.
+					// Synthesize a placeholder option so the round-trip
+					// preserves the bill's current client_id.
+					clients = append([]models.Client{{ID: clientID, Name: "#" + clientID}}, clients...)
+				}
+			}
+		}
+		data["clients"] = clients
+	}
+
 	helpers.Render(w, r, "edit-invoice", data)
 }
 
@@ -572,7 +609,7 @@ func HandleUpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم تحديث الفاتورة بنجاح")
 }
 
-// HandleSubmitDraftInvoice converts a draft bill into a real bill by POSTing to /api/v2/bill/{id}.
+// HandleSubmitDraftInvoice converts a draft bill into a real bill by PUTing to /api/v2/bill/{id}.
 // The backend expects the same payload as creating a new bill.
 func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -600,42 +637,15 @@ func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build product items for payload
-	prodItems := make([]models.BillProductItem, 0, len(products))
-	for _, p := range products {
-		prodItems = append(prodItems, models.BillProductItem{
-			ID:       p.ProductID,
-			PartName: p.PartName,
-			Price:    fmt.Sprintf("%g", p.Price),
-			Quantity: strconv.Itoa(p.Quantity),
-		})
-	}
-	manualItems := make([]models.BillManualItem, 0, len(manualProducts))
-	for _, p := range manualProducts {
-		manualItems = append(manualItems, models.BillManualItem{
-			PartName:   p.PartName,
-			PartNumber: p.PartNumber,
-			Price:      fmt.Sprintf("%g", p.Price),
-			Quantity:   strconv.Itoa(p.Quantity),
-		})
-	}
+	prodItems := buildSubmitProductItems(products)
+	manualItems := buildSubmitManualItems(manualProducts)
 
-	// Resolve store_id from extra
-	storeID := 0
-	if v, ok := helpers.CoerceFloat(extra["store_id"]); ok {
-		storeID = int(v)
+	payload := buildSubmitDraftPayload(inv, extra, prodItems, manualItems)
+	if date := helpers.SafeString(extra["payment_due_date"]); date != "" {
+		payload.PaymentDueDate = helpers.ToBackendDatePtr(date)
 	}
-
-	payload := models.BillPayload{
-		StoreID:         storeID,
-		Products:        prodItems,
-		ManualProducts:  manualItems,
-		TotalAmount:     inv.Total,
-		Discount:        fmt.Sprintf("%g", inv.Discount),
-		MaintenanceCost: "0",
-		State:           1, // submit as processing
-		UserName:        helpers.SafeString(extra["user_name"]),
-		UserPhoneNumber: helpers.SafeString(extra["user_phone_number"]),
-		Note:            helpers.SafeString(extra["note"]),
+	if date := helpers.SafeString(extra["deliver_date"]); date != "" {
+		payload.DeliverDate = helpers.ToBackendDatePtr(date)
 	}
 
 	if v, ok := helpers.CoerceFloat(extra["maintenance_cost"]); ok && v > 0 {
@@ -645,7 +655,7 @@ func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	jsonPayload, _ := json.Marshal(payload)
 	log.Printf("[SUBMIT DRAFT] ID=%s Payload: %s", id, string(jsonPayload))
 
-	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill/"+id, bytes.NewBuffer(jsonPayload))
+	req, _ := http.NewRequest("PUT", config.BackendDomain+"/api/v2/bill/"+id, bytes.NewBuffer(jsonPayload))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
@@ -717,4 +727,79 @@ func HandleCreateCompanyInvoice(w http.ResponseWriter, r *http.Request) {
 
 	helpers.APICache.Delete("invoices_all")
 	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم إنشاء فاتورة الشركة بنجاح")
+}
+
+// buildSubmitProductItems converts persisted bill product rows into the
+// API payload shape (string price, string quantity).
+func buildSubmitProductItems(products []models.BillItem) []models.BillProductItem {
+items := make([]models.BillProductItem, 0, len(products))
+for _, p := range products {
+items = append(items, models.BillProductItem{
+ID:       p.ProductID,
+PartName: p.PartName,
+Price:    fmt.Sprintf("%g", p.Price),
+Quantity: strconv.Itoa(p.Quantity),
+})
+}
+return items
+}
+
+// buildSubmitManualItems converts persisted manual-product rows into the
+// API payload shape (string price, string quantity).
+func buildSubmitManualItems(products []models.BillItem) []models.BillManualItem {
+items := make([]models.BillManualItem, 0, len(products))
+for _, p := range products {
+items = append(items, models.BillManualItem{
+PartName:   p.PartName,
+PartNumber: p.PartNumber,
+Price:      fmt.Sprintf("%g", p.Price),
+Quantity:   strconv.Itoa(p.Quantity),
+})
+}
+return items
+}
+
+// extraInt reads an int field from the loose-typed `extra` map returned by
+// FetchBillDetail; missing/invalid values become 0 to keep callers small.
+func extraInt(extra map[string]interface{}, key string) int {
+if v, ok := helpers.CoerceFloat(extra[key]); ok {
+return int(v)
+}
+return 0
+}
+
+// extraIntPtr is like extraInt but yields *int for fields that distinguish
+// "absent" from "zero" on the wire (e.g. client_id).
+func extraIntPtr(extra map[string]interface{}, key string) *int {
+if v, ok := helpers.CoerceFloat(extra[key]); ok && v > 0 {
+i := int(v)
+return &i
+}
+return nil
+}
+
+// buildSubmitDraftPayload assembles the BillPayload for the
+// draft-to-processing transition. Date and maintenance_cost overrides are
+// applied by the caller because they require their own conditional logic.
+func buildSubmitDraftPayload(inv models.Invoice, extra map[string]interface{}, prodItems []models.BillProductItem, manualItems []models.BillManualItem) models.BillPayload {
+p := models.BillPayload{
+StoreID:         extraInt(extra, "store_id"),
+Products:        prodItems,
+ManualProducts:  manualItems,
+TotalAmount:     inv.Total,
+Discount:        fmt.Sprintf("%g", inv.Discount),
+MaintenanceCost: "0",
+State:           1, // submit as processing
+VIN:             helpers.SafeString(extra["vin"]),
+UserName:        helpers.SafeString(extra["user_name"]),
+UserPhoneNumber: helpers.SafeString(extra["user_phone_number"]),
+Note:            helpers.SafeString(extra["note"]),
+PaymentMethod:   extraInt(extra, "payment_method"),
+ClientID:        extraIntPtr(extra, "client_id"),
+BranchID:        extraInt(extra, "branch_id"),
+}
+if inv.EffectiveDate.Valid {
+p.EffectiveDate = helpers.ToBackendDatePtr(inv.EffectiveDate.Time)
+}
+return p
 }

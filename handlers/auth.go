@@ -26,8 +26,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
-		w.Header().Set("HX-Reswap", "none")
-		w.Header().Set("HX-Trigger", `{"showToast":{"type":"error","message":"\u0628\u064a\u0627\u0646\u0627\u062a \u063a\u064a\u0631 \u0635\u0627\u0644\u062d\u0629"}}`)
+		helpers.WriteErrorToast(w, "بيانات غير صالحة")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -36,8 +35,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	if username == "" || password == "" {
-		w.Header().Set("HX-Reswap", "none")
-		w.Header().Set("HX-Trigger", `{"showToast":{"type":"error","message":"\u064a\u0631\u062c\u0649 \u0625\u062f\u062e\u0627\u0644 \u0627\u0633\u0645 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645 \u0648\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631"}}`)
+		helpers.WriteErrorToast(w, "يرجى إدخال اسم المستخدم وكلمة المرور")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -54,8 +52,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		log.Printf("❌ Backend connection error: %v", err)
-		w.Header().Set("HX-Reswap", "none")
-		w.Header().Set("HX-Trigger", `{"showToast":{"type":"error","message":"\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u062e\u0627\u062f\u0645"}}`)
+		helpers.WriteErrorToast(w, "خطأ في الاتصال بالخادم")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -70,11 +67,9 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode != http.StatusOK || backendResp.AccessToken == "" {
 		errMsg := backendResp.Error
 		if errMsg == "" {
-			errMsg = "\u0627\u0633\u0645 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645 \u0623\u0648 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u063a\u064a\u0631 \u0635\u062d\u064a\u062d\u0629"
+			errMsg = "اسم المستخدم أو كلمة المرور غير صحيحة"
 		}
-		triggerJSON := fmt.Sprintf(`{"showToast":{"type":"error","message":"%s"}}`, errMsg)
-		w.Header().Set("HX-Reswap", "none")
-		w.Header().Set("HX-Trigger", triggerJSON)
+		helpers.WriteErrorToast(w, errMsg)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -87,6 +82,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	config.SessionTokens[sessionID] = backendResp.AccessToken
 	config.SessionRefreshTokens[sessionID] = backendResp.RefreshToken
 	config.SessionTokenExpiry[sessionID] = expiryTime
+	config.SessionUserRoles[sessionID] = helpers.DecodeJWTRole(backendResp.AccessToken)
 	config.SessionTokensMutex.Unlock()
 
 	// Persist tokens to disk for app restart recovery
@@ -197,10 +193,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	helpers.RenderStandalone(w, "register", nil)
 }
 
-// HandleRegisterPost processes registration form submission (mock)
-// TODO (backend): Forward to POST /api/v2/register
-// Expected Request:  { "full_name": "...", "username": "...", "email": "...", "phone": "...", "password": "..." }
-// Expected Response: { "success": true, "message": "...", "user_id": 123 }
+// HandleRegisterPost forwards registration to backend POST /api/v2/register.
 func HandleRegisterPost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -222,12 +215,20 @@ func HandleRegisterPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mock success - no real backend call yet
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "تم إنشاء الحساب بنجاح. يمكنك الآن تسجيل الدخول",
-		"user_id": 999,
-	})
+	body, _ := json.Marshal(req)
+	resp, err := http.Post(config.BackendDomain+"/api/v2/register", "application/json", bytes.NewReader(body))
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "تعذر الاتصال بالخادم"})
+		return
+	}
+	defer resp.Body.Close()
+
+	w.WriteHeader(resp.StatusCode)
+	var payload map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err == nil {
+		_ = json.NewEncoder(w).Encode(payload)
+	}
 }
 
 // HandleForgotPassword renders the forgot password page
@@ -235,10 +236,7 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	helpers.RenderStandalone(w, "forgot-password", nil)
 }
 
-// HandleForgotPasswordPost processes forgot password form submission (mock)
-// TODO (backend): Forward to POST /api/v2/forgot-password
-// Expected Request:  { "email": "user@example.com" }
-// Expected Response: { "success": true, "message": "تم إرسال رابط الاستعادة" }
+// HandleForgotPasswordPost forwards to backend POST /api/v2/forgot-password.
 func HandleForgotPasswordPost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -256,11 +254,20 @@ func HandleForgotPasswordPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mock success - no real backend call yet
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني",
-	})
+	body, _ := json.Marshal(req)
+	resp, err := http.Post(config.BackendDomain+"/api/v2/forgot-password", "application/json", bytes.NewReader(body))
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "تعذر الاتصال بالخادم"})
+		return
+	}
+	defer resp.Body.Close()
+
+	w.WriteHeader(resp.StatusCode)
+	var payload map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err == nil {
+		_ = json.NewEncoder(w).Encode(payload)
+	}
 }
 
 // generateSecureSessionID creates a cryptographically random session identifier.

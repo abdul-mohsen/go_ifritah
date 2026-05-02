@@ -228,11 +228,16 @@ var (
 	SessionTokens        = make(map[string]string)    // sessionID -> accessToken
 	SessionRefreshTokens = make(map[string]string)    // sessionID -> refreshToken
 	SessionTokenExpiry   = make(map[string]time.Time) // sessionID -> expiryTime
+	SessionUserRoles     = make(map[string]string)    // sessionID -> role (admin|manager|employee)
 	SessionTokensMutex   sync.RWMutex
 )
 
 // Initialize loads configuration from environment and sets up the application
 func Initialize() {
+	// .env.local (gitignored, per-developer overrides) wins over .env.
+	// godotenv.Load does not overwrite vars already set, so loading .env.local
+	// first makes its values authoritative.
+	_ = godotenv.Load(".env.local")
 	_ = godotenv.Load() // .env file is optional
 
 	BackendDomain = os.Getenv("BACKEND_URL")
@@ -308,6 +313,7 @@ func LoadTemplates() {
 		"edit-client":           filepath.Join(BaseDir, "templates/edit-client.html"),
 		"orders":                filepath.Join(BaseDir, "templates/orders.html"),
 		"add-order":             filepath.Join(BaseDir, "templates/add-order.html"),
+		"edit-order":            filepath.Join(BaseDir, "templates/edit-order.html"),
 		"branches":              filepath.Join(BaseDir, "templates/branches.html"),
 		"add-branch":            filepath.Join(BaseDir, "templates/add-branch.html"),
 		"branch-detail":         filepath.Join(BaseDir, "templates/branch-detail.html"),
@@ -325,9 +331,6 @@ func LoadTemplates() {
 		"add-purchase-bill":     filepath.Join(BaseDir, "templates/add-purchase-bill.html"),
 		"purchase-bill-detail":  filepath.Join(BaseDir, "templates/purchase-bill-detail.html"),
 		"edit-purchase-bill":    filepath.Join(BaseDir, "templates/edit-purchase-bill.html"),
-		"add-user":              filepath.Join(BaseDir, "templates/add-user.html"),
-		"users":                 filepath.Join(BaseDir, "templates/users.html"),
-		"edit-user":             filepath.Join(BaseDir, "templates/edit-user.html"),
 		"settings":              filepath.Join(BaseDir, "templates/settings.html"),
 		"parts-search":          filepath.Join(BaseDir, "templates/parts-search.html"),
 		"cars-search":           filepath.Join(BaseDir, "templates/cars-search.html"),

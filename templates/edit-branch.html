@@ -11,9 +11,29 @@
         </div>
 
         <div class="form-group">
-            <label class="form-label">{{ L "tpl.branch.location" }} <span class="required-mark">*</span></label>
-            <input type="text" name="location" value="{{ if .old }}{{ old .old "location" }}{{ else }}{{ .branch.Address }}{{ end }}" placeholder="{{ L "tpl.branch.location_placeholder" }}" class="w-full {{ if hasError .errors "location" }}input-error{{ end }}" required minlength="2" maxlength="200">
-            {{ if hasError .errors "location" }}<p class="field-error">{{ fieldError .errors "location" }}</p>{{ end }}
+            <label class="form-label">{{ L "tpl.branch.location" }}</label>
+            {{ if .has_store }}
+            <div class="address-readonly p-3 rounded" style="background:var(--md-sys-color-surface-container);border:1px solid var(--border-color)">
+                <div class="text-sm" style="color:var(--md-sys-color-on-surface)">
+                    {{ with .linked_store }}
+                    {{ if .BuildingNumber }}{{ .BuildingNumber }} {{ end }}{{ .StreetName }}{{ if .District }}، {{ .District }}{{ end }}{{ if .City }}، {{ .City }}{{ end }}{{ if .PostalCode }} — {{ .PostalCode }}{{ end }}
+                    {{ end }}
+                </div>
+                <div class="text-xs mt-1" style="color:var(--md-sys-color-on-surface-variant)">
+                    {{ L "tpl.branch.address_from_store" }}
+                    <a href="/dashboard/stores/{{ .linked_store.ID }}/edit" class="action-link" style="color:var(--md-sys-color-primary)">{{ L "tpl.branch.edit_store_address" }}</a>
+                </div>
+            </div>
+            <input type="hidden" name="location" value="{{ .branch.Address }}">
+            {{ else }}
+            <div class="address-readonly p-3 rounded" style="background:var(--md-sys-color-surface-container);border:1px dashed var(--border-color)">
+                <div class="text-sm" style="color:var(--md-sys-color-on-surface-variant)">
+                    {{ L "tpl.branch.no_linked_store" }}
+                    <a href="/dashboard/stores/add" class="action-link" style="color:var(--md-sys-color-primary)">{{ L "tpl.branch.create_store" }}</a>
+                </div>
+            </div>
+            <input type="hidden" name="location" value="{{ .branch.Address }}">
+            {{ end }}
         </div>
 
         <div class="form-group">

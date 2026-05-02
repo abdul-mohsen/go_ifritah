@@ -17,7 +17,7 @@ func TestParseFilterDateRFC3339(t *testing.T) {
 	if start == nil {
 		t.Fatalf("expected parsed RFC3339 date")
 	}
-	if start.Hour() != 10 {
-		t.Fatalf("expected hour 10, got %d", start.Hour())
+	if start.UTC().Hour() != 10 {
+		t.Fatalf("expected UTC hour 10, got %d", start.UTC().Hour())
 	}
 }

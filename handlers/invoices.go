@@ -541,12 +541,37 @@ func HandleEditInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if inv.Type {
-		clientID := 0
-		if v, ok := helpers.CoerceFloat(extra["client_id"]); ok {
-			clientID = int(v)
+		clientID := ""
+		if v, ok := helpers.CoerceFloat(extra["client_id"]); ok && v > 0 {
+			clientID = fmt.Sprintf("%d", int(v))
+		} else if s, ok := extra["client_id"].(string); ok {
+			clientID = s
 		}
 		data["client_id"] = clientID
 		clients, _ := helpers.FetchClients(token)
+		// Ensure the bill's client is in the dropdown even if it was excluded
+		// from /client/all (e.g. soft-deleted or filtered). Otherwise the
+		// <select> renders with no selected option and the form would
+		// submit an empty client_id.
+		if clientID != "" {
+			found := false
+			for _, c := range clients {
+				if c.ID == clientID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				if c, err := helpers.FetchClientByID(token, clientID); err == nil && c.ID != "" {
+					clients = append([]models.Client{c}, clients...)
+				} else {
+					// Detail endpoint may 404/500 for soft-deleted clients.
+					// Synthesize a placeholder option so the round-trip
+					// preserves the bill's current client_id.
+					clients = append([]models.Client{{ID: clientID, Name: "#" + clientID}}, clients...)
+				}
+			}
+		}
 		data["clients"] = clients
 	}
 

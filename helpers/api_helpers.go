@@ -1428,12 +1428,9 @@ func FetchProducts(token string) ([]models.Product, error) {
 	products, err := decodeListResponse[models.Product](bodyBytes)
 	if err == nil {
 		for i, p := range products {
-			if p.ID == 0 && p.PartID > 0 {
-				products[i].ID = p.PartID
-			}
 			// Use Name from backend as fallback for PartName
-			if products[i].PartName == "" && products[i].Name != "" {
-				products[i].PartName = products[i].Name
+			if products[i].PartName == "" && p.Name != "" {
+				products[i].PartName = p.Name
 			}
 		}
 		APICache.Set("products", products, CacheTTLProducts)
@@ -1450,11 +1447,11 @@ func FetchProducts(token string) ([]models.Product, error) {
 		id := 0
 		qty := ""
 		price := ""
-		if value, ok := CoerceFloat(item["article_id"]); ok {
+		if value, ok := CoerceFloat(item["id"]); ok {
 			id = int(value)
 		}
 		if id == 0 {
-			if value, ok := CoerceFloat(item["id"]); ok {
+			if value, ok := CoerceFloat(item["article_id"]); ok {
 				id = int(value)
 			}
 		}
@@ -1491,7 +1488,11 @@ func FetchProducts(token string) ([]models.Product, error) {
 		if value, ok := CoerceFloat(item["store_id"]); ok {
 			storeID = int(value)
 		}
-		converted = append(converted, models.Product{ID: id, PartName: partName, Quantity: qty, Price: price, CostPrice: costPrice, ShelfNumber: shelfNumber, StoreID: storeID})
+		partID := 0
+		if value, ok := CoerceFloat(item["article_id"]); ok {
+			partID = int(value)
+		}
+		converted = append(converted, models.Product{ID: id, PartID: partID, PartName: partName, Quantity: qty, Price: price, CostPrice: costPrice, ShelfNumber: shelfNumber, StoreID: storeID})
 	}
 
 	APICache.Set("products", converted, CacheTTLProducts)
@@ -1730,9 +1731,30 @@ func FetchClientByID(token string, id string) (models.Client, error) {
 	if resp.StatusCode != http.StatusOK {
 		return models.Client{}, fmt.Errorf("backend status %d", resp.StatusCode)
 	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return models.Client{}, err
+	}
 	var client models.Client
-	if err := json.NewDecoder(resp.Body).Decode(&client); err != nil {
+	if err := json.Unmarshal(bodyBytes, &client); err != nil {
 		return models.Client{}, fmt.Errorf("decode client: %w", err)
+	}
+	// BE may return id as a number; in that case the string-tagged ID is empty.
+	// Fall back to parsing as a generic map and coercing.
+	if client.ID == "" {
+		var raw map[string]interface{}
+		if json.Unmarshal(bodyBytes, &raw) == nil {
+			if v, ok := CoerceFloat(raw["id"]); ok && v > 0 {
+				client.ID = fmt.Sprintf("%d", int(v))
+			} else if s, ok := raw["id"].(string); ok {
+				client.ID = s
+			}
+		}
+	}
+	if client.ID == "" {
+		// As last resort, use the requested id so the dropdown can still
+		// render a selected option for the bill's client.
+		client.ID = id
 	}
 	return client, nil
 }
@@ -1794,6 +1816,11 @@ func FetchOrderDetail(token string, id string) (map[string]interface{}, error) {
 	var result map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		return nil, err
+	}
+	// Backend wraps order detail in a `detail` envelope: {"detail": {...}}.
+	// Unwrap it so callers see a flat map matching the bill/product shape.
+	if inner, ok := result["detail"].(map[string]interface{}); ok {
+		return inner, nil
 	}
 	return result, nil
 }

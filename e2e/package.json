@@ -7,7 +7,9 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test:serial": "playwright test --project=serial --workers=1",
+    "test:parallel": "playwright test --project=parallel --workers=4",
+    "test": "npm run test:serial && npm run test:parallel"
   },
   "keywords": [],
   "author": "",

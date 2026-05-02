@@ -2028,51 +2028,68 @@ func unmarshalListWithWrapper(body []byte, wrapperKeys []string) ([]map[string]i
 // supplier_sequence_number) should be set by the caller after invoking this.
 func mapToInvoice(m map[string]interface{}) models.Invoice {
 	inv := models.Invoice{}
-	if v, ok := CoerceFloat(m["id"]); ok {
-		inv.ID = int(v)
+	inv.ID = mapInt(m, "id")
+	inv.SequenceNumber = mapInt(m, "sequence_number")
+	inv.Total = mapFloat(m, "total")
+	inv.TotalVAT = mapFloat(m, "total_vat")
+	inv.TotalBeforeVAT = mapFloat(m, "total_before_vat")
+	inv.Discount = mapFloat(m, "discount")
+	inv.VAT = mapFloat(m, "vat")
+	inv.State = mapInt(m, "state")
+	inv.CreditState = mapInt(m, "credit_state")
+	inv.Type = mapBool(m, "bill_type", "type")
+	populateInvoiceEffectiveDate(m, &inv)
+	inv.PaymentDueDate = m["payment_due_date"]
+	return inv
+}
+
+// mapInt is a small wrapper around CoerceFloat that returns the rounded int
+// for a map key, or 0 if the value is missing/invalid.
+func mapInt(m map[string]interface{}, key string) int {
+	if v, ok := CoerceFloat(m[key]); ok {
+		return int(v)
 	}
-	if v, ok := CoerceFloat(m["sequence_number"]); ok {
-		inv.SequenceNumber = int(v)
+	return 0
+}
+
+// mapFloat returns CoerceFloat(m[key]) with a 0 default.
+func mapFloat(m map[string]interface{}, key string) float64 {
+	if v, ok := CoerceFloat(m[key]); ok {
+		return v
 	}
-	if v, ok := CoerceFloat(m["total"]); ok {
-		inv.Total = v
+	return 0
+}
+
+// mapBool returns the first key from `keys` whose value is a bool, defaulting
+// to false. Used because the BE sometimes ships the same flag under several
+// historical names (e.g. bill_type vs type).
+func mapBool(m map[string]interface{}, keys ...string) bool {
+	for _, k := range keys {
+		if v, ok := m[k].(bool); ok {
+			return v
+		}
 	}
-	if v, ok := CoerceFloat(m["total_vat"]); ok {
-		inv.TotalVAT = v
-	}
-	if v, ok := CoerceFloat(m["total_before_vat"]); ok {
-		inv.TotalBeforeVAT = v
-	}
-	if v, ok := CoerceFloat(m["discount"]); ok {
-		inv.Discount = v
-	}
-	if v, ok := CoerceFloat(m["vat"]); ok {
-		inv.VAT = v
-	}
-	if v, ok := CoerceFloat(m["state"]); ok {
-		inv.State = int(v)
-	}
-	if v, ok := CoerceFloat(m["credit_state"]); ok {
-		inv.CreditState = int(v)
-	}
-	if v, ok := m["bill_type"].(bool); ok {
-		inv.Type = v
-	} else if v, ok := m["type"].(bool); ok {
-		inv.Type = v
-	}
+	return false
+}
+
+// populateInvoiceEffectiveDate writes m["effective_date"] into inv.EffectiveDate,
+// supporting both the plain ISO-string and {Time, Valid} object encodings.
+func populateInvoiceEffectiveDate(m map[string]interface{}, inv *models.Invoice) {
 	if ed, ok := m["effective_date"].(string); ok {
 		inv.EffectiveDate.Time = ed
 		inv.EffectiveDate.Valid = ed != ""
-	} else if edMap, ok := m["effective_date"].(map[string]interface{}); ok {
-		if t, ok := edMap["Time"].(string); ok {
-			inv.EffectiveDate.Time = t
-		}
-		if v, ok := edMap["Valid"].(bool); ok {
-			inv.EffectiveDate.Valid = v
-		}
+		return
 	}
-	inv.PaymentDueDate = m["payment_due_date"]
-	return inv
+	edMap, ok := m["effective_date"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	if t, ok := edMap["Time"].(string); ok {
+		inv.EffectiveDate.Time = t
+	}
+	if v, ok := edMap["Valid"].(bool); ok {
+		inv.EffectiveDate.Valid = v
+	}
 }
 
 func decodeListResponse[T any](body []byte) ([]T, error) {

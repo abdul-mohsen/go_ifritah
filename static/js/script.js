@@ -277,7 +277,13 @@ document.addEventListener("htmx:beforeSwap", function (evt) {
         // ("session expired", "server error"), and don't auto-redirect — the
         // server is in charge of UX for this response.
         let hxTrigger = '';
-        try { hxTrigger = xhr.getResponseHeader('HX-Trigger') || ''; } catch (_e) { /* header not exposed by CORS */ }
+        try {
+            hxTrigger = xhr.getResponseHeader('HX-Trigger') || '';
+        } catch (e) {
+            // CORS may forbid reading headers cross-origin; log and continue
+            // with the empty default so the rest of the handler still runs.
+            console.debug('HX-Trigger header unavailable:', e);
+        }
         if (hxTrigger.includes('showToast')) {
             return;
         }

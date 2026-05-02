@@ -34,6 +34,14 @@ jobs:
       # Token store has to be writable; keep it inside the workspace so the
       # cleanup step can wipe it.
       AFRITA_TOKEN_DIR: ${{ github.workspace }}/.afrita-tokens
+      # Go 1.21 made action interpolation inside JS template literals (backticks)
+      # an html/template execute error. Several of our templates (add-invoice,
+      # add-purchase-bill, etc.) embed `{{ L "..." }}` calls inside JS template
+      # literal helpers. Restore the pre-1.21 behavior so the runtime renders
+      # those pages instead of returning a 23-byte error stub.
+      # See https://pkg.go.dev/html/template#hdr-Security_Model and
+      # https://github.com/golang/go/issues/59234 .
+      GODEBUG: "jstmpllitinterp=1"
 
     steps:
       - name: Checkout

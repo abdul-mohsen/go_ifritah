@@ -313,6 +313,7 @@ func LoadTemplates() {
 		"edit-client":           filepath.Join(BaseDir, "templates/edit-client.html"),
 		"orders":                filepath.Join(BaseDir, "templates/orders.html"),
 		"add-order":             filepath.Join(BaseDir, "templates/add-order.html"),
+		"edit-order":            filepath.Join(BaseDir, "templates/edit-order.html"),
 		"branches":              filepath.Join(BaseDir, "templates/branches.html"),
 		"add-branch":            filepath.Join(BaseDir, "templates/add-branch.html"),
 		"branch-detail":         filepath.Join(BaseDir, "templates/branch-detail.html"),

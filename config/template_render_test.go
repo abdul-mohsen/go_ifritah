@@ -24,7 +24,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"invoice-detail", "edit-invoice", "credit-invoice-detail",
 		"products", "add-product", "product-detail", "edit-product",
 		"clients", "add-client", "client-detail", "edit-client",
-		"orders", "add-order",
+		"orders", "add-order", "edit-order",
 		"branches", "add-branch", "branch-detail", "edit-branch",
 		"stores", "add-store", "store-detail", "edit-store",
 		"suppliers", "add-supplier", "supplier-detail", "edit-supplier",

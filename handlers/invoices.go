@@ -537,7 +537,19 @@ func HandleEditInvoice(w http.ResponseWriter, r *http.Request) {
 		"bill_payment_method": billPaymentMethod,
 		"payment_due_date":    paymentDueDate,
 		"deliver_date":        deliverDate,
+		"is_company":          inv.Type,
 	}
+
+	if inv.Type {
+		clientID := 0
+		if v, ok := helpers.CoerceFloat(extra["client_id"]); ok {
+			clientID = int(v)
+		}
+		data["client_id"] = clientID
+		clients, _ := helpers.FetchClients(token)
+		data["clients"] = clients
+	}
+
 	helpers.Render(w, r, "edit-invoice", data)
 }
 

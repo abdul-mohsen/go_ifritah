@@ -475,19 +475,25 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	_ = writer.Write([]string{"رقم النظام", "رقم المورد", "التاريخ", "النوع", "المرجع", "الوصف", "مدين", "دائن", "الرصيد"})
+	_ = writer.Write([]string{"رقم الفاتورة", "التاريخ", "النوع", "المرجع", "الوصف", "مدين", "دائن", "الرصيد"})
 	for _, entry := range report.Ledger {
 		typeName := "فاتورة"
 		if entry.Type == "payment" {
 			typeName = "سند صرف"
 		}
-		systemID := ""
-		if entry.SystemID > 0 {
-			systemID = fmt.Sprintf("%d", entry.SystemID)
+		billNo := entry.SupplierNo
+		if billNo == "" {
+			billNo = entry.Reference
+		}
+		if billNo == "" && entry.SystemID > 0 {
+			if entry.Type == "payment" {
+				billNo = fmt.Sprintf("CV-%d", entry.SystemID)
+			} else {
+				billNo = fmt.Sprintf("PB-%d", entry.SystemID)
+			}
 		}
 		_ = writer.Write([]string{
-			systemID,
-			entry.SupplierNo,
+			billNo,
 			entry.Date,
 			typeName,
 			entry.Reference,

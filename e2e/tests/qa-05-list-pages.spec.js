@@ -13,7 +13,7 @@ const LISTS = [
   { url: '/dashboard/clients', search: 'q' },
   { url: '/dashboard/suppliers', search: 'q' },
   { url: '/dashboard/orders' },
-  { url: '/dashboard/users' },
+  // /dashboard/users removed: backend lacks /api/v2/users CRUD endpoints (see main.go:154).
 ];
 
 for (const cfg of LISTS) {

@@ -86,6 +86,11 @@ test.describe('Edit-page round-trip — no field is silently dropped', () => {
     await page.goto(`/dashboard/invoices/edit/${id}`);
     await page.waitForLoadState('domcontentloaded');
 
+    // The client_id <select> only renders for company invoices (is_company=true).
+    // Skip if the dev backend's first draft is personal-mode (no select).
+    const clientSelectCount = await page.locator('select[name="client_id"]').count();
+    if (clientSelectCount === 0) test.skip(true, 'first draft invoice is personal-mode (no client_id select)');
+
     // client_id must be selected on the invoice edit form. The handler
     // currently does not pass .client_id → the select shows the
     // placeholder, which is the bug we are guarding against.

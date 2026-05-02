@@ -27,7 +27,7 @@ module.exports = defineConfig({
   fullyParallel: true,
   workers: parseInt(process.env.PW_WORKERS || '1', 10),
   use: {
-    baseURL: 'http://localhost:8001',
+    baseURL: process.env.PW_BASE_URL || 'http://localhost:8001',
     headless: true,
   },
   reporter: [

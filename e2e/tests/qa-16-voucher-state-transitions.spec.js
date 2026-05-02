@@ -73,6 +73,9 @@ test.describe('Cash voucher state transitions', () => {
     expect(approveResp.status(), 'approve must not 5xx').toBeLessThan(500);
 
     if (approveResp.status() < 400) {
+      // Re-fetch detail page so the rendered template reflects the new state.
+      await page.goto(`/dashboard/cash-vouchers/${id}`);
+      await page.waitForLoadState('domcontentloaded');
       // Success path → post action must now appear.
       const approvedHtml = await page.content();
       expect(approvedHtml, 'after approve, post action must be available').toContain(`/api/cash-vouchers/${id}/post`);
@@ -89,6 +92,8 @@ test.describe('Cash voucher state transitions', () => {
       expect(postResp.status(), 'post must not 5xx').toBeLessThan(500);
 
       if (postResp.status() < 400) {
+        await page.goto(`/dashboard/cash-vouchers/${id}`);
+        await page.waitForLoadState('domcontentloaded');
         const postedHtml = await page.content();
         expect(postedHtml, 'after post, no approve action').not.toContain(`/api/cash-vouchers/${id}/approve`);
         expect(postedHtml, 'after post, no post action (immutable)').not.toContain(`/api/cash-vouchers/${id}/post`);

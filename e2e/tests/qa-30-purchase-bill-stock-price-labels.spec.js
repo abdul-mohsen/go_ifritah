@@ -32,7 +32,9 @@ test.describe('Purchase-bill stock product price columns', () => {
     await page.goto('/dashboard/purchase-bills');
     await page.waitForLoadState('domcontentloaded');
 
-    const editHref = await page.locator('a[href^="/dashboard/purchase-bills/edit/"]').first().getAttribute('href').catch(() => null);
+    const editLink = page.locator('a[href^="/dashboard/purchase-bills/edit/"]').first();
+    if (await editLink.count() === 0) test.skip(true, 'no purchase bill edit page on dev backend');
+    const editHref = await editLink.getAttribute('href');
     if (!editHref) test.skip(true, 'no purchase bill edit page on dev backend');
 
     await page.goto(editHref);

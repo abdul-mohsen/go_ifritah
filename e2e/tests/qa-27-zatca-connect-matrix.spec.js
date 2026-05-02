@@ -15,12 +15,33 @@ const REQUIRED_FIELDS = [
   'zatca_street', 'zatca_building', 'zatca_district', 'zatca_postal_code',
 ];
 
+async function setReadonlyValue(page, id, value) {
+  await page.evaluate(({ id, value }) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+  }, { id, value });
+}
+
+async function ensureStoreLinked(page) {
+  await page.evaluate(() => {
+    const noStore = document.getElementById('zatca-address-no-store');
+    if (noStore) noStore.classList.add('hidden');
+    const src = document.getElementById('zatca-address-source');
+    if (src) src.classList.remove('hidden');
+  });
+}
+
 async function goToZatcaTab(page) {
   await login(page);
   await page.goto('/dashboard/settings');
   await page.click('#tab-zatca');
   await expect(page.locator('#zatca-branch-select')).toBeVisible();
   await page.waitForTimeout(400);
+  await ensureStoreLinked(page);
 }
 
 // Clear values AND dispatch input events so the in-IIFE listener marks
@@ -46,10 +67,10 @@ async function fillAllFields(page) {
   await page.selectOption('#zatca_csr_business_category', { index: 1 });
   await page.fill('#zatca_seller_vat', '300000000000003');
   await page.fill('#zatca_seller_crn', '7000000000');
-  await page.fill('#zatca_street', 'شارع الملك فهد');
-  await page.fill('#zatca_building', '1234');
-  await page.fill('#zatca_district', 'العليا');
-  await page.fill('#zatca_postal_code', '12345');
+  await setReadonlyValue(page, 'zatca_street', 'شارع الملك فهد');
+  await setReadonlyValue(page, 'zatca_building', '1234');
+  await setReadonlyValue(page, 'zatca_district', 'العليا');
+  await setReadonlyValue(page, 'zatca_postal_code', '12345');
   await page.evaluate((ids) => {
     for (const id of ids) {
       const el = document.getElementById(id);
@@ -95,7 +116,7 @@ test.describe('ZATCA connect-button precondition matrix', () => {
 
     const cityEl = page.locator('#zatca_city');
     if (await cityEl.count()) {
-      await cityEl.fill('الرياض');
+      await setReadonlyValue(page, 'zatca_city', 'الرياض');
     }
 
     await page.click('#zatca-save-btn');

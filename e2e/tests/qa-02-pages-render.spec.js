@@ -22,7 +22,7 @@ const PAGES = [
   { url: '/dashboard/orders/add', must: 'form' },
   { url: '/dashboard/branches', must: 'body' },
   { url: '/dashboard/stores', must: 'body' },
-  { url: '/dashboard/users', must: 'a[href*="/dashboard/users/add"]' },
+  // /dashboard/users removed: backend lacks /api/v2/users CRUD endpoints (see main.go:154).
   { url: '/dashboard/settings', must: 'form' },
   { url: '/dashboard/notifications', must: 'body' },
   { url: '/dashboard/parts', must: 'body' },

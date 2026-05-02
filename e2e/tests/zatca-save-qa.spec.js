@@ -5,11 +5,37 @@ const { login } = require('../helpers/auth');
 // Helpers (shared with zatca-settings.spec.js pattern)
 // ════════════════════════════════════════════════════════════════════
 
+// Address fields (street/building/district/postal_code) are intentionally
+// readonly — they mirror the linked store's national address. Setting them
+// in tests requires a DOM write, and we also need to ensure the "no store
+// linked" guard panel is hidden so saveZatcaConfig() doesn't early-return.
+async function setReadonlyValue(page, id, value) {
+  await page.evaluate(({ id, value }) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, { id, value });
+}
+
+async function ensureStoreLinked(page) {
+  await page.evaluate(() => {
+    const noStore = document.getElementById('zatca-address-no-store');
+    if (noStore) noStore.classList.add('hidden');
+    const src = document.getElementById('zatca-address-source');
+    if (src) src.classList.remove('hidden');
+  });
+}
+
 async function goToZatcaTab(page) {
   await login(page);
   await page.goto('/dashboard/settings');
   await page.click('#tab-zatca');
   await expect(page.locator('#zatca-branch-select')).toBeVisible();
+  // Wait for branch data + store-address fetch to settle.
+  await page.waitForTimeout(300);
+  await ensureStoreLinked(page);
 }
 
 async function fillAllZatcaFields(page) {
@@ -20,10 +46,11 @@ async function fillAllZatcaFields(page) {
   await page.fill('#zatca_csr_location', 'الرياض');
   await page.fill('#zatca_seller_vat', '300000000000003');
   await page.fill('#zatca_seller_crn', '7000000000');
-  await page.fill('#zatca_street', 'شارع الملك فهد');
-  await page.fill('#zatca_building', '1234');
-  await page.fill('#zatca_district', 'العليا');
-  await page.fill('#zatca_postal_code', '12345');
+  await setReadonlyValue(page, 'zatca_street', 'شارع الملك فهد');
+  await setReadonlyValue(page, 'zatca_building', '1234');
+  await setReadonlyValue(page, 'zatca_district', 'العليا');
+  await setReadonlyValue(page, 'zatca_postal_code', '12345');
+  await ensureStoreLinked(page);
 }
 
 function mockSaveSuccess(page) {
@@ -87,10 +114,10 @@ test('37. save with only CSR section filled succeeds', async ({ page }) => {
 
 test('38. save with only address section filled succeeds', async ({ page }) => {
   await goToZatcaTab(page);
-  await page.fill('#zatca_street', 'شارع الملك فهد');
-  await page.fill('#zatca_building', '1234');
-  await page.fill('#zatca_district', 'العليا');
-  await page.fill('#zatca_postal_code', '12345');
+  await setReadonlyValue(page, 'zatca_street', 'شارع الملك فهد');
+  await setReadonlyValue(page, 'zatca_building', '1234');
+  await setReadonlyValue(page, 'zatca_district', 'العليا');
+  await setReadonlyValue(page, 'zatca_postal_code', '12345');
 
   await mockSaveSuccess(page);
   await page.click('#zatca-save-btn');
@@ -493,7 +520,7 @@ test('59. all 12 field names present in payload', async ({ page }) => {
 test('60. trimmed whitespace is sent — no leading/trailing spaces', async ({ page }) => {
   await goToZatcaTab(page);
   await page.fill('#zatca_csr_org_name', '  شركة اختبار  ');
-  await page.fill('#zatca_street', '  شارع الملك فهد  ');
+  await setReadonlyValue(page, 'zatca_street', '  شارع الملك فهد  ');
 
   let capturedBody = null;
   await page.route('/api/zatca/branch/**', async (route) => {

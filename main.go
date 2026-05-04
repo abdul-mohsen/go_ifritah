@@ -176,7 +176,8 @@ func main() {
 	router.HandleFunc("/dashboard/notifications", handlers.HandleNotifications).Methods("GET")
 	router.HandleFunc("/api/notifications/{id}/read", handlers.HandleMarkNotificationRead).Methods("POST")
 	router.HandleFunc("/api/notifications/read-all", handlers.HandleMarkAllNotificationsRead).Methods("POST")
-	router.HandleFunc("/api/notification-config", handlers.HandleNotificationConfig).Methods("POST")
+	router.HandleFunc("/api/notifications/unread-count", handlers.HandleNotificationUnreadCount).Methods("GET")
+	router.HandleFunc("/api/notification-config", handlers.HandleNotificationConfig).Methods("POST", "PUT")
 	router.HandleFunc("/api/notification-config", handlers.HandleGetNotificationConfig).Methods("GET")
 
 	// Store routes — RBAC protected

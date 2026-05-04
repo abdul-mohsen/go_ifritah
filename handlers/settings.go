@@ -2,12 +2,15 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"sync"
+	"time"
 
 	"afrita/config"
 	"afrita/helpers"
@@ -141,16 +144,36 @@ func loadSettingsFromBackend(token string) {
 	}
 
 	settingsMu.Lock()
-	defer settingsMu.Unlock()
-
-	// Flatten category→key→value into settingsStore
 	for _, categorySettings := range result.Data {
 		for key, value := range categorySettings {
 			settingsStore[key] = value
 		}
 	}
 	settingsLoaded = true
+	settingsMu.Unlock()
 	log.Printf("[SETTINGS] Loaded %d categories from backend", len(result.Data))
+
+	// Also load notification config (separate endpoint, structured payload).
+	overlayNotificationConfigIntoSettings(token)
+}
+
+// overlayNotificationConfigIntoSettings calls /api/v2/notification/config and
+// projects its fields onto the flat settings map so the settings page renders
+// the same source of truth as the notification system.
+func overlayNotificationConfigIntoSettings(token string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cfg, err := helpers.GetNotificationConfig(ctx, token)
+	if err != nil {
+		log.Printf("[SETTINGS] notification config fetch failed: %v", err)
+		return
+	}
+	settingsMu.Lock()
+	defer settingsMu.Unlock()
+	settingsStore["low_stock_threshold"] = strconv.Itoa(cfg.LowStockThreshold)
+	settingsStore["notif_stock"] = strconv.FormatBool(cfg.LowStockAlert)
+	settingsStore["notif_orders"] = strconv.FormatBool(cfg.NewOrderAlert)
+	settingsStore["notif_payments"] = strconv.FormatBool(cfg.PaymentDueAlert)
 }
 
 // saveSettingsToBackend sends changed settings to PUT /api/v2/settings
@@ -192,6 +215,38 @@ func saveSettingsToBackend(token string, settings map[string]string) {
 		} else {
 			log.Printf("[SETTINGS] Saved category %s (%d keys)", cat, len(catSettings))
 		}
+	}
+
+	// Mirror notification-relevant keys into the structured /notification/config
+	// endpoint so the low-stock generator sees them.
+	mirrorNotificationConfig(token, settings)
+}
+
+// mirrorNotificationConfig forwards the subset of the saved settings that
+// drive the low-stock generator and per-channel toggles.
+func mirrorNotificationConfig(token string, settings map[string]string) {
+	partial := map[string]any{}
+	if v, ok := settings["low_stock_threshold"]; ok && v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			partial["low_stock_threshold"] = n
+		}
+	}
+	if v, ok := settings["notif_stock"]; ok {
+		partial["low_stock_alert"] = v == "true"
+	}
+	if v, ok := settings["notif_orders"]; ok {
+		partial["new_order_alert"] = v == "true"
+	}
+	if v, ok := settings["notif_payments"]; ok {
+		partial["payment_due_alert"] = v == "true"
+	}
+	if len(partial) == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := helpers.UpdateNotificationConfig(ctx, token, partial); err != nil {
+		log.Printf("[SETTINGS] notification config sync failed: %v", err)
 	}
 }
 

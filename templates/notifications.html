@@ -121,18 +121,36 @@
 
 <script>
     function markRead(id) {
-        fetch('/api/notifications/' + id + '/read', { method: 'POST' })
-            .then(function(r) { return r.json(); })
+        fetch('/api/notifications/' + id + '/read', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        })
+            .then(function(r) { return r.ok ? r.json() : null; })
             .then(function(data) {
-                if (data.success) location.reload();
+                if (data && data.success) {
+                    if (window.NotificationBadge && window.NotificationBadge.decrement) {
+                        window.NotificationBadge.decrement(1);
+                    }
+                    location.reload();
+                }
             });
     }
 
     function markAllRead() {
-        fetch('/api/notifications/read-all', { method: 'POST' })
-            .then(function(r) { return r.json(); })
+        fetch('/api/notifications/read-all', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        })
+            .then(function(r) { return r.ok ? r.json() : null; })
             .then(function(data) {
-                if (data.success) location.reload();
+                if (data && data.success) {
+                    if (window.NotificationBadge && window.NotificationBadge.clear) {
+                        window.NotificationBadge.clear();
+                    }
+                    location.reload();
+                }
             });
     }
 </script>

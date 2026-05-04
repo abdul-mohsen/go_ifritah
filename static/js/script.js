@@ -346,7 +346,30 @@ document.addEventListener("htmx:afterSwap", function(evt) {
         return document.querySelectorAll('input[name="q"]');
     }
 
-    function attach(input) {
+    function resetPageParam(form) {
+        // Reset to page 0 when the search query changes so the user
+        // doesn't get stuck on an empty page.
+        var pageInput = form.querySelector('input[name="page"]');
+        if (pageInput) {
+            pageInput.value = '0';
+        } else {
+            var hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'page';
+            hidden.value = '0';
+            form.appendChild(hidden);
+        }
+    }
+
+    function submitForm(form) {
+        if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+        } else {
+            form.submit();
+        }
+    }
+
+    function attachInput(input) {
         if (input.dataset._liveSearchBound) return;
         input.dataset._liveSearchBound = '1';
         var form = input.form;
@@ -356,23 +379,8 @@ document.addEventListener("htmx:afterSwap", function(evt) {
         input.addEventListener('input', function () {
             if (timer) clearTimeout(timer);
             timer = setTimeout(function () {
-                // Reset to page 0 when the search query changes so the user
-                // doesn't get stuck on an empty page.
-                var pageInput = form.querySelector('input[name="page"]');
-                if (pageInput) {
-                    pageInput.value = '0';
-                } else {
-                    var hidden = document.createElement('input');
-                    hidden.type = 'hidden';
-                    hidden.name = 'page';
-                    hidden.value = '0';
-                    form.appendChild(hidden);
-                }
-                if (typeof form.requestSubmit === 'function') {
-                    form.requestSubmit();
-                } else {
-                    form.submit();
-                }
+                resetPageParam(form);
+                submitForm(form);
             }, DEBOUNCE_MS);
         });
 
@@ -382,14 +390,36 @@ document.addEventListener("htmx:afterSwap", function(evt) {
                 e.preventDefault();
                 input.value = '';
                 if (timer) clearTimeout(timer);
-                if (typeof form.requestSubmit === 'function') form.requestSubmit();
-                else form.submit();
+                submitForm(form);
             }
         });
     }
 
+    // Auto-submit any <select> sibling of a q-input or per-page-select on
+    // change. Filters (state, stock, role, type, voucher_type, per) become
+    // instant without forcing the user to find the Search button.
+    function attachSelect(sel) {
+        if (sel.dataset._liveSelectBound) return;
+        sel.dataset._liveSelectBound = '1';
+        var form = sel.form;
+        if (!form || form.method.toLowerCase() !== 'get') return;
+        // Only attach when the form contains a search input or this select is
+        // a per-page selector — avoids hijacking unrelated forms.
+        var isFilterForm = !!form.querySelector('input[name="q"]') ||
+                            sel.name === 'per' ||
+                            sel.classList.contains('per-page-select');
+        if (!isFilterForm) return;
+
+        sel.addEventListener('change', function () {
+            // Changing per-page or filters should always reset to page 0.
+            resetPageParam(form);
+            submitForm(form);
+        });
+    }
+
     function init() {
-        findQInputs().forEach(attach);
+        findQInputs().forEach(attachInput);
+        document.querySelectorAll('form select').forEach(attachSelect);
     }
 
     if (document.readyState === 'loading') {

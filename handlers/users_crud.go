@@ -35,7 +35,7 @@ func HandleUsers(w http.ResponseWriter, r *http.Request) {
 	roleFilter := r.URL.Query().Get("role")
 	filtered := make([]models.User, 0, len(mockUsers))
 	for _, u := range mockUsers {
-		if query != "" && !helpers.ContainsInsensitive(u.Username, query) && !helpers.ContainsInsensitive(u.Email, query) {
+		if query != "" && !helpers.MatchSearchQuery(query, u.Username, u.Email) {
 			continue
 		}
 		if roleFilter != "" && string(u.Role) != roleFilter {

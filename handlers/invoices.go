@@ -66,6 +66,11 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 		filtered = stateFiltered
 	}
 
+	// Note: backend handles `query` for /bill/all (currently matches against
+	// user_phone_number only). Adding an extra FE filter on a narrow field set
+	// would reject backend hits that matched on a field the FE doesn't see, so
+	// we forward the query verbatim and render whatever the backend returns.
+
 	// Transform to display format
 	displayInvoices := make([]map[string]interface{}, 0, len(filtered))
 	for _, inv := range filtered {

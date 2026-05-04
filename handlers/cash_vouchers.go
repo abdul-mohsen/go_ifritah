@@ -43,6 +43,19 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 
 	displayVouchers := make([]map[string]interface{}, 0)
 	for _, cv := range vouchers {
+		// FE-side fallback search: backend search on /cash_voucher/all is
+		// limited; widen it to cover voucher number, recipient, amount and
+		// description so the UI matches user expectations until the backend
+		// LIKE/FULLTEXT PR lands.
+		if query != "" {
+			amountStr := fmt.Sprintf("%.2f", cv.Amount)
+			voucherNumStr := strconv.Itoa(cv.VoucherNumber)
+			if !helpers.MatchSearchQuery(query,
+				voucherNumStr, cv.RecipientName, cv.Description,
+				amountStr, strconv.Itoa(cv.ID)) {
+				continue
+			}
+		}
 		statusKey, statusClass := helpers.CashVoucherStatusByState(cv.State)
 		statusLabel := resources.L(statusKey)
 

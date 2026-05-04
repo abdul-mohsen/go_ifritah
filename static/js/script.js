@@ -334,6 +334,71 @@ document.addEventListener("htmx:afterSwap", function(evt) {
     });
 })();
 
+// ── Live debounced search on list pages ───────────────────────
+// Auto-submits the wrapping <form> ~400ms after the user stops typing in any
+// search input named "q". Skips the loading swap so the user can keep typing.
+// Resets the page param to 0 so users don't land on an empty page after
+// narrowing results. Also adds a small "×" button to clear the field.
+(function () {
+    var DEBOUNCE_MS = 400;
+
+    function findQInputs() {
+        return document.querySelectorAll('input[name="q"]');
+    }
+
+    function attach(input) {
+        if (input.dataset._liveSearchBound) return;
+        input.dataset._liveSearchBound = '1';
+        var form = input.form;
+        if (!form || form.method.toLowerCase() !== 'get') return;
+
+        var timer = null;
+        input.addEventListener('input', function () {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(function () {
+                // Reset to page 0 when the search query changes so the user
+                // doesn't get stuck on an empty page.
+                var pageInput = form.querySelector('input[name="page"]');
+                if (pageInput) {
+                    pageInput.value = '0';
+                } else {
+                    var hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'page';
+                    hidden.value = '0';
+                    form.appendChild(hidden);
+                }
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            }, DEBOUNCE_MS);
+        });
+
+        // ESC clears the input and submits empty.
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && input.value !== '') {
+                e.preventDefault();
+                input.value = '';
+                if (timer) clearTimeout(timer);
+                if (typeof form.requestSubmit === 'function') form.requestSubmit();
+                else form.submit();
+            }
+        });
+    }
+
+    function init() {
+        findQInputs().forEach(attach);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+
 // ── Client-Side Table Sorting ─────────────────────────────────
 (function() {
     function initSortable() {

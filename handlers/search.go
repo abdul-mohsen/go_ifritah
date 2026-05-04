@@ -86,14 +86,25 @@ func HandlePartsSearchResults(w http.ResponseWriter, r *http.Request) {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
+		// Network error — render empty results so the live-search UX
+		// degrades gracefully instead of showing a 500 panel.
+		helpers.RenderPartial(w, "parts-results", map[string]interface{}{"results": []interface{}{}})
 		return
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		helpers.HandleUnauthorized(w, r)
+		return
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		helpers.RenderPartial(w, "parts-results", map[string]interface{}{"results": []interface{}{}})
+		return
+	}
+
 	var results []map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
+		helpers.RenderPartial(w, "parts-results", map[string]interface{}{"results": []interface{}{}})
 		return
 	}
 

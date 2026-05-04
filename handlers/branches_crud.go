@@ -31,7 +31,7 @@ func HandleBranches(w http.ResponseWriter, r *http.Request) {
 	if query != "" {
 		filtered := make([]models.Branch, 0)
 		for _, b := range branches {
-			if helpers.ContainsInsensitive(b.Name, query) || helpers.ContainsInsensitive(b.Address, query) || helpers.ContainsInsensitive(b.Phone, query) {
+			if helpers.MatchSearchQuery(query, b.Name, b.Address, b.Phone, b.ManagerName) {
 				filtered = append(filtered, b)
 			}
 		}

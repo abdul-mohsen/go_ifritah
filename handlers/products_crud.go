@@ -47,13 +47,13 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 	stockFilter := r.URL.Query().Get("stock")
 	query := r.URL.Query().Get("q")
 
-	// Filter by search query (ID or part name)
+	// Filter by search query (id, article_id, part name, name, shelf number)
 	if query != "" {
 		filtered := make([]models.Product, 0)
 		for _, p := range products {
 			idStr := fmt.Sprintf("%d", p.ID)
-			if helpers.ContainsInsensitive(idStr, query) ||
-				helpers.ContainsInsensitive(p.PartName, query) {
+			articleStr := fmt.Sprintf("%d", p.PartID)
+			if helpers.MatchSearchQuery(query, idStr, articleStr, p.PartName, p.Name, p.ShelfNumber) {
 				filtered = append(filtered, p)
 			}
 		}

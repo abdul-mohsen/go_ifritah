@@ -143,7 +143,10 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 	if query != "" {
 		filtered := make([]models.Supplier, 0)
 		for _, supplier := range suppliers {
-			if helpers.ContainsInsensitive(supplier.Name, query) || helpers.ContainsInsensitive(supplier.PhoneNumber, query) {
+			if helpers.MatchSearchQuery(query,
+				supplier.Name, supplier.PhoneNumber, supplier.Email,
+				supplier.Address, supplier.Number, supplier.VATNumber,
+				supplier.CR, strconv.Itoa(supplier.ID)) {
 				filtered = append(filtered, supplier)
 			}
 		}

@@ -30,9 +30,9 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 	if query != "" {
 		filtered := make([]models.Client, 0)
 		for _, c := range clients {
-			if helpers.ContainsInsensitive(c.Name, query) ||
-				helpers.ContainsInsensitive(c.Email, query) ||
-				helpers.ContainsInsensitive(c.Phone, query) {
+			if helpers.MatchSearchQuery(query,
+				c.Name, c.CompanyName, c.Email, c.Phone,
+				c.Address, c.Number, c.VATNumber, c.TaxNumber, c.CR, c.ID) {
 				filtered = append(filtered, c)
 			}
 		}

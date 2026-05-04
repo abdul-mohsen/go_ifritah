@@ -29,7 +29,7 @@ func HandleStores(w http.ResponseWriter, r *http.Request) {
 	if query != "" {
 		filtered := make([]models.Store, 0)
 		for _, s := range stores {
-			if helpers.ContainsInsensitive(s.Name, query) {
+			if helpers.MatchSearchQuery(query, s.Name, strconv.Itoa(s.ID)) {
 				filtered = append(filtered, s)
 			}
 		}

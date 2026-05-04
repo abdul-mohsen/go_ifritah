@@ -16,7 +16,21 @@
     <script>
         // Apply dark mode BEFORE CSS renders — prevents white flash
         (function () { if (localStorage.getItem('afrita_theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark') })();
+        // Suppress all transitions/animations until the sidebar restore IIFE runs
+        // so collapsed sections / sidebar don't visibly animate open → closed on
+        // page reload (FOUC). The class is removed at the end of the body-bottom
+        // restore script via two requestAnimationFrame calls (one full paint).
+        document.documentElement.classList.add('preload-no-anim');
     </script>
+    <style>
+        html.preload-no-anim *,
+        html.preload-no-anim *::before,
+        html.preload-no-anim *::after {
+            transition: none !important;
+            animation-duration: 0s !important;
+            animation-delay: 0s !important;
+        }
+    </style>
     <link href="/static/output.css" rel="stylesheet">
     <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
     <script>
@@ -509,6 +523,13 @@
                     }
                 }
             } catch (e) { }
+            // Re-enable transitions after the restored state has painted once,
+            // so subsequent user interactions animate normally.
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    document.documentElement.classList.remove('preload-no-anim');
+                });
+            });
         })();
     </script>
     <script src="/static/js/darkmode.js"></script>

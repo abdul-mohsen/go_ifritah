@@ -96,11 +96,11 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 	if query != "" {
 		filtered := make([]map[string]interface{}, 0)
 		for _, o := range orders {
-			num, _ := o["number"].(string)
-			client, _ := o["client"].(string)
-			seq, _ := o["sequence_number"].(string)
-			phone, _ := o["phone"].(string)
-			status, _ := o["status"].(string)
+			num := coerceString(o["number"])
+			client := coerceString(o["client"])
+			seq := coerceString(o["sequence_number"])
+			phone := coerceString(o["phone"])
+			status := coerceString(o["status"])
 			idStr := coerceString(o["id"])
 			total := coerceString(o["total"])
 			if helpers.MatchSearchQuery(query, num, client, seq, phone, status, idStr, total) {

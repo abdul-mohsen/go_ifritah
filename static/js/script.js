@@ -336,9 +336,11 @@ document.addEventListener("htmx:afterSwap", function(evt) {
 
 // ── Live debounced search on list pages ───────────────────────
 // Auto-submits the wrapping <form> ~400ms after the user stops typing in any
-// search input named "q". Skips the loading swap so the user can keep typing.
-// Resets the page param to 0 so users don't land on an empty page after
-// narrowing results. Also adds a small "×" button to clear the field.
+// search input named "q". Resets the page param to 0 so users don't land on
+// an empty paginated page after narrowing results. ESC clears the input and
+// re-submits empty so users can bail out of a search without hunting for
+// the "x" button. Also auto-submits on any <select> change inside a list
+// form so per-page / state / stock / role filters apply instantly.
 (function () {
     var DEBOUNCE_MS = 400;
 

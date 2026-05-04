@@ -31,14 +31,16 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query().Get("q")
 	stateFilter := r.URL.Query().Get("state")
+	sortField := r.URL.Query().Get("sort")
+	sortDir := r.URL.Query().Get("dir")
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
 	if page < 0 {
 		page = 0
 	}
 
-	// Fetch ALL from backend (page=1 returns all), client-side pagination after state filter
-	bills, err := helpers.FetchPurchaseBillsAll(token, 1, query)
+	// Search/filter/sort are 100% backend-driven — forward everything to BE.
+	bills, err := helpers.FetchPurchaseBillsAll(token, 1, query, stateFilter, sortField, sortDir)
 	if err != nil {
 		if helpers.IsUnauthorizedError(err) {
 			helpers.HandleUnauthorized(w, r)
@@ -75,18 +77,6 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// Apply state filter
-	if stateFilter != "" {
-		stateValue, _ := strconv.Atoi(stateFilter)
-		filtered := make([]map[string]interface{}, 0)
-		for _, b := range displayBills {
-			if s, ok := b["state"].(int); ok && s == stateValue {
-				filtered = append(filtered, b)
-			}
-		}
-		displayBills = filtered
-	}
-
 	pagedBills, pagination := helpers.PaginateSlice(displayBills, page, perPage)
 	prevPage := -1
 	nextPage := -1
@@ -105,6 +95,8 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 		"next_page":  nextPage,
 		"query":      query,
 		"state":      stateFilter,
+		"sort":       sortField,
+		"dir":        sortDir,
 	})
 }
 

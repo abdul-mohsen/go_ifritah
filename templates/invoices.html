@@ -1,7 +1,7 @@
 {{ define "content" }}
 {{ template "error-alert" . }}
 <div class="list-toolbar">
-    <form method="get">
+    <form method="get" hx-get="" hx-target="#list-results" hx-select="#list-results" hx-swap="outerHTML" hx-push-url="true" hx-trigger="submit, input changed delay:400ms from:input[name='q'], change from:select" hx-indicator="#list-results">
         <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.invoice.search_placeholder" }}" class="search-input">
         <select name="state">
             <option value="">{{ L "tpl.all_statuses" }}</option>
@@ -11,6 +11,8 @@
             <option value="3" {{ if eq .state "3" }}selected{{ end }}>{{ L "tpl.invoice.status_issued" }}</option>
         </select>
         {{ template "per-page-select" dict "pagination" .pagination }}
+        <input type="hidden" name="sort" value="{{ .sort }}">
+        <input type="hidden" name="dir" value="{{ .dir }}">
         <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
     </form>
     <div class="toolbar-actions">
@@ -30,16 +32,17 @@
     </div>
 </div>
 
+<div id="list-results">
 <div class="data-table-wrapper">
     <table aria-label="{{ L "tpl.invoice.table_label" }}">
         <thead>
             <tr>
                 <th>#</th>
-                <th data-sortable>{{ L "tpl.invoice.number" }}</th>
-                <th data-sortable>{{ L "tpl.invoice.total" }}</th>
-                <th data-sortable>{{ L "tpl.invoice.date" }}</th>
-                <th data-sortable>{{ L "tpl.invoice.type" }}</th>
-                <th data-sortable>{{ L "tpl.invoice.status" }}</th>
+                <th data-sortable data-sort-key="sequence_number" data-sort-current="{{ if eq .sort "sequence_number" }}{{ .dir }}{{ end }}">{{ L "tpl.invoice.number" }}</th>
+                <th data-sortable data-sort-key="total" data-sort-current="{{ if eq .sort "total" }}{{ .dir }}{{ end }}">{{ L "tpl.invoice.total" }}</th>
+                <th data-sortable data-sort-key="effective_date" data-sort-current="{{ if eq .sort "effective_date" }}{{ .dir }}{{ end }}">{{ L "tpl.invoice.date" }}</th>
+                <th data-sortable data-sort-key="type" data-sort-current="{{ if eq .sort "type" }}{{ .dir }}{{ end }}">{{ L "tpl.invoice.type" }}</th>
+                <th data-sortable data-sort-key="state" data-sort-current="{{ if eq .sort "state" }}{{ .dir }}{{ end }}">{{ L "tpl.invoice.status" }}</th>
                 <th>{{ L "tpl.actions" }}</th>
             </tr>
         </thead>
@@ -94,7 +97,7 @@
 </div>
 
 {{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
-"extra_params" (printf "&state=%s" .state) }}
-
+"extra_params" (printf "&state=%s&sort=%s&dir=%s" .state .sort .dir) }}
+</div>
 
 {{ end }}

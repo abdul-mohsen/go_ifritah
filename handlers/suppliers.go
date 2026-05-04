@@ -133,24 +133,20 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	suppliers, err := helpers.FetchSuppliers(token)
+	query := r.URL.Query().Get("q")
+	sort := r.URL.Query().Get("sort")
+	dir := r.URL.Query().Get("dir")
+
+	suppliers, err := helpers.FetchSuppliersList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   query,
+		Sort:    sort,
+		Dir:     dir,
+	})
 	if err != nil {
 		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
 		return
-	}
-
-	query := r.URL.Query().Get("q")
-	if query != "" {
-		filtered := make([]models.Supplier, 0)
-		for _, supplier := range suppliers {
-			if helpers.MatchSearchQuery(query,
-				supplier.Name, supplier.PhoneNumber, supplier.Email,
-				supplier.Address, supplier.Number, supplier.VATNumber,
-				supplier.CR, strconv.Itoa(supplier.ID)) {
-				filtered = append(filtered, supplier)
-			}
-		}
-		suppliers = filtered
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
@@ -172,6 +168,8 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 		"prev_page":  prevPage,
 		"next_page":  nextPage,
 		"query":      query,
+		"sort":       sort,
+		"dir":        dir,
 	})
 }
 

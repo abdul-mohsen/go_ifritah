@@ -2,29 +2,62 @@ package handlers
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
 	"afrita/config"
+	"afrita/helpers"
 )
 
 // productAutocompleteBackend returns a httptest server that answers
 // /api/v2/product/all with a fixed catalogue covering the Arabic edge cases
-// the FE matcher must handle.
+// the BE matcher must handle.
+//
+// On feat/search-and-filters, search is 100% backend-driven, so the mock
+// BE applies the Arabic-aware match (helpers.MatchSearchQuery) instead of
+// the FE.
 func productAutocompleteBackend(t *testing.T) {
 	t.Helper()
+	type catalogItem struct {
+		ID          int    `json:"id"`
+		PartName    string `json:"part_name"`
+		Name        string `json:"name"`
+		Price       string `json:"price"`
+		Quantity    string `json:"quantity"`
+		ArticleID   int    `json:"article_id"`
+		ShelfNumber string `json:"shelf_number"`
+	}
+	catalog := []catalogItem{
+		{ID: 1, PartName: "فِلْتَر زيت", Name: "Oil Filter", Price: "50", Quantity: "10", ArticleID: 9001, ShelfNumber: "A1"},
+		{ID: 2, PartName: "إطار خارجي", Name: "Tyre", Price: "300", Quantity: "5", ArticleID: 9002, ShelfNumber: "B2"},
+		{ID: 3, PartName: "مصباح أمامي", Name: "Headlight", Price: "120", Quantity: "3", ArticleID: 9003, ShelfNumber: "C3"},
+		{ID: 4, PartName: "بطارية", Name: "Battery", Price: "450", Quantity: "8", ArticleID: 9004, ShelfNumber: "D4"},
+	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/api/v2/product/all" {
-			_, _ = w.Write([]byte(`{"data":[
-				{"id":1,"part_name":"فِلْتَر زيت","name":"Oil Filter","price":"50","quantity":"10","article_id":9001,"shelf_number":"A1"},
-				{"id":2,"part_name":"إطار خارجي","name":"Tyre","price":"300","quantity":"5","article_id":9002,"shelf_number":"B2"},
-				{"id":3,"part_name":"مصباح أمامي","name":"Headlight","price":"120","quantity":"3","article_id":9003,"shelf_number":"C3"},
-				{"id":4,"part_name":"بطارية","name":"Battery","price":"450","quantity":"8","article_id":9004,"shelf_number":"D4"}
-			]}`))
+			body, _ := io.ReadAll(r.Body)
+			var payload map[string]interface{}
+			_ = json.Unmarshal(body, &payload)
+			q, _ := payload["query"].(string)
+			filtered := catalog
+			if q != "" {
+				filtered = filtered[:0]
+				for _, p := range catalog {
+					idStr := strconv.Itoa(p.ID)
+					articleStr := strconv.Itoa(p.ArticleID)
+					if helpers.MatchSearchQuery(q, p.PartName, p.Name, idStr, articleStr, p.ShelfNumber) {
+						filtered = append(filtered, p)
+					}
+				}
+			}
+			resp := map[string]interface{}{"data": filtered}
+			_ = json.NewEncoder(w).Encode(resp)
 			return
 		}
 		w.WriteHeader(404)

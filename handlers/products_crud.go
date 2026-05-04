@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"math/big"
@@ -38,46 +37,24 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	products, err := helpers.FetchProducts(token)
+	stockFilter := r.URL.Query().Get("stock")
+	query := r.URL.Query().Get("q")
+	sort := r.URL.Query().Get("sort")
+	dir := r.URL.Query().Get("dir")
+
+	// Search/filter/sort are 100% backend-driven on this branch.
+	products, err := helpers.FetchProductsList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   query,
+		Sort:    sort,
+		Dir:     dir,
+		Stock:   stockFilter,
+	})
 	if err != nil {
 		products = []models.Product{}
 	}
 	helpers.EnrichProductPartNames(products, token)
-
-	stockFilter := r.URL.Query().Get("stock")
-	query := r.URL.Query().Get("q")
-
-	// Filter by search query (id, article_id, part name, name, shelf number)
-	if query != "" {
-		filtered := make([]models.Product, 0)
-		for _, p := range products {
-			idStr := fmt.Sprintf("%d", p.ID)
-			articleStr := fmt.Sprintf("%d", p.PartID)
-			if helpers.MatchSearchQuery(query, idStr, articleStr, p.PartName, p.Name, p.ShelfNumber) {
-				filtered = append(filtered, p)
-			}
-		}
-		products = filtered
-	}
-
-	// Filter by stock
-	if stockFilter == "in" {
-		filtered := make([]models.Product, 0)
-		for _, p := range products {
-			if helpers.ParseIntValue(p.Quantity) > 0 {
-				filtered = append(filtered, p)
-			}
-		}
-		products = filtered
-	} else if stockFilter == "out" {
-		filtered := make([]models.Product, 0)
-		for _, p := range products {
-			if helpers.ParseIntValue(p.Quantity) <= 0 {
-				filtered = append(filtered, p)
-			}
-		}
-		products = filtered
-	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
@@ -96,6 +73,8 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 		"products":   pagedProducts,
 		"stock":      stockFilter,
 		"query":      query,
+		"sort":       sort,
+		"dir":        dir,
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,

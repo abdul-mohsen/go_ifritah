@@ -335,12 +335,15 @@ document.addEventListener("htmx:afterSwap", function(evt) {
 })();
 
 // ── Live debounced search on list pages ───────────────────────
-// Auto-submits the wrapping <form> ~400ms after the user stops typing in any
-// search input named "q". Resets the page param to 0 so users don't land on
-// an empty paginated page after narrowing results. ESC clears the input and
-// re-submits empty so users can bail out of a search without hunting for
-// the "x" button. Also auto-submits on any <select> change inside a list
-// form so per-page / state / stock / role filters apply instantly.
+// HTMX is the primary mechanism: list-page <form> elements declare
+// hx-trigger="submit, input changed delay:400ms from:input[name='q'],
+// change from:select" and hx-select="#list-results", so the table region
+// is swapped without a full page reload.
+//
+// This block is the *fallback* for forms that don't have HTMX wired in
+// (legacy/non-list pages). It auto-submits the form 400ms after the user
+// stops typing in any input[name="q"] and resets page=0. ESC clears.
+// Skipped entirely if the form already has hx-get/hx-post/hx-boost.
 (function () {
     var DEBOUNCE_MS = 400;
 
@@ -348,9 +351,15 @@ document.addEventListener("htmx:afterSwap", function(evt) {
         return document.querySelectorAll('input[name="q"]');
     }
 
+    function isHtmxControlled(form) {
+        if (!form) return false;
+        return form.hasAttribute('hx-get') ||
+               form.hasAttribute('hx-post') ||
+               form.hasAttribute('hx-boost') ||
+               form.closest('[hx-boost="true"]') !== null;
+    }
+
     function resetPageParam(form) {
-        // Reset to page 0 when the search query changes so the user
-        // doesn't get stuck on an empty page.
         var pageInput = form.querySelector('input[name="page"]');
         if (pageInput) {
             pageInput.value = '0';
@@ -376,6 +385,8 @@ document.addEventListener("htmx:afterSwap", function(evt) {
         input.dataset._liveSearchBound = '1';
         var form = input.form;
         if (!form || form.method.toLowerCase() !== 'get') return;
+        // HTMX-controlled forms have their own debounced trigger.
+        if (isHtmxControlled(form)) return;
 
         var timer = null;
         input.addEventListener('input', function () {
@@ -386,7 +397,6 @@ document.addEventListener("htmx:afterSwap", function(evt) {
             }, DEBOUNCE_MS);
         });
 
-        // ESC clears the input and submits empty.
         input.addEventListener('keydown', function (e) {
             if (e.key === 'Escape' && input.value !== '') {
                 e.preventDefault();
@@ -397,23 +407,18 @@ document.addEventListener("htmx:afterSwap", function(evt) {
         });
     }
 
-    // Auto-submit any <select> sibling of a q-input or per-page-select on
-    // change. Filters (state, stock, role, type, voucher_type, per) become
-    // instant without forcing the user to find the Search button.
     function attachSelect(sel) {
         if (sel.dataset._liveSelectBound) return;
         sel.dataset._liveSelectBound = '1';
         var form = sel.form;
         if (!form || form.method.toLowerCase() !== 'get') return;
-        // Only attach when the form contains a search input or this select is
-        // a per-page selector — avoids hijacking unrelated forms.
+        if (isHtmxControlled(form)) return;
         var isFilterForm = !!form.querySelector('input[name="q"]') ||
                             sel.name === 'per' ||
                             sel.classList.contains('per-page-select');
         if (!isFilterForm) return;
 
         sel.addEventListener('change', function () {
-            // Changing per-page or filters should always reset to page 0.
             resetPageParam(form);
             submitForm(form);
         });
@@ -431,20 +436,35 @@ document.addEventListener("htmx:afterSwap", function(evt) {
     }
 })();
 
-// ── Client-Side Table Sorting (HONEST: page-only) ─────────────
-// CAVEAT: this sorts the visible page only. On a paginated list the user
-// is NOT seeing the global top-N. We expose this clearly with a tooltip
-// + an inline note, and we keep the indicator subtle so the user is not
-// led to believe this is a true server-side sort.
-// Once the backend ships sort+dir on the list endpoints (see
-// chat/2026-05-04_frontend-to-backend_search-filter-sort-audit.md P6) this
-// block will be deleted in favour of <a href="?sort=…&dir=…"> headers.
+// ── Server-Driven Table Sorting ───────────────────────────────
+// Sort is 100% backend-driven. Clicking a <th data-sortable> header
+// updates the form's hidden `sort` and `dir` inputs, resets `page` to 0,
+// and dispatches a submit which HTMX intercepts (hx-target=#list-results)
+// for a table-only swap. The header's current state is rendered server-
+// side via data-sort-current="asc|desc|" so the indicator reflects what
+// the backend actually sorted.
 (function() {
-    function isPaginated(table) {
-        // A table is "paginated" if there's a pagination component visible
-        // anywhere in the same list-toolbar / list-pagination region.
-        var container = table.closest('main') || table.closest('section') || document;
-        return !!container.querySelector('.pagination, [data-pagination], .list-pagination');
+    function nextDirection(current) {
+        // Cycle: none → asc → desc → none
+        if (current === 'asc') return 'desc';
+        if (current === 'desc') return '';
+        return 'asc';
+    }
+
+    function indicatorFor(dir) {
+        if (dir === 'asc') return '↑';
+        if (dir === 'desc') return '↓';
+        return '⇅';
+    }
+
+    function findListForm() {
+        // The list-page <form> sits in the toolbar above #list-results.
+        // We pick the first GET form that has a sort hidden input.
+        var forms = document.querySelectorAll('form[method="get"]');
+        for (var i = 0; i < forms.length; i++) {
+            if (forms[i].querySelector('input[name="sort"]')) return forms[i];
+        }
+        return null;
     }
 
     function initSortable() {
@@ -455,74 +475,57 @@ document.addEventListener("htmx:afterSwap", function(evt) {
             th.style.cursor = 'pointer';
             th.style.userSelect = 'none';
 
-            var table = th.closest('table');
-            var paginated = table && isPaginated(table);
+            // Render the indicator from the server-rendered state.
+            var current = (th.dataset.sortCurrent || '').toLowerCase();
+            var indicator = th.querySelector('.sort-indicator');
+            if (!indicator) {
+                indicator = document.createElement('span');
+                indicator.className = 'sort-indicator mr-1 text-gray-400 text-xs';
+                th.prepend(indicator);
+            }
+            indicator.textContent = indicatorFor(current);
 
-            // Tooltip: be honest about what this sort actually does.
-            th.title = paginated
-                ? 'ترتيب الصفحة الحالية فقط (لا يشمل النتائج المخفية على الصفحات الأخرى)'
-                : 'ترتيب الجدول';
-
-            // Add sort indicator
-            var indicator = document.createElement('span');
-            indicator.className = 'sort-indicator mr-1 text-gray-400 text-xs';
-            indicator.textContent = '⇅';
-            th.prepend(indicator);
+            // Headers without a key fall back to no-op (kept for visual
+            // consistency; the only way they got data-sortable today is
+            // legacy markup).
+            var key = th.dataset.sortKey || '';
 
             th.addEventListener('click', function() {
-                if (!table) return;
-                var tbody = table.querySelector('tbody');
-                if (!tbody) return;
-                var colIndex = Array.from(th.parentNode.children).indexOf(th);
-                var rows = Array.from(tbody.querySelectorAll('tr'));
+                if (!key) return;
+                var form = findListForm();
+                if (!form) return;
+                var sortInput = form.querySelector('input[name="sort"]');
+                var dirInput = form.querySelector('input[name="dir"]');
+                if (!sortInput || !dirInput) return;
 
-                // Determine direction
-                var asc = th.dataset.sortDir !== 'asc';
-                // Reset other headers
-                var allTh = table.querySelectorAll('th[data-sortable]');
-                allTh.forEach(function(h) {
-                    h.dataset.sortDir = '';
-                    var ind = h.querySelector('.sort-indicator');
-                    if (ind) ind.textContent = '⇅';
-                });
-                th.dataset.sortDir = asc ? 'asc' : 'desc';
-                indicator.textContent = asc ? '↑' : '↓';
-
-                // Drop empty-state placeholder rows from the sort
-                // (e.g. <tr class="empty-state"><td colspan>...</td></tr>)
-                // so they don't end up randomly above/below real data.
-                var sortable = rows.filter(function (r) {
-                    return !r.classList.contains('empty-state') &&
-                           !r.classList.contains('no-results');
-                });
-
-                sortable.sort(function(a, b) {
-                    var aCell = a.children[colIndex];
-                    var bCell = b.children[colIndex];
-                    if (!aCell || !bCell) return 0;
-                    var aText = (aCell.textContent || '').trim();
-                    var bText = (bCell.textContent || '').trim();
-                    // Try numeric comparison
-                    var aNum = parseFloat(aText.replace(/[^\d.\-]/g, ''));
-                    var bNum = parseFloat(bText.replace(/[^\d.\-]/g, ''));
-                    if (!isNaN(aNum) && !isNaN(bNum)) {
-                        return asc ? aNum - bNum : bNum - aNum;
-                    }
-                    // String comparison
-                    return asc ? aText.localeCompare(bText, 'ar') : bText.localeCompare(aText, 'ar');
-                });
-                sortable.forEach(function(row) { tbody.appendChild(row); });
-
-                // Subtle banner so the user understands this is page-only.
-                if (paginated && !table.dataset._sortNoticed) {
-                    table.dataset._sortNoticed = '1';
-                    var caption = table.querySelector('caption.page-sort-notice');
-                    if (!caption) {
-                        caption = document.createElement('caption');
-                        caption.className = 'page-sort-notice text-xs text-gray-500 py-1 caption-bottom';
-                        caption.textContent = '⚠ الترتيب يشمل هذه الصفحة فقط';
-                        table.appendChild(caption);
-                    }
+                var existingSort = sortInput.value;
+                var existingDir = dirInput.value;
+                var newDir;
+                if (existingSort === key) {
+                    newDir = nextDirection(existingDir);
+                } else {
+                    newDir = 'asc';
+                }
+                if (newDir === '') {
+                    sortInput.value = '';
+                    dirInput.value = '';
+                } else {
+                    sortInput.value = key;
+                    dirInput.value = newDir;
+                }
+                // Reset to page 0 so user doesn't land on an empty page.
+                var pageInput = form.querySelector('input[name="page"]');
+                if (pageInput) {
+                    pageInput.value = '0';
+                } else {
+                    var hp = document.createElement('input');
+                    hp.type = 'hidden'; hp.name = 'page'; hp.value = '0';
+                    form.appendChild(hp);
+                }
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
                 }
             });
         });

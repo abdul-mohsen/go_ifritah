@@ -40,9 +40,12 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 	stateFilter := r.URL.Query().Get("state")
 	query := r.URL.Query().Get("q")
+	sortField := r.URL.Query().Get("sort")
+	sortDir := r.URL.Query().Get("dir")
 
-	// Fetch invoices with pagination support and backend search
-	invoices, err := helpers.FetchInvoicesAll(token, page, query)
+	// Search/filter/sort are 100% backend-driven; we pass everything to BE
+	// and render whatever it returns — no FE post-filtering.
+	invoices, err := helpers.FetchInvoicesAll(token, page, query, stateFilter, sortField, sortDir)
 	if err != nil {
 		if helpers.IsUnauthorizedError(err) {
 			helpers.HandleUnauthorized(w, r)
@@ -53,27 +56,9 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Fetched %d invoices from backend (page %d)", len(invoices), page)
 
-	// Apply state filter before display formatting
-	filtered := invoices
-	if stateFilter != "" {
-		stateValue := helpers.ParseIntValue(stateFilter)
-		stateFiltered := make([]models.Invoice, 0, len(invoices))
-		for _, inv := range invoices {
-			if inv.State == stateValue {
-				stateFiltered = append(stateFiltered, inv)
-			}
-		}
-		filtered = stateFiltered
-	}
-
-	// Note: backend handles `query` for /bill/all (currently matches against
-	// user_phone_number only). Adding an extra FE filter on a narrow field set
-	// would reject backend hits that matched on a field the FE doesn't see, so
-	// we forward the query verbatim and render whatever the backend returns.
-
 	// Transform to display format
-	displayInvoices := make([]map[string]interface{}, 0, len(filtered))
-	for _, inv := range filtered {
+	displayInvoices := make([]map[string]interface{}, 0, len(invoices))
+	for _, inv := range invoices {
 		totalDisplay := fmt.Sprintf("%.2f", inv.Total)
 		status, statusClass := helpers.InvoiceStatus(inv)
 		status = helpers.TranslateInvoiceStatus(status)
@@ -125,6 +110,8 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 		"next_page":  nextPage,
 		"query":      query,
 		"state":      stateFilter,
+		"sort":       sortField,
+		"dir":        sortDir,
 	}
 
 	// Fetch clients and stores for the company bill modal

@@ -1,7 +1,7 @@
 {{ define "content" }}
 {{ template "error-alert" . }}
 <div class="list-toolbar">
-    <form method="get">
+    <form method="get" hx-get="" hx-target="#list-results" hx-select="#list-results" hx-swap="outerHTML" hx-push-url="true" hx-trigger="submit, input changed delay:400ms from:input[name='q'], change from:select" hx-indicator="#list-results">
         <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.user.search_placeholder" }}" class="search-input">
         <select name="role">
             <option value="">{{ L "tpl.user.all_roles" }}</option>
@@ -10,6 +10,8 @@
             <option value="employee" {{ if eq .role_filter "employee" }}selected{{ end }}>{{ L "tpl.user.role_employee" }}</option>
         </select>
         {{ template "per-page-select" dict "pagination" .pagination }}
+        <input type="hidden" name="sort" value="{{ .sort }}">
+        <input type="hidden" name="dir" value="{{ .dir }}">
         <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
     </form>
     <div class="toolbar-actions">
@@ -21,17 +23,18 @@
     </div>
 </div>
 
+<div id="list-results">
 <div class="data-table-wrapper">
     <table aria-label="{{ L "tpl.user.table_label" }}">
         <thead>
             <tr>
-                <th data-sortable>{{ L "tpl.user.id" }}</th>
-                <th data-sortable>{{ L "tpl.user.name" }}</th>
-                <th data-sortable>{{ L "tpl.user.email" }}</th>
-                <th data-sortable>{{ L "tpl.user.role" }}</th>
+                <th data-sortable data-sort-key="id" data-sort-current="{{ if eq .sort "id" }}{{ .dir }}{{ end }}">{{ L "tpl.user.id" }}</th>
+                <th data-sortable data-sort-key="username" data-sort-current="{{ if eq .sort "username" }}{{ .dir }}{{ end }}">{{ L "tpl.user.name" }}</th>
+                <th data-sortable data-sort-key="email" data-sort-current="{{ if eq .sort "email" }}{{ .dir }}{{ end }}">{{ L "tpl.user.email" }}</th>
+                <th data-sortable data-sort-key="role" data-sort-current="{{ if eq .sort "role" }}{{ .dir }}{{ end }}">{{ L "tpl.user.role" }}</th>
                 <th>{{ L "tpl.user.supervisor" }}</th>
-                <th data-sortable>{{ L "tpl.user.status" }}</th>
-                <th data-sortable>{{ L "tpl.user.last_login" }}</th>
+                <th data-sortable data-sort-key="active" data-sort-current="{{ if eq .sort "active" }}{{ .dir }}{{ end }}">{{ L "tpl.user.status" }}</th>
+                <th data-sortable data-sort-key="last_login" data-sort-current="{{ if eq .sort "last_login" }}{{ .dir }}{{ end }}">{{ L "tpl.user.last_login" }}</th>
                 <th>{{ L "tpl.actions" }}</th>
             </tr>
         </thead>
@@ -88,5 +91,6 @@
 </div>
 
 {{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
-"extra_params" (printf "&role=%s" .role_filter) }}
+"extra_params" (printf "&role=%s&sort=%s&dir=%s" .role_filter .sort .dir) }}
+</div>
 {{ end }}

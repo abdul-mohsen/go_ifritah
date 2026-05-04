@@ -20,20 +20,19 @@ func HandleStores(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stores, err := helpers.FetchStores(token)
+	query := r.URL.Query().Get("q")
+	sort := r.URL.Query().Get("sort")
+	dir := r.URL.Query().Get("dir")
+
+	stores, err := helpers.FetchStoresList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   query,
+		Sort:    sort,
+		Dir:     dir,
+	})
 	if err != nil {
 		stores = []models.Store{}
-	}
-
-	query := r.URL.Query().Get("q")
-	if query != "" {
-		filtered := make([]models.Store, 0)
-		for _, s := range stores {
-			if helpers.MatchSearchQuery(query, s.Name, strconv.Itoa(s.ID)) {
-				filtered = append(filtered, s)
-			}
-		}
-		stores = filtered
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
@@ -52,6 +51,8 @@ func HandleStores(w http.ResponseWriter, r *http.Request) {
 		"title":      "المخازن",
 		"stores":     pagedStores,
 		"query":      query,
+		"sort":       sort,
+		"dir":        dir,
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,

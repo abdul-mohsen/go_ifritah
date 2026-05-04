@@ -155,7 +155,14 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := strings.TrimSpace(r.FormValue("query"))
-	products, err := helpers.FetchProducts(token)
+
+	// Search is 100% backend-driven: forward the query to the BE products
+	// list endpoint and trust whatever it returns (top 50).
+	products, err := helpers.FetchProductsList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 50,
+		Query:   query,
+	})
 	if err != nil || products == nil {
 		_ = json.NewEncoder(w).Encode([]interface{}{})
 		return
@@ -168,20 +175,15 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 		Quantity string `json:"quantity"`
 	}
 
-	var results []productResult
+	results := make([]productResult, 0, len(products))
 	for _, p := range products {
-		if query != "" {
-			idStr := fmt.Sprintf("%d", p.ID)
-			articleStr := fmt.Sprintf("%d", p.PartID)
-			// Arabic-aware multi-token match across the user-visible fields
-			// the invoice autocomplete actually shows.
-			if !helpers.MatchSearchQuery(query, p.PartName, p.Name, idStr, articleStr, p.ShelfNumber) {
-				continue
-			}
+		name := p.PartName
+		if name == "" {
+			name = p.Name
 		}
 		results = append(results, productResult{
 			ID:       p.ID,
-			Name:     p.PartName,
+			Name:     name,
 			Price:    p.Price,
 			Quantity: p.Quantity,
 		})
@@ -190,9 +192,6 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if results == nil {
-		results = []productResult{}
-	}
 	_ = json.NewEncoder(w).Encode(results)
 }
 

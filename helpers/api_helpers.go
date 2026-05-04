@@ -175,20 +175,36 @@ func DoAuthedRequestWithRetry(req *http.Request, sessionID string) (*http.Respon
 }
 
 func FetchInvoices(token string) ([]models.Invoice, error) {
-	return FetchInvoicesAll(token, 1, "")
+	return FetchInvoicesAll(token, 1, "", "", "", "")
 }
 
-func FetchInvoicesAll(token string, page int, query string) ([]models.Invoice, error) {
+// FetchInvoicesAll fetches bills from the backend with full search/filter/sort support.
+//
+// Search/filter/sort are 100% backend-driven on this branch — only set
+// fields are forwarded; empty fields fall back to BE defaults.
+func FetchInvoicesAll(token string, page int, query, stateFilter, sortField, sortDir string) ([]models.Invoice, error) {
 	if page < 1 {
 		page = 1
 	}
 
-	// Always fetch all bills from backend (page_number 0) and paginate client-side
+	// Always fetch all bills from backend (page_number 0) and paginate client-side.
+	// Search/state/sort are forwarded to the BE; nothing is post-filtered.
 	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
 	log.Printf("🔵 [API REQUEST] POST %s/api/v2/bill/all", config.BackendDomain)
 	if query != "" {
 		payload["query"] = query
 		log.Printf("🔵 [API SEARCH] query=%s", query)
+	}
+	if stateFilter != "" {
+		if v, err := strconv.Atoi(stateFilter); err == nil {
+			payload["state"] = v
+		}
+	}
+	if sortField != "" {
+		payload["sort"] = sortField
+	}
+	if sortDir != "" {
+		payload["dir"] = sortDir
 	}
 	body, _ := json.Marshal(payload)
 	log.Printf("🔵 [API BODY] %s", string(body))
@@ -261,16 +277,17 @@ func FetchAllInvoicesUnpaginated(token string) ([]models.Invoice, error) {
 	return invoices, decErr
 }
 
-// FetchPurchaseBillsAll fetches purchase bills with smart pagination
-// For page 1, returns all bills (including drafts)
-// For other pages, sends page_number to backend
-func FetchPurchaseBillsAll(token string, page int, query string) ([]models.Invoice, error) {
+// FetchPurchaseBillsAll fetches purchase bills with full search/filter/sort.
+//
+// Search/filter/sort are 100% backend-driven on this branch — empty fields
+// fall through to BE defaults; the FE never post-filters the rows.
+func FetchPurchaseBillsAll(token string, page int, query, stateFilter, sortField, sortDir string) ([]models.Invoice, error) {
 	if page < 1 {
 		page = 1
 	}
 
-	// Cache only the default dashboard call (page 1, no query)
-	if page == 1 && query == "" {
+	// Cache only the default dashboard call (page 1, no params)
+	if page == 1 && query == "" && stateFilter == "" && sortField == "" {
 		if cached, found := APICache.Get("purchase_bills"); found {
 			log.Printf("⚡ [CACHE HIT] purchase_bills")
 			if v, ok := cached.([]models.Invoice); ok {
@@ -279,12 +296,24 @@ func FetchPurchaseBillsAll(token string, page int, query string) ([]models.Invoi
 		}
 	}
 
-	// Always fetch all purchase bills from backend (page_number 0) and paginate client-side
+	// Always fetch all purchase bills from backend (page_number 0) and paginate client-side.
+	// Search / state filter / sort are forwarded to BE; nothing post-filtered.
 	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
 	log.Printf("🔵 [API REQUEST] POST %s/api/v2/purchase_bill/all", config.BackendDomain)
 	if query != "" {
 		payload["query"] = query
 		log.Printf("🔵 [API SEARCH] query=%s", query)
+	}
+	if stateFilter != "" {
+		if v, err := strconv.Atoi(stateFilter); err == nil {
+			payload["state"] = v
+		}
+	}
+	if sortField != "" {
+		payload["sort"] = sortField
+	}
+	if sortDir != "" {
+		payload["dir"] = sortDir
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -317,7 +346,7 @@ func FetchPurchaseBillsAll(token string, page int, query string) ([]models.Invoi
 	// Purchase bill list returns numeric fields as strings ("total": "287.5").
 	// Decode into raw maps first, then manually coerce into []Invoice.
 	result, err := decodePurchaseBillList(bodyBytes)
-	if err == nil && page == 1 && query == "" {
+	if err == nil && page == 1 && query == "" && stateFilter == "" && sortField == "" {
 		APICache.Set("purchase_bills", result, CacheTTLPurchBill)
 		log.Printf("💾 [CACHE SET] purchase_bills (TTL %v)", CacheTTLPurchBill)
 	}
@@ -806,13 +835,13 @@ func safeStringDate(v interface{}) string {
 func fetchSupplierReportLegacy(token string, supplierID int, dateFrom, dateTo string) (SupplierReportResult, error) {
 	var result SupplierReportResult
 
-	allBills, err := FetchPurchaseBillsAll(token, 1, "")
+	allBills, err := FetchPurchaseBillsAll(token, 1, "", "", "", "")
 	if err != nil {
 		return result, fmt.Errorf("fetch bills: %w", err)
 	}
 
 	// Fetch all cash vouchers (payments to supplier)
-	allVouchers, err := FetchCashVouchers(token, 1, 10000, "", "")
+	allVouchers, err := FetchCashVouchers(token, 1, 10000, "", "", "", "")
 	if err != nil {
 		log.Printf("⚠️ [SUPPLIER REPORT] Could not fetch vouchers: %v", err)
 		allVouchers = nil // non-fatal, continue without payment data

@@ -21,22 +21,19 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clients, err := helpers.FetchClients(token)
+	query := r.URL.Query().Get("q")
+	sort := r.URL.Query().Get("sort")
+	dir := r.URL.Query().Get("dir")
+
+	clients, err := helpers.FetchClientsList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   query,
+		Sort:    sort,
+		Dir:     dir,
+	})
 	if err != nil {
 		clients = []models.Client{}
-	}
-
-	query := r.URL.Query().Get("q")
-	if query != "" {
-		filtered := make([]models.Client, 0)
-		for _, c := range clients {
-			if helpers.MatchSearchQuery(query,
-				c.Name, c.CompanyName, c.Email, c.Phone,
-				c.Address, c.Number, c.VATNumber, c.TaxNumber, c.CR, c.ID) {
-				filtered = append(filtered, c)
-			}
-		}
-		clients = filtered
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
@@ -55,6 +52,8 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 		"title":      "العملاء",
 		"clients":    pagedClients,
 		"query":      query,
+		"sort":       sort,
+		"dir":        dir,
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,

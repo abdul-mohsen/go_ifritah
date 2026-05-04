@@ -25,6 +25,8 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query().Get("q")
 	voucherType := r.URL.Query().Get("type")
+	sort := r.URL.Query().Get("sort")
+	dir := r.URL.Query().Get("dir")
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
 	if page < 0 {
@@ -34,7 +36,7 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 		perPage = 10
 	}
 
-	vouchers, err := helpers.FetchCashVouchers(token, 1, 10000, query, voucherType)
+	vouchers, err := helpers.FetchCashVouchers(token, 1, 10000, query, voucherType, sort, dir)
 	if err != nil {
 		log.Printf("[CASH VOUCHERS] Fetch error: %v", err)
 		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
@@ -43,19 +45,7 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 
 	displayVouchers := make([]map[string]interface{}, 0)
 	for _, cv := range vouchers {
-		// FE-side fallback search: backend search on /cash_voucher/all is
-		// limited; widen it to cover voucher number, recipient, amount and
-		// description so the UI matches user expectations until the backend
-		// LIKE/FULLTEXT PR lands.
-		if query != "" {
-			amountStr := fmt.Sprintf("%.2f", cv.Amount)
-			voucherNumStr := strconv.Itoa(cv.VoucherNumber)
-			if !helpers.MatchSearchQuery(query,
-				voucherNumStr, cv.RecipientName, cv.Description,
-				amountStr, strconv.Itoa(cv.ID)) {
-				continue
-			}
-		}
+		// Search/filter/sort are backend-driven — render whatever the BE returns.
 		statusKey, statusClass := helpers.CashVoucherStatusByState(cv.State)
 		statusLabel := resources.L(statusKey)
 
@@ -106,6 +96,8 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 		"next_page":    nextPage,
 		"query":        query,
 		"voucher_type": voucherType,
+		"sort":         sort,
+		"dir":          dir,
 	})
 }
 

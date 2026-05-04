@@ -71,7 +71,17 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orders, err := helpers.FetchOrders(token)
+	query := r.URL.Query().Get("q")
+	sort := r.URL.Query().Get("sort")
+	dir := r.URL.Query().Get("dir")
+
+	orders, err := helpers.FetchOrdersList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   query,
+		Sort:    sort,
+		Dir:     dir,
+	})
 	if err != nil {
 		orders = []map[string]interface{}{}
 	}
@@ -92,24 +102,6 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	query := r.URL.Query().Get("q")
-	if query != "" {
-		filtered := make([]map[string]interface{}, 0)
-		for _, o := range orders {
-			num := coerceString(o["number"])
-			client := coerceString(o["client"])
-			seq := coerceString(o["sequence_number"])
-			phone := coerceString(o["phone"])
-			status := coerceString(o["status"])
-			idStr := coerceString(o["id"])
-			total := coerceString(o["total"])
-			if helpers.MatchSearchQuery(query, num, client, seq, phone, status, idStr, total) {
-				filtered = append(filtered, o)
-			}
-		}
-		orders = filtered
-	}
-
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
 	pagedOrders, pagination := helpers.PaginateSlice(orders, page, perPage)
@@ -126,6 +118,8 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 		"title":      "الطلبات",
 		"orders":     pagedOrders,
 		"query":      query,
+		"sort":       sort,
+		"dir":        dir,
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,

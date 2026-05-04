@@ -256,7 +256,7 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	go func() { defer wg.Done(); clients, clientErr = helpers.FetchClients(token) }()
 	go func() { defer wg.Done(); suppliers, suppErr = helpers.FetchSuppliers(token) }()
 	go func() { defer wg.Done(); orders, orderErr = helpers.FetchOrders(token) }()
-	go func() { defer wg.Done(); purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "") }()
+	go func() { defer wg.Done(); purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "", "", "", "") }()
 	wg.Wait()
 
 	// Check auth errors
@@ -892,7 +892,7 @@ func HandleDashboardCompare(w http.ResponseWriter, r *http.Request) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() { defer wg.Done(); invoices, invErr = helpers.FetchAllInvoicesUnpaginated(token) }()
-	go func() { defer wg.Done(); purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "") }()
+	go func() { defer wg.Done(); purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "", "", "", "") }()
 	wg.Wait()
 
 	for _, err := range []error{invErr, pbErr} {
@@ -966,7 +966,7 @@ func HandleDashboardExportPDF(w http.ResponseWriter, r *http.Request) {
 	go func() { defer wg.Done(); clients, clientErr = helpers.FetchClients(token) }()
 	go func() { defer wg.Done(); suppliers, suppErr = helpers.FetchSuppliers(token) }()
 	go func() { defer wg.Done(); orders, orderErr = helpers.FetchOrders(token) }()
-	go func() { defer wg.Done(); purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "") }()
+	go func() { defer wg.Done(); purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "", "", "", "") }()
 	wg.Wait()
 
 	for _, err := range []error{invErr, prodErr, clientErr, suppErr, orderErr, pbErr} {
@@ -1340,3 +1340,4 @@ func mustJSON(v interface{}) string {
 	b, _ := json.Marshal(v)
 	return string(b)
 }
+

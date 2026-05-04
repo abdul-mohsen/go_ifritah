@@ -30,24 +30,21 @@ func HandleUsers(w http.ResponseWriter, r *http.Request) {
 		{ID: 5, Username: "manager2", Email: "manager2@afrita.com", Role: models.RoleManager, Active: true, CreatedAt: now.Add(-3 * 24 * time.Hour), LastLogin: &lastLogin2, ManagerID: func() *int { v := 1; return &v }()},
 	}
 
-	// Apply search filter
+	// Search/filter/sort are 100% backend-driven on this branch.
+	// Until the real /api/v2/users endpoint lands, the mock returns all rows
+	// regardless of q/role/sort/dir — those params are forwarded to the
+	// template so the form state survives navigation.
+	// TODO (backend): once /api/v2/users supports query+role+sort+dir, fetch
+	// from BE here instead of using mockUsers.
 	query := r.URL.Query().Get("q")
 	roleFilter := r.URL.Query().Get("role")
-	filtered := make([]models.User, 0, len(mockUsers))
-	for _, u := range mockUsers {
-		if query != "" && !helpers.MatchSearchQuery(query, u.Username, u.Email) {
-			continue
-		}
-		if roleFilter != "" && string(u.Role) != roleFilter {
-			continue
-		}
-		filtered = append(filtered, u)
-	}
+	sort := r.URL.Query().Get("sort")
+	dir := r.URL.Query().Get("dir")
 
 	// Paginate
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
-	pagedUsers, pagination := helpers.PaginateSlice(filtered, page, perPage)
+	pagedUsers, pagination := helpers.PaginateSlice(mockUsers, page, perPage)
 	prevPage := -1
 	nextPage := -1
 	if pagination.Page > 0 {
@@ -62,6 +59,8 @@ func HandleUsers(w http.ResponseWriter, r *http.Request) {
 		"users":       pagedUsers,
 		"query":       query,
 		"role_filter": roleFilter,
+		"sort":        sort,
+		"dir":         dir,
 		"pagination":  pagination,
 		"prev_page":   prevPage,
 		"next_page":   nextPage,

@@ -28,7 +28,7 @@
         {{ range .unread }}
         <div class="section-card border-r-4 cursor-pointer hover:shadow-md transition relative"
             style="border-right-color: {{ if eq .Type "low_stock" }}var(--md-sys-color-error){{ else if eq .Type "payment_due" }}#f59e0b{{ else if eq .Type "new_order" }}var(--md-sys-color-primary){{ else if eq .Type "system" }}#6366f1{{ else }}#64748b{{ end }}"
-            onclick="markRead({{ .ID }})">
+            onclick="markReadAndOpen({{ .ID }}, '{{ .Resource }}', '{{ .ResourceID }}')">
             <div class="flex items-start gap-3">
                 <!-- Icon -->
                 <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
@@ -124,24 +124,50 @@
         var m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
         return m ? decodeURIComponent(m[1]) : '';
     }
+
+    // Map a notification's (resource, resource_id) tuple to the dashboard
+    // URL the user expects to land on after clicking. Returns "" when the
+    // resource type is unknown — caller falls back to a plain reload.
+    function notificationLink(resource, resourceId) {
+        if (!resource || !resourceId) return '';
+        switch (String(resource).toLowerCase()) {
+            case 'product':       return '/dashboard/products/' + encodeURIComponent(resourceId);
+            case 'bill':
+            case 'invoice':       return '/dashboard/invoices/' + encodeURIComponent(resourceId);
+            case 'purchase_bill': return '/dashboard/purchase-bills/' + encodeURIComponent(resourceId);
+            case 'order':         return '/dashboard/orders/' + encodeURIComponent(resourceId);
+            case 'cash_voucher':  return '/dashboard/cash-vouchers/' + encodeURIComponent(resourceId);
+            case 'client':        return '/dashboard/clients/' + encodeURIComponent(resourceId) + '/edit';
+            case 'supplier':      return '/dashboard/suppliers/' + encodeURIComponent(resourceId) + '/edit';
+            default:              return '';
+        }
+    }
+
     function markRead(id) {
-        fetch('/api/notifications/' + id + '/read', {
+        return fetch('/api/notifications/' + id + '/read', {
             method: 'POST',
             credentials: 'same-origin',
             headers: {
                 'Accept': 'application/json',
                 'X-CSRF-Token': getCsrfToken()
             }
-        })
-            .then(function(r) { return r.ok ? r.json() : null; })
-            .then(function(data) {
-                if (data && data.success) {
-                    if (window.NotificationBadge && window.NotificationBadge.decrement) {
-                        window.NotificationBadge.decrement(1);
-                    }
-                    location.reload();
-                }
-            });
+        }).then(function (r) { return r.ok ? r.json() : null; });
+    }
+
+    // Mark the notification as read, then navigate to the target resource.
+    // Falls back to a page reload if no link can be derived.
+    function markReadAndOpen(id, resource, resourceId) {
+        var target = notificationLink(resource, resourceId);
+        markRead(id).then(function (data) {
+            if (data && data.success && window.NotificationBadge && window.NotificationBadge.decrement) {
+                window.NotificationBadge.decrement(1);
+            }
+            if (target) {
+                window.location.href = target;
+            } else {
+                window.location.reload();
+            }
+        });
     }
 
     function markAllRead() {

@@ -143,7 +143,7 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := strings.ToLower(strings.TrimSpace(r.FormValue("query")))
+	query := strings.TrimSpace(r.FormValue("query"))
 	products, err := helpers.FetchProducts(token)
 	if err != nil || products == nil {
 		_ = json.NewEncoder(w).Encode([]interface{}{})
@@ -161,7 +161,10 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 	for _, p := range products {
 		if query != "" {
 			idStr := fmt.Sprintf("%d", p.ID)
-			if !strings.Contains(strings.ToLower(p.PartName), query) && !strings.Contains(idStr, query) {
+			articleStr := fmt.Sprintf("%d", p.PartID)
+			// Arabic-aware multi-token match across the user-visible fields
+			// the invoice autocomplete actually shows.
+			if !helpers.MatchSearchQuery(query, p.PartName, p.Name, idStr, articleStr, p.ShelfNumber) {
 				continue
 			}
 		}

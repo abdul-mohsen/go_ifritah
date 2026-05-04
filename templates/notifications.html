@@ -120,11 +120,18 @@
 </div>
 
 <script>
+    function getCsrfToken() {
+        var m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
     function markRead(id) {
         fetch('/api/notifications/' + id + '/read', {
             method: 'POST',
             credentials: 'same-origin',
-            headers: { 'Accept': 'application/json' }
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-Token': getCsrfToken()
+            }
         })
             .then(function(r) { return r.ok ? r.json() : null; })
             .then(function(data) {
@@ -141,7 +148,10 @@
         fetch('/api/notifications/read-all', {
             method: 'POST',
             credentials: 'same-origin',
-            headers: { 'Accept': 'application/json' }
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-Token': getCsrfToken()
+            }
         })
             .then(function(r) { return r.ok ? r.json() : null; })
             .then(function(data) {

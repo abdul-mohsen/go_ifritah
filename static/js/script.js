@@ -431,8 +431,22 @@ document.addEventListener("htmx:afterSwap", function(evt) {
     }
 })();
 
-// ── Client-Side Table Sorting ─────────────────────────────────
+// ── Client-Side Table Sorting (HONEST: page-only) ─────────────
+// CAVEAT: this sorts the visible page only. On a paginated list the user
+// is NOT seeing the global top-N. We expose this clearly with a tooltip
+// + an inline note, and we keep the indicator subtle so the user is not
+// led to believe this is a true server-side sort.
+// Once the backend ships sort+dir on the list endpoints (see
+// chat/2026-05-04_frontend-to-backend_search-filter-sort-audit.md P6) this
+// block will be deleted in favour of <a href="?sort=…&dir=…"> headers.
 (function() {
+    function isPaginated(table) {
+        // A table is "paginated" if there's a pagination component visible
+        // anywhere in the same list-toolbar / list-pagination region.
+        var container = table.closest('main') || table.closest('section') || document;
+        return !!container.querySelector('.pagination, [data-pagination], .list-pagination');
+    }
+
     function initSortable() {
         var headers = document.querySelectorAll('th[data-sortable]');
         headers.forEach(function(th) {
@@ -440,6 +454,15 @@ document.addEventListener("htmx:afterSwap", function(evt) {
             th.dataset._sortBound = '1';
             th.style.cursor = 'pointer';
             th.style.userSelect = 'none';
+
+            var table = th.closest('table');
+            var paginated = table && isPaginated(table);
+
+            // Tooltip: be honest about what this sort actually does.
+            th.title = paginated
+                ? 'ترتيب الصفحة الحالية فقط (لا يشمل النتائج المخفية على الصفحات الأخرى)'
+                : 'ترتيب الجدول';
+
             // Add sort indicator
             var indicator = document.createElement('span');
             indicator.className = 'sort-indicator mr-1 text-gray-400 text-xs';
@@ -447,7 +470,6 @@ document.addEventListener("htmx:afterSwap", function(evt) {
             th.prepend(indicator);
 
             th.addEventListener('click', function() {
-                var table = th.closest('table');
                 if (!table) return;
                 var tbody = table.querySelector('tbody');
                 if (!tbody) return;
@@ -466,7 +488,15 @@ document.addEventListener("htmx:afterSwap", function(evt) {
                 th.dataset.sortDir = asc ? 'asc' : 'desc';
                 indicator.textContent = asc ? '↑' : '↓';
 
-                rows.sort(function(a, b) {
+                // Drop empty-state placeholder rows from the sort
+                // (e.g. <tr class="empty-state"><td colspan>...</td></tr>)
+                // so they don't end up randomly above/below real data.
+                var sortable = rows.filter(function (r) {
+                    return !r.classList.contains('empty-state') &&
+                           !r.classList.contains('no-results');
+                });
+
+                sortable.sort(function(a, b) {
                     var aCell = a.children[colIndex];
                     var bCell = b.children[colIndex];
                     if (!aCell || !bCell) return 0;
@@ -481,7 +511,19 @@ document.addEventListener("htmx:afterSwap", function(evt) {
                     // String comparison
                     return asc ? aText.localeCompare(bText, 'ar') : bText.localeCompare(aText, 'ar');
                 });
-                rows.forEach(function(row) { tbody.appendChild(row); });
+                sortable.forEach(function(row) { tbody.appendChild(row); });
+
+                // Subtle banner so the user understands this is page-only.
+                if (paginated && !table.dataset._sortNoticed) {
+                    table.dataset._sortNoticed = '1';
+                    var caption = table.querySelector('caption.page-sort-notice');
+                    if (!caption) {
+                        caption = document.createElement('caption');
+                        caption.className = 'page-sort-notice text-xs text-gray-500 py-1 caption-bottom';
+                        caption.textContent = '⚠ الترتيب يشمل هذه الصفحة فقط';
+                        table.appendChild(caption);
+                    }
+                }
             });
         });
     }

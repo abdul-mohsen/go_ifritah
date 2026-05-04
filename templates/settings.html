@@ -246,13 +246,6 @@
             <div class="space-y-2">
                 <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
                     <div>
-                        <span class="text-sm font-medium text-gray-700">{{ L "tpl.settings.notif_invoices" }}</span>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ L "tpl.settings.notif_invoices_desc" }}</p>
-                    </div>
-                    <input type="checkbox" name="notif_invoices" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "notif_invoices") "true" }}checked{{ end }}>
-                </label>
-                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
-                    <div>
                         <span class="text-sm font-medium text-gray-700">{{ L "tpl.settings.notif_stock" }}</span>
                         <p class="text-xs text-gray-500 mt-0.5">{{ L "tpl.settings.notif_stock_desc" }}</p>
                     </div>
@@ -271,13 +264,6 @@
                         <p class="text-xs text-gray-500 mt-0.5">{{ L "tpl.settings.notif_orders_desc" }}</p>
                     </div>
                     <input type="checkbox" name="notif_orders" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "notif_orders") "true" }}checked{{ end }}>
-                </label>
-                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
-                    <div>
-                        <span class="text-sm font-medium text-gray-700">{{ L "tpl.settings.notif_session" }}</span>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ L "tpl.settings.notif_session_desc" }}</p>
-                    </div>
-                    <input type="checkbox" name="notif_session" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "notif_session") "true" }}checked{{ end }}>
                 </label>
             </div>
         </div>

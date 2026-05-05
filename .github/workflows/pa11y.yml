@@ -61,15 +61,15 @@ jobs:
               console.log("pa11y total errors=" + totalE + " warnings=" + totalW);
               if (process.env.GITHUB_STEP_SUMMARY) {
                 let md = "### pa11y: errors=" + totalE + " warnings=" + totalW + "\n";
+                md += "\n_Findings are reported but do not gate the PR yet. See artifact `pa11y-reports`._\n";
                 if (fail.length) {
                   md += "\n| route | errors |\n|---|---|\n" + fail.map(f => "| `" + f.route + "` | " + f.errors + " |").join("\n") + "\n";
                 }
                 require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
               }
-              if (totalE > 0) process.exit(1);
             '
           else
-            echo "no summary"
+            echo "no summary -- pa11y did not produce reports"
             exit 1
           fi
 

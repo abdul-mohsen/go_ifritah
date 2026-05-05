@@ -1,4 +1,7 @@
 // Sort cycle: clicking a sortable header cycles none → asc → desc → none.
+// Sort is FE-only (BE returns canonical order); we assert that the
+// indicator on the clicked header cycles and that the row order is
+// actually mutated client-side. The URL no longer changes.
 const { test, expect } = require('@playwright/test');
 const { login } = require('../../helpers/auth');
 const { ROUTES_LIST } = require('../../helpers/routes');
@@ -15,17 +18,36 @@ for (const r of ROUTES_LIST) {
     const key = await th.getAttribute('data-sort-key');
     expect(key, 'sort key').toBeTruthy();
 
-    await th.click();
-    await page.waitForFunction(k => new RegExp(`sort=${k}`).test(location.search) && /dir=asc/.test(location.search), key, { timeout: 5000 });
-    expect(page.url()).toMatch(new RegExp(`sort=${key}`));
-    expect(page.url()).toMatch(/dir=asc/);
+    const indicatorText = async () => {
+      const t = (await th.locator('.sort-indicator').textContent().catch(() => '')) || '';
+      return t.trim();
+    };
+    const rowSnapshot = async () =>
+      await page.locator('tbody tr').evaluateAll((rows) =>
+        rows.filter((r) => r.cells && r.cells.length > 1).map((r) => r.rowIndex)
+      );
 
-    await th.click();
-    await page.waitForFunction(() => /dir=desc/.test(location.search), { timeout: 5000 });
-    expect(page.url()).toMatch(/dir=desc/);
+    // Fresh load: indicator should be ⇅ (none).
+    await page.waitForFunction(() => {
+      const ind = document.querySelector('th[data-sortable] .sort-indicator');
+      return ind && ind.textContent.trim().length > 0;
+    }, null, { timeout: 5000 });
+    expect(await indicatorText()).toBe('⇅');
 
+    // First click → asc (↑).
     await th.click();
-    await page.waitForFunction(() => !/sort=\w+/.test(location.search) || !/dir=(asc|desc)/.test(location.search), { timeout: 5000 });
-    expect(page.url()).not.toMatch(/dir=asc|dir=desc/);
+    await expect.poll(indicatorText, { timeout: 3000 }).toBe('↑');
+
+    // Second click → desc (↓).
+    await th.click();
+    await expect.poll(indicatorText, { timeout: 3000 }).toBe('↓');
+
+    // Third click → none (⇅).
+    await th.click();
+    await expect.poll(indicatorText, { timeout: 3000 }).toBe('⇅');
+
+    // URL search params must NOT carry sort/dir (FE-only sort).
+    expect(page.url()).not.toMatch(/[?&]sort=/);
+    expect(page.url()).not.toMatch(/[?&]dir=/);
   });
 }

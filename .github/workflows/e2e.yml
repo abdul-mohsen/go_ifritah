@@ -31,6 +31,13 @@ jobs:
       PORT: "8001"
       BACKEND_URL: "https://dev.ifritah.com"
       APP_DOMAIN: "localhost:8001"
+      # Playwright global-setup + per-test login helpers default to :8000.
+      # CI runs the binary on :8001, so point them at the right host.
+      PW_BASE_URL: "http://localhost:8001"
+      # The dev backend's admin user is `admin/admin`. Local dev uses
+      # `admin/admin123`. CI must match the dev backend.
+      PW_USER: "admin"
+      PW_PASS: "admin"
       # Token store has to be writable; keep it inside the workspace so the
       # cleanup step can wipe it.
       AFRITA_TOKEN_DIR: ${{ github.workspace }}/.afrita-tokens

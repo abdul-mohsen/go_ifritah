@@ -1,0 +1,90 @@
+name: Pa11y (a11y audit)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pa11y-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pa11y:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PORT: "8001"
+      QG_BASE: "http://localhost:8001"
+      QG_USER: "admin"
+      QG_PASS: "admin"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup frontend server
+        uses: ./.github/actions/setup-frontend
+        with:
+          port: "8001"
+          backend-url: "https://dev.ifritah.com"
+
+      - name: Install quality-gate deps
+        working-directory: quality-gate
+        run: npm ci || npm install
+
+      - name: Authenticate (write cookie-header.txt)
+        working-directory: quality-gate
+        run: npm run auth
+
+      - name: Run pa11y
+        id: pa11y
+        working-directory: quality-gate
+        run: |
+          set +e
+          npm run pa11y | tee pa11y.log
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize
+        if: always()
+        working-directory: quality-gate
+        run: |
+          if [ -f reports/pa11y/_summary.json ]; then
+            node -e '
+              const s = require("./reports/pa11y/_summary.json");
+              const totalE = s.reduce((a,b)=>a+(b.errors||0),0);
+              const totalW = s.reduce((a,b)=>a+(b.warnings||0),0);
+              const fail = s.filter(x => (x.errors||0) > 0);
+              console.log("pa11y total errors=" + totalE + " warnings=" + totalW);
+              if (process.env.GITHUB_STEP_SUMMARY) {
+                let md = "### pa11y: errors=" + totalE + " warnings=" + totalW + "\n";
+                if (fail.length) {
+                  md += "\n| route | errors |\n|---|---|\n" + fail.map(f => "| `" + f.route + "` | " + f.errors + " |").join("\n") + "\n";
+                }
+                require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+              }
+              if (totalE > 0) process.exit(1);
+            '
+          else
+            echo "no summary"
+            exit 1
+          fi
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pa11y-reports
+          path: quality-gate/reports/pa11y
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Stop frontend server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill "$(cat server.pid)" 2>/dev/null || true
+          fi

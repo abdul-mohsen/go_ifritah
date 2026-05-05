@@ -1,0 +1,12 @@
+{
+  "name": "afrita-quality-gate",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "pa11y": "node pa11y-run.js",
+    "lighthouse": "node lighthouse-run.js",
+    "htmlvalidate": "node htmlvalidate-run.js",
+    "animation-flash": "node animation-flash-run.js",
+    "all": "node run-all.js"
+  }
+}

@@ -270,6 +270,46 @@ document.addEventListener("showToast", function(evt) {
     window.showToast(d.message || '', d.type || 'error');
 });
 
+// ── Reset accumulated query string on HTMX GET form submits ───────
+// Without this, list pages that use `hx-get=""` reuse window.location
+// (which already contains ?q=a&sort=…) so the next typed value gets
+// appended (?q=a&sort=…&q=b). Strip the existing query so the freshly
+// serialized form values are the only ones sent.
+document.addEventListener("htmx:configRequest", function(evt) {
+    var d = evt.detail;
+    if (!d || d.verb !== 'get' || !d.path) return;
+    var i = d.path.indexOf('?');
+    if (i >= 0) d.path = d.path.slice(0, i);
+});
+
+// ── Surface server-side error-alert from swapped responses ────────
+// List pages render `{{ template "error-alert" . }}` OUTSIDE the
+// `#list-results` swap target, so when hx-select drops everything but
+// the table, an .error returned from the server is invisible. Pull any
+// [role="alert"] out of the response and show it as a toast.
+document.addEventListener("htmx:beforeSwap", function(evt) {
+    try {
+        var xhr = evt.detail.xhr;
+        if (!xhr || !xhr.response) return;
+        var ct = xhr.getResponseHeader('content-type') || '';
+        if (ct.indexOf('text/html') === -1) return;
+        var doc = new DOMParser().parseFromString(xhr.response, 'text/html');
+        var alerts = doc.querySelectorAll('[role="alert"]');
+        if (!alerts.length) return;
+        // De-dupe identical messages within a single swap
+        var seen = {};
+        alerts.forEach(function(a) {
+            var msg = (a.textContent || '').trim();
+            if (!msg || seen[msg]) return;
+            seen[msg] = true;
+            // Heuristic: red/error styling → error toast; otherwise info.
+            var bg = a.getAttribute('style') || '';
+            var type = /error|red|danger/i.test(bg + ' ' + a.className) ? 'error' : 'info';
+            window.showToast(msg, type);
+        });
+    } catch (e) {}
+});
+
 // Hide loading indicator + auto-hide alerts after swap
 document.addEventListener("htmx:afterSwap", function(evt) {
     if (window.__hideLoading) window.__hideLoading();

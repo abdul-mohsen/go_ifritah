@@ -274,12 +274,21 @@ document.addEventListener("showToast", function(evt) {
 // Without this, list pages that use `hx-get=""` reuse window.location
 // (which already contains ?q=a&sort=…) so the next typed value gets
 // appended (?q=a&sort=…&q=b). Strip the existing query so the freshly
-// serialized form values are the only ones sent.
+// serialized form values are the only ones sent. Also drop empty
+// parameters so the resulting URL stays tidy (no `?q=&sort=&dir=`).
 document.addEventListener("htmx:configRequest", function(evt) {
     var d = evt.detail;
-    if (!d || d.verb !== 'get' || !d.path) return;
-    var i = d.path.indexOf('?');
-    if (i >= 0) d.path = d.path.slice(0, i);
+    if (!d) return;
+    if (d.verb === 'get' && d.path) {
+        var i = d.path.indexOf('?');
+        if (i >= 0) d.path = d.path.slice(0, i);
+    }
+    if (d.parameters && typeof d.parameters === 'object') {
+        Object.keys(d.parameters).forEach(function(k) {
+            var v = d.parameters[k];
+            if (v === '' || v == null) delete d.parameters[k];
+        });
+    }
 });
 
 // ── Surface server-side error-alert from swapped responses ────────

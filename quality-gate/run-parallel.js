@@ -10,15 +10,17 @@ const QG = __dirname;
 const LOG_DIR = path.join(QG, 'logs');
 fs.mkdirSync(LOG_DIR, { recursive: true });
 
-// Each suite: { name, cwd, cmd, args, env? }
+// Each suite: { name, cwd, cmd, args, env?, phase? }
+// Phase 1 = run alone (resource-heavy: parallel browser auth across many routes)
+// Phase 2 = run together (the rest, won't fight each other for sessions)
 const suites = [
-  { name: 'go-test',         cwd: ROOT, cmd: 'go',  args: ['test', './handlers/...', './helpers/...', './config/...', '-count=1', '-timeout=600s', '-v'] },
-  { name: 'go-vet',          cwd: ROOT, cmd: 'go',  args: ['vet', './...'] },
-  { name: 'playwright-e2e',  cwd: path.join(ROOT, 'e2e'), cmd: 'npx', args: ['playwright', 'test', '--reporter=list'], env: { PW_BASE_URL: 'http://127.0.0.1:8000', PW_USER: 'admin', PW_PASS: 'admin123' } },
-  { name: 'pa11y',           cwd: QG,   cmd: 'node', args: ['pa11y-run.js'] },
-  { name: 'lighthouse',      cwd: QG,   cmd: 'node', args: ['lighthouse-run.js'] },
-  { name: 'htmlvalidate',    cwd: QG,   cmd: 'node', args: ['htmlvalidate-run.js'] },
-  { name: 'animation-flash', cwd: QG,   cmd: 'node', args: ['animation-flash-run.js'] },
+  { name: 'playwright-e2e',  phase: 1, cwd: path.join(ROOT, 'e2e'), cmd: 'npx', args: ['playwright', 'test', '--project=parallel', '--reporter=list'], env: { PW_BASE_URL: 'http://127.0.0.1:8000', PW_USER: 'admin', PW_PASS: 'admin123', PW_WORKERS: '4' } },
+  { name: 'go-test',         phase: 2, cwd: ROOT, cmd: 'go',  args: ['test', './handlers/...', './helpers/...', './config/...', '-count=1', '-timeout=600s', '-v'] },
+  { name: 'go-vet',          phase: 2, cwd: ROOT, cmd: 'go',  args: ['vet', './handlers/...', './helpers/...', './config/...', './middleware/...'] },
+  { name: 'pa11y',           phase: 2, cwd: QG,   cmd: 'node', args: ['pa11y-run.js'] },
+  { name: 'lighthouse',      phase: 2, cwd: QG,   cmd: 'node', args: ['lighthouse-run.js'] },
+  { name: 'htmlvalidate',    phase: 2, cwd: QG,   cmd: 'node', args: ['htmlvalidate-run.js'] },
+  { name: 'animation-flash', phase: 2, cwd: QG,   cmd: 'node', args: ['animation-flash-run.js'] },
 ];
 
 function runSuite(s) {
@@ -119,7 +121,13 @@ const extractors = {
 
 (async () => {
   const t0 = Date.now();
-  const results = await Promise.all(suites.map(runSuite));
+  const phase1 = suites.filter(s => s.phase === 1);
+  const phase2 = suites.filter(s => s.phase !== 1);
+  console.log(`\n--- phase 1 (${phase1.length} suite, runs alone) ---`);
+  const r1 = await Promise.all(phase1.map(runSuite));
+  console.log(`\n--- phase 2 (${phase2.length} suites, parallel) ---`);
+  const r2 = await Promise.all(phase2.map(runSuite));
+  const results = r1.concat(r2);
   const wallS = ((Date.now() - t0) / 1000).toFixed(1);
 
   const report = { wallSeconds: +wallS, suites: [] };

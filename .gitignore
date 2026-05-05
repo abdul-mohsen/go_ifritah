@@ -105,3 +105,5 @@ quality-gate/logs/
 quality-gate/reports/
 *.zip
 
+e2elogs*/
+

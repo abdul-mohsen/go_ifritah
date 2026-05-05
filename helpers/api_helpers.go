@@ -91,6 +91,27 @@ func StringContains(s, substr string) bool {
 	return false
 }
 
+// applyListFilters adds query / state / sort / dir to a backend list payload
+// only when set, so empty fields fall through to BE defaults. Used by the
+// bill and purchase-bill list fetchers (formerly duplicated inline).
+func applyListFilters(payload map[string]interface{}, query, stateFilter, sortField, sortDir string) {
+	if query != "" {
+		payload["query"] = query
+		log.Printf("🔵 [API SEARCH] query=%s", query)
+	}
+	if stateFilter != "" {
+		if v, err := strconv.Atoi(stateFilter); err == nil {
+			payload["state"] = v
+		}
+	}
+	if sortField != "" {
+		payload["sort"] = sortField
+	}
+	if sortDir != "" {
+		payload["dir"] = sortDir
+	}
+}
+
 func DoAuthedRequest(req *http.Request, token string) (*http.Response, error) {
 	req.Header.Set("Authorization", "Bearer "+token)
 	return HttpClient.Do(req)
@@ -191,21 +212,7 @@ func FetchInvoicesAll(token string, page int, query, stateFilter, sortField, sor
 	// Search/state/sort are forwarded to the BE; nothing is post-filtered.
 	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
 	log.Printf("🔵 [API REQUEST] POST %s/api/v2/bill/all", config.BackendDomain)
-	if query != "" {
-		payload["query"] = query
-		log.Printf("🔵 [API SEARCH] query=%s", query)
-	}
-	if stateFilter != "" {
-		if v, err := strconv.Atoi(stateFilter); err == nil {
-			payload["state"] = v
-		}
-	}
-	if sortField != "" {
-		payload["sort"] = sortField
-	}
-	if sortDir != "" {
-		payload["dir"] = sortDir
-	}
+	applyListFilters(payload, query, stateFilter, sortField, sortDir)
 	body, _ := json.Marshal(payload)
 	log.Printf("🔵 [API BODY] %s", string(body))
 
@@ -300,21 +307,7 @@ func FetchPurchaseBillsAll(token string, page int, query, stateFilter, sortField
 	// Search / state filter / sort are forwarded to BE; nothing post-filtered.
 	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
 	log.Printf("🔵 [API REQUEST] POST %s/api/v2/purchase_bill/all", config.BackendDomain)
-	if query != "" {
-		payload["query"] = query
-		log.Printf("🔵 [API SEARCH] query=%s", query)
-	}
-	if stateFilter != "" {
-		if v, err := strconv.Atoi(stateFilter); err == nil {
-			payload["state"] = v
-		}
-	}
-	if sortField != "" {
-		payload["sort"] = sortField
-	}
-	if sortDir != "" {
-		payload["dir"] = sortDir
-	}
+	applyListFilters(payload, query, stateFilter, sortField, sortDir)
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload: %w", err)
@@ -497,6 +490,13 @@ type SupplierReportResult struct {
 // Falls back to the old N+1 approach if the new endpoint isn't available (404).
 func FetchSupplierReport(token string, supplierID int, dateFrom, dateTo string) (SupplierReportResult, error) {
 	var result SupplierReportResult
+	cacheKey := fmt.Sprintf("supplier_report_%d_%s_%s", supplierID, dateFrom, dateTo)
+	if cached, ok := APICache.Get(cacheKey); ok {
+		if v, ok := cached.(SupplierReportResult); ok {
+			log.Printf("⚡ [CACHE HIT] %s", cacheKey)
+			return v, nil
+		}
+	}
 
 	// Build URL with query params
 	u := fmt.Sprintf("%s/api/v2/supplier/%d/report", config.BackendDomain, supplierID)
@@ -519,10 +519,16 @@ func FetchSupplierReport(token string, supplierID int, dateFrom, dateTo string) 
 	}
 	defer resp.Body.Close()
 
-	// If the endpoint doesn't exist yet or fails, fall back to legacy N+1
-	if resp.StatusCode == http.StatusNotFound || resp.StatusCode >= http.StatusInternalServerError {
+	// If the aggregate endpoint is missing or failing, keep the report usable via
+	// the legacy path. Successful fallback results are cached below so repeated
+	// exports for the same filter do not repeat the N+1 request pattern.
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusMethodNotAllowed || resp.StatusCode >= http.StatusInternalServerError {
 		log.Printf("⚠️ [SUPPLIER REPORT] Backend endpoint returned %d, using legacy N+1 fetch", resp.StatusCode)
-		return fetchSupplierReportLegacy(token, supplierID, dateFrom, dateTo)
+		legacy, err := fetchSupplierReportLegacy(token, supplierID, dateFrom, dateTo)
+		if err == nil {
+			APICache.Set(cacheKey, legacy, CacheTTLReports)
+		}
+		return legacy, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -810,6 +816,7 @@ func FetchSupplierReport(token string, supplierID int, dateFrom, dateTo string) 
 	// ── Build ledger (still client-side — merges bills + payments chronologically) ──
 	result.Ledger = buildSupplierLedger(result.Bills, supplierPayments)
 
+	APICache.Set(cacheKey, result, CacheTTLReports)
 	return result, nil
 }
 
@@ -1115,6 +1122,8 @@ func buildSupplierLedger(bills []models.SupplierReportBill, payments []models.Ca
 		entries = append(entries, models.LedgerEntry{
 			Date:        date,
 			Type:        "bill",
+			SystemID:    b.ID,
+			SupplierNo:  b.SSN,
 			Reference:   ref,
 			Description: fmt.Sprintf("فاتورة مشتريات #%d", b.SequenceNumber),
 			Debit:       b.Total,
@@ -1136,6 +1145,7 @@ func buildSupplierLedger(bills []models.SupplierReportBill, payments []models.Ca
 		entries = append(entries, models.LedgerEntry{
 			Date:        date,
 			Type:        "payment",
+			SystemID:    p.ID,
 			Reference:   ref,
 			Description: desc,
 			Credit:      p.Amount,
@@ -1384,7 +1394,7 @@ func ParseBillRaw(raw map[string]interface{}, id string) (models.Invoice, []mode
 		"maintenance_cost", "url", "credit_note", "qr_code",
 		"supplier_id", "supplier_sequence_number",
 		"payment_method", "branch_id", "branch_name", "deliver_date",
-		"pdf_link", "attachments",
+		"client_id", "vin", "pdf_link", "attachments",
 	} {
 		if v, exists := raw[key]; exists {
 			extra[key] = v
@@ -1440,12 +1450,9 @@ func FetchProducts(token string) ([]models.Product, error) {
 	products, err := decodeListResponse[models.Product](bodyBytes)
 	if err == nil {
 		for i, p := range products {
-			if p.ID == 0 && p.PartID > 0 {
-				products[i].ID = p.PartID
-			}
 			// Use Name from backend as fallback for PartName
-			if products[i].PartName == "" && products[i].Name != "" {
-				products[i].PartName = products[i].Name
+			if products[i].PartName == "" && p.Name != "" {
+				products[i].PartName = p.Name
 			}
 		}
 		APICache.Set("products", products, CacheTTLProducts)
@@ -1462,11 +1469,11 @@ func FetchProducts(token string) ([]models.Product, error) {
 		id := 0
 		qty := ""
 		price := ""
-		if value, ok := CoerceFloat(item["article_id"]); ok {
+		if value, ok := CoerceFloat(item["id"]); ok {
 			id = int(value)
 		}
 		if id == 0 {
-			if value, ok := CoerceFloat(item["id"]); ok {
+			if value, ok := CoerceFloat(item["article_id"]); ok {
 				id = int(value)
 			}
 		}
@@ -1503,7 +1510,11 @@ func FetchProducts(token string) ([]models.Product, error) {
 		if value, ok := CoerceFloat(item["store_id"]); ok {
 			storeID = int(value)
 		}
-		converted = append(converted, models.Product{ID: id, PartName: partName, Quantity: qty, Price: price, CostPrice: costPrice, ShelfNumber: shelfNumber, StoreID: storeID})
+		partID := 0
+		if value, ok := CoerceFloat(item["article_id"]); ok {
+			partID = int(value)
+		}
+		converted = append(converted, models.Product{ID: id, PartID: partID, PartName: partName, Quantity: qty, Price: price, CostPrice: costPrice, ShelfNumber: shelfNumber, StoreID: storeID})
 	}
 
 	APICache.Set("products", converted, CacheTTLProducts)
@@ -1742,9 +1753,30 @@ func FetchClientByID(token string, id string) (models.Client, error) {
 	if resp.StatusCode != http.StatusOK {
 		return models.Client{}, fmt.Errorf("backend status %d", resp.StatusCode)
 	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return models.Client{}, err
+	}
 	var client models.Client
-	if err := json.NewDecoder(resp.Body).Decode(&client); err != nil {
+	if err := json.Unmarshal(bodyBytes, &client); err != nil {
 		return models.Client{}, fmt.Errorf("decode client: %w", err)
+	}
+	// BE may return id as a number; in that case the string-tagged ID is empty.
+	// Fall back to parsing as a generic map and coercing.
+	if client.ID == "" {
+		var raw map[string]interface{}
+		if json.Unmarshal(bodyBytes, &raw) == nil {
+			if v, ok := CoerceFloat(raw["id"]); ok && v > 0 {
+				client.ID = fmt.Sprintf("%d", int(v))
+			} else if s, ok := raw["id"].(string); ok {
+				client.ID = s
+			}
+		}
+	}
+	if client.ID == "" {
+		// As last resort, use the requested id so the dropdown can still
+		// render a selected option for the bill's client.
+		client.ID = id
 	}
 	return client, nil
 }
@@ -1807,6 +1839,11 @@ func FetchOrderDetail(token string, id string) (map[string]interface{}, error) {
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		return nil, err
 	}
+	// Backend wraps order detail in a `detail` envelope: {"detail": {...}}.
+	// Unwrap it so callers see a flat map matching the bill/product shape.
+	if inner, ok := result["detail"].(map[string]interface{}); ok {
+		return inner, nil
+	}
 	return result, nil
 }
 
@@ -1840,6 +1877,78 @@ func FetchStores(token string) ([]models.Store, error) {
 	}
 	APICache.Set("stores", stores, CacheTTLStores)
 	return stores, nil
+}
+
+// FetchStoreByID retrieves a single store with full address fields.
+// Endpoint: GET /api/v2/store/:id  (returns {"detail": {...}})
+func FetchStoreByID(token string, id int) (models.Store, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v2/store/%d", config.BackendDomain, id), nil)
+	if err != nil {
+		return models.Store{}, fmt.Errorf("new request: %w", err)
+	}
+	resp, err := DoAuthedRequest(req, token)
+	if err != nil {
+		return models.Store{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return models.Store{}, fmt.Errorf("backend status %d", resp.StatusCode)
+	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return models.Store{}, err
+	}
+	var wrapper struct {
+		Detail models.Store `json:"detail"`
+	}
+	if err := json.Unmarshal(bodyBytes, &wrapper); err == nil && wrapper.Detail.ID != 0 {
+		return wrapper.Detail, nil
+	}
+	var direct models.Store
+	if err := json.Unmarshal(bodyBytes, &direct); err != nil {
+		return models.Store{}, err
+	}
+	return direct, nil
+}
+
+// FetchBranchLinkedStore returns the first store linked to a branch, with
+// full address fields. Returns (Store{}, false) if the branch has no store.
+func FetchBranchLinkedStore(token string, branchID int) (models.Store, bool) {
+	url := fmt.Sprintf("%s/api/v2/branch/%d", config.BackendDomain, branchID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return models.Store{}, false
+	}
+	resp, err := DoAuthedRequest(req, token)
+	if err != nil {
+		return models.Store{}, false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return models.Store{}, false
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return models.Store{}, false
+	}
+	var wrapper struct {
+		Detail struct {
+			Stores []struct {
+				ID int `json:"id"`
+			} `json:"stores"`
+		} `json:"detail"`
+	}
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return models.Store{}, false
+	}
+	if len(wrapper.Detail.Stores) == 0 || wrapper.Detail.Stores[0].ID == 0 {
+		return models.Store{}, false
+	}
+	store, err := FetchStoreByID(token, wrapper.Detail.Stores[0].ID)
+	if err != nil {
+		return models.Store{}, false
+	}
+	return store, true
 }
 
 // FetchBranches retrieves the list of branches from the backend.
@@ -1881,77 +1990,16 @@ func FetchBranches(token string) ([]models.Branch, error) {
 // decodeInvoiceList parses the invoice/bill list response where numeric
 // fields (total, subtotal, total_before_vat, total_vat, discount, vat) may come as strings.
 func decodeInvoiceList(body []byte) ([]models.Invoice, error) {
-	var rawList []map[string]interface{}
-	if err := json.Unmarshal(body, &rawList); err != nil {
-		var wrapper map[string]json.RawMessage
-		if wErr := json.Unmarshal(body, &wrapper); wErr != nil {
-			return nil, err
-		}
-		for _, key := range []string{"data", "items", "results", "bills", "invoices"} {
-			if raw, ok := wrapper[key]; ok {
-				if json.Unmarshal(raw, &rawList) == nil {
-					break
-				}
-			}
-		}
-		if rawList == nil {
-			return nil, fmt.Errorf("unsupported response shape for invoices")
-		}
+	rawList, err := unmarshalListWithWrapper(body, []string{"data", "items", "results", "bills", "invoices"})
+	if err != nil {
+		return nil, err
 	}
-
 	invoices := make([]models.Invoice, 0, len(rawList))
 	for _, m := range rawList {
-		inv := models.Invoice{}
-		if v, ok := CoerceFloat(m["id"]); ok {
-			inv.ID = int(v)
-		}
-		if v, ok := CoerceFloat(m["sequence_number"]); ok {
-			inv.SequenceNumber = int(v)
-		}
+		inv := mapToInvoice(m)
 		if v, ok := CoerceFloat(m["subtotal"]); ok {
 			inv.Subtotal = v
 		}
-		if v, ok := CoerceFloat(m["total"]); ok {
-			inv.Total = v
-		}
-		if v, ok := CoerceFloat(m["total_vat"]); ok {
-			inv.TotalVAT = v
-		}
-		if v, ok := CoerceFloat(m["total_before_vat"]); ok {
-			inv.TotalBeforeVAT = v
-		}
-		if v, ok := CoerceFloat(m["discount"]); ok {
-			inv.Discount = v
-		}
-		if v, ok := CoerceFloat(m["vat"]); ok {
-			inv.VAT = v
-		}
-		if v, ok := CoerceFloat(m["state"]); ok {
-			inv.State = int(v)
-		}
-		if v, ok := CoerceFloat(m["credit_state"]); ok {
-			inv.CreditState = int(v)
-		}
-		if v, ok := m["bill_type"].(bool); ok {
-			inv.Type = v
-		} else if v, ok := m["type"].(bool); ok {
-			inv.Type = v
-		}
-
-		// Parse effective_date — may be string or {Time, Valid} object
-		if ed, ok := m["effective_date"].(string); ok {
-			inv.EffectiveDate.Time = ed
-			inv.EffectiveDate.Valid = ed != ""
-		} else if edMap, ok := m["effective_date"].(map[string]interface{}); ok {
-			if t, ok := edMap["Time"].(string); ok {
-				inv.EffectiveDate.Time = t
-			}
-			if v, ok := edMap["Valid"].(bool); ok {
-				inv.EffectiveDate.Valid = v
-			}
-		}
-
-		inv.PaymentDueDate = m["payment_due_date"]
 		invoices = append(invoices, inv)
 	}
 	return invoices, nil
@@ -1960,81 +2008,110 @@ func decodeInvoiceList(body []byte) ([]models.Invoice, error) {
 // decodePurchaseBillList parses the purchase bill list response where numeric
 // fields (total, total_before_vat, total_vat, discount) may come as strings.
 func decodePurchaseBillList(body []byte) ([]models.Invoice, error) {
-	var rawList []map[string]interface{}
-	if err := json.Unmarshal(body, &rawList); err != nil {
-		// Try wrapper format
-		var wrapper map[string]json.RawMessage
-		if wErr := json.Unmarshal(body, &wrapper); wErr != nil {
-			return nil, err
-		}
-		for _, key := range []string{"data", "items", "results", "bills"} {
-			if raw, ok := wrapper[key]; ok {
-				if json.Unmarshal(raw, &rawList) == nil {
-					break
-				}
-			}
-		}
-		if rawList == nil {
-			return nil, fmt.Errorf("unsupported response shape for purchase bills")
-		}
+	rawList, err := unmarshalListWithWrapper(body, []string{"data", "items", "results", "bills"})
+	if err != nil {
+		return nil, err
 	}
-
 	invoices := make([]models.Invoice, 0, len(rawList))
 	for _, m := range rawList {
-		inv := models.Invoice{}
-		if v, ok := CoerceFloat(m["id"]); ok {
-			inv.ID = int(v)
-		}
-		if v, ok := CoerceFloat(m["sequence_number"]); ok {
-			inv.SequenceNumber = int(v)
-		}
+		inv := mapToInvoice(m)
 		if v, ok := CoerceFloat(m["supplier_sequence_number"]); ok {
 			inv.SupplierSequenceNumber = int(v)
 		}
-		if v, ok := CoerceFloat(m["total"]); ok {
-			inv.Total = v
-		}
-		if v, ok := CoerceFloat(m["total_vat"]); ok {
-			inv.TotalVAT = v
-		}
-		if v, ok := CoerceFloat(m["total_before_vat"]); ok {
-			inv.TotalBeforeVAT = v
-		}
-		if v, ok := CoerceFloat(m["discount"]); ok {
-			inv.Discount = v
-		}
-		if v, ok := CoerceFloat(m["vat"]); ok {
-			inv.VAT = v
-		}
-		if v, ok := CoerceFloat(m["state"]); ok {
-			inv.State = int(v)
-		}
-		if v, ok := CoerceFloat(m["credit_state"]); ok {
-			inv.CreditState = int(v)
-		}
-		if v, ok := m["bill_type"].(bool); ok {
-			inv.Type = v
-		} else if v, ok := m["type"].(bool); ok {
-			inv.Type = v
-		}
-
-		// Parse effective_date — may be string or {Time, Valid} object
-		if ed, ok := m["effective_date"].(string); ok {
-			inv.EffectiveDate.Time = ed
-			inv.EffectiveDate.Valid = ed != ""
-		} else if edMap, ok := m["effective_date"].(map[string]interface{}); ok {
-			if t, ok := edMap["Time"].(string); ok {
-				inv.EffectiveDate.Time = t
-			}
-			if v, ok := edMap["Valid"].(bool); ok {
-				inv.EffectiveDate.Valid = v
-			}
-		}
-
-		inv.PaymentDueDate = m["payment_due_date"]
 		invoices = append(invoices, inv)
 	}
 	return invoices, nil
+}
+
+// unmarshalListWithWrapper decodes a JSON array, falling back to the named
+// keys of an object wrapper (e.g. {"data": [...]}, {"bills": [...]}) when the
+// top level isn't an array.
+func unmarshalListWithWrapper(body []byte, wrapperKeys []string) ([]map[string]interface{}, error) {
+	var rawList []map[string]interface{}
+	if err := json.Unmarshal(body, &rawList); err == nil {
+		return rawList, nil
+	}
+	var wrapper map[string]json.RawMessage
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return nil, err
+	}
+	for _, key := range wrapperKeys {
+		if raw, ok := wrapper[key]; ok {
+			if err := json.Unmarshal(raw, &rawList); err == nil {
+				return rawList, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("unsupported response shape")
+}
+
+// mapToInvoice extracts the fields shared by both bill and purchase-bill list
+// rows from a generic map. Caller-specific fields (e.g. subtotal,
+// supplier_sequence_number) should be set by the caller after invoking this.
+func mapToInvoice(m map[string]interface{}) models.Invoice {
+	inv := models.Invoice{}
+	inv.ID = mapInt(m, "id")
+	inv.SequenceNumber = mapInt(m, "sequence_number")
+	inv.Total = mapFloat(m, "total")
+	inv.TotalVAT = mapFloat(m, "total_vat")
+	inv.TotalBeforeVAT = mapFloat(m, "total_before_vat")
+	inv.Discount = mapFloat(m, "discount")
+	inv.VAT = mapFloat(m, "vat")
+	inv.State = mapInt(m, "state")
+	inv.CreditState = mapInt(m, "credit_state")
+	inv.Type = mapBool(m, "bill_type", "type")
+	populateInvoiceEffectiveDate(m, &inv)
+	inv.PaymentDueDate = m["payment_due_date"]
+	return inv
+}
+
+// mapInt is a small wrapper around CoerceFloat that returns the rounded int
+// for a map key, or 0 if the value is missing/invalid.
+func mapInt(m map[string]interface{}, key string) int {
+	if v, ok := CoerceFloat(m[key]); ok {
+		return int(v)
+	}
+	return 0
+}
+
+// mapFloat returns CoerceFloat(m[key]) with a 0 default.
+func mapFloat(m map[string]interface{}, key string) float64 {
+	if v, ok := CoerceFloat(m[key]); ok {
+		return v
+	}
+	return 0
+}
+
+// mapBool returns the first key from `keys` whose value is a bool, defaulting
+// to false. Used because the BE sometimes ships the same flag under several
+// historical names (e.g. bill_type vs type).
+func mapBool(m map[string]interface{}, keys ...string) bool {
+	for _, k := range keys {
+		if v, ok := m[k].(bool); ok {
+			return v
+		}
+	}
+	return false
+}
+
+// populateInvoiceEffectiveDate writes m["effective_date"] into inv.EffectiveDate,
+// supporting both the plain ISO-string and {Time, Valid} object encodings.
+func populateInvoiceEffectiveDate(m map[string]interface{}, inv *models.Invoice) {
+	if ed, ok := m["effective_date"].(string); ok {
+		inv.EffectiveDate.Time = ed
+		inv.EffectiveDate.Valid = ed != ""
+		return
+	}
+	edMap, ok := m["effective_date"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	if t, ok := edMap["Time"].(string); ok {
+		inv.EffectiveDate.Time = t
+	}
+	if v, ok := edMap["Valid"].(bool); ok {
+		inv.EffectiveDate.Valid = v
+	}
 }
 
 func decodeListResponse[T any](body []byte) ([]T, error) {
@@ -2148,10 +2225,62 @@ func InvoiceTypeLabel(inv models.Invoice) string {
 //
 // For now, returns "admin" for all authenticated sessions.
 func GetUserRole(r *http.Request) string {
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		return ""
+	}
+	config.SessionTokensMutex.RLock()
+	role := config.SessionUserRoles[cookie.Value]
+	config.SessionTokensMutex.RUnlock()
+	if role != "" {
+		return role
+	}
+	// Fallback: try to decode the JWT directly so existing sessions (created
+	// before role tracking was added) still work.
 	token := GetTokenFromRequest(r)
 	if token == "" {
 		return ""
 	}
-	// TODO: look up config.SessionUserRoles[sessionID] once backend provides role
+	if r := DecodeJWTRole(token); r != "" {
+		return r
+	}
 	return "admin"
+}
+
+// DecodeJWTRole extracts the "role" claim from a JWT without verifying its
+// signature. We trust the backend that issued the token; this is for routing
+// frontend RBAC only — every privileged action is also enforced by the
+// backend. Returns "" if the role can't be parsed.
+//
+// Special case: the "ssda" owner account is treated as admin even if the
+// backend JWT issues a lower role — mirrors handlers.parseUserFromJWT.
+func DecodeJWTRole(token string) string {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		seg := parts[1]
+		switch len(seg) % 4 {
+		case 2:
+			seg += "=="
+		case 3:
+			seg += "="
+		}
+		payload, err = base64.URLEncoding.DecodeString(seg)
+		if err != nil {
+			return ""
+		}
+	}
+	var claims map[string]interface{}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return ""
+	}
+	role, _ := claims["role"].(string)
+	username, _ := claims["username"].(string)
+	if username == "ssda" {
+		return "admin"
+	}
+	return role
 }

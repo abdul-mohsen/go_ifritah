@@ -18,13 +18,16 @@ import (
 
 // ZatcaBranchStatus holds the ZATCA status for a branch.
 // zatca_status: 0=deleted, 1=active, 2=expired, 3=not_active, 4=expiring_soon
+// onboard_state (async worker progress): not_started|csr|compliance|invoices|done|failed
 type ZatcaBranchStatus struct {
-	BranchID    int               `json:"branch_id"`
-	BranchName  string            `json:"branch_name"`
-	Config      map[string]string `json:"config"`
-	ZatcaStatus int               `json:"zatca_status"`
-	HasCSR      bool              `json:"has_csr"`
-	HasProd     bool              `json:"has_production"`
+	BranchID     int               `json:"branch_id"`
+	BranchName   string            `json:"branch_name"`
+	Config       map[string]string `json:"config"`
+	ZatcaStatus  int               `json:"zatca_status"`
+	HasCSR       bool              `json:"has_csr"`
+	HasProd      bool              `json:"has_production"`
+	OnboardState string            `json:"onboard_state,omitempty"`
+	LastError    string            `json:"last_error,omitempty"`
 }
 
 // backendZatcaGetResponse maps the aliased fields returned by
@@ -48,6 +51,11 @@ type backendZatcaGetResponse struct {
 	ZatcaStatus       int         `json:"zatca_status"`
 	ZatcaOnboardedAt  interface{} `json:"zatca_onboarded_at"`
 	Name              string      `json:"name"`
+	// Async onboarding-worker progress (added in dev schema). Backend may
+	// not yet expose these in older builds; in that case they decode as
+	// zero-values and are dropped from the response by `omitempty`.
+	OnboardState string `json:"onboard_state,omitempty"`
+	LastError    string `json:"last_error,omitempty"`
 }
 
 // FetchZatcaConfigForBranch loads ZATCA config for a branch from the backend.
@@ -102,12 +110,14 @@ func FetchZatcaConfigForBranch(sessionID string, branchID int) (*ZatcaBranchStat
 	}
 
 	return &ZatcaBranchStatus{
-		BranchID:    branchID,
-		BranchName:  br.Name,
-		Config:      cfg,
-		ZatcaStatus: br.ZatcaStatus,
-		HasCSR:      br.CsrLen > 0,
-		HasProd:     br.ProdLen > 0,
+		BranchID:     branchID,
+		BranchName:   br.Name,
+		Config:       cfg,
+		ZatcaStatus:  br.ZatcaStatus,
+		HasCSR:       br.CsrLen > 0,
+		HasProd:      br.ProdLen > 0,
+		OnboardState: br.OnboardState,
+		LastError:    br.LastError,
 	}, nil
 }
 
@@ -172,8 +182,17 @@ func HandleSaveZatcaConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Preserve existing zatca_status. The backend UPSERT in branch_zatca_config
+	// runs `zatca_status = VALUES(zatca_status)` on duplicate key, so whatever
+	// value we send here is persisted. If we always sent 3 (not_active), saving
+	// any field on an already-onboarded branch (status=1 active) would silently
+	// downgrade it. So fetch the current status first and echo it back.
+	preservedStatus := 3 // default for never-onboarded branches
+	if existing, ferr := FetchZatcaConfigForBranch(sessionID, branchID); ferr == nil && existing != nil && existing.ZatcaStatus != 0 {
+		preservedStatus = existing.ZatcaStatus
+	}
+
 	// Map frontend field names → backend field names.
-	// Do NOT send zatca_status — let backend preserve existing value via ON DUPLICATE KEY UPDATE.
 	backendBody := map[string]interface{}{
 		"branch_id":          branchID,
 		"csr_org_identifier": frontendCfg["csr_org_identifier"],
@@ -188,7 +207,7 @@ func HandleSaveZatcaConfig(w http.ResponseWriter, r *http.Request) {
 		"building":           frontendCfg["building"],
 		"district":           frontendCfg["district"],
 		"postal_code":        frontendCfg["postal_code"],
-		"zatca_status":       3, // default: not_active — backend preserves real status on update
+		"zatca_status":       preservedStatus,
 	}
 
 	bodyBytes, _ := json.Marshal(backendBody)
@@ -302,19 +321,28 @@ func HandleZatcaOnboard(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
 
-	// If backend returned content, proxy it. Otherwise build a response.
+	// Backend 200 means: OTP accepted, onboarding queued for async processing.
+	// The DB row is updated later by the worker — zatca_status stays 3 until
+	// onboard_state transitions through csr → compliance → invoices → done.
+	// Only when the worker finishes does zatca_status flip to 1 (active).
+	// So we MUST NOT claim "active" here. We surface a "processing" flag and
+	// the client polls GET /api/zatca/branch/:id for the real status.
 	if len(respBody) > 0 {
 		w.Write(respBody)
-	} else if resp.StatusCode == http.StatusOK {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"detail":       "تم ربط الفرع بنظام زاتكا بنجاح",
-			"zatca_status": 1,
-		})
-	} else {
-		json.NewEncoder(w).Encode(map[string]string{
-			"detail": fmt.Sprintf("خطأ من الخادم (HTTP %d)", resp.StatusCode),
-		})
+		return
 	}
+	if resp.StatusCode == http.StatusOK {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"detail":        "تم إرسال الطلب — جاري ربط الفرع بنظام زاتكا، قد يستغرق ذلك دقيقة",
+			"processing":    true,
+			"zatca_status":  3, // remains not_active until worker confirms
+			"onboard_state": "csr",
+		})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{
+		"detail": fmt.Sprintf("خطأ من الخادم (HTTP %d)", resp.StatusCode),
+	})
 }
 
 // isDigits returns true if s contains only ASCII digits.

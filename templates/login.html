@@ -59,22 +59,11 @@
     </footer>
     <script src="/static/js/i18n.js"></script>
 
-    <!-- Toast container for login errors -->
+    <!-- Toast container — rendered by window.showToast in /static/js/script.js.
+         Login is a standalone page (does not use base.html) so we load the
+         shared toast renderer explicitly here. -->
     <div id="toast-container"></div>
-    <script>
-        document.body.addEventListener('showToast', function (e) {
-            var d = e.detail || {};
-            var type = d.type || 'error';
-            var msg = d.message || '{{ L "tpl.auth.unexpected_error" }}';
-            var container = document.getElementById('toast-container');
-            var toast = document.createElement('div');
-            toast.className = 'toast toast-' + type;
-            toast.innerHTML = '<span>' + msg + '</span><button class="toast-close" onclick="this.parentElement.classList.add(\'toast-out\');setTimeout(function(){toast.remove()},300)">&times;</button>';
-            container.appendChild(toast);
-            var ref = toast;
-            setTimeout(function () { ref.classList.add('toast-out'); setTimeout(function () { ref.remove(); }, 300); }, 4000);
-        });
-    </script>
+    <script src="/static/js/script.js"></script>
 </body>
 
 </html>

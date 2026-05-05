@@ -1,17 +1,39 @@
-// Playwright config — covers existing zatca specs and the broad UI/UX suite
-// under tests/ui-ux/. The `parallel` project is what scripts/run_e2e_ui_ux.ps1
-// invokes.
 const { defineConfig } = require('@playwright/test');
 
+// Specs that mutate global server state (settings, ZATCA per-branch config)
+// MUST run sequentially. Everything else is independent of shared state and
+// can be parallelised safely.
+const SERIAL_SPECS = [
+  '**/qa-01-stock-enforcement.spec.js',
+  '**/qa-03-settings.spec.js',
+  '**/qa-14-concurrency.spec.js',
+  '**/qa-15-stock-enforcement-behavior.spec.js',
+  '**/qa-19-pb-pdf-required.spec.js',
+  '**/zatca-settings.spec.js',
+  '**/zatca-save-qa.spec.js',
+];
+
+const resultsFile = process.env.PW_RESULTS_FILE || 'playwright-results.json';
+const MOBILE_MATCH = /tests[\\/]ui-ux[\\/].*\.spec\.js$/;
+
+// Workers is a global Playwright option (not per-project). CI runs each
+// project in its own `npx playwright test --project=…` invocation so each
+// uses the correct worker count (see .github/workflows/e2e.yml).
+//   --project=serial   → SERIAL_SPECS, run with --workers=1
+//   --project=parallel → everything else, run with --workers=N (auth via storageState)
+//   --project=mobile   → tests/ui-ux/* on a phone viewport
 module.exports = defineConfig({
   testDir: './tests',
   globalSetup: require.resolve('./global-setup.js'),
   timeout: 60_000,
   expect: { timeout: 7_000 },
-  fullyParallel: true,
   retries: 0,
-  workers: process.env.PW_WORKERS ? parseInt(process.env.PW_WORKERS, 10) : 4,
-  reporter: 'list',
+  fullyParallel: true,
+  workers: parseInt(process.env.PW_WORKERS || '1', 10),
+  reporter: [
+    ['list'],
+    ['json', { outputFile: resultsFile }],
+  ],
   use: {
     baseURL: process.env.PW_BASE_URL || 'http://127.0.0.1:8000',
     headless: true,
@@ -25,13 +47,23 @@ module.exports = defineConfig({
   },
   projects: [
     {
+      name: 'serial',
+      testMatch: SERIAL_SPECS,
+      fullyParallel: false,
+    },
+    {
       name: 'parallel',
+      testIgnore: SERIAL_SPECS,
+      fullyParallel: true,
       use: { storageState: '.auth/storageState.json' },
     },
     {
       name: 'mobile',
-      use: { viewport: { width: 390, height: 844 } },
-      testMatch: /tests[\\/]ui-ux[\\/].*\.spec\.js$/,
+      testMatch: MOBILE_MATCH,
+      use: {
+        storageState: '.auth/storageState.json',
+        viewport: { width: 390, height: 844 },
+      },
     },
   ],
 });

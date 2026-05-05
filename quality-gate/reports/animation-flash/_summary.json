@@ -1,0 +1,72 @@
+[
+  {
+    "route": "/",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/login",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard/invoices",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard/products",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard/clients",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard/suppliers",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard/branches",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard/stores",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard/orders",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard/purchase-bills",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard/cash-vouchers",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard/notifications",
+    "total": 0,
+    "offenders": 0
+  },
+  {
+    "route": "/dashboard/settings",
+    "total": 0,
+    "offenders": 0
+  }
+]

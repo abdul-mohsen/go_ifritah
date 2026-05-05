@@ -1,0 +1,190 @@
+{
+  "rows": [
+    {
+      "url": "home",
+      "pa11yE": 0,
+      "pa11yW": 0,
+      "hvE": 1,
+      "a11y": 100,
+      "bp": 96,
+      "perf": 100,
+      "seo": 54
+    },
+    {
+      "url": "login",
+      "pa11yE": 0,
+      "pa11yW": 0,
+      "hvE": 1,
+      "a11y": 100,
+      "bp": 100,
+      "perf": 100,
+      "seo": 54
+    },
+    {
+      "url": "register",
+      "pa11yE": 0,
+      "pa11yW": 10,
+      "hvE": 0,
+      "a11y": 98,
+      "bp": 100,
+      "perf": 87,
+      "seo": 91
+    },
+    {
+      "url": "forgot",
+      "pa11yE": 1,
+      "pa11yW": 5,
+      "hvE": 1,
+      "a11y": 97,
+      "bp": 100,
+      "perf": 100,
+      "seo": 91
+    },
+    {
+      "url": "dashboard",
+      "pa11yE": 10,
+      "pa11yW": 17,
+      "hvE": 15,
+      "a11y": 83,
+      "bp": 100,
+      "perf": 81,
+      "seo": 91
+    },
+    {
+      "url": "invoices",
+      "pa11yE": 7,
+      "pa11yW": 12,
+      "hvE": 9,
+      "a11y": 95,
+      "bp": 100,
+      "perf": 91,
+      "seo": 91
+    },
+    {
+      "url": "products",
+      "pa11yE": 7,
+      "pa11yW": 10,
+      "hvE": 13,
+      "a11y": 95,
+      "bp": 100,
+      "perf": 92,
+      "seo": 91
+    },
+    {
+      "url": "clients",
+      "pa11yE": 4,
+      "pa11yW": 9,
+      "hvE": 8,
+      "a11y": 95,
+      "bp": 100,
+      "perf": 92,
+      "seo": 91
+    },
+    {
+      "url": "suppliers",
+      "pa11yE": 4,
+      "pa11yW": 10,
+      "hvE": 9,
+      "a11y": 95,
+      "bp": 100,
+      "perf": 92,
+      "seo": 91
+    },
+    {
+      "url": "branches",
+      "pa11yE": 4,
+      "pa11yW": 9,
+      "hvE": 9,
+      "a11y": 95,
+      "bp": 100,
+      "perf": 92,
+      "seo": 91
+    },
+    {
+      "url": "stores",
+      "pa11yE": 4,
+      "pa11yW": 7,
+      "hvE": 10,
+      "a11y": 95,
+      "bp": 100,
+      "perf": 99,
+      "seo": 91
+    },
+    {
+      "url": "orders",
+      "pa11yE": 4,
+      "pa11yW": 7,
+      "hvE": 12,
+      "a11y": 95,
+      "bp": 100,
+      "perf": 99,
+      "seo": 91
+    },
+    {
+      "url": "purchasebills",
+      "pa11yE": 7,
+      "pa11yW": 15,
+      "hvE": 12,
+      "a11y": 95,
+      "bp": 100,
+      "perf": 93,
+      "seo": 91
+    },
+    {
+      "url": "cashvouchers",
+      "pa11yE": 7,
+      "pa11yW": 9,
+      "hvE": 15,
+      "a11y": 95,
+      "bp": 100,
+      "perf": 99,
+      "seo": 91
+    },
+    {
+      "url": "notifications",
+      "pa11yE": 0,
+      "pa11yW": 11,
+      "hvE": 8,
+      "a11y": 100,
+      "bp": 100,
+      "perf": 99,
+      "seo": 91
+    },
+    {
+      "url": "settings",
+      "pa11yE": 77,
+      "pa11yW": 26,
+      "hvE": 15,
+      "a11y": 75,
+      "bp": 96,
+      "perf": 90,
+      "seo": 91
+    },
+    {
+      "url": "add-product",
+      "pa11yE": 0,
+      "pa11yW": 6,
+      "hvE": 10,
+      "a11y": 100,
+      "bp": 96,
+      "perf": 89,
+      "seo": 54
+    },
+    {
+      "url": "bill-print",
+      "pa11yE": 0,
+      "pa11yW": 0,
+      "hvE": 0,
+      "a11y": 100,
+      "bp": 100,
+      "perf": 99,
+      "seo": 54
+    }
+  ],
+  "totals": {
+    "pa11yErrors": 136,
+    "pa11yWarnings": 163,
+    "hvErrors": 148
+  },
+  "breaches": []
+}

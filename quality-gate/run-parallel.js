@@ -57,51 +57,72 @@ function extractGo(log) {
   return { failures: failures.concat(buildErrs), summary: failures.length + ' failed test(s)' };
 }
 function extractPlaywright(log) {
+  // Avoid backtracking-prone patterns; rely on a simple anchored prefix
+  // and a fixed-token check.
   const failures = [];
-  const re = /^\s*\d+\)\s+\[?[^\]]*\]?\s*(\S+\.spec\.\S+):\d+:\d+\s*[›>]\s*(.+?)\s*$/m;
-  // Simpler: find lines starting with " ✘ " or "  1) " pattern.
   log.split(/\r?\n/).forEach(line => {
-    let m = line.match(/^\s*\d+\)\s+(.*\.spec\.\S+:\d+:\d+.*)$/);
-    if (m) failures.push(m[1].trim());
-    else if (/^\s*✘\s+/.test(line) || /^\s*FAIL\s+/.test(line)) failures.push(line.trim());
+    const trimmed = line.trim();
+    // " 1) tests/foo.spec.js:12:3 …"
+    if (/^\d+\)\s/.test(trimmed) && /\.spec\.\S+:\d+:\d+/.test(trimmed)) {
+      failures.push(trimmed);
+      return;
+    }
+    if (trimmed.startsWith('\u2718 ') || /^FAIL\b/.test(trimmed)) {
+      failures.push(trimmed);
+    }
   });
   return { failures, summary: failures.length + ' failed test(s)' };
 }
 function extractQG(log, prefix) {
-  // Lines like "[pa11y] dashboard ... E:31 W:0 N:0" or "[hv] dashboard ... status=200 E:267 W:0" or "... ERR <msg>"
+  // Lines look like "[pa11y] dashboard / ... E:31 W:0 N:0" or "... ERR <msg>".
+  // Use split on whitespace to avoid catastrophic backtracking.
+  const tag = '[' + prefix + ']';
   const failures = [];
-  const reLine = new RegExp('^\\[' + prefix + '\\]\\s+(\\S+)\\s+(\\S+)\\s+\\.\\.\\.\\s+(.*)$');
   log.split(/\r?\n/).forEach(line => {
-    const m = line.match(reLine);
-    if (!m) return;
-    const route = m[1];
-    const tail = m[3];
-    const errMatch = tail.match(/E:(\d+)/);
-    const errTxt = tail.match(/^ERR\s+(.+)$/) || tail.match(/\bERR\s+(.+)$/);
-    if (errTxt) failures.push(`${route} → ERR ${errTxt[1]}`);
-    else if (errMatch && +errMatch[1] > 0) failures.push(`${route} → ${errMatch[1]} error(s)`);
+    if (!line.startsWith(tag)) return;
+    const sepIdx = line.indexOf('...');
+    if (sepIdx < 0) return;
+    const head = line.slice(tag.length, sepIdx).trim().split(/\s+/);
+    if (head.length < 1) return;
+    const route = head[0];
+    const tail = line.slice(sepIdx + 3).trim();
+    const errIdx = tail.indexOf('ERR ');
+    if (errIdx === 0 || /\sERR\s/.test(' ' + tail)) {
+      const errMsg = tail.slice(tail.indexOf('ERR ') + 4);
+      failures.push(`${route} \u2192 ERR ${errMsg}`);
+      return;
+    }
+    const m = tail.match(/E:(\d+)/);
+    if (m && +m[1] > 0) failures.push(`${route} \u2192 ${m[1]} error(s)`);
   });
   return { failures, summary: failures.length + ' route(s) with issues' };
 }
 function extractLighthouse(log) {
   const failures = [];
   log.split(/\r?\n/).forEach(line => {
-    const m = line.match(/^\[lh\]\s+(\S+).*?P:(\d+)\s+A:(\d+)\s+BP:(\d+)\s+SEO:(\d+)/);
-    if (m) {
-      const [, route, p, a, bp, seo] = m;
-      const scores = { perf: +p, a11y: +a, bp: +bp, seo: +seo };
-      const bad = Object.entries(scores).filter(([, v]) => v < 90).map(([k, v]) => `${k}=${v}`);
-      if (bad.length) failures.push(`${route} → ${bad.join(', ')}`);
-    } else if (/^\[lh\].*ERR/.test(line)) failures.push(line.trim());
+    if (!line.startsWith('[lh]')) return;
+    if (line.includes('ERR')) { failures.push(line.trim()); return; }
+    const p   = line.match(/\bP:(\d+)/);
+    const a   = line.match(/\bA:(\d+)/);
+    const bp  = line.match(/\bBP:(\d+)/);
+    const seo = line.match(/\bSEO:(\d+)/);
+    if (!p || !a || !bp || !seo) return;
+    const route = line.slice(4).trim().split(/\s+/)[0];
+    const scores = { perf: +p[1], a11y: +a[1], bp: +bp[1], seo: +seo[1] };
+    const bad = Object.entries(scores).filter(([, v]) => v < 90).map(([k, v]) => `${k}=${v}`);
+    if (bad.length) failures.push(`${route} \u2192 ${bad.join(', ')}`);
   });
   return { failures, summary: failures.length + ' route(s) below 90' };
 }
 function extractAnim(log) {
   const failures = [];
   log.split(/\r?\n/).forEach(line => {
-    const m = line.match(/^\[anim\]\s+(\S+).*?offenders=(\d+)/);
-    if (m && +m[2] > 0) failures.push(`${m[1]} → ${m[2]} offender(s)`);
-    else if (/^\[anim\].*ERR/.test(line)) failures.push(line.trim());
+    if (!line.startsWith('[anim]')) return;
+    if (line.includes('ERR')) { failures.push(line.trim()); return; }
+    const m = line.match(/\boffenders=(\d+)/);
+    if (!m || +m[1] === 0) return;
+    const route = line.slice(6).trim().split(/\s+/)[0];
+    failures.push(`${route} \u2192 ${m[1]} offender(s)`);
   });
   return { failures, summary: failures.length + ' route(s) with flicker' };
 }

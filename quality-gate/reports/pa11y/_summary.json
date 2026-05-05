@@ -1,0 +1,86 @@
+[
+  {
+    "route": "/",
+    "errors": 4,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/login",
+    "errors": 4,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard",
+    "errors": 31,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard/invoices",
+    "errors": 11,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard/products",
+    "errors": 11,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard/clients",
+    "errors": 8,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard/suppliers",
+    "errors": 9,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard/branches",
+    "errors": 6,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard/stores",
+    "errors": 6,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard/orders",
+    "errors": 8,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard/purchase-bills",
+    "errors": 12,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard/cash-vouchers",
+    "errors": 12,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard/notifications",
+    "errors": 0,
+    "warnings": 0,
+    "notices": 0
+  },
+  {
+    "route": "/dashboard/settings",
+    "errors": 77,
+    "warnings": 0,
+    "notices": 0
+  }
+]

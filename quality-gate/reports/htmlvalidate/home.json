@@ -1,0 +1,107 @@
+{
+  "route": "/",
+  "status": 200,
+  "errors": 8,
+  "warnings": 0,
+  "results": [
+    {
+      "filePath": "inline",
+      "messages": [
+        {
+          "ruleId": "no-inline-style",
+          "severity": 2,
+          "message": "Inline style is not allowed",
+          "offset": 1007,
+          "line": 19,
+          "column": 89,
+          "size": 30,
+          "selector": "html > body > div:nth-child(1) > div:nth-child(1) > img",
+          "ruleUrl": "https://html-validate.org/rules/no-inline-style.html"
+        },
+        {
+          "ruleId": "no-inline-style",
+          "severity": 2,
+          "message": "Inline style is not allowed",
+          "offset": 1088,
+          "line": 20,
+          "column": 49,
+          "size": 42,
+          "selector": "html > body > div:nth-child(1) > div:nth-child(1) > h1",
+          "ruleUrl": "https://html-validate.org/rules/no-inline-style.html"
+        },
+        {
+          "ruleId": "autocomplete-password",
+          "severity": 2,
+          "message": "<input type=\"password\"> is missing required \"autocomplete\" attribute",
+          "offset": 1756,
+          "line": 32,
+          "column": 18,
+          "size": 5,
+          "selector": "html > body > div:nth-child(1) > form > div:nth-child(2) > input",
+          "ruleUrl": "https://html-validate.org/rules/autocomplete-password.html",
+          "context": {
+            "kind": "missing"
+          }
+        },
+        {
+          "ruleId": "no-inline-style",
+          "severity": 2,
+          "message": "Inline style is not allowed",
+          "offset": 2034,
+          "line": 37,
+          "column": 17,
+          "size": 86,
+          "selector": "html > body > div:nth-child(1) > form > button",
+          "ruleUrl": "https://html-validate.org/rules/no-inline-style.html"
+        },
+        {
+          "ruleId": "no-inline-style",
+          "severity": 2,
+          "message": "Inline style is not allowed",
+          "offset": 2826,
+          "line": 49,
+          "column": 21,
+          "size": 42,
+          "selector": "html > body > div:nth-child(1) > div:nth-child(3) > p:nth-child(1) > a",
+          "ruleUrl": "https://html-validate.org/rules/no-inline-style.html"
+        },
+        {
+          "ruleId": "no-inline-style",
+          "severity": 2,
+          "message": "Inline style is not allowed",
+          "offset": 3004,
+          "line": 51,
+          "column": 21,
+          "size": 42,
+          "selector": "html > body > div:nth-child(1) > div:nth-child(3) > p:nth-child(2) > a",
+          "ruleUrl": "https://html-validate.org/rules/no-inline-style.html"
+        },
+        {
+          "ruleId": "no-inline-style",
+          "severity": 2,
+          "message": "Inline style is not allowed",
+          "offset": 3181,
+          "line": 57,
+          "column": 28,
+          "size": 53,
+          "selector": "html > body > footer > p:nth-child(1)",
+          "ruleUrl": "https://html-validate.org/rules/no-inline-style.html"
+        },
+        {
+          "ruleId": "no-inline-style",
+          "severity": 2,
+          "message": "Inline style is not allowed",
+          "offset": 3297,
+          "line": 58,
+          "column": 32,
+          "size": 42,
+          "selector": "html > body > footer > p:nth-child(2)",
+          "ruleUrl": "https://html-validate.org/rules/no-inline-style.html"
+        }
+      ],
+      "errorCount": 8,
+      "warningCount": 0,
+      "source": "<!DOCTYPE html>\r\n<html lang=\"ar\" dir=\"rtl\">\r\n\r\n<head>\r\n    <meta charset=\"UTF-8\">\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n    <title>تسجيل الدخول - عفريته</title>\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap\" rel=\"stylesheet\">\r\n    <script>(function () { if (localStorage.getItem('afrita_theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark') })();</script>\r\n    <link href=\"/static/output.css\" rel=\"stylesheet\">\r\n    <link rel=\"stylesheet\" href=\"/static/css/style.css\">\r\n    <script src=\"/static/js/darkmode.js\"></script>\r\n    <script src=\"https://unpkg.com/htmx.org@1.9.10\"></script>\r\n</head>\r\n\r\n<body class=\"login-body min-h-screen flex flex-col items-center justify-center px-4\">\r\n    <div class=\"login-card rounded-2xl shadow-2xl p-8 w-full max-w-sm\" dir=\"rtl\">\r\n        <div class=\"text-center mb-6\">\r\n            <img src=\"/static/images/afrita-logo.svg\" alt=\"عفريته\" class=\"mx-auto mb-4\" style=\"height:48px;width:auto\">\r\n            <h1 class=\"text-2xl font-bold mb-1\" style=\"color: var(--md-sys-color-primary)\">عفريته</h1>\r\n            <p class=\"login-subtitle text-sm\">نظام إدارة الفواتير والمخزون</p>\r\n        </div>\r\n\r\n        <form hx-post=\"/login\" hx-indicator=\"#login-spinner\" hx-disabled-elt=\"button[type='submit']\">\r\n            <div class=\"mb-4\">\r\n                <label class=\"login-label block text-xs font-semibold mb-1.5\">اسم المستخدم</label>\r\n                <input type=\"text\" name=\"username\" placeholder=\"أدخل اسم المستخدم\" class=\"w-full\" required>\r\n            </div>\r\n\r\n            <div class=\"mb-5\">\r\n                <label class=\"login-label block text-xs font-semibold mb-1.5\">كلمة المرور</label>\r\n                <input type=\"password\" name=\"password\" placeholder=\"••••••••\" class=\"w-full\" required>\r\n            </div>\r\n\r\n            <button type=\"submit\"\r\n                class=\"w-full py-2.5 rounded-lg font-bold transition text-sm flex items-center justify-center gap-2\"\r\n                style=\"background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary)\">\r\n                <svg id=\"login-spinner\" class=\"htmx-indicator animate-spin h-4 w-4 text-white\"\r\n                    xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\">\r\n                    <circle class=\"opacity-25\" cx=\"12\" cy=\"12\" r=\"10\" stroke=\"currentColor\" stroke-width=\"4\" />\r\n                    <path class=\"opacity-75\" fill=\"currentColor\" d=\"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z\" />\r\n                </svg>\r\n                تسجيل الدخول\r\n            </button>\r\n        </form>\r\n\r\n        <div class=\"mt-5 text-center space-y-1.5\">\r\n            <p class=\"login-subtitle text-xs\">ليس لديك حساب؟ <a href=\"/register\" class=\"hover:underline font-semibold\"\r\n                    style=\"color: var(--md-sys-color-primary)\">سجل هنا</a></p>\r\n            <p class=\"login-subtitle text-xs\"><a href=\"/forgot-password\" class=\"hover:underline\"\r\n                    style=\"color: var(--md-sys-color-primary)\">نسيت كلمة المرور؟</a></p>\r\n        </div>\r\n    </div>\r\n\r\n    \r\n    <footer class=\"mt-6 mb-4 text-center\">\r\n        <p class=\"text-xs\" style=\"color: var(--md-sys-color-on-surface-variant)\">عفريته v0.6.0 © 2024-2026</p>\r\n        <p class=\"text-[10px]\" style=\"color: var(--md-sys-color-outline)\">جميع الحقوق محفوظة</p>\r\n    </footer>\r\n    <script src=\"/static/js/i18n.js\"></script>\r\n\r\n    \r\n    <div id=\"toast-container\"></div>\r\n    <script>\r\n        document.body.addEventListener('showToast', function (e) {\r\n            var d = e.detail || {};\r\n            var type = d.type || 'error';\r\n            var msg = d.message || 'خطأ غير متوقع';\r\n            var container = document.getElementById('toast-container');\r\n            var toast = document.createElement('div');\r\n            toast.className = 'toast toast-' + type;\r\n            toast.innerHTML = '<span>' + msg + '</span><button class=\"toast-close\" onclick=\"this.parentElement.classList.add(\\'toast-out\\');setTimeout(function(){toast.remove()},300)\">&times;</button>';\r\n            container.appendChild(toast);\r\n            var ref = toast;\r\n            setTimeout(function () { ref.classList.add('toast-out'); setTimeout(function () { ref.remove(); }, 300); }, 4000);\r\n        });\r\n    </script>\r\n</body>\r\n\r\n</html>\r\n"
+    }
+  ]
+}

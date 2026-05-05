@@ -1,0 +1,97 @@
+{
+  "wallSeconds": 211.5,
+  "suites": [
+    {
+      "name": "playwright-e2e",
+      "exit": 1,
+      "seconds": 87.3,
+      "summary": "2 failed test(s)",
+      "failures": [
+        "✘  127 [parallel] › tests\\zatca-settings.spec.js:28:1 › ZATCA connect button is disabled when fields are empty (9.3s)",
+        "[parallel] › tests\\zatca-settings.spec.js:28:1 › ZATCA connect button is disabled when fields are empty"
+      ],
+      "log": "quality-gate/logs/playwright-e2e.log"
+    },
+    {
+      "name": "go-test",
+      "exit": 0,
+      "seconds": 47,
+      "summary": "0 failed test(s)",
+      "failures": [],
+      "log": "quality-gate/logs/go-test.log"
+    },
+    {
+      "name": "go-vet",
+      "exit": 0,
+      "seconds": 36.5,
+      "summary": "0 vet warning(s)",
+      "failures": [],
+      "log": "quality-gate/logs/go-vet.log"
+    },
+    {
+      "name": "pa11y",
+      "exit": 0,
+      "seconds": 70,
+      "summary": "13 route(s) with issues",
+      "failures": [
+        "home → 4 error(s)",
+        "login → 4 error(s)",
+        "dashboard → 31 error(s)",
+        "invoices → 11 error(s)",
+        "products → 11 error(s)",
+        "clients → 8 error(s)",
+        "suppliers → 9 error(s)",
+        "branches → 6 error(s)",
+        "stores → 6 error(s)",
+        "orders → 8 error(s)",
+        "purchasebills → 12 error(s)",
+        "cashvouchers → 12 error(s)",
+        "settings → 77 error(s)"
+      ],
+      "log": "quality-gate/logs/pa11y.log"
+    },
+    {
+      "name": "lighthouse",
+      "exit": 0,
+      "seconds": 124,
+      "summary": "4 route(s) below 90",
+      "failures": [
+        "dashboard → a11y=87",
+        "invoices → perf=84",
+        "purchasebills → perf=87",
+        "settings → a11y=82"
+      ],
+      "log": "quality-gate/logs/lighthouse.log"
+    },
+    {
+      "name": "htmlvalidate",
+      "exit": 0,
+      "seconds": 1.3,
+      "summary": "13 route(s) with issues",
+      "failures": [
+        "home → 8 error(s)",
+        "login → 8 error(s)",
+        "dashboard → 269 error(s)",
+        "products → 61 error(s)",
+        "clients → 56 error(s)",
+        "suppliers → 59 error(s)",
+        "branches → 57 error(s)",
+        "stores → 57 error(s)",
+        "orders → 57 error(s)",
+        "purchasebills → 65 error(s)",
+        "cashvouchers → 61 error(s)",
+        "notifications → 58 error(s)",
+        "settings → 135 error(s)"
+      ],
+      "log": "quality-gate/logs/htmlvalidate.log"
+    },
+    {
+      "name": "animation-flash",
+      "exit": 0,
+      "seconds": 16.6,
+      "summary": "0 route(s) with flicker",
+      "failures": [],
+      "log": "quality-gate/logs/animation-flash.log"
+    }
+  ]
+}

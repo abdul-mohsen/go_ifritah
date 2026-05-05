@@ -21,11 +21,20 @@ test.exe
 cookies.txt
 cookies_new.txt
 
-# Test output artifacts (entire folder, local only)
-tests/
+# Test output artifacts (entire folder, local only) — anchored at repo root,
+# do NOT match e2e/tests/.
+/tests/
 
-# E2E tests (local only, not tracked)
-e2e/
+# E2E: track the harness + spec files, ignore run artifacts and deps.
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+e2e/.auth/
+e2e/*.log
+e2e/*.err
+e2e/*.txt
+e2e/package-lock.json
+e2e/probe-*.js
 
 # Scripts (local only)
 scripts/
@@ -38,6 +47,13 @@ uploads/
 
 # Backend performance suggestions (local only)
 backend_suggestion/
+
+# Local runtime artifacts
+*.err
+afrita.err
+
+# Middleware test artifacts (token cookies)
+middleware/*.json
 
 # Created by https://www.toptal.com/developers/gitignore/api/go
 # Edit at https://www.toptal.com/developers/gitignore?templates=go
@@ -70,3 +86,6 @@ api_docs/.token
 scripts
 main
 api_docs/
+
+chat/
+

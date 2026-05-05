@@ -1,0 +1,48 @@
+{
+  "route": "/",
+  "errors": 4,
+  "warnings": 0,
+  "notices": 0,
+  "issues": [
+    {
+      "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputText.Name",
+      "type": "error",
+      "typeCode": 1,
+      "message": "This textinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+      "context": "<input type=\"text\" name=\"username\" placeholder=\"أدخل اسم المستخدم\" class=\"w-full\" required=\"\">",
+      "selector": "html > body > div:nth-child(1) > form > div:nth-child(1) > input",
+      "runner": "htmlcs",
+      "runnerExtras": {}
+    },
+    {
+      "code": "WCAG2AA.Principle1.Guideline1_3.1_3_1.F68",
+      "type": "error",
+      "typeCode": 1,
+      "message": "This form field should be labelled in some way. Use the label element (either with a \"for\" attribute or wrapped around the form field), or \"title\", \"aria-label\" or \"aria-labelledby\" attributes as appropriate.",
+      "context": "<input type=\"text\" name=\"username\" placeholder=\"أدخل اسم المستخدم\" class=\"w-full\" required=\"\">",
+      "selector": "html > body > div:nth-child(1) > form > div:nth-child(1) > input",
+      "runner": "htmlcs",
+      "runnerExtras": {}
+    },
+    {
+      "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputPassword.Name",
+      "type": "error",
+      "typeCode": 1,
+      "message": "This passwordinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+      "context": "<input type=\"password\" name=\"password\" placeholder=\"••••••••\" class=\"w-full\" required=\"\">",
+      "selector": "html > body > div:nth-child(1) > form > div:nth-child(2) > input",
+      "runner": "htmlcs",
+      "runnerExtras": {}
+    },
+    {
+      "code": "WCAG2AA.Principle1.Guideline1_3.1_3_1.F68",
+      "type": "error",
+      "typeCode": 1,
+      "message": "This form field should be labelled in some way. Use the label element (either with a \"for\" attribute or wrapped around the form field), or \"title\", \"aria-label\" or \"aria-labelledby\" attributes as appropriate.",
+      "context": "<input type=\"password\" name=\"password\" placeholder=\"••••••••\" class=\"w-full\" required=\"\">",
+      "selector": "html > body > div:nth-child(1) > form > div:nth-child(2) > input",
+      "runner": "htmlcs",
+      "runnerExtras": {}
+    }
+  ]
+}

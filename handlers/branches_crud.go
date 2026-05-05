@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"afrita/config"
 	"afrita/helpers"
@@ -105,9 +106,13 @@ func HandleBranchDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	linkedStore, hasStore := helpers.FetchBranchLinkedStore(token, branch.ID)
+
 	helpers.Render(w, r, "branch-detail", map[string]interface{}{
-		"title":  "تفاصيل الفرع",
-		"branch": branch,
+		"title":        "تفاصيل الفرع",
+		"branch":       branch,
+		"linked_store": linkedStore,
+		"has_store":    hasStore,
 	})
 }
 
@@ -126,9 +131,13 @@ func HandleEditBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	linkedStore, hasStore := helpers.FetchBranchLinkedStore(token, branch.ID)
+
 	helpers.Render(w, r, "edit-branch", map[string]interface{}{
-		"title":  "تعديل الفرع",
-		"branch": branch,
+		"title":         "تعديل الفرع",
+		"branch":        branch,
+		"linked_store":  linkedStore,
+		"has_store":     hasStore,
 	})
 }
 
@@ -197,7 +206,6 @@ func HandleUpdateBranch(w http.ResponseWriter, r *http.Request) {
 	// Server-side validation
 	errs := helpers.Validate([]helpers.FieldRule{
 		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: "اسم الفرع"},
-		{Field: "location", Value: r.FormValue("location"), Required: true, MinLen: 2, MaxLen: 200, Label: "الموقع"},
 		{Field: "phone", Value: r.FormValue("phone"), Pattern: helpers.PatternSaudiPhone, Label: "الهاتف", PatternMsg: "رقم جوال سعودي يبدأ بـ 05 ويتكون من 10 أرقام"},
 	})
 	if errs != nil {
@@ -216,9 +224,11 @@ func HandleUpdateBranch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := map[string]interface{}{
-		"name":    r.FormValue("name"),
-		"address": r.FormValue("location"),
-		"phone":   r.FormValue("phone"),
+		"name":  r.FormValue("name"),
+		"phone": r.FormValue("phone"),
+	}
+	if loc := strings.TrimSpace(r.FormValue("location")); loc != "" {
+		payload["address"] = loc
 	}
 	if mgr := r.FormValue("manager_id"); mgr != "" {
 		payload["manager_id"] = helpers.ParseIntValue(mgr)

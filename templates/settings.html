@@ -36,6 +36,31 @@
     <div id="panel-general">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
+        <!-- ── 1. Company Info ────────────────────────────────────────── -->
+        <div class="section-card">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+                    </path>
+                </svg>
+                {{ L "tpl.settings.section_company" }}
+            </h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.company_email" }}</label>
+                    <input type="email" name="company_email" placeholder="email@company.com" value="{{ index .Settings "company_email" }}">
+                </div>
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.company_desc" }}</label>
+                    <textarea name="company_description" rows="2" placeholder="{{ L "tpl.settings.ph_company_desc" }}">{{ index .Settings "company_description" }}</textarea>
+                </div>
+                <p class="text-xs px-1" style="color: var(--md-sys-color-on-surface-variant)">
+                    {{ L "tpl.settings.company_name_moved_hint" }}
+                </p>
+            </div>
+        </div>
+
         <!-- ── 2. Invoice & Tax Settings ──────────────────────────────── -->
         <div class="section-card">
             <h3 class="section-card-title">
@@ -395,42 +420,6 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <div id="panel-zatca" style="display:none">
 
-        <!-- ── Company Info (Global — shared across all branches) ─────── -->
-        <div class="section-card mb-6">
-            <h3 class="section-card-title">
-                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
-                    </path>
-                </svg>
-                {{ L "tpl.settings.section_company" }}
-            </h3>
-            <div class="space-y-3">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                        <label class="form-label">{{ L "tpl.settings.company_name" }}</label>
-                        <input type="text" name="company_name" placeholder="{{ L "tpl.settings.ph_company_name" }}" value="{{ index .Settings "company_name" }}">
-                    </div>
-                    <div>
-                        <label class="form-label">{{ L "tpl.settings.company_email" }}</label>
-                        <input type="email" name="company_email" placeholder="email@company.com" value="{{ index .Settings "company_email" }}">
-                    </div>
-                    <div>
-                        <label class="form-label">{{ L "tpl.settings.company_vat" }}</label>
-                        <input type="text" name="company_vat" placeholder="300000000000003" value="{{ index .Settings "company_vat" }}">
-                    </div>
-                    <div>
-                        <label class="form-label">{{ L "tpl.settings.company_cr" }}</label>
-                        <input type="text" name="company_cr" placeholder="{{ L "tpl.settings.ph_company_cr" }}" value="{{ index .Settings "company_cr" }}">
-                    </div>
-                </div>
-                <div>
-                    <label class="form-label">{{ L "tpl.settings.company_desc" }}</label>
-                    <textarea name="company_description" rows="2" placeholder="{{ L "tpl.settings.ph_company_desc" }}">{{ index .Settings "company_description" }}</textarea>
-                </div>
-            </div>
-        </div>
-
         <!-- ── ZATCA E-Invoicing Settings (Per-Branch) ────────────────── -->
         <div class="section-card">
             <div class="flex items-center justify-between mb-4">
@@ -447,6 +436,47 @@
                     <span id="zatca-status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
                     <span id="zatca-status-text">—</span>
                 </div>
+            </div>
+
+            <!-- ZATCA Monitor / Submissions link -->
+            <div class="mb-4 flex items-center justify-between p-3 rounded-lg" style="background: var(--md-sys-color-surface-container); border: 1px solid var(--md-sys-color-outline-variant)">
+                <div class="text-sm" style="color: var(--md-sys-color-on-surface-variant)">
+                    {{ L "zatca_monitor.recent_submissions" }}
+                </div>
+                <a href="/dashboard/zatca-monitor" id="zatca-monitor-link" class="action-link text-sm font-medium" style="color: var(--md-sys-color-primary)">
+                    {{ L "zatca_monitor.title" }} →
+                </a>
+            </div>
+
+            <!-- ── Company Info (saved separately from per-branch ZATCA config) ── -->
+            <!-- Maps to `company` table: name, name_ar, vat_registration_number, commercial_registration_number, business_category. -->
+            <!-- Arabic legal name is REQUIRED on every ZATCA e-invoice (CompanyNameAR / SellerInfo.NameAR). -->
+            <div class="mb-5 p-4 rounded-lg border" style="border-color: var(--md-sys-color-outline-variant); background: var(--md-sys-color-surface)">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="font-semibold text-sm" style="color: var(--md-sys-color-on-surface)">{{ L "tpl.settings.zatca_company_heading" }}</h4>
+                    <span id="zatca-company-status" class="text-xs hidden" style="color: var(--md-sys-color-on-surface-variant)"></span>
+                </div>
+                <div id="zatca-company-name-ar-warning" class="hidden mb-3 p-3 rounded-lg flex items-start gap-2" style="background: #fef3c7; color: #92400e; border: 1px solid #fcd34d">
+                    <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z"/></svg>
+                    <span class="text-sm">⚠ اسم الشركة بالعربية فارغ — مطلوب لربط ZATCA. الرجاء تعبئته وحفظه قبل بدء الربط.</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="form-label" for="company_name">{{ L "tpl.settings.zatca_company_name" }} <span class="text-red-500">*</span></label>
+                        <input type="text" id="company_name" name="company_name" placeholder="ACME LLC">
+                    </div>
+                    <div>
+                        <label class="form-label" for="company_name_ar">{{ L "tpl.settings.zatca_company_name_ar" }} <span class="text-red-500">*</span></label>
+                        <input type="text" id="company_name_ar" name="company_name_ar" placeholder="{{ L "tpl.settings.ph_org_name_ar" }}" dir="rtl" lang="ar">
+                        <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.help_company_name_ar" }}</p>
+                    </div>
+                </div>
+                <button type="button" id="company-save-btn" onclick="saveCompanyInfo()"
+                        class="px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2"
+                        style="background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+                    {{ L "tpl.settings.zatca_save_company" }}
+                </button>
             </div>
 
             <!-- Branch Selector -->
@@ -471,6 +501,9 @@
                 <div class="w-full h-2 rounded-full mb-4" style="background: var(--md-sys-color-surface-container-highest)">
                     <div id="zatca-progress-bar" class="h-2 rounded-full transition-all duration-500" style="width: 0%; background: var(--md-sys-color-primary)"></div>
                 </div>
+                <!-- Missing-fields hint (shown when progress < 100%) -->
+                <div id="zatca-missing-list" class="hidden text-xs mb-3 p-2 rounded"
+                     style="background: var(--md-sys-color-error-container, #fef2f2); color: var(--md-sys-color-on-error-container, #991b1b)"></div>
                 <!-- 3 Steps -->
                 <div class="grid grid-cols-3 gap-2">
                     <div class="flex items-center gap-2" id="zatca-step1">
@@ -538,13 +571,15 @@
                             </div>
                             <div>
                                 <label class="form-label">{{ L "tpl.settings.zatca_org_unit" }} <span class="text-red-500">*</span></label>
-                                <input type="text" name="zatca_csr_org_unit" id="zatca_csr_org_unit" placeholder="IT">
+                                <input type="text" name="zatca_csr_org_unit" id="zatca_csr_org_unit" placeholder="IT" maxlength="100" autocomplete="off">
                                 <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.help_org_unit" }}</p>
+                                <p id="zatca_csr_org_unit-error" class="text-xs mt-1 hidden" style="color: var(--md-sys-color-error)"></p>
                             </div>
                             <div>
                                 <label class="form-label">{{ L "tpl.settings.zatca_org_name" }} <span class="text-red-500">*</span></label>
-                                <input type="text" name="zatca_csr_org_name" id="zatca_csr_org_name" placeholder="{{ L "tpl.settings.ph_org_name" }}">
+                                <input type="text" name="zatca_csr_org_name" id="zatca_csr_org_name" placeholder="{{ L "tpl.settings.ph_org_name" }}" maxlength="100" autocomplete="off">
                                 <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.help_org_name" }}</p>
+                                <p id="zatca_csr_org_name-error" class="text-xs mt-1 hidden" style="color: var(--md-sys-color-error)"></p>
                             </div>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -557,7 +592,7 @@
                             </div>
                             <div>
                                 <label class="form-label">{{ L "tpl.settings.zatca_location" }} <span class="text-red-500">*</span></label>
-                                <input type="text" name="zatca_csr_location" id="zatca_csr_location" placeholder="{{ L "tpl.settings.ph_location" }}">
+                                <input type="text" name="zatca_csr_location" id="zatca_csr_location" placeholder="RRRD2929" maxlength="8" pattern="^[A-Z]{4}\d{4}$" style="text-transform:uppercase">
                                 <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.help_location" }}</p>
                             </div>
                             <div>
@@ -643,24 +678,39 @@
                     </svg>
                 </button>
                 <div id="zatca-acc-address" class="px-5 py-4" style="background: var(--md-sys-color-surface)">
+                    <!-- Address comes from the linked store (single source of truth).
+                         These inputs are readonly so the user edits the address only
+                         on the store page. The values are still posted to
+                         branch_zatca_config via saveZatcaConfig so the daemon keeps
+                         working unchanged. -->
+                    <div id="zatca-address-no-store" class="hidden p-3 mb-3 rounded" style="background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container)">
+                        <div class="text-sm font-medium">{{ L "tpl.settings.zatca_no_store" }}</div>
+                        <a id="zatca-create-store-link" href="/dashboard/stores/add" class="action-link text-sm" style="color:var(--md-sys-color-primary)">{{ L "tpl.settings.zatca_create_store" }}</a>
+                    </div>
+                    <div id="zatca-address-source" class="hidden p-3 mb-3 rounded text-sm flex items-center justify-between gap-3" style="background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant)">
+                        <span>{{ L "tpl.settings.zatca_address_from_store" }}</span>
+                        <a id="zatca-edit-store-link" href="#" class="action-link" style="color:var(--md-sys-color-primary)">{{ L "tpl.settings.zatca_edit_store" }}</a>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="form-label">{{ L "tpl.settings.zatca_street" }} <span class="text-red-500">*</span></label>
-                            <input type="text" name="zatca_street" id="zatca_street" placeholder="{{ L "tpl.settings.ph_street" }}">
-                            <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.help_street" }}</p>
+                            <input type="text" name="zatca_street" id="zatca_street" placeholder="{{ L "tpl.settings.ph_street" }}" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                         <div>
                             <label class="form-label">{{ L "tpl.settings.zatca_building" }} <span class="text-red-500">*</span></label>
-                            <input type="text" name="zatca_building" id="zatca_building" placeholder="{{ L "tpl.settings.ph_building" }}">
+                            <input type="text" name="zatca_building" id="zatca_building" placeholder="{{ L "tpl.settings.ph_building" }}" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                         <div>
                             <label class="form-label">{{ L "tpl.settings.zatca_district" }} <span class="text-red-500">*</span></label>
-                            <input type="text" name="zatca_district" id="zatca_district" placeholder="{{ L "tpl.settings.ph_district" }}">
+                            <input type="text" name="zatca_district" id="zatca_district" placeholder="{{ L "tpl.settings.ph_district" }}" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                         <div>
-                            <label class="form-label">{{ L "tpl.settings.zatca_postal" }} <span class="text-red-500">*</span></label>
-                            <input type="text" name="zatca_postal_code" id="zatca_postal_code" placeholder="12345" maxlength="5" inputmode="numeric">
-                            <p class="text-xs mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.help_postal" }}</p>
+                            <label class="form-label" for="zatca_postal_code">{{ L "tpl.settings.zatca_postal" }} <span class="text-red-500">*</span></label>
+                            <input type="text" name="zatca_postal_code" id="zatca_postal_code" placeholder="12345" maxlength="5" inputmode="numeric" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
+                        </div>
+                        <div>
+                            <label class="form-label" for="zatca_city">{{ L "tpl.settings.zatca_city" }} <span class="text-red-500">*</span></label>
+                            <input type="text" name="zatca_city" id="zatca_city" placeholder="{{ L "tpl.settings.ph_city" }}" readonly tabindex="-1" style="background:var(--md-sys-color-surface-container)">
                         </div>
                     </div>
                 </div>
@@ -732,13 +782,14 @@
                 </div>
                 <!-- Success state: animated checkmark -->
                 <div id="zatca-otp-success-state" class="hidden text-center py-4">
-                    <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-green-100">
-                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-blue-100">
+                        <svg class="w-8 h-8 text-blue-600 animate-spin" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                         </svg>
                     </div>
-                    <h3 class="text-lg font-bold mb-1" style="color: var(--md-sys-color-on-surface)">{{ L "tpl.settings.zatca_connected_title" }}</h3>
-                    <p class="text-sm" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.zatca_connected_desc" }}</p>
+                    <h3 class="text-lg font-bold mb-1" style="color: var(--md-sys-color-on-surface)">{{ L "tpl.settings.zatca_processing_title" }}</h3>
+                    <p class="text-sm" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.zatca_processing_desc" }}</p>
                     <button type="button" onclick="closeZatcaOtpModal()" class="mt-4 px-6 py-2 rounded-xl text-white font-medium" style="background: var(--md-sys-color-primary)">
                         {{ L "ui.done" }}
                     </button>
@@ -1112,9 +1163,25 @@
 
             // Count filled fields for progress
             var filledCount = 0;
+            var missingFields = [];
             requiredZatcaFields.forEach(function(field) {
                 var el = document.getElementById(field);
-                if (el && el.value.trim().length > 0) filledCount++;
+                var filled = el && el.value.trim().length > 0;
+                if (filled) {
+                    filledCount++;
+                } else {
+                    missingFields.push(field);
+                }
+                // Highlight missing required fields with a red border + label colour.
+                if (el) {
+                    if (filled) {
+                        el.classList.remove('zatca-missing');
+                        el.style.borderColor = '';
+                    } else {
+                        el.classList.add('zatca-missing');
+                        el.style.borderColor = 'var(--md-sys-color-error, #dc2626)';
+                    }
+                }
             });
             var totalFields = requiredZatcaFields.length;
             var pct = Math.round((filledCount / totalFields) * 100);
@@ -1124,6 +1191,33 @@
             var barEl = document.getElementById('zatca-progress-bar');
             if (pctEl) pctEl.textContent = pct + '%';
             if (barEl) barEl.style.width = pct + '%';
+
+            // Surface the list of missing fields under the progress bar so
+            // the user knows exactly which ones are blocking 100%.
+            var missEl = document.getElementById('zatca-missing-list');
+            if (missEl) {
+                if (missingFields.length === 0) {
+                    missEl.classList.add('hidden');
+                    missEl.innerHTML = '';
+                } else {
+                    var labels = missingFields.map(function(id) {
+                        var input = document.getElementById(id);
+                        // Find the closest label[for=id] or preceding .form-label sibling.
+                        var lbl = document.querySelector('label[for="' + id + '"]');
+                        if (!lbl && input) {
+                            var p = input.previousElementSibling;
+                            while (p && !p.classList.contains('form-label')) p = p.previousElementSibling;
+                            lbl = p;
+                        }
+                        return lbl ? lbl.textContent.trim().replace(/\s*\*\s*$/, '') : id;
+                    });
+                    missEl.classList.remove('hidden');
+                    missEl.innerHTML = '<strong>{{ L "tpl.settings.zatca_missing_label" }}</strong> ' +
+                        labels.map(function(t){
+                            return '<span style="display:inline-block;margin:2px 4px;padding:2px 8px;border-radius:9999px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">' + t + '</span>';
+                        }).join('');
+                }
+            }
 
             // Update stepper icons
             updateStepperIcons(filledCount === totalFields, zatcaConfigSaved, status);
@@ -1163,6 +1257,53 @@
             }
         }
 
+        // ── Branch store-address bridge ───────────────────────────
+        // The store row linked to a branch is the SINGLE source of truth
+        // for the branch's national address. We mirror it into the ZATCA
+        // form fields (which are readonly) and persist them back into
+        // branch_zatca_config on save so the daemon keeps working.
+        window.loadBranchStoreCity = function(branchId) {
+            var ids = ['zatca_street','zatca_building','zatca_district','zatca_postal_code','zatca_city'];
+            var noStorePanel = document.getElementById('zatca-address-no-store');
+            var sourcePanel  = document.getElementById('zatca-address-source');
+            var editLink     = document.getElementById('zatca-edit-store-link');
+            var clear = function() { ids.forEach(function(i){ var el=document.getElementById(i); if(el) el.value=''; }); };
+            if (!branchId) { clear(); return Promise.resolve(null); }
+            return fetch('/api/branch/' + branchId + '/store-address', { credentials: 'same-origin' })
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(payload) {
+                    var d = payload && payload.detail;
+                    if (!d || !payload.linked) {
+                        clear();
+                        if (noStorePanel) noStorePanel.classList.remove('hidden');
+                        if (sourcePanel)  sourcePanel.classList.add('hidden');
+                        return null;
+                    }
+                    var setVal = function(id, v) { var el=document.getElementById(id); if(el) el.value = v || ''; };
+                    setVal('zatca_street',      d.street_name);
+                    setVal('zatca_building',    d.building_number);
+                    setVal('zatca_district',    d.district);
+                    setVal('zatca_postal_code', d.postal_code);
+                    setVal('zatca_city',        d.city);
+                    if (noStorePanel) noStorePanel.classList.add('hidden');
+                    if (sourcePanel)  sourcePanel.classList.remove('hidden');
+                    if (editLink && payload.store_id) editLink.setAttribute('href', '/dashboard/stores/' + payload.store_id + '/edit');
+                    return d;
+                })
+                .catch(function() { return null; });
+        };
+
+        window.saveBranchStoreCity = function(branchId, fields) {
+            if (!branchId || !fields || !fields.city) return Promise.resolve(false);
+            return fetch('/api/branch/' + branchId + '/store-address', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfValue },
+                body: JSON.stringify(fields)
+            })
+            .then(function(r) { return r.ok; })
+            .catch(function() { return false; });
+        };
+
         // Save ZATCA config via API
         window.saveZatcaConfig = function() {
             var branchId = document.getElementById('zatca-branch-id').value;
@@ -1170,6 +1311,17 @@
                 if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_select_branch" }}', 'error');
                 return;
             }
+            // Block if no store is linked — address must come from a store.
+            var noStorePanel = document.getElementById('zatca-address-no-store');
+            if (noStorePanel && !noStorePanel.classList.contains('hidden')) {
+                if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_no_store" }}', 'error');
+                return;
+            }
+
+            // NOTE: city + OrgUnit/OrgName regex pre-flight checks live on
+            // the OTP modal (openZatcaOtpModal) where they are actually
+            // required by the daemon. Saving config alone does not require
+            // them — leave them out here so partial drafts can be saved.
 
             var config = {};
             zatcaFieldNames.forEach(function(field) {
@@ -1178,9 +1330,7 @@
             });
 
             // Default country to SA if empty
-            if (!config['csr_country']) config['csr_country'] = 'SA';
-
-            var btn = document.getElementById('zatca-save-btn');
+            if (!config['csr_country']) config['csr_country'] = 'SA';            var btn = document.getElementById('zatca-save-btn');
             var statusEl = document.getElementById('zatca-save-status');
             var origHtml = btn.innerHTML;
             btn.disabled = true;
@@ -1215,6 +1365,19 @@
                     }
                     checkZatcaConnectReady();
                     if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_config_saved" }}', 'success');
+                    // Persist city + co-located address fields to the
+                    // branch's first store. The daemon reads `store.city`
+                    // with NO fallback — branch_zatca_config has no city.
+                    var cityInput = document.getElementById('zatca_city');
+                    var city = cityInput ? (cityInput.value || '').trim() : '';
+                    saveBranchStoreCity(branchId, {
+                        street_name:     config.street     || '',
+                        building_number: config.building   || '',
+                        district:        config.district   || '',
+                        city:            city,
+                        postal_code:     config.postal_code|| '',
+                        country:         config.csr_country|| 'SA'
+                    });
                 } else {
                     zatcaConfigSaved = false;
                     var errMsg = (result.data && (result.data.detail || result.data.error)) || '{{ L "tpl.settings.zatca_save_failed" }}';
@@ -1244,6 +1407,14 @@
 
         window.switchZatcaBranch = function(branchId) {
             document.getElementById('zatca-branch-id').value = branchId;
+            // Update the "create store" deep link so the new store is
+            // pre-linked to this branch (fixes: user adds a store but
+            // ZATCA panel still says "no store" because the new store
+            // had no branch_id set).
+            var createLink = document.getElementById('zatca-create-store-link');
+            if (createLink && branchId) {
+                createLink.setAttribute('href', '/dashboard/stores/add?branch_id=' + encodeURIComponent(branchId));
+            }
             var data = zatcaBranchData[branchId] || {};
             zatcaFieldNames.forEach(function(field) {
                 var el = document.getElementById('zatca_' + field);
@@ -1255,6 +1426,11 @@
                     }
                 }
             });
+            // Load city from the linked store (NOT branch_zatca_config — the
+            // backend's `branch_zatca_config` table has no city column, so
+            // city is persisted directly to `store.city` of the first store
+            // tied to this branch).
+            loadBranchStoreCity(branchId);
             // Reset saved state: config is considered saved if data was loaded from server
             var hasData = Object.keys(data).length > 0;
             zatcaConfigSaved = hasData;
@@ -1292,16 +1468,57 @@
 
         // ── OTP Modal ──
         window.openZatcaOtpModal = function() {
-            // Auto-save config before opening OTP modal
-            if (!zatcaConfigSaved) {
-                saveZatcaConfig();
-            }
-            var modal = document.getElementById('zatca-otp-modal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            document.getElementById('zatca-otp-input').value = '';
-            document.getElementById('zatca-otp-error').classList.add('hidden');
-            setTimeout(function() { document.getElementById('zatca-otp-input').focus(); }, 100);
+            // Pre-flight: company.name_ar is REQUIRED — the zatca_integration
+            // daemon validates Taxpayer.CompanyNameAR (read from company.name_ar
+            // joined via branches.company_id) and rejects empty values with
+            // "Taxpayer.CompanyNameAR is required". Block here to avoid a
+            // silent async failure after the OTP is consumed.
+            loadCompanyInfo().then(function(c) {
+                var nameAr = c && c.name_ar ? String(c.name_ar).trim() : '';
+                if (!nameAr) {
+                    if (typeof showToast === 'function') {
+                        showToast('{{ L "tpl.settings.zatca_company_name_ar_required" }}', 'error');
+                    }
+                    var w = document.getElementById('zatca-company-name-ar-warning');
+                    if (w) {
+                        w.classList.remove('hidden');
+                        w.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    var naInput = document.getElementById('company_name_ar');
+                    if (naInput) {
+                        naInput.focus();
+                        naInput.style.outline = '2px solid var(--md-sys-color-error)';
+                        setTimeout(function() { naInput.style.outline = ''; }, 3000);
+                    }
+                    return;
+                }
+                // City is also required and lives in the linked store, not
+                // branch_zatca_config — block here too rather than after OTP.
+                var cityInput = document.getElementById('zatca_city');
+                var city = cityInput ? (cityInput.value || '').trim() : '';
+                if (!city) {
+                    if (typeof showToast === 'function') {
+                        showToast('{{ L "tpl.settings.zatca_city_required" }}', 'error');
+                    }
+                    if (cityInput) {
+                        cityInput.focus();
+                        cityInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        cityInput.style.outline = '2px solid var(--md-sys-color-error)';
+                        setTimeout(function() { cityInput.style.outline = ''; }, 3000);
+                    }
+                    return;
+                }
+                // Auto-save config before opening OTP modal
+                if (!zatcaConfigSaved) {
+                    saveZatcaConfig();
+                }
+                var modal = document.getElementById('zatca-otp-modal');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                document.getElementById('zatca-otp-input').value = '';
+                document.getElementById('zatca-otp-error').classList.add('hidden');
+                setTimeout(function() { document.getElementById('zatca-otp-input').focus(); }, 100);
+            });
         };
 
         window.closeZatcaOtpModal = function() {
@@ -1345,14 +1562,18 @@
                 btn.disabled = false;
                 btn.innerHTML = origHtml;
                 if (result.status === 200) {
-                    // Show success state in modal
+                    // Backend has accepted the OTP and queued onboarding for
+                    // async processing. The DB row's zatca_status will only
+                    // flip to 1 (active) once the worker finishes generating
+                    // the CSR, calling ZATCA compliance + production APIs and
+                    // submitting the test invoices. Show "in progress" and
+                    // poll the GET endpoint until terminal state is reached.
                     document.getElementById('zatca-otp-form-state').classList.add('hidden');
                     document.getElementById('zatca-otp-success-state').classList.remove('hidden');
-                    zatcaStatusByBranch[branchId] = result.data.zatca_status || 1;
-                    updateZatcaStatusBadge(result.data.zatca_status || 1);
                     if (typeof showToast === 'function') {
-                        showToast(result.data.detail || 'تم الربط بنجاح', 'success');
+                        showToast(result.data.detail || '{{ L "tpl.settings.zatca_processing_desc" }}', 'info');
                     }
+                    pollZatcaOnboardStatus(branchId);
                 } else {
                     var errMsg = (result.data && (result.data.detail || result.data.error)) || 'فشل الربط';
                     errEl.textContent = errMsg;
@@ -1368,6 +1589,41 @@
             });
         };
 
+        // Poll backend GET /api/zatca/branch/:id every 3s for up to 2 minutes
+        // looking for a terminal onboard_state (done|failed) or zatca_status
+        // change away from 3 (not_active). Stops on first terminal signal.
+        function pollZatcaOnboardStatus(branchId) {
+            var attempts = 0;
+            var maxAttempts = 40; // 40 * 3s = 120s
+            var iv = setInterval(function() {
+                attempts++;
+                fetch('/api/zatca/branch/' + branchId, { credentials: 'same-origin' })
+                    .then(function(r) { return r.ok ? r.json() : null; })
+                    .then(function(payload) {
+                        if (!payload || !payload.detail) return;
+                        var s = payload.detail;
+                        var status = s.zatca_status;
+                        var state = s.onboard_state || '';
+                        zatcaStatusByBranch[branchId] = status;
+                        updateZatcaStatusBadge(status);
+                        if (state === 'failed' || (status && status !== 3)) {
+                            clearInterval(iv);
+                            if (state === 'failed') {
+                                if (typeof showToast === 'function') {
+                                    showToast(s.last_error || '{{ L "tpl.settings.zatca_step_failed" }}', 'error');
+                                }
+                            } else if (status === 1) {
+                                if (typeof showToast === 'function') {
+                                    showToast('{{ L "tpl.settings.zatca_connected_desc" }}', 'success');
+                                }
+                            }
+                        }
+                        if (attempts >= maxAttempts) clearInterval(iv);
+                    })
+                    .catch(function() {});
+            }, 3000);
+        }
+
         // Close modal on Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') closeZatcaOtpModal();
@@ -1378,6 +1634,102 @@
         if (branchSelect && branchSelect.options.length > 0) {
             switchZatcaBranch(branchSelect.value);
         }
+
+        // ── Company info (company.name + company.name_ar) ──────────
+        // The Arabic legal name is REQUIRED on every ZATCA e-invoice.
+        function updateCompanyNameArWarning(value) {
+            var w = document.getElementById('zatca-company-name-ar-warning');
+            if (!w) return;
+            if (!value || !String(value).trim()) {
+                w.classList.remove('hidden');
+            } else {
+                w.classList.add('hidden');
+            }
+        }
+        function loadCompanyInfo() {
+            return fetch('/api/company', { credentials: 'same-origin' })
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(payload) {
+                    if (!payload || !payload.detail) { updateCompanyNameArWarning(''); return null; }
+                    var c = payload.detail;
+                    var n = document.getElementById('company_name');
+                    var na = document.getElementById('company_name_ar');
+                    if (n) n.value = c.name || '';
+                    if (na) na.value = c.name_ar || '';
+                    updateCompanyNameArWarning(c.name_ar);
+                    return c;
+                })
+                .catch(function() { updateCompanyNameArWarning(''); return null; });
+        }
+        loadCompanyInfo();
+
+        window.saveCompanyInfo = function() {
+            var nameInput = document.getElementById('company_name');
+            var nameArInput = document.getElementById('company_name_ar');
+            var name = (nameInput.value || '').trim();
+            var nameAr = (nameArInput.value || '').trim();
+            var statusEl = document.getElementById('zatca-company-status');
+
+            // Both fields are required: backend's UPDATE overwrites both
+            // columns unconditionally, so sending an empty value would blank
+            // the existing DB row. ZATCA also needs both names on invoices.
+            var missing = [];
+            if (!name) missing.push('{{ L "tpl.settings.zatca_company_name" }}');
+            if (!nameAr) missing.push('{{ L "tpl.settings.zatca_company_name_ar" }}');
+            if (missing.length > 0) {
+                var msg = (missing.length === 1)
+                    ? (missing[0] + ' — ' + '{{ L "tpl.settings.field_required" }}')
+                    : '{{ L "tpl.settings.zatca_company_both_required" }}';
+                if (statusEl) {
+                    statusEl.textContent = msg;
+                    statusEl.classList.remove('hidden');
+                    statusEl.style.color = 'var(--md-sys-color-error)';
+                }
+                if (typeof showToast === 'function') showToast(msg, 'error');
+                if (!name) { nameInput.focus(); }
+                else if (!nameAr) { nameArInput.focus(); }
+                return;
+            }
+
+            var btn = document.getElementById('company-save-btn');
+            if (btn) btn.disabled = true;
+            fetch('/api/company', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfValue },
+                body: JSON.stringify({ name: name, name_ar: nameAr })
+            })
+            .then(function(r) { return r.json().then(function(d) { return { status: r.status, data: d }; }); })
+            .then(function(res) {
+                if (btn) btn.disabled = false;
+                if (res.status >= 200 && res.status < 300) {
+                    if (statusEl) {
+                        statusEl.textContent = '{{ L "tpl.settings.saved" }} ✓';
+                        statusEl.classList.remove('hidden');
+                        statusEl.style.color = 'var(--md-sys-color-primary)';
+                    }
+                    if (typeof showToast === 'function') {
+                        showToast('{{ L "tpl.settings.saved" }}', 'success');
+                    }
+                    // Re-fetch to confirm what's actually persisted in DB
+                    // and refresh the warning banner accordingly.
+                    loadCompanyInfo();
+                } else {
+                    var msg = (res.data && (res.data.detail || res.data.error)) || '{{ L "tpl.settings.save_failed" }}';
+                    if (statusEl) {
+                        statusEl.textContent = msg;
+                        statusEl.classList.remove('hidden');
+                        statusEl.style.color = 'var(--md-sys-color-error)';
+                    }
+                    if (typeof showToast === 'function') showToast(msg, 'error');
+                }
+            })
+            .catch(function() {
+                if (btn) btn.disabled = false;
+                if (typeof showToast === 'function') {
+                    showToast('{{ L "tpl.settings.save_failed" }}', 'error');
+                }
+            });
+        };
 
         // ── Data Import Logic ──────────────────────────────────────
         var _importData = { headers: [], samples: [], rows: [], total: 0 };

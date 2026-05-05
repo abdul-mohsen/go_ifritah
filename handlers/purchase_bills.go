@@ -111,9 +111,10 @@ func HandleAddPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	suppliers, _ := helpers.FetchSuppliers(token)
 
 	helpers.Render(w, r, "add-purchase-bill", map[string]interface{}{
-		"title":     "إضافة فاتورة مشتريات",
-		"stores":    stores,
-		"suppliers": suppliers,
+		"title":           "إضافة فاتورة مشتريات",
+		"stores":          stores,
+		"suppliers":       suppliers,
+		"pb_pdf_required": GetSettingValue("pb_pdf_required"),
 	})
 }
 
@@ -431,30 +432,56 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	billProducts := helpers.ParseBillItemsPublic(bill["products"])
 	billManual := helpers.ParseBillItemsPublic(bill["manual_products"])
 
-	// Resolve float64 IDs from JSON to int for template comparison
+	// Resolve float64 IDs from JSON to int for template comparison.
+	// supplier_id is the actual supplier reference; merchant_id is the
+	// company/tenant. The detail page already distinguishes them — the
+	// edit form must use supplier_id, otherwise the supplier dropdown
+	// renders blank and the user has to re-select on every edit.
 	billStoreID := int(helpers.SafeFloat(bill["store_id"]))
-	billSupplierID := int(helpers.SafeFloat(bill["merchant_id"]))
-
-	// Format effective_date for the date input
-	editDate := ""
-	if ed, ok := bill["effective_date"].(map[string]interface{}); ok {
-		if t, ok := ed["Time"].(string); ok && len(t) >= 10 {
-			editDate = t[:10]
-		}
+	billSupplierID := int(helpers.SafeFloat(bill["supplier_id"]))
+	if billSupplierID == 0 {
+		billSupplierID = int(helpers.SafeFloat(bill["merchant_id"]))
 	}
 
+	// Format effective_date for the date input. The backend may return it
+	// as a {Time, Valid} wrapper, a plain string, or omit it entirely.
+	editDate := extractDateField(bill["effective_date"])
+	if editDate == "" {
+		editDate = extractDateField(bill["payment_date"])
+	}
+
+	// Extract additional fields the edit template references but the
+	// previous handler did not pass. Without these the inputs render as
+	// empty strings and silently overwrite real values on save.
+	paymentDueDate := extractDateField(bill["payment_due_date"])
+	deliverDate := extractDateField(bill["deliver_date"])
+	supplierSeqNum := firstNonEmptyString(bill, "supplier_sequance_number", "supplier_sequence_number")
+	billPaymentMethod := ""
+	if v, ok := helpers.CoerceFloat(bill["payment_method"]); ok && v > 0 {
+		billPaymentMethod = fmt.Sprintf("%d", int(v))
+	}
+	discount, _ := helpers.CoerceFloat(bill["discount"])
+	subtotal := firstFloat(bill, "total_amount", "total")
+
 	helpers.Render(w, r, "edit-purchase-bill", map[string]interface{}{
-		"title":          "تعديل فاتورة المشتريات",
-		"bill":           bill,
-		"bill_id":        id,
-		"stores":         stores,
-		"suppliers":      suppliers,
-		"all_products":   products,
-		"store_id":       billStoreID,
-		"supplier_id":    billSupplierID,
-		"edit_date":      editDate,
-		"bill_products":  billProducts,
-		"bill_manual":    billManual,
+		"title":                    "تعديل فاتورة المشتريات",
+		"bill":                     bill,
+		"bill_id":                  id,
+		"stores":                   stores,
+		"suppliers":                suppliers,
+		"all_products":             products,
+		"store_id":                 billStoreID,
+		"supplier_id":              billSupplierID,
+		"edit_date":                editDate,
+		"payment_due_date":         paymentDueDate,
+		"deliver_date":             deliverDate,
+		"supplier_sequence_number": supplierSeqNum,
+		"bill_payment_method":      billPaymentMethod,
+		"discount":                 discount,
+		"subtotal":                 subtotal,
+		"bill_products":            billProducts,
+		"bill_manual":              billManual,
+		"pb_pdf_required":          GetSettingValue("pb_pdf_required"),
 	})
 }
 
@@ -513,4 +540,42 @@ func HandleDeletePurchaseBill(w http.ResponseWriter, r *http.Request) {
 
 	helpers.APICache.Delete("purchase_bills")
 	helpers.WriteSuccessRedirect(w, "/dashboard/purchase-bills", "تم حذف فاتورة الشراء بنجاح")
+}
+
+// extractDateField pulls a YYYY-MM-DD string out of a backend date field
+// that may be either a {Time, Valid} object, a plain ISO string, or absent.
+func extractDateField(raw interface{}) string {
+if m, ok := raw.(map[string]interface{}); ok {
+if t, ok := m["Time"].(string); ok && len(t) >= 10 {
+return t[:10]
+}
+return ""
+}
+if s, ok := raw.(string); ok && len(s) >= 10 {
+return s[:10]
+}
+return ""
+}
+
+// firstNonEmptyString returns the first string-valued key from m whose
+// value is non-empty. Used when the backend exposes the same field under
+// multiple historical names (e.g. supplier_sequance_number vs *_sequence_*).
+func firstNonEmptyString(m map[string]interface{}, keys ...string) string {
+for _, k := range keys {
+if v, ok := m[k].(string); ok && v != "" {
+return v
+}
+}
+return ""
+}
+
+// firstFloat returns the first numeric-valued key from m. CoerceFloat
+// accepts both float64 and numeric strings.
+func firstFloat(m map[string]interface{}, keys ...string) float64 {
+for _, k := range keys {
+if v, ok := helpers.CoerceFloat(m[k]); ok {
+return v
+}
+}
+return 0
 }

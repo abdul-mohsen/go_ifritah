@@ -79,7 +79,7 @@
                             {{ if eq .state 0 }}
                             <a href="/dashboard/invoices/edit/{{ .id }}" class="action-link action-edit">{{ L "tpl.edit" }}</a>
                             {{ end }}
-                            {{ if and (eq .state 1) (eq .credit_state 0) }}
+                            {{ if and (or (eq .state 1) (eq .state 3)) (eq .credit_state 0) }}
                             <a href="/dashboard/invoices/credit/{{ .id }}" class="action-link action-credit">{{ L "tpl.invoice.credit_note" }}</a>
                             {{ end }}
                             {{ if eq .state 0 }}

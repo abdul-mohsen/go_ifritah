@@ -9,7 +9,7 @@
             </svg>
             {{ L "tpl.product.back_to_list" }}
         </a>
-        <h2 class="page-title" style="margin-bottom:0">{{ L "tpl.product.detail_heading" }} #{{ .product.ID }}</h2>
+        <h2 class="page-title" style="margin-bottom:0">{{ L "tpl.product.detail_heading" }} #{{ if .product.PartID }}{{ .product.PartID }}{{ else }}{{ .product.ID }}{{ end }}</h2>
     </div>
 
     <div class="grid-2" style="gap: 1.5rem">

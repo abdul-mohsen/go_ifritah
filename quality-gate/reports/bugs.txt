@@ -1,0 +1,265 @@
+
+================ PA11Y ================
+
+[73] WARNING | WCAG2AA.Principle1.Guideline1_3.1_3_1.H48
+    sample: If this element contains a navigation section, it is recommended that it be marked up as a list.
+    selector: #sidebar-nav > div:nth-child(2) > div
+    pages: add-product(4), branches(6), cashvouchers(4), clients(6), dashboard(7), invoices(7), notifications(4), orders(4), products(5), purchasebills(10), settings(5), stores(4), suppliers(7)
+
+[43] ERROR | WCAG2AA.Principle1.Guideline1_3.1_3_1.F68
+    sample: This form field should be labelled in some way. Use the label element (either with a "for" attribute or wrapped around the form field), or "
+    selector: html > body > div:nth-child(3) > main > div > div > div:nth-child(1) > form > select
+    pages: branches(1), cashvouchers(2), clients(1), dashboard(2), invoices(2), orders(1), products(2), purchasebills(2), settings(28), stores(1), suppliers(1)
+
+[28] ERROR | WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.Select.Name
+    sample: This select element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labell
+    selector: html > body > div:nth-child(3) > main > div > div > div:nth-child(1) > form > select
+    pages: branches(1), cashvouchers(2), clients(1), dashboard(2), invoices(2), orders(1), products(2), purchasebills(2), settings(13), stores(1), suppliers(1)
+
+[28] WARNING | WCAG2AA.Principle1.Guideline1_3.1_3_1.H85.2
+    sample: If this selection list contains groups of related options, they should be grouped with optgroup.
+    selector: html > body > div:nth-child(3) > main > div > div > div:nth-child(1) > form > select
+    pages: branches(1), cashvouchers(2), clients(1), dashboard(2), invoices(2), orders(1), products(2), purchasebills(2), settings(13), stores(1), suppliers(1)
+
+[23] ERROR | select-name
+    sample: Select element must have an accessible name (https://dequeuniversity.com/rules/axe/4.11/select-name?application=axeAPI)
+    selector: html > body > div:nth-child(3) > main > div > div > div:nth-child(1) > form > select
+    pages: branches(1), cashvouchers(2), clients(1), dashboard(2), invoices(2), orders(1), products(2), purchasebills(2), settings(8), stores(1), suppliers(1)
+
+[19] WARNING | WCAG2AA.Principle2.Guideline2_1.2_1_1.G90
+    sample: Ensure the functionality provided by an event handler for this element is available through the keyboard
+    selector: #sidebar-overlay
+    pages: add-product(1), branches(1), cashvouchers(1), clients(1), dashboard(1), invoices(1), notifications(7), orders(1), products(1), purchasebills(1), settings(1), stores(1), suppliers(1)
+
+[16] WARNING | WCAG2AA.Principle1.Guideline1_3.1_3_1.H39.3.NoCaption
+    sample: If this table is a data table, consider using a caption element to the table element to identify this table.
+    selector: #list-fragment > div:nth-child(1) > table
+    pages: branches(1), cashvouchers(1), clients(1), dashboard(6), invoices(1), orders(1), products(1), purchasebills(1), settings(1), stores(1), suppliers(1)
+
+[12] WARNING | region
+    sample: All page content should be contained by landmarks (https://dequeuniversity.com/rules/axe/4.11/region?application=axeAPI)
+    selector: html > body > div > div:nth-child(1)
+    pages: forgot(3), register(9)
+
+[11] ERROR | WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputText.Name
+    sample: This textinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-lab
+    selector: #panel-general > div > div:nth-child(2) > div > div:nth-child(1) > div:nth-child(3) > input
+    pages: settings(11)
+
+[10] WARNING | WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.Select.Value
+    sample: This select element does not have a value available to an accessibility API.
+    selector: html > body > div:nth-child(3) > main > div > div > div:nth-child(1) > form > select:nth-child(2)
+    pages: cashvouchers(1), dashboard(1), invoices(1), products(1), purchasebills(1), settings(5)
+
+[9] ERROR | WCAG2AA.Principle3.Guideline3_2.3_2_2.H32.2
+    sample: This form does not contain a submit button, which creates issues for those who cannot submit the form using the keyboard. Submit buttons are
+    selector: html > body > div:nth-child(3) > main > div > div > div:nth-child(1) > form
+    pages: branches(1), cashvouchers(1), clients(1), invoices(1), orders(1), products(1), purchasebills(1), stores(1), suppliers(1)
+
+[8] ERROR | label
+    sample: Form elements must have labels (https://dequeuniversity.com/rules/axe/4.11/label?application=axeAPI)
+    selector: #startDate
+    pages: dashboard(2), settings(6)
+
+[6] ERROR | WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputNumber.Name
+    sample: This numberinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-l
+    selector: #panel-general > div > div:nth-child(2) > div > div:nth-child(1) > div:nth-child(1) > input
+    pages: settings(6)
+
+[3] ERROR | WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.Textarea.Name
+    sample: This textarea element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labe
+    selector: #panel-general > div > div:nth-child(1) > div > div:nth-child(2) > textarea
+    pages: settings(3)
+
+[2] ERROR | WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputDate.Name
+    sample: This dateinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-lab
+    selector: #startDate
+    pages: dashboard(2)
+
+[2] ERROR | WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputEmail.Name
+    sample: This emailinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-la
+    selector: #forgot-email
+    pages: forgot(1), settings(1)
+
+[2] WARNING | landmark-one-main
+    sample: Document should have one main landmark (https://dequeuniversity.com/rules/axe/4.11/landmark-one-main?application=axeAPI)
+    selector: html
+    pages: forgot(1), register(1)
+
+[1] WARNING | landmark-unique
+    sample: Landmarks should have a unique role or role/label/title (i.e. accessible name) combination (https://dequeuniversity.com/rules/axe/4.11/landm
+    selector: #sidebar-nav
+    pages: add-product(1)
+
+[1] WARNING | WCAG2AA.Principle1.Guideline1_3.1_3_1_A.G141
+    sample: The heading structure is not logically nested. This h3 element should be an h2 to be properly nested.
+    selector: #step-success > div > h3
+    pages: forgot(1)
+
+[1] WARNING | WCAG2AA.Principle1.Guideline1_3.1_3_5.H98
+    sample: This element contains a potentially faulty value in its autocomplete attribute: one-time-code.
+    selector: #zatca-otp-input
+    pages: settings(1)
+
+[1] ERROR | WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputFile.Name
+    sample: This fileinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-lab
+    selector: #import-file
+    pages: settings(1)
+
+
+================ HTML-VALIDATE ================
+
+[70] ERROR | no-implicit-button-type
+    sample: <button> is missing recommended "type" attribute
+    selector: #sidebar > div:nth-child(1) > button
+    pages: add-product(5), branches(6), cashvouchers(4), clients(5), dashboard(7), forgot(1), invoices(6), notifications(5), orders(4), products(4), purchasebills(9), settings(4), stores(4), suppliers(6)
+
+[26] ERROR | text-content
+    sample: <button> must have accessible text
+    selector: #sidebar > div:nth-child(1) > button
+    pages: add-product(2), branches(2), cashvouchers(2), clients(2), dashboard(2), invoices(2), notifications(2), orders(2), products(2), purchasebills(2), settings(2), stores(2), suppliers(2)
+
+[22] ERROR | wcag/h63
+    sample: <th> element must have a valid scope attribute: row, col, rowgroup or colgroup
+    selector: #list-fragment > div:nth-child(1) > table > thead > tr > th:nth-child(1)
+    pages: cashvouchers(8), orders(5), products(6), stores(3)
+
+[13] ERROR | wcag/h30
+    sample: Anchor link must have a text describing its purpose
+    selector: html > body > div:nth-child(3) > main > header > a
+    pages: add-product(1), branches(1), cashvouchers(1), clients(1), dashboard(1), invoices(1), notifications(1), orders(1), products(1), purchasebills(1), settings(1), stores(1), suppliers(1)
+
+[13] ERROR | element-permitted-content
+    sample: <div> element is not permitted as content under <summary>
+    selector: html > body > div:nth-child(3) > main > div > div > details:nth-child(17) > summary > div
+    pages: dashboard(5), settings(8)
+
+[2] ERROR | unique-landmark
+    sample: Landmarks must have a non-empty and unique accessible name (aria-label or aria-labelledby)
+    selector: #sidebar-nav
+    pages: add-product(2)
+
+[2] ERROR | no-redundant-role
+    sample: Redundant role "main" on <main>
+    selector: html > body > main
+    pages: home(1), login(1)
+
+
+================ LIGHTHOUSE ================
+
+[18] first-contentful-paint  (performance)
+    title : First Contentful Paint
+    metric: 3.0┬ás
+    pages: add-product=3.0┬ás, bill-print=1.5┬ás, branches=2.7┬ás, cashvouchers=1.5┬ás, clients=2.6┬ás, dashboard=2.8┬ás, forgot=1.5┬ás, home=1.2┬ás, invoices=2.6┬ás, login=1.2┬ás ...+8 more
+
+[18] unsized-images  (performance)
+    title : Image elements do not have explicit `width` and `height`
+    pages: add-product=0.5, bill-print=0.5, branches=0.5, cashvouchers=0.5, clients=0.5, dashboard=0.5, forgot=0.5, home=0.5, invoices=0.5, login=0.5 ...+8 more
+
+[18] unminified-css  (performance)
+    title : Minify CSS
+    metric: Est savings of 5┬áKiB
+    pages: add-product=Est savings of 5┬áKiB, bill-print=Est savings of 5┬áKiB, branches=Est savings of 5┬áKiB, cashvouchers=Est savings of 5┬áKiB, clients=Est savings of 5┬áKiB, dashboard=Est savings of 5┬áKiB, forgot=Est savings of 5┬áKiB, home=Est savings of 5┬áKiB, invoices=Est savings of 5┬áKiB, login=Est savings of 5┬áKiB ...+8 more
+
+[18] meta-description  (seo)
+    title : Document does not have a meta description
+    pages: add-product=0, bill-print=0, branches=0, cashvouchers=0, clients=0, dashboard=0, forgot=0, home=0, invoices=0, login=0 ...+8 more
+
+[18] cache-insight  (performance)
+    title : Use efficient cache lifetimes
+    metric: Est savings of 5┬áKiB
+    pages: add-product=Est savings of 5┬áKiB, bill-print=Est savings of 6┬áKiB, branches=Est savings of 5┬áKiB, cashvouchers=Est savings of 5┬áKiB, clients=Est savings of 5┬áKiB, dashboard=Est savings of 5┬áKiB, forgot=Est savings of 4┬áKiB, home=Est savings of 6┬áKiB, invoices=Est savings of 5┬áKiB, login=Est savings of 6┬áKiB ...+8 more
+
+[18] network-dependency-tree-insight  (performance)
+    title : Network dependency tree
+    pages: add-product=0, bill-print=0, branches=0, cashvouchers=0, clients=0, dashboard=0, forgot=0, home=0, invoices=0, login=0 ...+8 more
+
+[18] render-blocking-insight  (performance)
+    title : Render-blocking requests
+    metric: Est savings of 850┬áms
+    pages: add-product=Est savings of 850┬áms, bill-print=Est savings of 540┬áms, branches=Est savings of 2,040┬áms, cashvouchers=Est savings of 860┬áms, clients=Est savings of 2,030┬áms, dashboard=Est savings of 2,030┬áms, forgot=Est savings of 800┬áms, home=Est savings of 610┬áms, invoices=Est savings of 2,030┬áms, login=Est savings of 530┬áms ...+8 more
+
+[17] unused-css-rules  (performance)
+    title : Reduce unused CSS
+    metric: Est savings of 16┬áKiB
+    pages: bill-print=Est savings of 16┬áKiB, branches=Est savings of 13┬áKiB, cashvouchers=Est savings of 14┬áKiB, clients=Est savings of 13┬áKiB, dashboard=Est savings of 14┬áKiB, forgot=Est savings of 16┬áKiB, home=Est savings of 16┬áKiB, invoices=Est savings of 13┬áKiB, login=Est savings of 16┬áKiB, notifications=Est savings of 15┬áKiB ...+7 more
+
+[16] unminified-javascript  (performance)
+    title : Minify JavaScript
+    metric: Est savings of 4┬áKiB
+    pages: add-product=Est savings of 4┬áKiB, bill-print=Est savings of 4┬áKiB, branches=Est savings of 4┬áKiB, cashvouchers=Est savings of 4┬áKiB, clients=Est savings of 4┬áKiB, dashboard=Est savings of 4┬áKiB, home=Est savings of 4┬áKiB, invoices=Est savings of 4┬áKiB, login=Est savings of 4┬áKiB, notifications=Est savings of 4┬áKiB ...+6 more
+
+[15] largest-contentful-paint  (performance)
+    title : Largest Contentful Paint
+    metric: 3.0┬ás
+    pages: add-product=3.0┬ás, bill-print=1.7┬ás, branches=2.8┬ás, cashvouchers=1.6┬ás, clients=2.8┬ás, dashboard=3.3┬ás, invoices=2.8┬ás, notifications=1.6┬ás, orders=1.6┬ás, products=2.8┬ás ...+5 more
+
+[12] forced-reflow-insight  (performance)
+    title : Forced reflow
+    pages: add-product=0, branches=0, cashvouchers=0, clients=0, dashboard=0, invoices=0, notifications=0, orders=0, products=0, purchasebills=0 ...+2 more
+
+[11] select-name  (accessibility)
+    title : Select elements do not have associated label elements.
+    pages: branches=0, cashvouchers=0, clients=0, dashboard=0, invoices=0, orders=0, products=0, purchasebills=0, settings=0, stores=0 ...+1 more
+
+[10] speed-index  (performance)
+    title : Speed Index
+    metric: 3.0┬ás
+    pages: add-product=3.0┬ás, branches=2.8┬ás, clients=2.8┬ás, dashboard=3.1┬ás, invoices=2.8┬ás, products=2.8┬ás, purchasebills=2.8┬ás, register=3.2┬ás, settings=3.0┬ás, suppliers=2.8┬ás
+
+[10] interactive  (performance)
+    title : Time to Interactive
+    metric: 3.0┬ás
+    pages: add-product=3.0┬ás, branches=2.8┬ás, clients=2.8┬ás, dashboard=3.4┬ás, invoices=2.8┬ás, products=2.8┬ás, purchasebills=2.6┬ás, register=3.1┬ás, settings=2.9┬ás, suppliers=2.8┬ás
+
+[5] total-blocking-time  (performance)
+    title : Total Blocking Time
+    metric: 100┬áms
+    pages: cashvouchers=100┬áms, dashboard=290┬áms, notifications=80┬áms, orders=110┬áms, stores=70┬áms
+
+[5] max-potential-fid  (performance)
+    title : Max Potential First Input Delay
+    metric: 140┬áms
+    pages: cashvouchers=140┬áms, dashboard=320┬áms, notifications=130┬áms, orders=160┬áms, stores=140┬áms
+
+[4] is-crawlable  (seo)
+    title : Page is blocked from indexing
+    pages: add-product=0, bill-print=0, home=0, login=0
+
+[3] errors-in-console  (best-practices)
+    title : Browser errors were logged to the console
+    pages: add-product=0, home=0, settings=0
+
+[3] lcp-discovery-insight  (performance)
+    title : LCP request discovery
+    pages: bill-print=0, home=0, login=0
+
+[2] redirects  (performance)
+    title : Avoid multiple page redirects
+    metric: Est savings of 1,800┬áms
+    pages: add-product=Est savings of 1,800┬áms, bill-print=Est savings of 760┬áms
+
+[2] label  (accessibility)
+    title : Form elements do not have associated labels
+    pages: dashboard=0, settings=0
+
+[2] landmark-one-main  (accessibility)
+    title : Document does not have a main landmark.
+    pages: forgot=0, register=0
+
+[1] document-latency-insight  (performance)
+    title : Document request latency
+    metric: Est savings of 10┬áms
+    pages: bill-print=Est savings of 10┬áms
+
+[1] unused-javascript  (performance)
+    title : Reduce unused JavaScript
+    metric: Est savings of 26┬áKiB
+    pages: dashboard=Est savings of 26┬áKiB
+
+[1] color-contrast  (accessibility)
+    title : Background and foreground colors do not have a sufficient contrast ratio.
+    pages: settings=0
+
+
+=== end report ===

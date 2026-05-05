@@ -47,7 +47,7 @@
             {{ end }}
             {{ range .products }}
             <tr>
-                <td>{{ .ID }}</td>
+                <td>{{ if .PartID }}{{ .PartID }}{{ else }}{{ .ID }}{{ end }}</td>
                 <td class="font-medium">{{ .PartName }}</td>
                 <td>{{ .Price }}</td>
                 <td>{{ .Quantity }}</td>

@@ -948,7 +948,7 @@ func HandleDashboardExportPDF(w http.ResponseWriter, r *http.Request) {
 	go func() { defer wg.Done(); orders, orderErr = helpers.FetchOrders(token) }()
 	go func() {
 		defer wg.Done()
-		purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "", "", "", "")
+		purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "", "")
 	}()
 	wg.Wait()
 

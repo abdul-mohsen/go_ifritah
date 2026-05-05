@@ -1,0 +1,104 @@
+﻿2026-05-05T12:06:34.5951808Z ##[group]Run set +e
+2026-05-05T12:06:34.5952087Z [36;1mset +e[0m
+2026-05-05T12:06:34.5952311Z [36;1mif [ -n "$GREP_FILTER" ]; then[0m
+2026-05-05T12:06:34.5952732Z [36;1m  npx playwright test --project=serial --workers=1 --grep "$GREP_FILTER"[0m
+2026-05-05T12:06:34.5953102Z [36;1melse[0m
+2026-05-05T12:06:34.5953599Z [36;1m  npx playwright test --project=serial --workers=1[0m
+2026-05-05T12:06:34.5953901Z [36;1mfi[0m
+2026-05-05T12:06:34.5954124Z [36;1mecho "exit_code=$?" >> "$GITHUB_OUTPUT"[0m
+2026-05-05T12:06:34.5977434Z shell: /usr/bin/bash -e {0}
+2026-05-05T12:06:34.5977688Z env:
+2026-05-05T12:06:34.5978070Z   PORT: 8001
+2026-05-05T12:06:34.5978338Z   BACKEND_URL: https://dev.ifritah.com
+2026-05-05T12:06:34.5978625Z   APP_DOMAIN: localhost:8001
+2026-05-05T12:06:34.5978871Z   PW_BASE_URL: http://localhost:8001
+2026-05-05T12:06:34.5979126Z   PW_USER: admin
+2026-05-05T12:06:34.5979325Z   PW_PASS: admin
+2026-05-05T12:06:34.5979641Z   AFRITA_TOKEN_DIR: /home/runner/work/go_ifritah/go_ifritah/.afrita-tokens
+2026-05-05T12:06:34.5980062Z   GODEBUG: jstmpllitinterp=1
+2026-05-05T12:06:34.5980293Z   GREP_FILTER: 
+2026-05-05T12:06:34.5980529Z   PW_RESULTS_FILE: playwright-results-serial.json
+2026-05-05T12:06:34.5980805Z   PW_WORKERS: 1
+2026-05-05T12:06:34.5980990Z ##[endgroup]
+2026-05-05T12:06:37.2355435Z [global-setup] storage state saved -> /home/runner/work/go_ifritah/go_ifritah/e2e/.auth/storageState.json
+2026-05-05T12:06:37.4815727Z 
+2026-05-05T12:06:37.4816532Z Running 74 tests using 1 worker
+2026-05-05T12:06:37.4816898Z 
+2026-05-05T12:06:46.9027666Z   ✓   1 [serial] › tests/qa-01-stock-enforcement.spec.js:32:1 › settings page exposes stock_enforcement field (8.5s)
+2026-05-05T12:07:12.5130480Z   ✓   2 [serial] › tests/qa-01-stock-enforcement.spec.js:41:1 › mode=disable can be saved (25.6s)
+2026-05-05T12:07:31.8912501Z   ✓   3 [serial] › tests/qa-01-stock-enforcement.spec.js:48:1 › mode=warn can be saved (19.4s)
+2026-05-05T12:07:57.3735399Z   ✓   4 [serial] › tests/qa-01-stock-enforcement.spec.js:55:1 › mode=enforce can be saved (25.5s)
+2026-05-05T12:07:58.8810427Z   ✓   5 [serial] › tests/qa-01-stock-enforcement.spec.js:62:1 › stock check API responds under each mode (1.5s)
+2026-05-05T12:08:24.3945378Z   ✓   6 [serial] › tests/qa-03-settings.spec.js:36:3 › numeric setting low_stock_threshold=7 (25.5s)
+2026-05-05T12:08:43.7378806Z   ✓   7 [serial] › tests/qa-03-settings.spec.js:36:3 › numeric setting vat_rate=15 (19.3s)
+2026-05-05T12:09:09.0696097Z   ✓   8 [serial] › tests/qa-03-settings.spec.js:44:3 › select setting stock_enforcement=warn (25.3s)
+2026-05-05T12:09:28.0692403Z   ✓   9 [serial] › tests/qa-03-settings.spec.js:44:3 › select setting stock_enforcement=enforce (19.0s)
+2026-05-05T12:09:53.3723824Z   ✓  10 [serial] › tests/qa-03-settings.spec.js:44:3 › select setting stock_enforcement=disable (25.3s)
+2026-05-05T12:10:12.4335415Z   ✓  11 [serial] › tests/qa-03-settings.spec.js:44:3 › select setting pb_pdf_required=optional (19.0s)
+2026-05-05T12:10:31.2200393Z   ✓  12 [serial] › tests/qa-03-settings.spec.js:44:3 › select setting pb_pdf_required=required (18.8s)
+2026-05-05T12:10:50.2663578Z   ✓  13 [serial] › tests/qa-03-settings.spec.js:44:3 › select setting paper_size=A4 (19.0s)
+2026-05-05T12:11:09.1986278Z   ✓  14 [serial] › tests/qa-03-settings.spec.js:44:3 › select setting currency=SAR (18.9s)
+2026-05-05T12:11:28.4188920Z   ✓  15 [serial] › tests/qa-03-settings.spec.js:44:3 › select setting default_payment_method=10 (19.2s)
+2026-05-05T12:11:54.2402849Z   ✓  16 [serial] › tests/qa-03-settings.spec.js:52:3 › checkbox setting allow_negative_stock=true (25.8s)
+2026-05-05T12:12:19.7785410Z   ✓  17 [serial] › tests/qa-03-settings.spec.js:52:3 › checkbox setting allow_negative_stock=false (25.5s)
+2026-05-05T12:12:38.7458996Z   ✓  18 [serial] › tests/qa-03-settings.spec.js:52:3 › checkbox setting track_inventory=true (19.0s)
+2026-05-05T12:12:57.9616902Z   ✓  19 [serial] › tests/qa-03-settings.spec.js:52:3 › checkbox setting show_vat_breakdown=true (19.2s)
+2026-05-05T12:13:17.0435927Z   ✓  20 [serial] › tests/qa-03-settings.spec.js:52:3 › checkbox setting auto_calculate_vat=true (19.1s)
+2026-05-05T12:13:36.1104149Z   ✓  21 [serial] › tests/qa-03-settings.spec.js:52:3 › checkbox setting prices_include_vat=false (19.1s)
+2026-05-05T12:13:55.0276457Z   ✓  22 [serial] › tests/qa-03-settings.spec.js:52:3 › checkbox setting show_logo_print=true (18.9s)
+2026-05-05T12:14:14.0071475Z   ✓  23 [serial] › tests/qa-03-settings.spec.js:52:3 › checkbox setting show_company_info_print=true (19.0s)
+2026-05-05T12:14:33.0724700Z   ✓  24 [serial] › tests/qa-03-settings.spec.js:52:3 › checkbox setting show_qr_print=true (19.1s)
+2026-05-05T12:14:52.1263046Z   ✓  25 [serial] › tests/qa-03-settings.spec.js:52:3 › checkbox setting show_bank_details=false (19.0s)
+2026-05-05T12:15:38.2599886Z   ✓  26 [serial] › tests/qa-14-concurrency.spec.js:7:1 › two simultaneous setting saves both succeed (46.1s)
+2026-05-05T12:15:57.7095747Z   ✓  27 [serial] › tests/qa-15-stock-enforcement-behavior.spec.js:46:3 › Stock enforcement behavior (frontend) › mode=disable: oversell shows NO dialog (17.6s)
+2026-05-05T12:16:21.0047295Z   ✓  28 [serial] › tests/qa-15-stock-enforcement-behavior.spec.js:64:3 › Stock enforcement behavior (frontend) › mode=warn + dismiss: oversell pops confirm and is BLOCKED (23.3s)
+2026-05-05T12:16:37.8696253Z   ✓  29 [serial] › tests/qa-15-stock-enforcement-behavior.spec.js:86:3 › Stock enforcement behavior (frontend) › mode=warn + accept: oversell pops confirm (frontend lets through) (16.9s)
+2026-05-05T12:17:01.6672686Z   ✓  30 [serial] › tests/qa-15-stock-enforcement-behavior.spec.js:105:3 › Stock enforcement behavior (frontend) › mode=enforce: oversell pops alert and BLOCKS submission (23.8s)
+2026-05-05T12:17:15.2290138Z   ✓  31 [serial] › tests/qa-19-pb-pdf-required.spec.js:12:3 › pb_pdf_required setting on add-purchase-bill › required: file input has required attribute (13.5s)
+2026-05-05T12:17:28.6989207Z   ✓  32 [serial] › tests/qa-19-pb-pdf-required.spec.js:24:3 › pb_pdf_required setting on add-purchase-bill › optional: file input has no required attribute, still visible (13.5s)
+2026-05-05T12:17:42.1957619Z   ✓  33 [serial] › tests/qa-19-pb-pdf-required.spec.js:37:3 › pb_pdf_required setting on add-purchase-bill › disabled: PDF container is hidden (13.5s)
+2026-05-05T12:18:09.9164250Z   ✓  34 [serial] › tests/qa-19-pb-pdf-required.spec.js:59:3 › pb_pdf_required setting on add-purchase-bill › required: submitting form without PDF blocks via browser validation (14.4s)
+2026-05-05T12:18:17.5473846Z   ✓  35 [serial] › tests/zatca-save-qa.spec.js:80:1 › 36. save with only VAT+CRN filled sends PUT with all fields (7.6s)
+2026-05-05T12:18:25.3470533Z   ✓  36 [serial] › tests/zatca-save-qa.spec.js:102:1 › 37. save with only CSR section filled succeeds (7.8s)
+2026-05-05T12:18:32.8820386Z   ✓  37 [serial] › tests/zatca-save-qa.spec.js:115:1 › 38. save with only address section filled succeeds (7.5s)
+2026-05-05T12:18:40.6132597Z   ✓  38 [serial] › tests/zatca-save-qa.spec.js:127:1 › 39. save with single field changed succeeds (7.7s)
+2026-05-05T12:18:48.1608429Z   ✓  39 [serial] › tests/zatca-save-qa.spec.js:136:1 › 40. save sends csr_country defaulting to SA when empty (7.5s)
+2026-05-05T12:18:55.7456489Z   ✓  40 [serial] › tests/zatca-save-qa.spec.js:156:1 › 41. save with valid VAT but empty everything else sends correct payload (7.6s)
+2026-05-05T12:19:03.7145108Z   ✓  41 [serial] › tests/zatca-save-qa.spec.js:178:1 › 42. save preserves previously saved fields in local cache (8.0s)
+2026-05-05T12:19:11.6121438Z   ✓  42 [serial] › tests/zatca-save-qa.spec.js:196:1 › 43. backend 400 shows the ACTUAL backend error message (7.9s)
+2026-05-05T12:19:19.5757402Z   ✓  43 [serial] › tests/zatca-save-qa.spec.js:208:1 › 44. backend 400 "invalid request" shows descriptive error (8.0s)
+2026-05-05T12:19:27.4427463Z   ✓  44 [serial] › tests/zatca-save-qa.spec.js:221:1 › 45. backend 404 shows branch-specific error (7.9s)
+2026-05-05T12:19:35.2885275Z   ✓  45 [serial] › tests/zatca-save-qa.spec.js:233:1 › 46. backend 500 shows server error (7.8s)
+2026-05-05T12:19:43.1939486Z   ✓  46 [serial] › tests/zatca-save-qa.spec.js:246:1 › 47. network timeout shows error toast (7.9s)
+2026-05-05T12:19:54.0905522Z   ✓  47 [serial] › tests/zatca-save-qa.spec.js:265:1 › 48. 401 response shows error (not silent success) (10.9s)
+2026-05-05T12:20:02.3001044Z   ✓  48 [serial] › tests/zatca-save-qa.spec.js:286:1 › 49. save error clears after successful retry (8.2s)
+2026-05-05T12:20:10.3247803Z   ✓  49 [serial] › tests/zatca-save-qa.spec.js:311:1 › 50. error indicator AND toast both shown on failure (8.0s)
+2026-05-05T12:20:17.8421556Z   ✓  50 [serial] › tests/zatca-save-qa.spec.js:331:1 › 51. branch selector has at least one option (7.5s)
+2026-05-05T12:20:25.9447076Z   ✓  51 [serial] › tests/zatca-save-qa.spec.js:337:1 › 52. hidden zatca-branch-id matches first branch on load (8.1s)
+2026-05-05T12:20:33.9058593Z   ✓  52 [serial] › tests/zatca-save-qa.spec.js:345:1 › 53. switching branch then saving uses correct branch ID in URL (8.0s)
+2026-05-05T12:20:41.9452611Z   ✓  53 [serial] › tests/zatca-save-qa.spec.js:373:1 › 54. save sends branch ID matching selected dropdown value (8.0s)
+2026-05-05T12:20:50.1398105Z   ✓  54 [serial] › tests/zatca-save-qa.spec.js:394:1 › 55. hidden zatca-branch-id always matches dropdown after switch (8.2s)
+2026-05-05T12:20:58.8383212Z   ✓  55 [serial] › tests/zatca-save-qa.spec.js:422:1 › 56. save then switch branch then switch back shows saved data (8.7s)
+2026-05-05T12:21:06.4577773Z   ✓  56 [serial] › tests/zatca-save-qa.spec.js:449:1 › 57. special characters in org name are preserved in payload (7.6s)
+2026-05-05T12:21:14.3389007Z   ✓  57 [serial] › tests/zatca-save-qa.spec.js:470:1 › 58. payload does NOT include branch_id or zatca_status (those are backend-only) (7.9s)
+2026-05-05T12:21:22.8896307Z   ✓  58 [serial] › tests/zatca-save-qa.spec.js:492:1 › 59. all 12 field names present in payload (8.5s)
+2026-05-05T12:21:31.9608145Z   ✓  59 [serial] › tests/zatca-save-qa.spec.js:520:1 › 60. trimmed whitespace is sent — no leading/trailing spaces (9.1s)
+2026-05-05T12:21:41.0036569Z   ✓  60 [serial] › tests/zatca-save-qa.spec.js:545:1 › 61. save button shows spinner during save (9.0s)
+2026-05-05T12:21:49.3549850Z   ✓  61 [serial] › tests/zatca-save-qa.spec.js:563:1 › 62. form fields disabled during save (8.3s)
+2026-05-05T12:21:57.7882125Z   ✓  62 [serial] › tests/zatca-save-qa.spec.js:584:1 › 63. form fields re-enabled after save completes (8.4s)
+2026-05-05T12:22:06.2860270Z   ✓  63 [serial] › tests/zatca-save-qa.spec.js:596:1 › 64. save with no branch shows error toast instead of silent nothing (8.5s)
+2026-05-05T12:22:14.0869151Z   ✓  64 [serial] › tests/zatca-save-qa.spec.js:613:1 › 65. progress bar updates after successful save (7.8s)
+2026-05-05T12:22:21.1523355Z   ✓  65 [serial] › tests/zatca-settings.spec.js:4:1 › settings page loads with ZATCA tab (7.0s)
+2026-05-05T12:22:28.2866254Z   ✓  66 [serial] › tests/zatca-settings.spec.js:10:1 › ZATCA tab shows branch selector and accordion sections (7.1s)
+2026-05-05T12:22:35.4709284Z   ✓  67 [serial] › tests/zatca-settings.spec.js:21:1 › ZATCA stepper progress bar shows 0% initially (7.2s)
+2026-05-05T12:22:43.1510374Z   ✓  68 [serial] › tests/zatca-settings.spec.js:28:1 › ZATCA connect button is disabled when fields are empty (7.7s)
+2026-05-05T12:22:50.6080008Z   ✓  69 [serial] › tests/zatca-settings.spec.js:56:1 › ZATCA accordion sections collapse and expand (7.4s)
+2026-05-05T12:22:57.7055098Z   ✓  70 [serial] › tests/zatca-settings.spec.js:68:1 › ZATCA VAT validation shows error for invalid format (7.1s)
+2026-05-05T12:23:04.9188613Z   ✓  71 [serial] › tests/zatca-settings.spec.js:77:1 › ZATCA country field defaults to SA (7.2s)
+2026-05-05T12:23:12.0530403Z   ✓  72 [serial] › tests/zatca-settings.spec.js:85:1 › ZATCA business category is a dropdown with options (7.1s)
+2026-05-05T12:23:19.2357509Z   ✓  73 [serial] › tests/zatca-settings.spec.js:94:1 › ZATCA status badge is visible (7.2s)
+2026-05-05T12:23:26.3013306Z   ✓  74 [serial] › tests/zatca-settings.spec.js:101:1 › ZATCA save button exists (7.1s)
+2026-05-05T12:23:26.5240921Z 
+2026-05-05T12:23:26.5245947Z   Slow test file: [serial] › tests/qa-03-settings.spec.js (6.9m)
+2026-05-05T12:23:26.5246887Z   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+2026-05-05T12:23:26.5247734Z   74 passed (16.8m)

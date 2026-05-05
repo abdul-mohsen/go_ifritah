@@ -36,16 +36,12 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 
 	stockFilter := r.URL.Query().Get("stock")
 	query := r.URL.Query().Get("q")
-	sort := r.URL.Query().Get("sort")
-	dir := r.URL.Query().Get("dir")
 
 	// Search/filter/sort are 100% backend-driven on this branch.
 	products, err := helpers.FetchProductsList(token, helpers.ListOpts{
 		Page:    0,
 		PerPage: 10000,
 		Query:   query,
-		Sort:    sort,
-		Dir:     dir,
 		Stock:   stockFilter,
 	})
 	if err != nil {
@@ -70,8 +66,6 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 		"products":   pagedProducts,
 		"stock":      stockFilter,
 		"query":      query,
-		"sort":       sort,
-		"dir":        dir,
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,

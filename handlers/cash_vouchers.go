@@ -25,8 +25,6 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query().Get("q")
 	voucherType := r.URL.Query().Get("type")
-	sort := r.URL.Query().Get("sort")
-	dir := r.URL.Query().Get("dir")
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
 	if page < 0 {
@@ -36,7 +34,7 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 		perPage = 10
 	}
 
-	vouchers, err := helpers.FetchCashVouchers(token, 1, 10000, query, voucherType, sort, dir)
+	vouchers, err := helpers.FetchCashVouchers(token, 1, 10000, query, voucherType)
 	if err != nil {
 		log.Printf("[CASH VOUCHERS] Fetch error: %v", err)
 		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
@@ -96,8 +94,6 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 		"next_page":    nextPage,
 		"query":        query,
 		"voucher_type": voucherType,
-		"sort":         sort,
-		"dir":          dir,
 	})
 }
 

@@ -485,16 +485,17 @@ document.addEventListener("htmx:afterSwap", function(evt) {
     }
 })();
 
-// ── Server-Driven Table Sorting ───────────────────────────────
-// Sort is 100% backend-driven. Clicking a <th data-sortable> header
-// updates the form's hidden `sort` and `dir` inputs, resets `page` to 0,
-// and dispatches a submit which HTMX intercepts (hx-target=#list-results)
-// for a table-only swap. The header's current state is rendered server-
-// side via data-sort-current="asc|desc|" so the indicator reflects what
-// the backend actually sorted.
+// ── Client-Side Table Sorting ─────────────────────────────────
+// Per backend convention: sorting that only re-orders rows already on the
+// page is the FE's job. We sort the rows in #list-results (or the closest
+// table to the clicked header) in-place — no round-trip, no HTMX swap.
+//
+// Each <th data-sortable data-sort-key="..."> participates. A cell can opt
+// in to a custom comparable value via <td data-sort-value="..."> (used for
+// preformatted dates, decimals with locale separators, etc.). Otherwise the
+// trimmed textContent is used.
 (function() {
     function nextDirection(current) {
-        // Cycle: none → asc → desc → none
         if (current === 'asc') return 'desc';
         if (current === 'desc') return '';
         return 'asc';
@@ -506,14 +507,111 @@ document.addEventListener("htmx:afterSwap", function(evt) {
         return '⇅';
     }
 
-    function findListForm() {
-        // The list-page <form> sits in the toolbar above #list-results.
-        // We pick the first GET form that has a sort hidden input.
-        var forms = document.querySelectorAll('form[method="get"]');
-        for (var i = 0; i < forms.length; i++) {
-            if (forms[i].querySelector('input[name="sort"]')) return forms[i];
+    function cellValue(row, idx) {
+        var td = row.cells[idx];
+        if (!td) return '';
+        if (td.dataset && td.dataset.sortValue !== undefined) return td.dataset.sortValue;
+        return (td.textContent || '').trim();
+    }
+
+    function asNumber(s) {
+        if (s === '' || s == null) return NaN;
+        // Strip thousands separators (comma, narrow no-break space, regular space)
+        // and Arabic thousands separator. Keep one decimal point.
+        var cleaned = String(s).replace(/[\s,\u00A0\u202F]/g, '');
+        // Convert Arabic-Indic digits to ASCII
+        cleaned = cleaned.replace(/[\u0660-\u0669]/g, function(d) {
+            return String(d.charCodeAt(0) - 0x0660);
+        }).replace(/[\u06F0-\u06F9]/g, function(d) {
+            return String(d.charCodeAt(0) - 0x06F0);
+        });
+        if (!/^-?\d+(\.\d+)?$/.test(cleaned)) return NaN;
+        return parseFloat(cleaned);
+    }
+
+    function compare(aRaw, bRaw, dir) {
+        var aEmpty = (aRaw === '' || aRaw == null);
+        var bEmpty = (bRaw === '' || bRaw == null);
+        if (aEmpty && bEmpty) return 0;
+        // Empties always sort first (matches BE "blanks before non-empty on asc")
+        if (aEmpty) return dir === 'desc' ? 1 : -1;
+        if (bEmpty) return dir === 'desc' ? -1 : 1;
+
+        var an = asNumber(aRaw);
+        var bn = asNumber(bRaw);
+        var cmp;
+        if (!isNaN(an) && !isNaN(bn)) {
+            cmp = an - bn;
+        } else {
+            cmp = String(aRaw).localeCompare(String(bRaw), undefined, { sensitivity: 'base', numeric: true });
         }
-        return null;
+        return dir === 'desc' ? -cmp : cmp;
+    }
+
+    function findTable(th) {
+        var t = th;
+        while (t && t.tagName !== 'TABLE') t = t.parentNode;
+        return t;
+    }
+
+    function headerIndex(th) {
+        var tr = th.parentNode;
+        if (!tr) return -1;
+        var i = 0;
+        for (var c = 0; c < tr.cells.length; c++) {
+            if (tr.cells[c] === th) return i;
+            i += (tr.cells[c].colSpan || 1);
+        }
+        return -1;
+    }
+
+    function applySort(th) {
+        var table = findTable(th);
+        if (!table) return;
+        var tbody = table.tBodies && table.tBodies[0];
+        if (!tbody) return;
+
+        // Skip placeholder rows (e.g. "no data" with single full-width cell).
+        var rows = Array.prototype.slice.call(tbody.rows).filter(function(r) {
+            return r.cells.length > 1;
+        });
+        if (rows.length === 0) return;
+
+        var idx = headerIndex(th);
+        if (idx < 0) return;
+
+        var dir = (th.dataset.sortCurrent || '').toLowerCase();
+        // Clear sibling indicators
+        var siblings = table.querySelectorAll('th[data-sortable]');
+        siblings.forEach(function(s) {
+            if (s !== th) {
+                s.dataset.sortCurrent = '';
+                var ind = s.querySelector('.sort-indicator');
+                if (ind) ind.textContent = indicatorFor('');
+            }
+        });
+
+        if (dir === '') {
+            // Restore original DOM order (cached on first sort).
+            if (tbody._originalOrder) {
+                tbody._originalOrder.forEach(function(r) { tbody.appendChild(r); });
+            }
+            var ind = th.querySelector('.sort-indicator');
+            if (ind) ind.textContent = indicatorFor('');
+            return;
+        }
+
+        if (!tbody._originalOrder) {
+            tbody._originalOrder = Array.prototype.slice.call(tbody.rows);
+        }
+
+        rows.sort(function(a, b) {
+            return compare(cellValue(a, idx), cellValue(b, idx), dir);
+        });
+        rows.forEach(function(r) { tbody.appendChild(r); });
+
+        var ind2 = th.querySelector('.sort-indicator');
+        if (ind2) ind2.textContent = indicatorFor(dir);
     }
 
     function initSortable() {
@@ -524,58 +622,24 @@ document.addEventListener("htmx:afterSwap", function(evt) {
             th.style.cursor = 'pointer';
             th.style.userSelect = 'none';
 
-            // Render the indicator from the server-rendered state.
-            var current = (th.dataset.sortCurrent || '').toLowerCase();
+            // Server may still emit data-sort-current; treat as initial state
+            // but BE returns rows in canonical order so empty is the truth.
+            th.dataset.sortCurrent = '';
+
             var indicator = th.querySelector('.sort-indicator');
             if (!indicator) {
                 indicator = document.createElement('span');
                 indicator.className = 'sort-indicator mr-1 text-gray-400 text-xs';
                 th.prepend(indicator);
             }
-            indicator.textContent = indicatorFor(current);
+            indicator.textContent = indicatorFor('');
 
-            // Headers without a key fall back to no-op (kept for visual
-            // consistency; the only way they got data-sortable today is
-            // legacy markup).
             var key = th.dataset.sortKey || '';
+            if (!key) return;
 
             th.addEventListener('click', function() {
-                if (!key) return;
-                var form = findListForm();
-                if (!form) return;
-                var sortInput = form.querySelector('input[name="sort"]');
-                var dirInput = form.querySelector('input[name="dir"]');
-                if (!sortInput || !dirInput) return;
-
-                var existingSort = sortInput.value;
-                var existingDir = dirInput.value;
-                var newDir;
-                if (existingSort === key) {
-                    newDir = nextDirection(existingDir);
-                } else {
-                    newDir = 'asc';
-                }
-                if (newDir === '') {
-                    sortInput.value = '';
-                    dirInput.value = '';
-                } else {
-                    sortInput.value = key;
-                    dirInput.value = newDir;
-                }
-                // Reset to page 0 so user doesn't land on an empty page.
-                var pageInput = form.querySelector('input[name="page"]');
-                if (pageInput) {
-                    pageInput.value = '0';
-                } else {
-                    var hp = document.createElement('input');
-                    hp.type = 'hidden'; hp.name = 'page'; hp.value = '0';
-                    form.appendChild(hp);
-                }
-                if (typeof form.requestSubmit === 'function') {
-                    form.requestSubmit();
-                } else {
-                    form.submit();
-                }
+                th.dataset.sortCurrent = nextDirection(th.dataset.sortCurrent || '');
+                applySort(th);
             });
         });
     }

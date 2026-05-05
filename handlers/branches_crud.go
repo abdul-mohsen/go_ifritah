@@ -24,16 +24,12 @@ func HandleBranches(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("q")
-	sort := r.URL.Query().Get("sort")
-	dir := r.URL.Query().Get("dir")
 
 	// Search/sort are 100% backend-driven on this branch — no FE post-filter.
 	branches, err := helpers.FetchBranchesList(token, helpers.ListOpts{
 		Page:    0,
 		PerPage: 10000,
 		Query:   query,
-		Sort:    sort,
-		Dir:     dir,
 	})
 	if err != nil {
 		branches = []models.Branch{}
@@ -55,8 +51,6 @@ func HandleBranches(w http.ResponseWriter, r *http.Request) {
 		"title":      "الفروع",
 		"branches":   pagedBranches,
 		"query":      query,
-		"sort":       sort,
-		"dir":        dir,
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,

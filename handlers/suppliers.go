@@ -135,15 +135,11 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("q")
-	sort := r.URL.Query().Get("sort")
-	dir := r.URL.Query().Get("dir")
 
 	suppliers, err := helpers.FetchSuppliersList(token, helpers.ListOpts{
 		Page:    0,
 		PerPage: 10000,
 		Query:   query,
-		Sort:    sort,
-		Dir:     dir,
 	})
 	if err != nil {
 		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
@@ -169,8 +165,6 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 		"prev_page":  prevPage,
 		"next_page":  nextPage,
 		"query":      query,
-		"sort":       sort,
-		"dir":        dir,
 	})
 }
 

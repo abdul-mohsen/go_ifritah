@@ -72,15 +72,11 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("q")
-	sort := r.URL.Query().Get("sort")
-	dir := r.URL.Query().Get("dir")
 
 	orders, err := helpers.FetchOrdersList(token, helpers.ListOpts{
 		Page:    0,
 		PerPage: 10000,
 		Query:   query,
-		Sort:    sort,
-		Dir:     dir,
 	})
 	if err != nil {
 		orders = []map[string]interface{}{}
@@ -118,8 +114,6 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 		"title":      "الطلبات",
 		"orders":     pagedOrders,
 		"query":      query,
-		"sort":       sort,
-		"dir":        dir,
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,

@@ -21,15 +21,11 @@ func HandleStores(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("q")
-	sort := r.URL.Query().Get("sort")
-	dir := r.URL.Query().Get("dir")
 
 	stores, err := helpers.FetchStoresList(token, helpers.ListOpts{
 		Page:    0,
 		PerPage: 10000,
 		Query:   query,
-		Sort:    sort,
-		Dir:     dir,
 	})
 	if err != nil {
 		stores = []models.Store{}
@@ -51,8 +47,6 @@ func HandleStores(w http.ResponseWriter, r *http.Request) {
 		"title":      "المخازن",
 		"stores":     pagedStores,
 		"query":      query,
-		"sort":       sort,
-		"dir":        dir,
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,

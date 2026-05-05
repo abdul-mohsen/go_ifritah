@@ -1,0 +1,24 @@
+﻿2026-05-05T12:05:59.5426508Z ##[group]Run npm run build:css
+2026-05-05T12:05:59.5426867Z [36;1mnpm run build:css[0m
+2026-05-05T12:05:59.5449983Z shell: /usr/bin/bash -e {0}
+2026-05-05T12:05:59.5450253Z env:
+2026-05-05T12:05:59.5450425Z   PORT: 8001
+2026-05-05T12:05:59.5450651Z   BACKEND_URL: https://dev.ifritah.com
+2026-05-05T12:05:59.5450932Z   APP_DOMAIN: localhost:8001
+2026-05-05T12:05:59.5451191Z   PW_BASE_URL: http://localhost:8001
+2026-05-05T12:05:59.5451453Z   PW_USER: admin
+2026-05-05T12:05:59.5451643Z   PW_PASS: admin
+2026-05-05T12:05:59.5451932Z   AFRITA_TOKEN_DIR: /home/runner/work/go_ifritah/go_ifritah/.afrita-tokens
+2026-05-05T12:05:59.5452305Z   GODEBUG: jstmpllitinterp=1
+2026-05-05T12:05:59.5452555Z ##[endgroup]
+2026-05-05T12:05:59.6686354Z 
+2026-05-05T12:05:59.6687373Z > afrita-go@1.0.0 build:css
+2026-05-05T12:05:59.6688485Z > tailwindcss -i ./static/input.css -o ./static/output.css --minify
+2026-05-05T12:05:59.6688950Z 
+2026-05-05T12:06:00.0259218Z Browserslist: caniuse-lite is outdated. Please run:
+2026-05-05T12:06:00.0260313Z   npx update-browserslist-db@latest
+2026-05-05T12:06:00.0261502Z   Why you should do it regularly: https://github.com/browserslist/update-db#readme
+2026-05-05T12:06:00.1406194Z 
+2026-05-05T12:06:00.1407239Z Rebuilding...
+2026-05-05T12:06:00.8767556Z 
+2026-05-05T12:06:00.8769113Z Done in 778ms.

@@ -40,12 +40,11 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 	stateFilter := r.URL.Query().Get("state")
 	query := r.URL.Query().Get("q")
-	sortField := r.URL.Query().Get("sort")
-	sortDir := r.URL.Query().Get("dir")
 
-	// Search/filter/sort are 100% backend-driven; we pass everything to BE
-	// and render whatever it returns — no FE post-filtering.
-	invoices, err := helpers.FetchInvoicesAll(token, page, query, stateFilter, sortField, sortDir)
+	// Search + state filter are backend-driven. Sort is FE-only (BE returns
+	// rows in canonical keyset order); see static/js/script.js sortable
+	// table init for the client-side comparator.
+	invoices, err := helpers.FetchInvoicesAll(token, page, query, stateFilter)
 	if err != nil {
 		if helpers.IsUnauthorizedError(err) {
 			helpers.HandleUnauthorized(w, r)
@@ -110,8 +109,6 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 		"next_page":  nextPage,
 		"query":      query,
 		"state":      stateFilter,
-		"sort":       sortField,
-		"dir":        sortDir,
 	}
 
 	// Fetch clients and stores for the company bill modal

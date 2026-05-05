@@ -12,19 +12,17 @@ import (
 	"afrita/models"
 )
 
-// ListOpts carries the search/filter/sort/pagination params that are sent
+// ListOpts carries the search/filter/pagination params that are sent
 // to the backend on list-page requests. Empty fields are omitted from the
 // JSON payload so the BE applies its defaults.
 //
-// This struct is the single source of truth for the FE→BE list contract.
-// Search, filter and sort are 100% backend-driven on this branch — the
-// FE never post-filters the rows the backend returns.
+// Sort is FE-only (BE returns rows in canonical keyset order — see
+// search-and-filters mailbox msg #10). Header-click sort happens
+// client-side in static/js/script.js.
 type ListOpts struct {
 	Page        int    // 0-based page number
 	PerPage     int    // page size; 0 means default
 	Query       string // free-text search; BE matches against indexed fields
-	Sort        string // column name, BE-defined per endpoint
-	Dir         string // "asc" or "desc"; anything else → BE default
 	State       string // textual int: "0", "1", "2", "3" — applied as int filter
 	Stock       string // "in" / "out" (products only)
 	VoucherType string // "disbursement" / "receipt" / "cash_box" (cash vouchers only)
@@ -48,12 +46,6 @@ func (o ListOpts) MarshalListPayload() []byte {
 	}
 	if o.Query != "" {
 		m["query"] = o.Query
-	}
-	if o.Sort != "" {
-		m["sort"] = o.Sort
-	}
-	if o.Dir != "" {
-		m["dir"] = o.Dir
 	}
 	if o.State != "" {
 		if v, err := strconv.Atoi(o.State); err == nil {
@@ -142,12 +134,6 @@ func FetchStoresList(token string, opts ListOpts) ([]models.Store, error) {
 	q := req.URL.Query()
 	if opts.Query != "" {
 		q.Set("query", opts.Query)
-	}
-	if opts.Sort != "" {
-		q.Set("sort", opts.Sort)
-	}
-	if opts.Dir != "" {
-		q.Set("dir", opts.Dir)
 	}
 	if opts.PerPage > 0 {
 		q.Set("page_size", strconv.Itoa(opts.PerPage))

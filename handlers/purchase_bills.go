@@ -31,16 +31,15 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query().Get("q")
 	stateFilter := r.URL.Query().Get("state")
-	sortField := r.URL.Query().Get("sort")
-	sortDir := r.URL.Query().Get("dir")
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
 	if page < 0 {
 		page = 0
 	}
 
-	// Search/filter/sort are 100% backend-driven — forward everything to BE.
-	bills, err := helpers.FetchPurchaseBillsAll(token, 1, query, stateFilter, sortField, sortDir)
+	// Search + state filter are BE-driven. Sort is FE-only (see
+	// static/js/script.js sortable table init).
+	bills, err := helpers.FetchPurchaseBillsAll(token, 1, query, stateFilter)
 	if err != nil {
 		if helpers.IsUnauthorizedError(err) {
 			helpers.HandleUnauthorized(w, r)
@@ -95,8 +94,6 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 		"next_page":  nextPage,
 		"query":      query,
 		"state":      stateFilter,
-		"sort":       sortField,
-		"dir":        sortDir,
 	})
 }
 

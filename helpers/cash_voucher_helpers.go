@@ -14,12 +14,10 @@ import (
 	"afrita/models"
 )
 
-// FetchCashVouchers fetches cash vouchers from backend with pagination, search, type filter, and sort.
-//
-// Search/filter/sort are 100% backend-driven — empty fields are omitted
-// from the request body so the BE applies its defaults.
-func FetchCashVouchers(token string, page, perPage int, query, voucherType, sort, dir string) ([]models.CashVoucher, error) {
-	cacheKey := fmt.Sprintf("cash_vouchers_%d_%d_%s_%s_%s_%s", page, perPage, query, voucherType, sort, dir)
+// FetchCashVouchers fetches cash vouchers from backend with pagination,
+// search and type filter. Sort is FE-only (BE returns canonical order).
+func FetchCashVouchers(token string, page, perPage int, query, voucherType string) ([]models.CashVoucher, error) {
+	cacheKey := fmt.Sprintf("cash_vouchers_%d_%d_%s_%s", page, perPage, query, voucherType)
 	if cached, ok := APICache.Get(cacheKey); ok {
 		if v, ok := cached.([]models.CashVoucher); ok {
 			return v, nil
@@ -35,12 +33,6 @@ func FetchCashVouchers(token string, page, perPage int, query, voucherType, sort
 	}
 	if voucherType != "" {
 		payload["voucher_type"] = voucherType
-	}
-	if sort != "" {
-		payload["sort"] = sort
-	}
-	if dir != "" {
-		payload["dir"] = dir
 	}
 
 	body, _ := json.Marshal(payload)

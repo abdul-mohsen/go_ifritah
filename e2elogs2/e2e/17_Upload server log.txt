@@ -1,0 +1,29 @@
+﻿2026-05-05T12:26:43.4928233Z ##[group]Run actions/upload-artifact@v4
+2026-05-05T12:26:43.4928531Z with:
+2026-05-05T12:26:43.4928721Z   name: frontend-server-log
+2026-05-05T12:26:43.4929156Z   path: server.log
+2026-05-05T12:26:43.4929357Z   if-no-files-found: ignore
+2026-05-05T12:26:43.4929568Z   compression-level: 6
+2026-05-05T12:26:43.4929767Z   overwrite: false
+2026-05-05T12:26:43.4929958Z   include-hidden-files: false
+2026-05-05T12:26:43.4930174Z env:
+2026-05-05T12:26:43.4930337Z   PORT: 8001
+2026-05-05T12:26:43.4930563Z   BACKEND_URL: https://dev.ifritah.com
+2026-05-05T12:26:43.4930834Z   APP_DOMAIN: localhost:8001
+2026-05-05T12:26:43.4931072Z   PW_BASE_URL: http://localhost:8001
+2026-05-05T12:26:43.4931309Z   PW_USER: admin
+2026-05-05T12:26:43.4931491Z   PW_PASS: admin
+2026-05-05T12:26:43.4931785Z   AFRITA_TOKEN_DIR: /home/runner/work/go_ifritah/go_ifritah/.afrita-tokens
+2026-05-05T12:26:43.4932158Z   GODEBUG: jstmpllitinterp=1
+2026-05-05T12:26:43.4932371Z ##[endgroup]
+2026-05-05T12:26:43.7178665Z With the provided path, there will be 1 file uploaded
+2026-05-05T12:26:43.7179644Z Artifact name is valid!
+2026-05-05T12:26:43.7180109Z Root directory input is valid!
+2026-05-05T12:26:43.9591320Z Beginning upload of artifact content to blob storage
+2026-05-05T12:26:44.2870443Z Uploaded bytes 93082
+2026-05-05T12:26:44.3467722Z Finished uploading artifact content to blob storage!
+2026-05-05T12:26:44.3472298Z SHA256 digest of uploaded artifact zip is adc7ebdeb7d3b0bde7b8e1802f0f8d32867c2a1766e34437ff4be5f009300155
+2026-05-05T12:26:44.3473967Z Finalizing artifact upload
+2026-05-05T12:26:44.5472103Z Artifact frontend-server-log.zip successfully finalized. Artifact ID 6806229955
+2026-05-05T12:26:44.5473253Z Artifact frontend-server-log has been successfully uploaded! Final size is 93082 bytes. Artifact ID is 6806229955
+2026-05-05T12:26:44.5481249Z Artifact download URL: https://github.com/abdul-mohsen/go_ifritah/actions/runs/25375293775/artifacts/6806229955

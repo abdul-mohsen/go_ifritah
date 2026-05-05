@@ -22,15 +22,11 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("q")
-	sort := r.URL.Query().Get("sort")
-	dir := r.URL.Query().Get("dir")
 
 	clients, err := helpers.FetchClientsList(token, helpers.ListOpts{
 		Page:    0,
 		PerPage: 10000,
 		Query:   query,
-		Sort:    sort,
-		Dir:     dir,
 	})
 	if err != nil {
 		clients = []models.Client{}
@@ -52,8 +48,6 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 		"title":      "العملاء",
 		"clients":    pagedClients,
 		"query":      query,
-		"sort":       sort,
-		"dir":        dir,
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,

@@ -10,8 +10,6 @@
             <option value="cash_box" {{ if eq .voucher_type "cash_box" }}selected{{ end }}>{{ L "cash_voucher_type.cash_box" }}</option>
         </select>
         {{ template "per-page-select" dict "pagination" .pagination }}
-        <input type="hidden" name="sort" value="{{ .sort }}">
-        <input type="hidden" name="dir" value="{{ .dir }}">
         <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
     </form>
     <div class="toolbar-actions">
@@ -88,6 +86,6 @@
 </div>
 
 {{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
-"extra_params" (printf "&type=%s&sort=%s&dir=%s" .voucher_type .sort .dir) }}
+"extra_params" (printf "&type=%s" .voucher_type) }}
 </div>
 {{ end }}

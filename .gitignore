@@ -97,3 +97,11 @@ runs.txt
 e2e-jobs.json
 jobs.txt
 
+chat/
+quality-gate/cookie-header.txt
+quality-gate/cookies.json
+quality-gate/storage.json
+quality-gate/logs/
+quality-gate/reports/
+*.zip
+

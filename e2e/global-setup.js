@@ -45,8 +45,12 @@ module.exports = async () => {
     console.log(`[global-setup] storage state saved -> ${STORAGE}`);
     return;
   }
-  // Write a valid empty storageState so Playwright's use.storageState
-  // can still load. Tests will fall back to the form-based login helper.
+  // Hard-fail when global login can't succeed: silently writing an empty
+  // storageState lets a misconfigured PW_USER/PW_PASS produce a green run
+  // where every test falls through to the form-login fallback (which
+  // swallows errors). The form-login fallback is for individual flaky
+  // tests, not for "my creds are wrong" — fail fast instead.
   fs.writeFileSync(STORAGE, JSON.stringify({ cookies: [], origins: [] }));
-  console.warn(`[global-setup] WARN: login failed, wrote empty storageState (tests will self-login)`);
+  console.error(`[global-setup] FATAL: login failed against ${BASE} as ${USER}. Aborting run.`);
+  process.exit(1);
 };

@@ -2,8 +2,10 @@
 const { expect } = require('@playwright/test');
 
 const BASE = 'http://localhost:8001';
+const USER = process.env.PW_USER || 'admin';
+const PASS = process.env.PW_PASS || 'admin';
 
-async function login(page, user = 'admin', pass = 'admin') {
+async function login(page, user = USER, pass = PASS) {
   await page.goto('/login');
   await page.fill('input[name="username"]', user);
   await page.fill('input[name="password"]', pass);

@@ -111,7 +111,7 @@ func HandleAddPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		"title":           "إضافة فاتورة مشتريات",
 		"stores":          stores,
 		"suppliers":       suppliers,
-		"pb_pdf_required": GetSettingValue("pb_pdf_required"),
+		"pb_pdf_required": GetSettingValue(token, "pb_pdf_required"),
 	})
 }
 
@@ -478,7 +478,7 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		"subtotal":                 subtotal,
 		"bill_products":            billProducts,
 		"bill_manual":              billManual,
-		"pb_pdf_required":          GetSettingValue("pb_pdf_required"),
+		"pb_pdf_required":          GetSettingValue(token, "pb_pdf_required"),
 	})
 }
 

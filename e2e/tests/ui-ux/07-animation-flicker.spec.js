@@ -19,7 +19,7 @@ for (const r of ROUTES_DASHBOARD) {
           invoices: 1, products: 1, clients: 1, suppliers: 1,
           settings: 1, sales: 1, purchases: 1, inventory: 1,
         }));
-      } catch (e) {}
+      } catch (e) { }
     });
     await page.addInitScript(() => {
       window.__animEvents = [];

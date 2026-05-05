@@ -14,13 +14,13 @@ fs.mkdirSync(LOG_DIR, { recursive: true });
 // Phase 1 = run alone (resource-heavy: parallel browser auth across many routes)
 // Phase 2 = run together (the rest, won't fight each other for sessions)
 const suites = [
-  { name: 'playwright-e2e',  phase: 1, cwd: path.join(ROOT, 'e2e'), cmd: 'npx', args: ['playwright', 'test', '--project=parallel', '--reporter=list'], env: { PW_BASE_URL: 'http://127.0.0.1:8000', PW_USER: 'admin', PW_PASS: 'admin123', PW_WORKERS: '4' } },
-  { name: 'go-test',         phase: 2, cwd: ROOT, cmd: 'go',  args: ['test', './handlers/...', './helpers/...', './config/...', '-count=1', '-timeout=600s', '-v'] },
-  { name: 'go-vet',          phase: 2, cwd: ROOT, cmd: 'go',  args: ['vet', './handlers/...', './helpers/...', './config/...', './middleware/...'] },
-  { name: 'pa11y',           phase: 2, cwd: QG,   cmd: 'node', args: ['pa11y-run.js'] },
-  { name: 'lighthouse',      phase: 2, cwd: QG,   cmd: 'node', args: ['lighthouse-run.js'] },
-  { name: 'htmlvalidate',    phase: 2, cwd: QG,   cmd: 'node', args: ['htmlvalidate-run.js'] },
-  { name: 'animation-flash', phase: 2, cwd: QG,   cmd: 'node', args: ['animation-flash-run.js'] },
+  { name: 'playwright-e2e', phase: 1, cwd: path.join(ROOT, 'e2e'), cmd: 'npx', args: ['playwright', 'test', '--project=parallel', '--reporter=list'], env: { PW_BASE_URL: 'http://127.0.0.1:8000', PW_USER: 'admin', PW_PASS: 'admin123', PW_WORKERS: '4' } },
+  { name: 'go-test', phase: 2, cwd: ROOT, cmd: 'go', args: ['test', './handlers/...', './helpers/...', './config/...', '-count=1', '-timeout=600s', '-v'] },
+  { name: 'go-vet', phase: 2, cwd: ROOT, cmd: 'go', args: ['vet', './handlers/...', './helpers/...', './config/...', './middleware/...'] },
+  { name: 'pa11y', phase: 2, cwd: QG, cmd: 'node', args: ['pa11y-run.js'] },
+  { name: 'lighthouse', phase: 2, cwd: QG, cmd: 'node', args: ['lighthouse-run.js'] },
+  { name: 'htmlvalidate', phase: 2, cwd: QG, cmd: 'node', args: ['htmlvalidate-run.js'] },
+  { name: 'animation-flash', phase: 2, cwd: QG, cmd: 'node', args: ['animation-flash-run.js'] },
 ];
 
 function runSuite(s) {
@@ -35,7 +35,7 @@ function runSuite(s) {
     child.stderr.pipe(out);
     child.on('close', (code) => {
       const ms = Date.now() - start;
-      console.log(`[done ] ${s.name} exit=${code} (${(ms/1000).toFixed(1)}s)`);
+      console.log(`[done ] ${s.name} exit=${code} (${(ms / 1000).toFixed(1)}s)`);
       resolve({ name: s.name, exit: code, ms, log: logFile });
     });
     child.on('error', (err) => {
@@ -101,10 +101,13 @@ function extractLighthouse(log) {
   const failures = [];
   log.split(/\r?\n/).forEach(line => {
     if (!line.startsWith('[lh]')) return;
-    if (line.includes('ERR')) { failures.push(line.trim()); return; }
-    const p   = line.match(/\bP:(\d+)/);
-    const a   = line.match(/\bA:(\d+)/);
-    const bp  = line.match(/\bBP:(\d+)/);
+    // Anchor ERR to the post-prefix tail so a route name containing
+    // "ERR" doesn't accidentally trigger a false hard-failure.
+    const tail = line.slice(4).trim();
+    if (/(^|\s)ERR(\s|$)/.test(tail)) { failures.push(line.trim()); return; }
+    const p = line.match(/\bP:(\d+)/);
+    const a = line.match(/\bA:(\d+)/);
+    const bp = line.match(/\bBP:(\d+)/);
     const seo = line.match(/\bSEO:(\d+)/);
     if (!p || !a || !bp || !seo) return;
     const route = line.slice(4).trim().split(/\s+/)[0];
@@ -134,10 +137,10 @@ const extractors = {
     return { failures, summary: failures.length + ' vet warning(s)' };
   },
   'playwright-e2e': extractPlaywright,
-  'pa11y':       (log) => extractQG(log, 'pa11y'),
-  'htmlvalidate':(log) => extractQG(log, 'hv'),
+  'pa11y': (log) => extractQG(log, 'pa11y'),
+  'htmlvalidate': (log) => extractQG(log, 'hv'),
   'animation-flash': extractAnim,
-  'lighthouse':  extractLighthouse,
+  'lighthouse': extractLighthouse,
 };
 
 (async () => {
@@ -189,5 +192,7 @@ const extractors = {
     console.log(`${s.name.padEnd(18)} exit=${s.exit}  ${s.seconds.toString().padStart(6)}s  ${s.summary}`);
   }
   console.log(`\nReport: ${path.relative(ROOT, path.join(LOG_DIR, '_failures.md'))}`);
-  process.exit(0);
+  // Aggregate exit code: any non-zero suite OR any extracted failure → exit 1.
+  const anyFailed = report.suites.some(s => s.exit !== 0 || (s.failures && s.failures.length > 0));
+  process.exit(anyFailed ? 1 : 0);
 })();

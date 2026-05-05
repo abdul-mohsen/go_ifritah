@@ -3,7 +3,10 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -17,58 +20,85 @@ import (
 	"afrita/models"
 )
 
-// settingsStore holds in-memory settings. On startup it uses defaults,
-// then gets overwritten by the backend on first load.
-var (
-	settingsMu      sync.RWMutex
-	settingsLoaded  bool
-	settingsStore   = map[string]string{
-		"vat_rate":               "15",
-		"currency":               "SAR",
-		"language":               "ar",
-		"date_format":            "DD/MM/YYYY",
-		"theme":                  "light",
-		"low_stock_threshold":    "10",
-		"zatca_enabled":          "false",
-		"invoice_prefix":         "INV-",
-		"payment_terms":          "",
-		"show_vat_breakdown":     "true",
-		"auto_calculate_vat":     "true",
-		"prices_include_vat":     "false",
-		"pb_pdf_required":        "required",
-		"default_payment_method": "10",
-		"invoice_footer":         "",
-		"paper_size":             "A4",
-		"print_copies":           "",
-		"show_logo_print":        "true",
-		"show_company_info_print": "true",
-		"show_qr_print":          "true",
-		"show_bank_details":      "false",
-		"bank_details":           "",
-		"number_format":          "ar",
-		"notif_invoices":         "true",
-		"notif_stock":            "true",
-		"notif_payments":         "true",
-		"notif_orders":           "true",
-		"notif_session":          "true",
-		"session_duration":       "",
-		"max_login_attempts":     "",
-		"require_strong_password": "true",
-		"auto_logout_inactive":   "true",
-		"default_unit":           "piece",
-		"stock_enforcement":      "disable",
-		"track_inventory":        "true",
-		"allow_negative_stock":   "false",
-		"show_cost_price":        "false",
-		"company_name":           "",
-		"company_email":          "",
-		"company_vat":            "",
-		"company_cr":             "",
-		"company_description":    "",
-		"company_address":        "",
-		"company_phone":          "",
+// settingsDefaults holds the seed values used to initialise a per-token cache
+// entry the first time we see a session. The actual cache is per-token (see
+// settingsByToken) — there is NO global mutable map shared across users.
+var settingsDefaults = map[string]string{
+	"vat_rate":                "15",
+	"currency":                "SAR",
+	"language":                "ar",
+	"date_format":             "DD/MM/YYYY",
+	"theme":                   "light",
+	"low_stock_threshold":     "10",
+	"zatca_enabled":           "false",
+	"invoice_prefix":          "INV-",
+	"payment_terms":           "",
+	"show_vat_breakdown":      "true",
+	"auto_calculate_vat":      "true",
+	"prices_include_vat":      "false",
+	"pb_pdf_required":         "required",
+	"default_payment_method":  "10",
+	"invoice_footer":          "",
+	"paper_size":              "A4",
+	"print_copies":            "",
+	"show_logo_print":         "true",
+	"show_company_info_print": "true",
+	"show_qr_print":           "true",
+	"show_bank_details":       "false",
+	"bank_details":            "",
+	"number_format":           "ar",
+	"notif_invoices":          "true",
+	"notif_stock":             "true",
+	"notif_payments":          "true",
+	"notif_orders":            "true",
+	"notif_session":           "true",
+	"session_duration":        "",
+	"max_login_attempts":      "",
+	"require_strong_password": "true",
+	"auto_logout_inactive":    "true",
+	"default_unit":            "piece",
+	"stock_enforcement":       "disable",
+	"track_inventory":         "true",
+	"allow_negative_stock":    "false",
+	"show_cost_price":         "false",
+	"company_name":            "",
+	"company_email":           "",
+	"company_vat":             "",
+	"company_cr":              "",
+	"company_description":     "",
+	"company_address":         "",
+	"company_phone":           "",
+}
+
+// tenantSettings is the per-token cache cell. mu protects values.
+type tenantSettings struct {
+	mu     sync.RWMutex
+	values map[string]string
+}
+
+// settingsByToken keys on sha256(token) so we never keep raw tokens in memory
+// for cache identity. Each entry is independent — settings written for user A
+// are never visible to user B (different tenant / branch / role).
+var settingsByToken sync.Map // map[string]*tenantSettings
+
+func tokenKey(token string) string {
+	h := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(h[:])
+}
+
+func storeFor(token string) *tenantSettings {
+	k := tokenKey(token)
+	if v, ok := settingsByToken.Load(k); ok {
+		return v.(*tenantSettings)
 	}
-)
+	values := make(map[string]string, len(settingsDefaults))
+	for kk, vv := range settingsDefaults {
+		values[kk] = vv
+	}
+	ts := &tenantSettings{values: values}
+	actual, _ := settingsByToken.LoadOrStore(k, ts)
+	return actual.(*tenantSettings)
+}
 
 // settingsCategoryMap maps each settings key to the backend category
 // it belongs to (for PUT /api/v2/settings).
@@ -143,14 +173,14 @@ func loadSettingsFromBackend(token string) {
 		return
 	}
 
-	settingsMu.Lock()
+	ts := storeFor(token)
+	ts.mu.Lock()
 	for _, categorySettings := range result.Data {
 		for key, value := range categorySettings {
-			settingsStore[key] = value
+			ts.values[key] = value
 		}
 	}
-	settingsLoaded = true
-	settingsMu.Unlock()
+	ts.mu.Unlock()
 	log.Printf("[SETTINGS] Loaded %d categories from backend", len(result.Data))
 
 	// Also load notification config (separate endpoint, structured payload).
@@ -168,17 +198,19 @@ func overlayNotificationConfigIntoSettings(token string) {
 		log.Printf("[SETTINGS] notification config fetch failed: %v", err)
 		return
 	}
-	settingsMu.Lock()
-	defer settingsMu.Unlock()
-	settingsStore["low_stock_threshold"] = strconv.Itoa(cfg.LowStockThreshold)
-	settingsStore["notif_stock"] = strconv.FormatBool(cfg.LowStockAlert)
-	settingsStore["notif_orders"] = strconv.FormatBool(cfg.NewOrderAlert)
-	settingsStore["notif_payments"] = strconv.FormatBool(cfg.PaymentDueAlert)
+	ts := storeFor(token)
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	ts.values["low_stock_threshold"] = strconv.Itoa(cfg.LowStockThreshold)
+	ts.values["notif_stock"] = strconv.FormatBool(cfg.LowStockAlert)
+	ts.values["notif_orders"] = strconv.FormatBool(cfg.NewOrderAlert)
+	ts.values["notif_payments"] = strconv.FormatBool(cfg.PaymentDueAlert)
 }
 
 // saveSettingsToBackend sends changed settings to PUT /api/v2/settings
-// grouped by category.
-func saveSettingsToBackend(token string, settings map[string]string) {
+// grouped by category. Returns a non-nil error if any category failed so the
+// caller can surface the failure to the user instead of pretending to succeed.
+func saveSettingsToBackend(token string, settings map[string]string) error {
 	// Group settings by category
 	categories := map[string]map[string]string{}
 	for key, value := range settings {
@@ -192,6 +224,7 @@ func saveSettingsToBackend(token string, settings map[string]string) {
 		categories[cat][key] = value
 	}
 
+	var firstErr error
 	// Send one PUT per category
 	for cat, catSettings := range categories {
 		payload := map[string]interface{}{
@@ -205,6 +238,9 @@ func saveSettingsToBackend(token string, settings map[string]string) {
 		resp, err := helpers.DoAuthedRequest(req, token)
 		if err != nil {
 			log.Printf("[SETTINGS] Failed to save category %s: %v", cat, err)
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
 		respBody, _ := io.ReadAll(resp.Body)
@@ -212,6 +248,9 @@ func saveSettingsToBackend(token string, settings map[string]string) {
 
 		if resp.StatusCode >= 300 {
 			log.Printf("[SETTINGS] Backend error saving %s: %d %s", cat, resp.StatusCode, string(respBody))
+			if firstErr == nil {
+				firstErr = fmt.Errorf("backend status %d for category %s", resp.StatusCode, cat)
+			}
 		} else {
 			log.Printf("[SETTINGS] Saved category %s (%d keys)", cat, len(catSettings))
 		}
@@ -220,6 +259,7 @@ func saveSettingsToBackend(token string, settings map[string]string) {
 	// Mirror notification-relevant keys into the structured /notification/config
 	// endpoint so the low-stock generator sees them.
 	mirrorNotificationConfig(token, settings)
+	return firstErr
 }
 
 // mirrorNotificationConfig forwards the subset of the saved settings that
@@ -250,11 +290,12 @@ func mirrorNotificationConfig(token string, settings map[string]string) {
 	}
 }
 
-func getSettings() map[string]string {
-	settingsMu.RLock()
-	defer settingsMu.RUnlock()
-	cp := make(map[string]string, len(settingsStore))
-	for k, v := range settingsStore {
+func getSettings(token string) map[string]string {
+	ts := storeFor(token)
+	ts.mu.RLock()
+	defer ts.mu.RUnlock()
+	cp := make(map[string]string, len(ts.values))
+	for k, v := range ts.values {
 		cp[k] = v
 	}
 	return cp
@@ -272,7 +313,7 @@ func HandleSettingsPage(w http.ResponseWriter, r *http.Request) {
 
 	branches, _ := helpers.FetchBranches(token)
 	stores, _ := helpers.FetchStores(token)
-	settings := getSettings()
+	settings := getSettings(token)
 
 	// Load ZATCA config per branch
 	sessionID := helpers.GetSessionIDFromRequest(r)
@@ -324,23 +365,38 @@ func HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	// Build the new settings map
 	newSettings := make(map[string]string, len(allSettingsKeys))
 
-	settingsMu.Lock()
+	ts := storeFor(token)
+	ts.mu.Lock()
 	for _, k := range checkboxKeys {
-		settingsStore[k] = "false" // default unchecked
+		ts.values[k] = "false" // default unchecked
 	}
 	for _, key := range allSettingsKeys {
 		val := r.FormValue(key)
 		if val != "" {
-			settingsStore[key] = val
+			ts.values[key] = val
 			newSettings[key] = val
 		} else if checkboxSet[key] {
 			newSettings[key] = "false"
 		}
 	}
-	settingsMu.Unlock()
+	ts.mu.Unlock()
 
-	// Persist to backend
-	go saveSettingsToBackend(token, newSettings)
+	// Persist to backend SYNCHRONOUSLY — a fire-and-forget goroutine would let
+	// us flash "saved" even when every PUT returns 500. Surface the failure
+	// to the user instead of lying to them.
+	if err := saveSettingsToBackend(token, newSettings); err != nil {
+		log.Printf("[SETTINGS] save failed: %v", err)
+		http.SetCookie(w, &http.Cookie{
+			Name:     "afrita_flash",
+			Value:    url.QueryEscape(`{"message":"فشل حفظ الإعدادات","type":"error"}`),
+			Path:     "/",
+			MaxAge:   10,
+			HttpOnly: false,
+			SameSite: http.SameSiteLaxMode,
+		})
+		http.Redirect(w, r, "/dashboard/settings", http.StatusSeeOther)
+		return
+	}
 
 	log.Printf("[SETTINGS] Settings saved successfully")
 
@@ -357,10 +413,14 @@ func HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetSettingValue returns a single setting value (for use by other handlers).
-func GetSettingValue(key string) string {
-	settingsMu.RLock()
-	defer settingsMu.RUnlock()
-	return settingsStore[key]
+// GetSettingValue returns a single setting value scoped to the caller's token
+// (one logical tenant / branch / user). Use this from other handlers when
+// they already have a session token.
+func GetSettingValue(token, key string) string {
+	ts := storeFor(token)
+	ts.mu.RLock()
+	defer ts.mu.RUnlock()
+	return ts.values[key]
 }
 
 // Branch type alias to avoid import cycle — use models.Branch directly.

@@ -58,7 +58,7 @@ async function createBranchBackedDraft(page, tag) {
   const createStatus = createResp.status();
   const createText = createStatus >= 400 ? await createResp.text().catch(() => '') : '';
   expect(createStatus, `draft create must succeed: ${createText}`).toBeLessThan(400);
-  await page.waitForURL('**/dashboard/invoices**', { timeout: 15000 }).catch(() => {});
+  await page.waitForURL('**/dashboard/invoices**', { timeout: 15000 }).catch(() => { });
 
   const after = await collectDraftIds(page);
   const newIds = after.filter((id) => !before.has(id));

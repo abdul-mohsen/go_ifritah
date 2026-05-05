@@ -12,7 +12,7 @@
 //                          that want JSON (lighthouse passes it through).
 const http = require('http');
 const https = require('https');
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
 
@@ -52,16 +52,25 @@ function post(url, formBody) {
 }
 
 (async () => {
+  const maxAttempts = +(process.env.QG_AUTH_RETRIES || 5);
+  const baseDelay = +(process.env.QG_AUTH_DELAY_MS || 800);
   let attempts = 0;
   let lastErr = '';
-  while (attempts < 5) {
+  while (attempts < maxAttempts) {
     attempts++;
     try {
       const r = await post(BASE + '/login', { username: USER, password: PASS });
+      if (r.status >= 400) {
+        // 401/403/etc. — wrong creds or server forbids login. Don't pretend
+        // the cookie file is good; retry up to maxAttempts then fail loudly.
+        lastErr = `attempt ${attempts}: status ${r.status} — auth rejected`;
+        await new Promise(rr => setTimeout(rr, baseDelay * Math.pow(2, attempts - 1)));
+        continue;
+      }
       const setCookies = r.headers['set-cookie'] || [];
       if (setCookies.length === 0) {
         lastErr = `attempt ${attempts}: status ${r.status}, no Set-Cookie`;
-        await new Promise(r => setTimeout(r, 800));
+        await new Promise(rr => setTimeout(rr, baseDelay * Math.pow(2, attempts - 1)));
         continue;
       }
       const pairs = setCookies.map((c) => c.split(';')[0]).filter(Boolean);
@@ -77,7 +86,7 @@ function post(url, formBody) {
       process.exit(0);
     } catch (e) {
       lastErr = `attempt ${attempts}: ${e.message}`;
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(rr => setTimeout(rr, baseDelay * Math.pow(2, attempts - 1)));
     }
   }
   console.error(`[qg-auth] FAIL: ${lastErr}`);

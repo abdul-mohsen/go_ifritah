@@ -32,7 +32,7 @@ function parseCookies(header, domain) {
     try {
       const sections = { invoices: 1, products: 1, clients: 1, suppliers: 1, settings: 1, sales: 1, purchases: 1, inventory: 1 };
       localStorage.setItem('sb-sections', JSON.stringify(sections));
-    } catch (e) {}
+    } catch (e) { }
   });
 
   const page = await ctx.newPage();
@@ -46,7 +46,7 @@ function parseCookies(header, domain) {
         const cs = t && t.nodeType === 1 ? getComputedStyle(t) : null;
         const dur = cs ? (type.startsWith('transition') ? cs.transitionDuration : cs.animationDuration) : '';
         window.__animEvents.push({ type, sel, t: performance.now(), prop: e.propertyName || e.animationName || '', dur });
-      } catch (err) {}
+      } catch (err) { }
     };
     document.addEventListener('transitionrun', cap('transitionrun'), true);
     document.addEventListener('transitionstart', cap('transitionstart'), true);
@@ -78,6 +78,7 @@ function parseCookies(header, domain) {
   await browser.close();
   fs.writeFileSync(path.join(outDir, '_summary.json'), JSON.stringify(summary, null, 2));
   const total = summary.reduce((a, b) => a + (b.offenders || 0), 0);
-  console.log(`\n[anim] total offenders=${total} routes=${summary.length}`);
-  process.exit(0);
+  const errored = summary.filter(s => s.error).length;
+  console.log(`\n[anim] total offenders=${total} routes=${summary.length} errors=${errored}`);
+  process.exit((total > 0 || errored > 0) ? 1 : 0);
 })();

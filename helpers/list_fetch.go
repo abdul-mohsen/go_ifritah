@@ -122,9 +122,8 @@ func FetchSuppliersList(token string, opts ListOpts) ([]models.Supplier, error) 
 	return decodeSupplierList(body)
 }
 
-// FetchStoresList — backend-driven stores list page.
-// /stores/all is a GET endpoint historically; we still POST-with-body for
-// uniformity once the BE accepts it. Falls back to GET on 405.
+// FetchStoresList — backend-driven stores list page. The /stores/all endpoint
+// is GET-only today; pass page_number / page_size / query as URL params.
 func FetchStoresList(token string, opts ListOpts) ([]models.Store, error) {
 	url := config.BackendDomain + "/api/v2/stores/all"
 	req, err := http.NewRequest("GET", url, nil)
@@ -184,13 +183,16 @@ func FetchProductsList(token string, opts ListOpts) ([]models.Product, error) {
 			if v, ok := item["quantity"].(string); ok {
 				qty = v
 			} else if v, ok := CoerceFloat(item["quantity"]); ok {
-				qty = fmt.Sprintf("%g", v)
+				// %g switches to scientific for >=1e6, which is wrong for
+				// inventory quantities; FormatFloat with prec=-1 keeps decimal
+				// form and the shortest representation that round-trips.
+				qty = strconv.FormatFloat(v, 'f', -1, 64)
 			}
 			price := ""
 			if v, ok := item["price"].(string); ok {
 				price = v
 			} else if v, ok := CoerceFloat(item["price"]); ok {
-				price = fmt.Sprintf("%g", v)
+				price = strconv.FormatFloat(v, 'f', -1, 64)
 			}
 			partName := ""
 			if v, ok := item["part_name"].(string); ok {

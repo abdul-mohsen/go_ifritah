@@ -37,6 +37,7 @@ const opts = {
   fs.writeFileSync(path.join(outDir, '_summary.json'), JSON.stringify(summary, null, 2));
   const totalE = summary.reduce((a, b) => a + (b.errors || 0), 0);
   const totalW = summary.reduce((a, b) => a + (b.warnings || 0), 0);
-  console.log(`\n[pa11y] total errors=${totalE} warnings=${totalW} routes=${summary.length}`);
-  process.exit(0);
+  const errored = summary.filter(s => s.error).length;
+  console.log(`\n[pa11y] total errors=${totalE} warnings=${totalW} routes=${summary.length} fetchErrors=${errored}`);
+  process.exit((totalE > 0 || errored > 0) ? 1 : 0);
 })();

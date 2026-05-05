@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -50,14 +51,17 @@ func HandleNotifications(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Soft-fail: render the page empty rather than 500ing the user out of
-		// their dashboard. The error toast surfaces via the badge poll.
+		// their dashboard. Log the raw error server-side; surface a generic
+		// user-safe message to the template (avoids leaking backend hostnames,
+		// internal paths, or DB hints).
+		log.Printf("[notifications] backend fetch failed: %v", err)
 		helpers.Render(w, r, "notifications", map[string]interface{}{
 			"title":         "التنبيهات",
 			"notifications": []models.Notification{},
 			"unread":        []models.Notification{},
 			"read":          []models.Notification{},
 			"unread_count":  0,
-			"backend_error": err.Error(),
+			"backend_error": "فشل تحميل التنبيهات",
 		})
 		return
 	}
@@ -149,7 +153,7 @@ func HandleNotificationUnreadCount(w http.ResponseWriter, r *http.Request) {
 		}
 		writeNotifJSON(w, http.StatusBadGateway, map[string]any{
 			"count": 0,
-			"error": err.Error(),
+			"error": "upstream unavailable",
 		})
 		return
 	}
@@ -276,9 +280,12 @@ func writeNotifError(w http.ResponseWriter, r *http.Request, err error) {
 			"error":   "التنبيه غير موجود",
 		})
 	default:
+		// Don't echo the raw upstream error to clients (info disclosure).
+		// Log it for ops, return a stable user-safe message.
+		log.Printf("[notifications] upstream error: %v", err)
 		writeNotifJSON(w, http.StatusBadGateway, map[string]any{
 			"success": false,
-			"error":   err.Error(),
+			"error":   "فشل الاتصال بالخادم",
 		})
 	}
 }

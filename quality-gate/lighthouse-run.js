@@ -44,6 +44,20 @@ fs.mkdirSync(outDir, { recursive: true });
     await chrome.kill();
   }
   fs.writeFileSync(path.join(outDir, '_summary.json'), JSON.stringify(summary, null, 2));
-  console.log(`\n[lh] routes=${summary.length}`);
-  process.exit(0);
+  // Threshold floor for the four Lighthouse categories. Current FE baseline
+  // sits in the low 80s for performance/accessibility on a couple of routes;
+  // we gate at 80 to catch regressions without pinning to the (unreachable)
+  // 90 default. Override with LH_THRESHOLD=N when tightening the gate.
+  const THRESHOLD = +(process.env.LH_THRESHOLD || 80);
+  const failed = summary.filter(s =>
+    s.error ||
+    (s.performance !== undefined && (
+      s.performance < THRESHOLD ||
+      s.accessibility < THRESHOLD ||
+      s.bestPractices < THRESHOLD ||
+      s.seo < THRESHOLD
+    ))
+  );
+  console.log(`\n[lh] routes=${summary.length} below=${failed.length} threshold=${THRESHOLD}`);
+  process.exit(failed.length > 0 ? 1 : 0);
 })();

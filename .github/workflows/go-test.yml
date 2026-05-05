@@ -18,6 +18,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # Several templates embed `{{L "..."}}` calls inside JS template
+      # literals; Go 1.21 rejects this by default. Restore pre-1.21
+      # behavior so the renderer doesn't return a 23-byte error stub.
+      GODEBUG: "jstmpllitinterp=1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

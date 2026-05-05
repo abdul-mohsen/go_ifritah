@@ -34,11 +34,14 @@ async function setSetting(page, key, value) {
     await field.fill(String(value));
   }
 
-  // Submit the form containing this field
+  // Submit the form containing this field. Use programmatic .submit() to
+  // bypass any overlay/disabled-button quirks (the settings page has a
+  // single huge form with the submit button far below the viewport, and
+  // some toggles attach click-time JS that can intercept .click()).
   const form = field.locator('xpath=ancestor::form[1]');
   await Promise.all([
     page.waitForURL('**/dashboard/settings**', { timeout: 10000 }),
-    form.locator('button[type="submit"]').first().click(),
+    form.evaluate((f) => f.submit()),
   ]);
   // Allow flash to render
   await page.waitForTimeout(300);

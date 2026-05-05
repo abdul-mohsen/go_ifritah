@@ -13,15 +13,18 @@ test('two simultaneous setting saves both succeed', async ({ browser }) => {
   await login(p1);
   await login(p2);
 
+  // Use values that no other test in the suite writes to low_stock_threshold,
+  // otherwise a parallel test (e.g. qa-03 setting it to 7) can overwrite
+  // before our final read.
   await Promise.all([
-    setSetting(p1, 'low_stock_threshold', '11'),
-    setSetting(p2, 'low_stock_threshold', '12'),
+    setSetting(p1, 'low_stock_threshold', '81'),
+    setSetting(p2, 'low_stock_threshold', '82'),
   ]);
 
   // Final value is one of the two — the system must not 500.
-  await p1.goto('/dashboard/settings');
+  await p1.goto('/dashboard/settings?_=' + Date.now());
   const final = await p1.locator('[name="low_stock_threshold"]').inputValue();
-  expect(['11', '12']).toContain(final);
+  expect(['81', '82']).toContain(final);
 
   await ctx1.close();
   await ctx2.close();

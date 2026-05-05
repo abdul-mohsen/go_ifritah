@@ -45,6 +45,24 @@ async function setSetting(page, key, value) {
   ]);
   // Allow flash to render
   await page.waitForTimeout(300);
+
+  // The dev backend's settings GET is occasionally read-after-write stale
+  // (caching layer between Go FE and the DB). Re-fetch with a cache-bust
+  // and retry until the new value is visible (or we exhaust retries).
+  for (let i = 0; i < 5; i++) {
+    await page.goto('/dashboard/settings?_=' + Date.now());
+    await page.waitForLoadState('domcontentloaded');
+    const fresh = page.locator(`[name="${key}"]`).first();
+    let actual;
+    if (type === 'checkbox') {
+      actual = (await fresh.isChecked()) ? 'true' : 'false';
+    } else {
+      actual = await fresh.inputValue();
+    }
+    const want = type === 'checkbox' ? (Boolean(value) ? 'true' : 'false') : String(value);
+    if (actual === want) return;
+    await page.waitForTimeout(400);
+  }
 }
 
 // Read a numeric KPI from the dashboard by visible label fragment.

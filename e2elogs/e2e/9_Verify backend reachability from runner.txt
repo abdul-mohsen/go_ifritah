@@ -1,0 +1,14 @@
+﻿2026-05-05T11:47:54.5055152Z ##[group]Run curl -sS -o /dev/null -w "dev backend HTTP %{http_code}\n" "$BACKEND_URL" || true
+2026-05-05T11:47:54.5055748Z [36;1mcurl -sS -o /dev/null -w "dev backend HTTP %{http_code}\n" "$BACKEND_URL" || true[0m
+2026-05-05T11:47:54.5076755Z shell: /usr/bin/bash -e {0}
+2026-05-05T11:47:54.5076993Z env:
+2026-05-05T11:47:54.5077169Z   PORT: 8001
+2026-05-05T11:47:54.5077383Z   BACKEND_URL: https://dev.ifritah.com
+2026-05-05T11:47:54.5077657Z   APP_DOMAIN: localhost:8001
+2026-05-05T11:47:54.5077911Z   PW_BASE_URL: http://localhost:8001
+2026-05-05T11:47:54.5078162Z   PW_USER: admin
+2026-05-05T11:47:54.5078351Z   PW_PASS: admin
+2026-05-05T11:47:54.5078647Z   AFRITA_TOKEN_DIR: /home/runner/work/go_ifritah/go_ifritah/.afrita-tokens
+2026-05-05T11:47:54.5079014Z   GODEBUG: jstmpllitinterp=1
+2026-05-05T11:47:54.5079543Z ##[endgroup]
+2026-05-05T11:47:55.2298637Z dev backend HTTP 200

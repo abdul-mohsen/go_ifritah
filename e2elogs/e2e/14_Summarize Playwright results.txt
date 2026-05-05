@@ -1,0 +1,62 @@
+﻿2026-05-05T12:02:14.6427970Z ##[group]Run node -e '
+2026-05-05T12:02:14.6428267Z [36;1mnode -e '[0m
+2026-05-05T12:02:14.6428486Z [36;1m  const fs = require("fs");[0m
+2026-05-05T12:02:14.6428961Z [36;1m  const files = ["playwright-results-serial.json", "playwright-results-parallel.json"];[0m
+2026-05-05T12:02:14.6429890Z [36;1m  let passed = 0, failed = 0, skipped = 0, flaky = 0, total = 0;[0m
+2026-05-05T12:02:14.6430242Z [36;1m  const failures = [];[0m
+2026-05-05T12:02:14.6430485Z [36;1m  const visit = (suite) => {[0m
+2026-05-05T12:02:14.6430782Z [36;1m    for (const s of suite.suites || []) visit(s);[0m
+2026-05-05T12:02:14.6431106Z [36;1m    for (const spec of suite.specs || []) {[0m
+2026-05-05T12:02:14.6431403Z [36;1m      for (const t of spec.tests || []) {[0m
+2026-05-05T12:02:14.6431719Z [36;1m        total++;[0m
+2026-05-05T12:02:14.6432101Z [36;1m        const status = t.status; // expected | unexpected | flaky | skipped[0m
+2026-05-05T12:02:14.6432505Z [36;1m        if (status === "expected") passed++;[0m
+2026-05-05T12:02:14.6432847Z [36;1m        else if (status === "skipped") skipped++;[0m
+2026-05-05T12:02:14.6433192Z [36;1m        else if (status === "flaky") { flaky++; passed++; }[0m
+2026-05-05T12:02:14.6433645Z [36;1m        else { failed++; failures.push(`${spec.file}:${spec.line} - ${spec.title}`); }[0m
+2026-05-05T12:02:14.6434041Z [36;1m      }[0m
+2026-05-05T12:02:14.6434218Z [36;1m    }[0m
+2026-05-05T12:02:14.6434393Z [36;1m  };[0m
+2026-05-05T12:02:14.6434589Z [36;1m  for (const f of files) {[0m
+2026-05-05T12:02:14.6434928Z [36;1m    if (!fs.existsSync(f)) { console.log(`(missing ${f})`); continue; }[0m
+2026-05-05T12:02:14.6435343Z [36;1m    const r = JSON.parse(fs.readFileSync(f, "utf8"));[0m
+2026-05-05T12:02:14.6435680Z [36;1m    for (const s of r.suites || []) visit(s);[0m
+2026-05-05T12:02:14.6435947Z [36;1m  }[0m
+2026-05-05T12:02:14.6436373Z [36;1m  const summary = `Playwright: ${passed}/${total} passed (failed=${failed}, skipped=${skipped}, flaky=${flaky})`;[0m
+2026-05-05T12:02:14.6436885Z [36;1m  console.log(summary);[0m
+2026-05-05T12:02:14.6437155Z [36;1m  if (failures.length) {[0m
+2026-05-05T12:02:14.6437403Z [36;1m    console.log("\nFailures:");[0m
+2026-05-05T12:02:14.6437904Z [36;1m    for (const f of failures) console.log("  - " + f);[0m
+2026-05-05T12:02:14.6438206Z [36;1m  }[0m
+2026-05-05T12:02:14.6438436Z [36;1m  const out = process.env.GITHUB_STEP_SUMMARY;[0m
+2026-05-05T12:02:14.6438719Z [36;1m  if (out) {[0m
+2026-05-05T12:02:14.6438927Z [36;1m    let md = `### ${summary}\n`;[0m
+2026-05-05T12:02:14.6439459Z [36;1m    if (failures.length) {[0m
+2026-05-05T12:02:14.6439767Z [36;1m      md += "\n<details><summary>Failures</summary>\n\n";[0m
+2026-05-05T12:02:14.6440168Z [36;1m      md += failures.map(f => `- \`${f}\``).join("\n") + "\n\n</details>\n";[0m
+2026-05-05T12:02:14.6440507Z [36;1m    }[0m
+2026-05-05T12:02:14.6440714Z [36;1m    fs.appendFileSync(out, md);[0m
+2026-05-05T12:02:14.6440956Z [36;1m  }[0m
+2026-05-05T12:02:14.6441126Z [36;1m'[0m
+2026-05-05T12:02:14.6462104Z shell: /usr/bin/bash -e {0}
+2026-05-05T12:02:14.6462351Z env:
+2026-05-05T12:02:14.6462531Z   PORT: 8001
+2026-05-05T12:02:14.6462756Z   BACKEND_URL: https://dev.ifritah.com
+2026-05-05T12:02:14.6463029Z   APP_DOMAIN: localhost:8001
+2026-05-05T12:02:14.6463280Z   PW_BASE_URL: http://localhost:8001
+2026-05-05T12:02:14.6463536Z   PW_USER: admin
+2026-05-05T12:02:14.6463721Z   PW_PASS: admin
+2026-05-05T12:02:14.6464028Z   AFRITA_TOKEN_DIR: /home/runner/work/go_ifritah/go_ifritah/.afrita-tokens
+2026-05-05T12:02:14.6464392Z   GODEBUG: jstmpllitinterp=1
+2026-05-05T12:02:14.6464620Z ##[endgroup]
+2026-05-05T12:02:14.6839919Z Playwright: 341/359 passed (failed=8, skipped=10, flaky=0)
+2026-05-05T12:02:14.6843614Z 
+2026-05-05T12:02:14.6843827Z Failures:
+2026-05-05T12:02:14.6844612Z   - qa-01-stock-enforcement.spec.js:41 - mode=disable can be saved
+2026-05-05T12:02:14.6845619Z   - qa-01-stock-enforcement.spec.js:48 - mode=warn can be saved
+2026-05-05T12:02:14.6846596Z   - qa-01-stock-enforcement.spec.js:55 - mode=enforce can be saved
+2026-05-05T12:02:14.6848099Z   - qa-03-settings.spec.js:36 - numeric setting low_stock_threshold=7
+2026-05-05T12:02:14.6849442Z   - qa-03-settings.spec.js:44 - select setting stock_enforcement=warn
+2026-05-05T12:02:14.6850531Z   - qa-03-settings.spec.js:44 - select setting stock_enforcement=disable
+2026-05-05T12:02:14.6851636Z   - qa-14-concurrency.spec.js:7 - two simultaneous setting saves both succeed
+2026-05-05T12:02:14.6853034Z   - qa-15-stock-enforcement-behavior.spec.js:64 - mode=warn + dismiss: oversell pops confirm and is BLOCKED

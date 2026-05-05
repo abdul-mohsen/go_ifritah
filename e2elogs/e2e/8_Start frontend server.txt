@@ -1,0 +1,27 @@
+﻿2026-05-05T11:47:53.4761332Z ##[group]Run mkdir -p "$AFRITA_TOKEN_DIR"
+2026-05-05T11:47:53.4761709Z [36;1mmkdir -p "$AFRITA_TOKEN_DIR"[0m
+2026-05-05T11:47:53.4762017Z [36;1mnohup ./afrita > server.log 2>&1 &[0m
+2026-05-05T11:47:53.4762305Z [36;1mecho $! > server.pid[0m
+2026-05-05T11:47:53.4762572Z [36;1m# Wait for the login page to be reachable[0m
+2026-05-05T11:47:53.4762864Z [36;1mfor i in $(seq 1 60); do[0m
+2026-05-05T11:47:53.4763201Z [36;1m  if curl -sf "http://localhost:${PORT}/login" >/dev/null; then[0m
+2026-05-05T11:47:53.4763565Z [36;1m    echo "Frontend is up after ${i}s"[0m
+2026-05-05T11:47:53.4763842Z [36;1m    exit 0[0m
+2026-05-05T11:47:53.4764029Z [36;1m  fi[0m
+2026-05-05T11:47:53.4764203Z [36;1m  sleep 1[0m
+2026-05-05T11:47:53.4764389Z [36;1mdone[0m
+2026-05-05T11:47:53.4764600Z [36;1mecho "Frontend did not start within 60s"[0m
+2026-05-05T11:47:53.4764875Z [36;1mcat server.log[0m
+2026-05-05T11:47:53.4765079Z [36;1mexit 1[0m
+2026-05-05T11:47:53.4786607Z shell: /usr/bin/bash -e {0}
+2026-05-05T11:47:53.4786882Z env:
+2026-05-05T11:47:53.4787059Z   PORT: 8001
+2026-05-05T11:47:53.4787276Z   BACKEND_URL: https://dev.ifritah.com
+2026-05-05T11:47:53.4787550Z   APP_DOMAIN: localhost:8001
+2026-05-05T11:47:53.4787800Z   PW_BASE_URL: http://localhost:8001
+2026-05-05T11:47:53.4788060Z   PW_USER: admin
+2026-05-05T11:47:53.4788251Z   PW_PASS: admin
+2026-05-05T11:47:53.4788553Z   AFRITA_TOKEN_DIR: /home/runner/work/go_ifritah/go_ifritah/.afrita-tokens
+2026-05-05T11:47:53.4788924Z   GODEBUG: jstmpllitinterp=1
+2026-05-05T11:47:53.4789378Z ##[endgroup]
+2026-05-05T11:47:54.5028559Z Frontend is up after 2s

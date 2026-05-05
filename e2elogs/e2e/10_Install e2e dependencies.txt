@@ -1,0 +1,41 @@
+﻿2026-05-05T11:47:55.2348363Z ##[group]Run npm ci || npm install
+2026-05-05T11:47:55.2348874Z [36;1mnpm ci || npm install[0m
+2026-05-05T11:47:55.2379821Z shell: /usr/bin/bash -e {0}
+2026-05-05T11:47:55.2380231Z env:
+2026-05-05T11:47:55.2380532Z   PORT: 8001
+2026-05-05T11:47:55.2380910Z   BACKEND_URL: https://dev.ifritah.com
+2026-05-05T11:47:55.2381385Z   APP_DOMAIN: localhost:8001
+2026-05-05T11:47:55.2381857Z   PW_BASE_URL: http://localhost:8001
+2026-05-05T11:47:55.2382315Z   PW_USER: admin
+2026-05-05T11:47:55.2382651Z   PW_PASS: admin
+2026-05-05T11:47:55.2383194Z   AFRITA_TOKEN_DIR: /home/runner/work/go_ifritah/go_ifritah/.afrita-tokens
+2026-05-05T11:47:55.2383877Z   GODEBUG: jstmpllitinterp=1
+2026-05-05T11:47:55.2384298Z ##[endgroup]
+2026-05-05T11:47:55.5329457Z npm error code EUSAGE
+2026-05-05T11:47:55.5331488Z npm error
+2026-05-05T11:47:55.5332517Z npm error The `npm ci` command can only install with an existing package-lock.json or
+2026-05-05T11:47:55.5333525Z npm error npm-shrinkwrap.json with lockfileVersion >= 1. Run an install with npm@5 or
+2026-05-05T11:47:55.5334289Z npm error later to generate a package-lock.json file, then try again.
+2026-05-05T11:47:55.5334934Z npm error
+2026-05-05T11:47:55.5335210Z npm error Clean install a project
+2026-05-05T11:47:55.5335484Z npm error
+2026-05-05T11:47:55.5335688Z npm error Usage:
+2026-05-05T11:47:55.5335904Z npm error npm ci
+2026-05-05T11:47:55.5336113Z npm error
+2026-05-05T11:47:55.5336334Z npm error Options:
+2026-05-05T11:47:55.5336843Z npm error [--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+2026-05-05T11:47:55.5337582Z npm error [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+2026-05-05T11:47:55.5338333Z npm error [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
+2026-05-05T11:47:55.5339279Z npm error [--strict-peer-deps] [--foreground-scripts] [--ignore-scripts] [--no-audit]
+2026-05-05T11:47:55.5340188Z npm error [--no-bin-links] [--no-fund] [--dry-run]
+2026-05-05T11:47:55.5341065Z npm error [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+2026-05-05T11:47:55.5342171Z npm error [-ws|--workspaces] [--include-workspace-root] [--install-links]
+2026-05-05T11:47:55.5342844Z npm error
+2026-05-05T11:47:55.5343577Z npm error aliases: clean-install, ic, install-clean, isntall-clean
+2026-05-05T11:47:55.5344234Z npm error
+2026-05-05T11:47:55.5344683Z npm error Run "npm help ci" for more info
+2026-05-05T11:47:55.5345990Z npm error A complete log of this run can be found in: /home/runner/.npm/_logs/2026-05-05T11_47_55_303Z-debug-0.log
+2026-05-05T11:47:56.5184943Z 
+2026-05-05T11:47:56.5185939Z added 3 packages, and audited 4 packages in 917ms
+2026-05-05T11:47:56.5193111Z 
+2026-05-05T11:47:56.5193334Z found 0 vulnerabilities

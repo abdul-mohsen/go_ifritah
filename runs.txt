@@ -1,0 +1,10 @@
+5b6efe8 E2E (against dev backend)    in_progress  - 25373343371
+5b6efe8 Go test                      completed    success 25373343387
+5b6efe8 Go vet                       completed    success 25373343405
+5b6efe8 HTML validate                completed    success 25373343370
+5b6efe8 Animation flicker            completed    success 25373343380
+5b6efe8 Pa11y (a11y audit)           completed    success 25373343404
+5b6efe8 Lighthouse                   completed    success 25373343363
+eaf9a1e Go test                      completed    success 25372226198
+eaf9a1e Go vet                       completed    success 25372226201
+eaf9a1e Animation flicker            completed    success 25372226202

@@ -1,0 +1,18 @@
+﻿2026-05-05T12:02:14.6938927Z ##[group]Run echo "Playwright serial   exit code: 1"
+2026-05-05T12:02:14.6939726Z [36;1mecho "Playwright serial   exit code: 1"[0m
+2026-05-05T12:02:14.6940060Z [36;1mecho "Playwright parallel exit code: 0"[0m
+2026-05-05T12:02:14.6940325Z [36;1mexit 1[0m
+2026-05-05T12:02:14.6961129Z shell: /usr/bin/bash -e {0}
+2026-05-05T12:02:14.6961371Z env:
+2026-05-05T12:02:14.6961545Z   PORT: 8001
+2026-05-05T12:02:14.6961760Z   BACKEND_URL: https://dev.ifritah.com
+2026-05-05T12:02:14.6962034Z   APP_DOMAIN: localhost:8001
+2026-05-05T12:02:14.6962283Z   PW_BASE_URL: http://localhost:8001
+2026-05-05T12:02:14.6962539Z   PW_USER: admin
+2026-05-05T12:02:14.6962720Z   PW_PASS: admin
+2026-05-05T12:02:14.6963011Z   AFRITA_TOKEN_DIR: /home/runner/work/go_ifritah/go_ifritah/.afrita-tokens
+2026-05-05T12:02:14.6963378Z   GODEBUG: jstmpllitinterp=1
+2026-05-05T12:02:14.6963597Z ##[endgroup]
+2026-05-05T12:02:14.7016770Z Playwright serial   exit code: 1
+2026-05-05T12:02:14.7017343Z Playwright parallel exit code: 0
+2026-05-05T12:02:14.7027493Z ##[error]Process completed with exit code 1.

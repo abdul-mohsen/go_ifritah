@@ -1,0 +1,13 @@
+﻿2026-05-05T11:47:52.0336067Z ##[group]Run go build -o afrita .
+2026-05-05T11:47:52.0336407Z [36;1mgo build -o afrita .[0m
+2026-05-05T11:47:52.0358113Z shell: /usr/bin/bash -e {0}
+2026-05-05T11:47:52.0358364Z env:
+2026-05-05T11:47:52.0358540Z   PORT: 8001
+2026-05-05T11:47:52.0358758Z   BACKEND_URL: https://dev.ifritah.com
+2026-05-05T11:47:52.0359488Z   APP_DOMAIN: localhost:8001
+2026-05-05T11:47:52.0359749Z   PW_BASE_URL: http://localhost:8001
+2026-05-05T11:47:52.0360005Z   PW_USER: admin
+2026-05-05T11:47:52.0360193Z   PW_PASS: admin
+2026-05-05T11:47:52.0360499Z   AFRITA_TOKEN_DIR: /home/runner/work/go_ifritah/go_ifritah/.afrita-tokens
+2026-05-05T11:47:52.0360863Z   GODEBUG: jstmpllitinterp=1
+2026-05-05T11:47:52.0361100Z ##[endgroup]

@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 
 	"afrita/config"
 	"afrita/models"
@@ -239,11 +238,4 @@ func notifCheckStatus(resp *http.Response) error {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		return fmt.Errorf("notification: backend status %d: %s", resp.StatusCode, string(body))
 	}
-}
-
-// notifShortContext returns a context with a 10s timeout suitable for the
-// bell-badge fast path. Callers wanting a different timeout should construct
-// their own context.
-func notifShortContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), 5*time.Second)
 }

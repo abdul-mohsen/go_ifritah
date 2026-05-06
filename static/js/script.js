@@ -584,12 +584,6 @@ document.addEventListener("htmx:afterSwap", function (evt) {
         var tbody = table.tBodies && table.tBodies[0];
         if (!tbody) return;
 
-        // Skip placeholder rows (e.g. "no data" with single full-width cell).
-        var rows = Array.prototype.slice.call(tbody.rows).filter(function (r) {
-            return r.cells.length > 1;
-        });
-        if (rows.length === 0) return;
-
         var idx = headerIndex(th);
         if (idx < 0) return;
 
@@ -604,13 +598,23 @@ document.addEventListener("htmx:afterSwap", function (evt) {
             }
         });
 
+        // Always reflect the chosen direction on this header so the user
+        // sees the click took effect, even when there's nothing to reorder
+        // (empty list / placeholder row only).
+        var indSelf = th.querySelector('.sort-indicator');
+        if (indSelf) indSelf.textContent = indicatorFor(dir);
+
+        // Skip placeholder rows (e.g. "no data" with single full-width cell).
+        var rows = Array.prototype.slice.call(tbody.rows).filter(function (r) {
+            return r.cells.length > 1;
+        });
+        if (rows.length === 0) return;
+
         if (dir === '') {
             // Restore original DOM order (cached on first sort).
             if (tbody._originalOrder) {
                 tbody._originalOrder.forEach(function (r) { tbody.appendChild(r); });
             }
-            var ind = th.querySelector('.sort-indicator');
-            if (ind) ind.textContent = indicatorFor('');
             return;
         }
 
@@ -622,9 +626,6 @@ document.addEventListener("htmx:afterSwap", function (evt) {
             return compare(cellValue(a, idx), cellValue(b, idx), dir);
         });
         rows.forEach(function (r) { tbody.appendChild(r); });
-
-        var ind2 = th.querySelector('.sort-indicator');
-        if (ind2) ind2.textContent = indicatorFor(dir);
     }
 
     function initSortable() {

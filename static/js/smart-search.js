@@ -285,7 +285,7 @@
       (fieldDef.kind === 'alnum'  && current && !/\s/.test(current))                   ||
       (fieldDef.kind === 'email'  && /@/.test(current));
     if (matches) {
-      addTypedFilter(form, fieldDef.param, current);
+      addTypedFilter(form, fieldDef.param, current, fieldDef.kind);
       input.value = '';
       input.dispatchEvent(new Event('input', { bubbles: true }));
       if (typeof form.requestSubmit === 'function') form.requestSubmit();
@@ -303,7 +303,7 @@
         var v = input.value.trim();
         cleanup();
         if (v) {
-          addTypedFilter(form, fieldDef.param, v);
+          addTypedFilter(form, fieldDef.param, v, fieldDef.kind);
           input.value = '';
           input.dispatchEvent(new Event('input', { bubbles: true }));
           if (typeof form.requestSubmit === 'function') form.requestSubmit();
@@ -320,14 +320,33 @@
     input.addEventListener('keydown', onKey);
   }
 
-  function addTypedFilter(form, name, value) {
+  // Backend (mailbox #34) does plain LIKE on the raw column — no Arabic-Indic
+  // folding, no non-digit stripping. Normalise on the FE so bookmarked URLs
+  // with pretty values like "+966 50 1234567" or "٠٥٠١٢٣٤٥٦٧" still match.
+  function sanitizeForKind(value, kind) {
+    var v = (value == null ? '' : String(value));
+    if (kind !== 'digits') return v.trim();
+    // Fold Arabic-Indic + extended Arabic-Indic digits to ASCII.
+    v = v.replace(/[\u0660-\u0669]/g, function (d) {
+      return String.fromCharCode(d.charCodeAt(0) - 0x0660 + 0x30);
+    });
+    v = v.replace(/[\u06F0-\u06F9]/g, function (d) {
+      return String.fromCharCode(d.charCodeAt(0) - 0x06F0 + 0x30);
+    });
+    // Strip everything that isn't an ASCII digit.
+    return v.replace(/\D+/g, '');
+  }
+
+  function addTypedFilter(form, name, value, kind) {
+    var clean = sanitizeForKind(value, kind);
+    if (!clean) return; // empty after normalisation = no-op
     // De-dupe: if a hidden of this name already exists, replace it.
     var existing = form.querySelector('input[type="hidden"][data-smart-typed="1"][name="' + name + '"]');
     if (existing) existing.parentNode.removeChild(existing);
     var hi = el('input', {
       type: 'hidden',
       name: name,
-      value: value,
+      value: clean,
       'data-smart-typed': '1',
     });
     form.appendChild(hi);
@@ -455,7 +474,7 @@
       btn.appendChild(document.createTextNode('Tab — بحث بـ ' + pickField.label + ': ' + v));
       btn.addEventListener('mousedown', function (e) {
         e.preventDefault();
-        addTypedFilter(form, pickField.param, v);
+        addTypedFilter(form, pickField.param, v, pickField.kind);
         input.value = '';
         input.dispatchEvent(new Event('input', { bubbles: true }));
         if (typeof form.requestSubmit === 'function') form.requestSubmit();
@@ -567,7 +586,7 @@
       var qs = new URLSearchParams(location.search);
       menu.forEach(function (f) {
         var v = qs.get(f.param);
-        if (v) addTypedFilter(form, f.param, v);
+        if (v) addTypedFilter(form, f.param, v, f.kind);
       });
     })();
 

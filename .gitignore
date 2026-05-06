@@ -113,3 +113,4 @@ e2elogs*/
 handlers/users_crud.go
 templates/users.html
 pr_comments.json
+test-results/

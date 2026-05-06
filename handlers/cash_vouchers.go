@@ -25,6 +25,7 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query().Get("q")
 	voucherType := r.URL.Query().Get("type")
+	typed := helpers.TypedListFilters("cash_vouchers", r.URL.Query())
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
 	if page < 0 {
@@ -34,7 +35,7 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 		perPage = 10
 	}
 
-	vouchers, err := helpers.FetchCashVouchers(token, 1, 10000, query, voucherType)
+	vouchers, err := helpers.FetchCashVouchersWithTyped(token, 1, 10000, query, voucherType, typed)
 	if err != nil {
 		log.Printf("[CASH VOUCHERS] Fetch error: %v", err)
 		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")

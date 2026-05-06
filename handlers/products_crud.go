@@ -36,6 +36,7 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 
 	stockFilter := r.URL.Query().Get("stock")
 	query := r.URL.Query().Get("q")
+	typed := helpers.TypedListFilters("products", r.URL.Query())
 
 	// Search/filter/sort are 100% backend-driven on this branch.
 	products, err := helpers.FetchProductsList(token, helpers.ListOpts{
@@ -43,6 +44,7 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 		PerPage: 10000,
 		Query:   query,
 		Stock:   stockFilter,
+		Typed:   typed,
 	})
 	backendErr := ""
 	if err != nil {

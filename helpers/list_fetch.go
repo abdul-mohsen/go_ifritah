@@ -27,6 +27,14 @@ type ListOpts struct {
 	Stock       string // "in" / "out" (products only)
 	VoucherType string // "disbursement" / "receipt" / "cash_box" (cash vouchers only)
 	Role        string // "admin" / "manager" / "employee" (users only)
+
+	// Typed carries per-resource typed-field filters (phone, vat_number,
+	// commercial_registration, sequence_number, supplier_sequence_number,
+	// part_number, barcode, vin, email). Keys are the canonical BE param
+	// names locked in mailbox #19. Values are forwarded as top-level JSON
+	// keys; the BE applies prefix-LIKE on indexed columns (or a digits-only
+	// generated stored column for `phone`).
+	Typed map[string]string
 }
 
 // MarshalListPayload builds the JSON request body for the BE list endpoints.
@@ -60,6 +68,12 @@ func (o ListOpts) MarshalListPayload() []byte {
 	}
 	if o.Role != "" {
 		m["role"] = o.Role
+	}
+	for k, v := range o.Typed {
+		if k == "" || v == "" {
+			continue
+		}
+		m[k] = v
 	}
 	b, _ := json.Marshal(m)
 	return b

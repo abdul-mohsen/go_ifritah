@@ -232,6 +232,13 @@ func FetchInvoices(token string) ([]models.Invoice, error) {
 // Sort is FE-only (BE returns rows in canonical keyset order). Search and
 // state filter are forwarded to BE; empty values fall through to defaults.
 func FetchInvoicesAll(token string, page int, query, stateFilter string) ([]models.Invoice, error) {
+	return FetchInvoicesAllWithTyped(token, page, query, stateFilter, nil)
+}
+
+// FetchInvoicesAllWithTyped is FetchInvoicesAll with extra typed-field
+// filters (phone, sequence_number, vin) that the BE applies as prefix-LIKE
+// on indexed columns. Per the contract in mailbox #19/#21.
+func FetchInvoicesAllWithTyped(token string, page int, query, stateFilter string, typed map[string]string) ([]models.Invoice, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -240,6 +247,11 @@ func FetchInvoicesAll(token string, page int, query, stateFilter string) ([]mode
 	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
 	apiLogf(logFmtAPIRequest, config.BackendDomain, "/api/v2/bill/all")
 	applyListFilters(payload, query, stateFilter)
+	for k, v := range typed {
+		if k != "" && v != "" {
+			payload[k] = v
+		}
+	}
 	body, _ := json.Marshal(payload)
 	apiLogf(logFmtAPIBody, string(body))
 

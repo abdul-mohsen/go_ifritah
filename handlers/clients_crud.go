@@ -23,6 +23,7 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("q")
+	typed := helpers.TypedListFilters("clients", r.URL.Query())
 
 	clients, err := helpers.FetchClientsList(token, helpers.ListOpts{
 		Page:    0,
@@ -38,6 +39,21 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[clients] backend list fetch failed: %v", err)
 		clients = []models.Client{}
 		backendErr = "تعذر تحميل العملاء من الخادم حالياً"
+	}
+
+	if len(typed) > 0 {
+		filtered := clients[:0]
+		for _, c := range clients {
+			row := map[string]string{
+				"phone":                   c.Phone,
+				"vat_number":              c.VATNumber,
+				"commercial_registration": c.CR,
+			}
+			if helpers.MatchTypedListFilters(typed, row) {
+				filtered = append(filtered, c)
+			}
+		}
+		clients = filtered
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))

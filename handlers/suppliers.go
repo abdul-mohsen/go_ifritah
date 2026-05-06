@@ -135,6 +135,7 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("q")
+	typed := helpers.TypedListFilters("suppliers", r.URL.Query())
 
 	suppliers, err := helpers.FetchSuppliersList(token, helpers.ListOpts{
 		Page:    0,
@@ -154,6 +155,24 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 			"error":         "تعذر تحميل الموردين من الخادم حالياً",
 		})
 		return
+	}
+
+	// Apply typed-field filters from the smart-search chips. These narrow
+	// the dataset client-side until the BE recognises them as native LIKE
+	// prefixes (per api_docs/search/SEARCH_API.md §4).
+	if len(typed) > 0 {
+		filtered := suppliers[:0]
+		for _, s := range suppliers {
+			row := map[string]string{
+				"phone":                   s.PhoneNumber,
+				"vat_number":              s.VATNumber,
+				"commercial_registration": s.CR,
+			}
+			if helpers.MatchTypedListFilters(typed, row) {
+				filtered = append(filtered, s)
+			}
+		}
+		suppliers = filtered
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))

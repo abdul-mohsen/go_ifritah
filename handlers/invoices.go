@@ -40,6 +40,7 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 	stateFilter := r.URL.Query().Get("state")
 	query := r.URL.Query().Get("q")
+	typed := helpers.TypedListFilters("invoices", r.URL.Query())
 
 	// Search + state filter are backend-driven. Sort is FE-only (BE returns
 	// rows in canonical keyset order); see static/js/script.js sortable
@@ -68,6 +69,21 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("Fetched %d invoices from backend (page %d)", len(invoices), page)
+
+	// Apply typed-field chip filters (sequence_number for now; phone/vin
+	// flow to the BE as native params once it learns them).
+	if len(typed) > 0 {
+		filtered := invoices[:0]
+		for _, inv := range invoices {
+			row := map[string]string{
+				"sequence_number": fmt.Sprintf("%d", inv.SequenceNumber),
+			}
+			if helpers.MatchTypedListFilters(typed, row) {
+				filtered = append(filtered, inv)
+			}
+		}
+		invoices = filtered
+	}
 
 	// Transform to display format
 	displayInvoices := make([]map[string]interface{}, 0, len(invoices))

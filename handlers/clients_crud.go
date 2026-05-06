@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -28,8 +29,15 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 		PerPage: 10000,
 		Query:   query,
 	})
+	backendErr := ""
 	if err != nil {
+		if helpers.IsUnauthorizedError(err) {
+			helpers.HandleUnauthorized(w, r)
+			return
+		}
+		log.Printf("[clients] backend list fetch failed: %v", err)
 		clients = []models.Client{}
+		backendErr = "تعذر تحميل العملاء من الخادم حالياً"
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
@@ -51,6 +59,7 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,
+		"error":      backendErr,
 	})
 }
 

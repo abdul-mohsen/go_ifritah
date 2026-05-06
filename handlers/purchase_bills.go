@@ -40,13 +40,15 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 	// Search + state filter are BE-driven. Sort is FE-only (see
 	// static/js/script.js sortable table init).
 	bills, err := helpers.FetchPurchaseBillsAll(token, 1, query, stateFilter)
+	backendErr := ""
 	if err != nil {
 		if helpers.IsUnauthorizedError(err) {
 			helpers.HandleUnauthorized(w, r)
 			return
 		}
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
-		return
+		log.Printf("[purchase-bills] backend list fetch failed: %v", err)
+		bills = nil
+		backendErr = "تعذر تحميل فواتير المشتريات من الخادم حالياً"
 	}
 
 	displayBills := make([]map[string]interface{}, 0)
@@ -94,6 +96,7 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 		"next_page":  nextPage,
 		"query":      query,
 		"state":      stateFilter,
+		"error":      backendErr,
 	})
 }
 

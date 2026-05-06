@@ -63,7 +63,7 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 			"next_page":     -1,
 			"query":         query,
 			"state":         stateFilter,
-			"backend_error": "تعذر تحميل الفواتير من الخادم حالياً",
+			"error":         "تعذر تحميل الفواتير من الخادم حالياً",
 		})
 		return
 	}

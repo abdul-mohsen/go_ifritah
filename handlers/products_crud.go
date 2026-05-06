@@ -44,8 +44,15 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 		Query:   query,
 		Stock:   stockFilter,
 	})
+	backendErr := ""
 	if err != nil {
+		if helpers.IsUnauthorizedError(err) {
+			helpers.HandleUnauthorized(w, r)
+			return
+		}
+		log.Printf("[products] backend list fetch failed: %v", err)
 		products = []models.Product{}
+		backendErr = "تعذر تحميل المنتجات من الخادم حالياً"
 	}
 	helpers.EnrichProductPartNames(products, token)
 
@@ -69,6 +76,7 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,
+		"error":      backendErr,
 	})
 }
 

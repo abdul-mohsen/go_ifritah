@@ -151,7 +151,7 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 			"prev_page":     -1,
 			"next_page":     -1,
 			"query":         query,
-			"backend_error": "تعذر تحميل الموردين من الخادم حالياً",
+			"error":         "تعذر تحميل الموردين من الخادم حالياً",
 		})
 		return
 	}

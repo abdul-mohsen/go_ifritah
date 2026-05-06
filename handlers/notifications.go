@@ -61,7 +61,7 @@ func HandleNotifications(w http.ResponseWriter, r *http.Request) {
 			"unread":        []models.Notification{},
 			"read":          []models.Notification{},
 			"unread_count":  0,
-			"backend_error": "فشل تحميل التنبيهات",
+			"error":         "فشل تحميل التنبيهات",
 		})
 		return
 	}

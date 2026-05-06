@@ -460,26 +460,36 @@
       var v = input.value.trim();
       if (!v || !menu.length) { hint.style.display = 'none'; return; }
       var isDigits = /^[\u0660-\u0669\u06F0-\u06F90-9\s]+$/.test(v);
-      var pickField = null;
+      // Build the list of fields whose `kind` matches what the user typed.
+      // For digits we may have BOTH phone and sequence_number on the same
+      // page (e.g. invoices); offer both so the user can disambiguate.
+      var picks = [];
       if (isDigits) {
-        // Prefer phone, fall back to sequence_number
-        pickField = menu.find(function (f) { return f.param === 'phone'; }) ||
-                    menu.find(function (f) { return f.param === 'sequence_number'; });
+        var phoneF = menu.find(function (f) { return f.param === 'phone'; });
+        var seqF   = menu.find(function (f) { return f.param === 'sequence_number'; });
+        if (phoneF) picks.push(phoneF);
+        if (seqF)   picks.push(seqF);
       } else if (/@/.test(v)) {
-        pickField = menu.find(function (f) { return f.param === 'email'; });
+        var emailF = menu.find(function (f) { return f.param === 'email'; });
+        if (emailF) picks.push(emailF);
       }
-      if (!pickField) { hint.style.display = 'none'; return; }
+      if (!picks.length) { hint.style.display = 'none'; return; }
       hint.style.display = '';
-      var btn = el('button', { type: 'button', class: 'smart-search-hint-btn' });
-      btn.appendChild(document.createTextNode('Tab — بحث بـ ' + pickField.label + ': ' + v));
-      btn.addEventListener('mousedown', function (e) {
-        e.preventDefault();
-        addTypedFilter(form, pickField.param, v, pickField.kind);
-        input.value = '';
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        if (typeof form.requestSubmit === 'function') form.requestSubmit();
+      picks.forEach(function (pickField, idx) {
+        var btn = el('button', { type: 'button', class: 'smart-search-hint-btn' });
+        // First pick on Tab; second pick on Shift+Tab (only when there are 2)
+        var shortcut = (picks.length === 1 || idx === 0) ? 'Tab' : 'Shift+Tab';
+        btn.appendChild(document.createTextNode(shortcut + ' — بحث بـ ' + pickField.label + ': ' + v));
+        btn.dataset.pickIdx = String(idx);
+        btn.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          addTypedFilter(form, pickField.param, v, pickField.kind);
+          input.value = '';
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          if (typeof form.requestSubmit === 'function') form.requestSubmit();
+        });
+        hint.appendChild(btn);
       });
-      hint.appendChild(btn);
     }
 
     // Below: chips row + counter (rendered in toolbar after the form)
@@ -538,9 +548,11 @@
         applyInstant();
         refreshHint();
         if (typeof form.requestSubmit === 'function') form.requestSubmit();
-      } else if (e.key === 'Tab' && hint.style.display !== 'none' && !e.shiftKey) {
-        // Promote the typed value to the suggested typed filter
-        var btn = hint.querySelector('button');
+      } else if (e.key === 'Tab' && hint.style.display !== 'none') {
+        // Tab → first pick (phone preferred); Shift+Tab → second pick if any (seq).
+        var idx = e.shiftKey ? 1 : 0;
+        var btn = hint.querySelector('button[data-pick-idx="' + idx + '"]') ||
+                  (idx === 0 ? hint.querySelector('button') : null);
         if (btn) {
           e.preventDefault();
           btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));

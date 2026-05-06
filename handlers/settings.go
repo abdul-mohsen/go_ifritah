@@ -386,14 +386,7 @@ func HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	// to the user instead of lying to them.
 	if err := saveSettingsToBackend(token, newSettings); err != nil {
 		log.Printf("[SETTINGS] save failed: %v", err)
-		http.SetCookie(w, &http.Cookie{
-			Name:     "afrita_flash",
-			Value:    url.QueryEscape(`{"message":"فشل حفظ الإعدادات","type":"error"}`),
-			Path:     "/",
-			MaxAge:   10,
-			HttpOnly: false,
-			SameSite: http.SameSiteLaxMode,
-		})
+		writeFlashCookie(w, `{"message":"فشل حفظ الإعدادات","type":"error"}`)
 		http.Redirect(w, r, "/dashboard/settings", http.StatusSeeOther)
 		return
 	}
@@ -401,15 +394,23 @@ func HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[SETTINGS] Settings saved successfully")
 
 	// Set flash cookie for success toast, then do a standard HTTP redirect
+	writeFlashCookie(w, `{"message":"تم حفظ الإعدادات بنجاح","type":"success"}`)
+	http.Redirect(w, r, "/dashboard/settings", http.StatusSeeOther)
+}
+
+// writeFlashCookie sets the short-lived afrita_flash cookie used to render a
+// toast on the next page render. Secure is enabled when not running on
+// localhost so the cookie is only sent over HTTPS in deployed envs.
+func writeFlashCookie(w http.ResponseWriter, payload string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "afrita_flash",
-		Value:    url.QueryEscape(`{"message":"تم حفظ الإعدادات بنجاح","type":"success"}`),
+		Value:    url.QueryEscape(payload),
 		Path:     "/",
 		MaxAge:   10,
 		HttpOnly: false,
+		Secure:   !isLocalhost(),
 		SameSite: http.SameSiteLaxMode,
 	})
-	http.Redirect(w, r, "/dashboard/settings", http.StatusSeeOther)
 }
 
 // GetSettingValue returns a single setting value (for use by other handlers).

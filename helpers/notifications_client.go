@@ -27,6 +27,11 @@ import (
 
 const notifBasePath = "/api/v2/notification"
 
+// errFmtBuildRequest is the wrapper used when http.NewRequestWithContext
+// fails inside a notification client method. Extracted to avoid duplicating
+// the literal across the six call sites.
+const errFmtBuildRequest = "notification: build request: %w"
+
 // ErrNotifUnauthorized signals the access token is invalid / expired.
 var ErrNotifUnauthorized = errors.New("notification: unauthorized")
 
@@ -71,7 +76,7 @@ func FetchNotifications(ctx context.Context, token string, p NotificationListPar
 	u := config.BackendDomain + notifBasePath + "?" + q.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return NotificationListResponse{}, fmt.Errorf("notification: build request: %w", err)
+		return NotificationListResponse{}, fmt.Errorf(errFmtBuildRequest, err)
 	}
 
 	resp, err := DoAuthedRequest(req, token)
@@ -96,7 +101,7 @@ func FetchUnreadCount(ctx context.Context, token string) (int, error) {
 	u := config.BackendDomain + notifBasePath + "/unread-count"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return 0, fmt.Errorf("notification: build request: %w", err)
+		return 0, fmt.Errorf(errFmtBuildRequest, err)
 	}
 	resp, err := DoAuthedRequest(req, token)
 	if err != nil {
@@ -120,7 +125,7 @@ func MarkNotificationRead(ctx context.Context, token string, id int) error {
 	u := fmt.Sprintf("%s%s/%d/read", config.BackendDomain, notifBasePath, id)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, nil)
 	if err != nil {
-		return fmt.Errorf("notification: build request: %w", err)
+		return fmt.Errorf(errFmtBuildRequest, err)
 	}
 	resp, err := DoAuthedRequest(req, token)
 	if err != nil {
@@ -136,7 +141,7 @@ func MarkAllNotificationsRead(ctx context.Context, token string) (int, error) {
 	u := config.BackendDomain + notifBasePath + "/read-all"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, nil)
 	if err != nil {
-		return 0, fmt.Errorf("notification: build request: %w", err)
+		return 0, fmt.Errorf(errFmtBuildRequest, err)
 	}
 	resp, err := DoAuthedRequest(req, token)
 	if err != nil {
@@ -161,7 +166,7 @@ func GetNotificationConfig(ctx context.Context, token string) (models.Notificati
 	u := config.BackendDomain + notifBasePath + "/config"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return models.NotificationConfig{}, fmt.Errorf("notification: build request: %w", err)
+		return models.NotificationConfig{}, fmt.Errorf(errFmtBuildRequest, err)
 	}
 	resp, err := DoAuthedRequest(req, token)
 	if err != nil {
@@ -196,7 +201,7 @@ func UpdateNotificationConfig(ctx context.Context, token string, partial map[str
 	u := config.BackendDomain + notifBasePath + "/config"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, u, bytes.NewReader(body))
 	if err != nil {
-		return models.NotificationConfig{}, fmt.Errorf("notification: build request: %w", err)
+		return models.NotificationConfig{}, fmt.Errorf(errFmtBuildRequest, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := DoAuthedRequest(req, token)

@@ -12,6 +12,11 @@ import (
 	"afrita/helpers"
 )
 
+// partsResultsTpl is the partial template name rendered by the parts
+// live-search endpoint. Extracted so it isn't duplicated across the four
+// branches that render an empty/successful result set.
+const partsResultsTpl = "parts-results"
+
 // HandleVerifyVIN performs VIN lookup and renders result partial.
 func HandleVerifyVIN(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -88,7 +93,7 @@ func HandlePartsSearchResults(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Network error — render empty results so the live-search UX
 		// degrades gracefully instead of showing a 500 panel.
-		helpers.RenderPartial(w, "parts-results", map[string]interface{}{"results": []interface{}{}})
+		helpers.RenderPartial(w, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
 		return
 	}
 	defer resp.Body.Close()
@@ -98,20 +103,20 @@ func HandlePartsSearchResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		helpers.RenderPartial(w, "parts-results", map[string]interface{}{"results": []interface{}{}})
+		helpers.RenderPartial(w, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
 		return
 	}
 
 	var results []map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		helpers.RenderPartial(w, "parts-results", map[string]interface{}{"results": []interface{}{}})
+		helpers.RenderPartial(w, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
 		return
 	}
 
 	data := map[string]interface{}{
 		"results": results,
 	}
-	helpers.RenderPartial(w, "parts-results", data)
+	helpers.RenderPartial(w, partsResultsTpl, data)
 }
 
 // HandlePartsSearchJSON returns parts search results as JSON (for AJAX dropdowns).

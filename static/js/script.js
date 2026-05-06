@@ -1,7 +1,7 @@
 // ── Toast Notification System ──────────────────────────────
 (function () {
-    var TOAST_DURATION = 5000;
-    var ICONS = {
+    let TOAST_DURATION = 5000;
+    let ICONS = {
         error: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>',
         success: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>',
         warning: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86l-8.6 14.86A1 1 0 002.56 20h18.88a1 1 0 00.87-1.28l-8.6-14.86a1 1 0 00-1.72 0z"/></svg>',
@@ -11,10 +11,10 @@
     window.showToast = function (message, type) {
         type = type || 'error';
         if (!message) message = 'حدث خطأ، يرجى المحاولة مرة أخرى';
-        var container = document.getElementById('toast-container');
+        let container = document.getElementById('toast-container');
         if (!container) return;
 
-        var toast = document.createElement('div');
+        let toast = document.createElement('div');
         toast.className = 'toast toast-' + type;
         toast.innerHTML = (ICONS[type] || ICONS.error) +
             '<span>' + message + '</span>' +
@@ -28,7 +28,7 @@
         container.appendChild(toast);
 
         // Auto-remove
-        var ref = toast;
+        let ref = toast;
         setTimeout(function () {
             if (ref.parentElement) {
                 ref.classList.add('toast-out');
@@ -43,19 +43,19 @@
     function handlePDF(url, action) {
         // Pre-open the window synchronously (during the click event) so popup
         // blockers don't suppress it. We navigate or close it after fetch.
-        var win = null;
+        let win = null;
         if (action === 'open') {
             win = window.open('about:blank', '_blank');
         }
 
         fetch(url, { credentials: 'same-origin' })
             .then(function (resp) {
-                var ct = resp.headers.get('content-type') || '';
+                let ct = resp.headers.get('content-type') || '';
                 if (resp.ok && ct.indexOf('application/pdf') !== -1) {
                     return resp.blob().then(function (blob) {
-                        var blobUrl = URL.createObjectURL(blob);
+                        let blobUrl = URL.createObjectURL(blob);
                         if (action === 'print') {
-                            var iframe = document.createElement('iframe');
+                            let iframe = document.createElement('iframe');
                             iframe.style.position = 'fixed';
                             iframe.style.right = '-9999px';
                             iframe.style.width = '0';
@@ -69,7 +69,7 @@
                                 } catch (e) { }
                                 // Use afterprint event to clean up after user finishes
                                 // Falls back to a long timeout if afterprint isn't supported
-                                var cleaned = false;
+                                let cleaned = false;
                                 function cleanup() {
                                     if (cleaned) return;
                                     cleaned = true;
@@ -92,9 +92,9 @@
                 // Error response — close pre-opened window and show toast
                 if (win) { try { win.close(); } catch (e) { } }
                 return resp.text().then(function (text) {
-                    var msg = 'تعذر تحميل ملف PDF، يرجى المحاولة لاحقاً';
+                    let msg = 'تعذر تحميل ملف PDF، يرجى المحاولة لاحقاً';
                     try {
-                        var json = JSON.parse(text);
+                        let json = JSON.parse(text);
                         if (json.message) msg = json.message;
                     } catch (e) { }
                     window.showToast(msg, 'error');
@@ -112,10 +112,10 @@
 
 // ── Flash Cookie Reader (shows toast from redirected pages) ───────
 (function () {
-    var match = document.cookie.match(/(?:^|;\s*)afrita_flash=([^;]*)/);
+    let match = document.cookie.match(/(?:^|;\s*)afrita_flash=([^;]*)/);
     if (match) {
         try {
-            var flash = JSON.parse(decodeURIComponent(match[1]));
+            let flash = JSON.parse(decodeURIComponent(match[1]));
             if (flash.message && window.showToast) {
                 // Small delay to ensure DOM is ready
                 setTimeout(function () {
@@ -130,8 +130,8 @@
 
 // ── Global Loading Overlay ────────────────────────────────────
 (function () {
-    var loadingEl = document.getElementById('global-loading');
-    var showTimer = null;
+    let loadingEl = document.getElementById('global-loading');
+    let showTimer = null;
 
     window.__showLoading = function () {
         // Debounce: only show after 200ms to avoid flicker on fast requests
@@ -158,17 +158,17 @@
 
 // ── Disable Submit Buttons During HTMX Requests ──────────────
 (function () {
-    var disabledButtons = [];
+    let disabledButtons = [];
 
     document.addEventListener("htmx:beforeRequest", function (evt) {
         // Show global loading
         if (window.__showLoading) window.__showLoading();
 
         // Disable all submit buttons in the requesting form
-        var form = evt.detail.elt;
+        let form = evt.detail.elt;
         if (form && form.tagName !== 'FORM') form = form.closest('form');
         if (form) {
-            var btns = form.querySelectorAll('button[type="submit"], button:not([type])');
+            let btns = form.querySelectorAll('button[type="submit"], button:not([type])');
             btns.forEach(function (btn) {
                 btn.disabled = true;
                 btn.classList.add('htmx-requesting');
@@ -194,8 +194,8 @@
 // HTMX helpers
 document.addEventListener("htmx:confirm", function (evt) {
     // Only confirm deletions
-    var verb = evt.detail.requestConfig ? evt.detail.requestConfig.verb : '';
-    var path = evt.detail.path || '';
+    let verb = evt.detail.requestConfig ? evt.detail.requestConfig.verb : '';
+    let path = evt.detail.path || '';
     if (verb === 'delete' || path.indexOf('/delete') !== -1) {
         if (!confirm("هل أنت متأكد من الحذف؟")) {
             evt.preventDefault();
@@ -205,18 +205,18 @@ document.addEventListener("htmx:confirm", function (evt) {
 
 // Intercept non-2xx HTMX responses — show toast instead of swapping raw error text
 document.addEventListener("htmx:beforeSwap", function (evt) {
-    var xhr = evt.detail.xhr;
+    let xhr = evt.detail.xhr;
     if (xhr && xhr.status >= 400) {
         evt.detail.shouldSwap = false;
         if (window.__hideLoading) window.__hideLoading();
 
         // Extract message from response
-        var msg = '';
-        var text = (xhr.responseText || '').trim();
+        let msg = '';
+        let text = (xhr.responseText || '').trim();
         if (text) {
             // Try JSON: {"detail":"..."} or {"error":"..."} or {"message":"..."}
             try {
-                var json = JSON.parse(text);
+                let json = JSON.parse(text);
                 msg = json.detail || json.error || json.message || json.msg || '';
             } catch (e) {
                 // Use plain text if short and not HTML
@@ -228,7 +228,7 @@ document.addEventListener("htmx:beforeSwap", function (evt) {
 
         // Provide meaningful fallback based on status code
         if (!msg) {
-            var statusMessages = {
+            let statusMessages = {
                 400: 'البيانات المرسلة غير صحيحة',
                 401: 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً',
                 403: 'ليس لديك صلاحية لتنفيذ هذا الإجراء',
@@ -266,7 +266,7 @@ document.addEventListener("htmx:sendError", function () {
 
 // Listen for HX-Trigger showToast events (sent by backend)
 document.addEventListener("showToast", function (evt) {
-    var d = evt.detail || {};
+    let d = evt.detail || {};
     window.showToast(d.message || '', d.type || 'error');
 });
 
@@ -277,23 +277,23 @@ document.addEventListener("showToast", function (evt) {
 // re-submitting (so a literal `hx-get='/x?fixed=1'` keeps `fixed=1`),
 // and drop empty parameters so the resulting URL stays tidy.
 document.addEventListener("htmx:configRequest", function (evt) {
-    var d = evt.detail;
+    let d = evt.detail;
     if (!d) return;
     if (d.verb === 'get' && d.path && d.parameters && typeof d.parameters === 'object') {
-        var qIdx = d.path.indexOf('?');
+        let qIdx = d.path.indexOf('?');
         if (qIdx >= 0) {
-            var head = d.path.slice(0, qIdx);
-            var qs = new URLSearchParams(d.path.slice(qIdx + 1));
+            let head = d.path.slice(0, qIdx);
+            let qs = new URLSearchParams(d.path.slice(qIdx + 1));
             // Drop only the keys the form is about to re-add. Anything else
             // (deep-link state, mode flags, etc.) is preserved.
             Object.keys(d.parameters).forEach(function (k) { qs.delete(k); });
-            var rest = qs.toString();
+            let rest = qs.toString();
             d.path = rest ? head + '?' + rest : head;
         }
     }
     if (d.parameters && typeof d.parameters === 'object') {
         Object.keys(d.parameters).forEach(function (k) {
-            var v = d.parameters[k];
+            let v = d.parameters[k];
             if (v === '' || v == null) delete d.parameters[k];
         });
     }
@@ -306,22 +306,22 @@ document.addEventListener("htmx:configRequest", function (evt) {
 // [role="alert"] out of the response and show it as a toast.
 document.addEventListener("htmx:beforeSwap", function (evt) {
     try {
-        var xhr = evt.detail.xhr;
+        let xhr = evt.detail.xhr;
         if (!xhr || !xhr.response) return;
-        var ct = xhr.getResponseHeader('content-type') || '';
+        let ct = xhr.getResponseHeader('content-type') || '';
         if (ct.indexOf('text/html') === -1) return;
-        var doc = new DOMParser().parseFromString(xhr.response, 'text/html');
-        var alerts = doc.querySelectorAll('[role="alert"]');
+        let doc = new DOMParser().parseFromString(xhr.response, 'text/html');
+        let alerts = doc.querySelectorAll('[role="alert"]');
         if (!alerts.length) return;
         // De-dupe identical messages within a single swap
-        var seen = {};
+        let seen = {};
         alerts.forEach(function (a) {
-            var msg = (a.textContent || '').trim();
+            let msg = (a.textContent || '').trim();
             if (!msg || seen[msg]) return;
             seen[msg] = true;
             // Heuristic: red/error styling → error toast; otherwise info.
-            var bg = a.getAttribute('style') || '';
-            var type = /error|red|danger/i.test(bg + ' ' + a.className) ? 'error' : 'info';
+            let bg = a.getAttribute('style') || '';
+            let type = /error|red|danger/i.test(bg + ' ' + a.className) ? 'error' : 'info';
             window.showToast(msg, type);
         });
     } catch (e) { }
@@ -333,8 +333,8 @@ document.addEventListener("htmx:afterSwap", function (evt) {
     // Auto-hide alerts that arrived with this swap, scoped to the swap target
     // so we don't trample the toast lifecycle (toasts are 3s/5s managed by
     // showToast() and live OUTSIDE the swap target).
-    var target = (evt && evt.detail && evt.detail.target) || document;
-    var alerts = target.querySelectorAll ? target.querySelectorAll("[role='alert']") : [];
+    let target = (evt && evt.detail && evt.detail.target) || document;
+    let alerts = target.querySelectorAll ? target.querySelectorAll("[role='alert']") : [];
     alerts.forEach(function (alert) {
         // Don't auto-hide toast container children (showToast manages those).
         if (alert.closest && alert.closest('#toast-container')) return;
@@ -352,7 +352,7 @@ document.addEventListener("htmx:afterSwap", function (evt) {
         // Ctrl+K or Cmd+K → focus search input
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
             e.preventDefault();
-            var searchInput = document.querySelector('input[name="q"]');
+            let searchInput = document.querySelector('input[name="q"]');
             if (searchInput) {
                 searchInput.focus();
                 searchInput.select();
@@ -360,7 +360,7 @@ document.addEventListener("htmx:afterSwap", function (evt) {
         }
         // Escape → close open modals
         if (e.key === 'Escape') {
-            var modals = document.querySelectorAll('.fixed:not(.hidden)');
+            let modals = document.querySelectorAll('.fixed:not(.hidden)');
             modals.forEach(function (modal) {
                 if (modal.id && modal.id !== 'global-loading' && modal.id !== 'sidebar-overlay') {
                     modal.classList.add('hidden');
@@ -373,9 +373,9 @@ document.addEventListener("htmx:afterSwap", function (evt) {
 // ── Delete Success Toast ──────────────────────────────────────
 (function () {
     document.addEventListener('htmx:afterRequest', function (evt) {
-        var xhr = evt.detail.xhr;
-        var path = evt.detail.pathInfo ? evt.detail.pathInfo.requestPath : '';
-        var verb = (evt.detail.requestConfig && evt.detail.requestConfig.verb) || '';
+        let xhr = evt.detail.xhr;
+        let path = evt.detail.pathInfo ? evt.detail.pathInfo.requestPath : '';
+        let verb = (evt.detail.requestConfig && evt.detail.requestConfig.verb) || '';
         if (xhr && xhr.status >= 200 && xhr.status < 300 &&
             (verb === 'delete' || path.indexOf('/delete') !== -1)) {
             window.showToast('تم الحذف بنجاح', 'success');
@@ -386,9 +386,9 @@ document.addEventListener("htmx:afterSwap", function (evt) {
 // ── Search Form Loading State ──────────────────────────────────
 (function () {
     document.addEventListener('submit', function (e) {
-        var form = e.target;
+        let form = e.target;
         if (form.tagName !== 'FORM' || form.method !== 'get') return;
-        var btn = form.querySelector('button[type="submit"], button:not([type])');
+        let btn = form.querySelector('button[type="submit"], button:not([type])');
         if (!btn) return;
         btn.disabled = true;
         btn.innerHTML = '<svg class="animate-spin h-4 w-4 inline-block" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>';
@@ -407,7 +407,7 @@ document.addEventListener("htmx:afterSwap", function (evt) {
 // stops typing in any input[name="q"] and resets page=0. ESC clears.
 // Skipped entirely if the form already has hx-get/hx-post/hx-boost.
 (function () {
-    var DEBOUNCE_MS = 400;
+    let DEBOUNCE_MS = 400;
 
     function findQInputs() {
         return document.querySelectorAll('input[name="q"]');
@@ -422,11 +422,11 @@ document.addEventListener("htmx:afterSwap", function (evt) {
     }
 
     function resetPageParam(form) {
-        var pageInput = form.querySelector('input[name="page"]');
+        let pageInput = form.querySelector('input[name="page"]');
         if (pageInput) {
             pageInput.value = '0';
         } else {
-            var hidden = document.createElement('input');
+            let hidden = document.createElement('input');
             hidden.type = 'hidden';
             hidden.name = 'page';
             hidden.value = '0';
@@ -445,12 +445,12 @@ document.addEventListener("htmx:afterSwap", function (evt) {
     function attachInput(input) {
         if (input.dataset._liveSearchBound) return;
         input.dataset._liveSearchBound = '1';
-        var form = input.form;
+        let form = input.form;
         if (!form || form.method.toLowerCase() !== 'get') return;
         // HTMX-controlled forms have their own debounced trigger.
         if (isHtmxControlled(form)) return;
 
-        var timer = null;
+        let timer = null;
         input.addEventListener('input', function () {
             if (timer) clearTimeout(timer);
             timer = setTimeout(function () {
@@ -472,10 +472,10 @@ document.addEventListener("htmx:afterSwap", function (evt) {
     function attachSelect(sel) {
         if (sel.dataset._liveSelectBound) return;
         sel.dataset._liveSelectBound = '1';
-        var form = sel.form;
+        let form = sel.form;
         if (!form || form.method.toLowerCase() !== 'get') return;
         if (isHtmxControlled(form)) return;
-        var isFilterForm = !!form.querySelector('input[name="q"]') ||
+        let isFilterForm = !!form.querySelector('input[name="q"]') ||
             sel.name === 'per' ||
             sel.classList.contains('per-page-select');
         if (!isFilterForm) return;
@@ -521,7 +521,7 @@ document.addEventListener("htmx:afterSwap", function (evt) {
     }
 
     function cellValue(row, idx) {
-        var td = row.cells[idx];
+        let td = row.cells[idx];
         if (!td) return '';
         if (td.dataset && td.dataset.sortValue !== undefined) return td.dataset.sortValue;
         return (td.textContent || '').trim();
@@ -531,7 +531,7 @@ document.addEventListener("htmx:afterSwap", function (evt) {
         if (s === '' || s == null) return NaN;
         // Strip thousands separators (comma, narrow no-break space, regular space)
         // and Arabic thousands separator. Keep one decimal point.
-        var cleaned = String(s).replace(/[\s,\u00A0\u202F]/g, '');
+        let cleaned = String(s).replace(/[\s,\u00A0\u202F]/g, '');
         // Convert Arabic-Indic digits to ASCII
         cleaned = cleaned.replace(/[\u0660-\u0669]/g, function (d) {
             return String(d.charCodeAt(0) - 0x0660);
@@ -543,16 +543,16 @@ document.addEventListener("htmx:afterSwap", function (evt) {
     }
 
     function compare(aRaw, bRaw, dir) {
-        var aEmpty = (aRaw === '' || aRaw == null);
-        var bEmpty = (bRaw === '' || bRaw == null);
+        let aEmpty = (aRaw === '' || aRaw == null);
+        let bEmpty = (bRaw === '' || bRaw == null);
         if (aEmpty && bEmpty) return 0;
         // Empties always sort first (matches BE "blanks before non-empty on asc")
         if (aEmpty) return dir === 'desc' ? 1 : -1;
         if (bEmpty) return dir === 'desc' ? -1 : 1;
 
-        var an = asNumber(aRaw);
-        var bn = asNumber(bRaw);
-        var cmp;
+        let an = asNumber(aRaw);
+        let bn = asNumber(bRaw);
+        let cmp;
         if (!isNaN(an) && !isNaN(bn)) {
             cmp = an - bn;
         } else {
@@ -562,16 +562,16 @@ document.addEventListener("htmx:afterSwap", function (evt) {
     }
 
     function findTable(th) {
-        var t = th;
+        let t = th;
         while (t && t.tagName !== 'TABLE') t = t.parentNode;
         return t;
     }
 
     function headerIndex(th) {
-        var tr = th.parentNode;
+        let tr = th.parentNode;
         if (!tr) return -1;
-        var i = 0;
-        for (var c = 0; c < tr.cells.length; c++) {
+        let i = 0;
+        for (let c = 0; c < tr.cells.length; c++) {
             if (tr.cells[c] === th) return i;
             i += (tr.cells[c].colSpan || 1);
         }
@@ -579,21 +579,21 @@ document.addEventListener("htmx:afterSwap", function (evt) {
     }
 
     function applySort(th) {
-        var table = findTable(th);
+        let table = findTable(th);
         if (!table) return;
-        var tbody = table.tBodies && table.tBodies[0];
+        let tbody = table.tBodies && table.tBodies[0];
         if (!tbody) return;
 
-        var idx = headerIndex(th);
+        let idx = headerIndex(th);
         if (idx < 0) return;
 
-        var dir = (th.dataset.sortCurrent || '').toLowerCase();
+        let dir = (th.dataset.sortCurrent || '').toLowerCase();
         // Clear sibling indicators
-        var siblings = table.querySelectorAll('th[data-sortable]');
+        let siblings = table.querySelectorAll('th[data-sortable]');
         siblings.forEach(function (s) {
             if (s !== th) {
                 s.dataset.sortCurrent = '';
-                var ind = s.querySelector('.sort-indicator');
+                let ind = s.querySelector('.sort-indicator');
                 if (ind) ind.textContent = indicatorFor('');
             }
         });
@@ -601,11 +601,11 @@ document.addEventListener("htmx:afterSwap", function (evt) {
         // Always reflect the chosen direction on this header so the user
         // sees the click took effect, even when there's nothing to reorder
         // (empty list / placeholder row only).
-        var indSelf = th.querySelector('.sort-indicator');
+        let indSelf = th.querySelector('.sort-indicator');
         if (indSelf) indSelf.textContent = indicatorFor(dir);
 
         // Skip placeholder rows (e.g. "no data" with single full-width cell).
-        var rows = Array.prototype.slice.call(tbody.rows).filter(function (r) {
+        let rows = Array.prototype.slice.call(tbody.rows).filter(function (r) {
             return r.cells.length > 1;
         });
         if (rows.length === 0) return;
@@ -629,7 +629,7 @@ document.addEventListener("htmx:afterSwap", function (evt) {
     }
 
     function initSortable() {
-        var headers = document.querySelectorAll('th[data-sortable]');
+        let headers = document.querySelectorAll('th[data-sortable]');
         headers.forEach(function (th) {
             if (th.dataset._sortBound) return;
             th.dataset._sortBound = '1';
@@ -640,7 +640,7 @@ document.addEventListener("htmx:afterSwap", function (evt) {
             // but BE returns rows in canonical order so empty is the truth.
             th.dataset.sortCurrent = '';
 
-            var indicator = th.querySelector('.sort-indicator');
+            let indicator = th.querySelector('.sort-indicator');
             if (!indicator) {
                 indicator = document.createElement('span');
                 indicator.className = 'sort-indicator mr-1 text-gray-400 text-xs';
@@ -648,7 +648,7 @@ document.addEventListener("htmx:afterSwap", function (evt) {
             }
             indicator.textContent = indicatorFor('');
 
-            var key = th.dataset.sortKey || '';
+            let key = th.dataset.sortKey || '';
             if (!key) return;
 
             th.addEventListener('click', function () {
@@ -665,16 +665,16 @@ document.addEventListener("htmx:afterSwap", function (evt) {
 // ── Table Scroll Shadow Indicators (C1) ───────────────────────
 (function () {
     function updateShadows(wrapper) {
-        var sl = wrapper.scrollLeft;
-        var maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
+        let sl = wrapper.scrollLeft;
+        let maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
         // RTL: scrollLeft can be 0 (rightmost) or negative (leftmost)
         // In LTR: scrollLeft 0 = leftmost. But our layout is RTL.
         // For RTL containers, scrollLeft is 0 at the right edge (start)
         // and negative towards the left edge.
-        var isRTL = getComputedStyle(wrapper).direction === 'rtl';
+        let isRTL = getComputedStyle(wrapper).direction === 'rtl';
         if (isRTL) {
             // Normalize: some browsers use negative scrollLeft for RTL
-            var absScroll = Math.abs(sl);
+            let absScroll = Math.abs(sl);
             wrapper.classList.toggle('scroll-right', absScroll > 2);
             wrapper.classList.toggle('scroll-left', absScroll < maxScroll - 2);
         } else {
@@ -684,7 +684,7 @@ document.addEventListener("htmx:afterSwap", function (evt) {
     }
 
     function initScrollShadows() {
-        var wrappers = document.querySelectorAll('.data-table-wrapper');
+        let wrappers = document.querySelectorAll('.data-table-wrapper');
         wrappers.forEach(function (wrapper) {
             if (wrapper.dataset._shadowBound) return;
             wrapper.dataset._shadowBound = '1';
@@ -704,13 +704,13 @@ document.addEventListener("htmx:afterSwap", function (evt) {
 // ── Action Overflow Dropdown (C2) ─────────────────────────────
 (function () {
     function initActionDropdowns() {
-        var btns = document.querySelectorAll('.action-overflow-btn');
+        let btns = document.querySelectorAll('.action-overflow-btn');
         btns.forEach(function (btn) {
             if (btn.dataset._dropBound) return;
             btn.dataset._dropBound = '1';
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
-                var links = btn.parentElement.querySelector('.action-links');
+                let links = btn.parentElement.querySelector('.action-links');
                 if (!links) return;
                 // Close all other open dropdowns
                 document.querySelectorAll('.action-links.show').forEach(function (d) {

@@ -22,6 +22,15 @@ import (
 // risk and very noisy in prod. Opt-in with AFRITA_API_DEBUG=1.
 var apiDebug = os.Getenv("AFRITA_API_DEBUG") == "1"
 
+// Log format constants for apiLogf — keep duplicated emoji-prefixed strings
+// out of the call sites (SonarCloud S1192 / "no duplicated string literals").
+const (
+	logFmtAPIRequest  = "🔵 [API REQUEST] POST %s%s"
+	logFmtAPIBody     = "🔵 [API BODY] %s"
+	logFmtAPIRespErr  = "🔴 [API RESPONSE] Status: %d"
+	logMsgAPIRespOK   = "🟢 [API RESPONSE] Status: 200 OK"
+)
+
 // apiLogf is a no-op unless AFRITA_API_DEBUG=1 in the environment.
 func apiLogf(format string, args ...interface{}) {
 	if !apiDebug {
@@ -229,10 +238,10 @@ func FetchInvoicesAll(token string, page int, query, stateFilter string) ([]mode
 
 	// Always fetch all bills from backend (page_number 0) and paginate client-side.
 	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
-	apiLogf("🔵 [API REQUEST] POST %s/api/v2/bill/all", config.BackendDomain)
+	apiLogf(logFmtAPIRequest, config.BackendDomain, "/api/v2/bill/all")
 	applyListFilters(payload, query, stateFilter)
 	body, _ := json.Marshal(payload)
-	apiLogf("🔵 [API BODY] %s", string(body))
+	apiLogf(logFmtAPIBody, string(body))
 
 	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill/all", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -242,11 +251,11 @@ func FetchInvoicesAll(token string, page int, query, stateFilter string) ([]mode
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		apiLogf("🔴 [API RESPONSE] Status: %d", resp.StatusCode)
+		apiLogf(logFmtAPIRespErr, resp.StatusCode)
 		return nil, fmt.Errorf("backend status %d", resp.StatusCode)
 	}
 
-	apiLogf("🟢 [API RESPONSE] Status: 200 OK")
+	apiLogf(logMsgAPIRespOK)
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -273,8 +282,8 @@ func FetchAllInvoicesUnpaginated(token string) ([]models.Invoice, error) {
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
 
-	apiLogf("🔵 [API REQUEST] POST %s/api/v2/bill/all (page_size=10000 for dashboard)", config.BackendDomain)
-	apiLogf("🔵 [API BODY] %s", string(body))
+	apiLogf(logFmtAPIRequest, config.BackendDomain, "/api/v2/bill/all (page_size=10000 for dashboard)")
+	apiLogf(logFmtAPIBody, string(body))
 
 	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill/all", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -284,11 +293,11 @@ func FetchAllInvoicesUnpaginated(token string) ([]models.Invoice, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		apiLogf("🔴 [API RESPONSE] Status: %d", resp.StatusCode)
+		apiLogf(logFmtAPIRespErr, resp.StatusCode)
 		return nil, fmt.Errorf("backend status %d", resp.StatusCode)
 	}
 
-	apiLogf("🟢 [API RESPONSE] Status: 200 OK")
+	apiLogf(logMsgAPIRespOK)
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -323,13 +332,13 @@ func FetchPurchaseBillsAll(token string, page int, query, stateFilter string) ([
 
 	// Always fetch all purchase bills from backend (page_number 0) and paginate client-side.
 	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
-	apiLogf("🔵 [API REQUEST] POST %s/api/v2/purchase_bill/all", config.BackendDomain)
+	apiLogf(logFmtAPIRequest, config.BackendDomain, "/api/v2/purchase_bill/all")
 	applyListFilters(payload, query, stateFilter)
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
-	apiLogf("🔵 [API BODY] %s", string(body))
+	apiLogf(logFmtAPIBody, string(body))
 
 	req, err := http.NewRequest("POST", config.BackendDomain+"/api/v2/purchase_bill/all", bytes.NewBuffer(body))
 	if err != nil {
@@ -342,11 +351,11 @@ func FetchPurchaseBillsAll(token string, page int, query, stateFilter string) ([
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		apiLogf("🔴 [API RESPONSE] Status: %d", resp.StatusCode)
+		apiLogf(logFmtAPIRespErr, resp.StatusCode)
 		return nil, fmt.Errorf("backend status %d", resp.StatusCode)
 	}
 
-	apiLogf("🟢 [API RESPONSE] Status: 200 OK")
+	apiLogf(logMsgAPIRespOK)
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -379,8 +388,8 @@ func FetchInvoicesPaginated(token string, page int, perPage int) ([]models.Invoi
 	body, _ := json.Marshal(payload)
 
 	// Debug logging
-	apiLogf("🔵 [API REQUEST] POST %s/api/v2/bill/all", config.BackendDomain)
-	apiLogf("🔵 [API BODY] %s", string(body))
+	apiLogf(logFmtAPIRequest, config.BackendDomain, "/api/v2/bill/all")
+	apiLogf(logFmtAPIBody, string(body))
 
 	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill/all", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -390,11 +399,11 @@ func FetchInvoicesPaginated(token string, page int, perPage int) ([]models.Invoi
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		apiLogf("🔴 [API RESPONSE] Status: %d", resp.StatusCode)
+		apiLogf(logFmtAPIRespErr, resp.StatusCode)
 		return nil, fmt.Errorf("backend status %d", resp.StatusCode)
 	}
 
-	apiLogf("🟢 [API RESPONSE] Status: 200 OK")
+	apiLogf(logMsgAPIRespOK)
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

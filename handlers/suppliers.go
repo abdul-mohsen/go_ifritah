@@ -142,7 +142,17 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 		Query:   query,
 	})
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
+		// Soft-fail: render an empty list with a banner instead of a 500 stub.
+		// Keeps the page usable when the upstream supplier list is unavailable.
+		helpers.Render(w, r, "suppliers", map[string]interface{}{
+			"title":         "الموردين",
+			"suppliers":     []models.Supplier{},
+			"pagination":    helpers.Pagination{Page: 0, PerPage: 10, Total: 0, TotalPages: 0},
+			"prev_page":     -1,
+			"next_page":     -1,
+			"query":         query,
+			"backend_error": "تعذر تحميل الموردين من الخادم حالياً",
+		})
 		return
 	}
 

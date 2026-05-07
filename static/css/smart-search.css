@@ -4,302 +4,305 @@
  */
 
 .smart-search-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex: 1 1 0;
-    min-width: 12rem;
-    max-width: 28rem;
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 12rem;
+  max-width: 28rem;
 }
 
 .smart-search-wrap .search-input {
-    /* Override .list-toolbar input padding to make room for the icons */
-    padding-inline-start: 2.25rem !important;
-    padding-inline-end: 4rem !important;
-    width: 100%;
-    max-width: none !important;
+  /* Override .list-toolbar input padding to make room for the icons */
+  padding-inline-start: 2.25rem !important;
+  padding-inline-end: 4rem !important;
+  width: 100%;
+  max-width: none !important;
 }
 
 .smart-search-icon {
-    position: absolute;
-    inset-inline-start: 0.625rem;
-    top: 50%;
-    transform: translateY(-50%);
-    display: inline-flex;
-    color: var(--md-sys-color-on-surface-variant);
-    pointer-events: none;
+  position: absolute;
+  inset-inline-start: 0.625rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--md-sys-color-on-surface-variant);
+  pointer-events: none;
 }
 
 .smart-search-spin {
-    position: absolute;
-    inset-inline-end: 2.25rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--md-sys-color-primary);
-    display: inline-flex;
-    pointer-events: none;
+  position: absolute;
+  inset-inline-end: 2.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--md-sys-color-primary);
+  display: inline-flex;
+  pointer-events: none;
 }
 
 .smart-search-spin svg {
-    animation: smart-spin 0.8s linear infinite;
+  animation: smart-spin 0.8s linear infinite;
 }
 
 @keyframes smart-spin {
-    to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .smart-search-clear {
-    position: absolute;
-    inset-inline-end: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: transparent;
-    border: 0;
-    cursor: pointer;
-    width: 1.5rem;
-    height: 1.5rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    color: var(--md-sys-color-on-surface-variant);
-    transition: background 0.12s ease, color 0.12s ease;
+  position: absolute;
+  inset-inline-end: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--md-sys-color-on-surface-variant);
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
 .smart-search-clear:hover,
 .smart-search-clear:focus-visible {
-    background: var(--md-sys-color-surface-container-high);
-    color: var(--md-sys-color-on-surface);
-    outline: none;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  outline: none;
 }
 
 /* ── Recent searches dropdown ───────────────────────────────────── */
 .smart-recents {
-    position: absolute;
-    top: calc(100% + 4px);
-    inset-inline-start: 0;
-    inset-inline-end: 0;
-    z-index: 30;
-    background: var(--md-sys-color-surface-container);
-    border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: var(--md-sys-shape-sm);
-    box-shadow: var(--md-sys-elevation-2);
-    padding: 0.25rem 0;
-    max-height: 14rem;
-    overflow-y: auto;
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  z-index: 30;
+  background: var(--md-sys-color-surface-container);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-sm);
+  box-shadow: var(--md-sys-elevation-2);
+  padding: 0.25rem 0;
+  max-height: 14rem;
+  overflow-y: auto;
 }
 
 .smart-recent-head {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: var(--md-sys-color-on-surface-variant);
-    padding: 0.375rem 0.75rem 0.25rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface-variant);
+  padding: 0.375rem 0.75rem 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .smart-recent-item {
-    display: block;
-    width: 100%;
-    text-align: start;
-    padding: 0.4375rem 0.75rem;
-    background: transparent;
-    border: 0;
-    cursor: pointer;
-    font-size: 0.8125rem;
-    color: var(--md-sys-color-on-surface);
-    border-radius: 0;
-    transition: background 0.1s ease;
+  display: block;
+  width: 100%;
+  text-align: start;
+  padding: 0.4375rem 0.75rem;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--md-sys-color-on-surface);
+  border-radius: 0;
+  transition: background 0.1s ease;
 }
 
 .smart-recent-item:hover,
 .smart-recent-item:focus-visible {
-    background: var(--md-sys-color-surface-container-high);
-    outline: none;
+  background: var(--md-sys-color-surface-container-high);
+  outline: none;
 }
 
 /* ── Below-bar meta row (chips + counter) ───────────────────────── */
 .smart-search-meta {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.375rem 0.5rem;
-    margin: 0.375rem 0 0.625rem;
-    min-height: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.375rem 0.5rem;
+  margin: 0.375rem 0 0.625rem;
+  min-height: 0;
 }
 
 .smart-chips {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
 }
 
 .smart-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    height: 1.625rem;
-    padding: 0 0.625rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    background: var(--md-sys-color-secondary-container);
-    color: var(--md-sys-color-on-secondary-container);
-    border: 1px solid transparent;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: background 0.12s ease, box-shadow 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.625rem;
+  padding: 0 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
 }
 
 .smart-chip:hover,
 .smart-chip:focus-visible {
-    background: var(--md-sys-color-secondary);
-    color: var(--md-sys-color-on-secondary);
-    outline: none;
+  background: var(--md-sys-color-secondary);
+  color: var(--md-sys-color-on-secondary);
+  outline: none;
 }
 
 .smart-chip-x {
-    display: inline-flex;
-    opacity: 0.85;
-    margin-inline-start: 0.125rem;
+  display: inline-flex;
+  opacity: 0.85;
+  margin-inline-start: 0.125rem;
 }
 
 .smart-counter {
-    font-size: 0.75rem;
-    color: var(--md-sys-color-on-surface-variant);
-    margin-inline-start: auto;
-    font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  color: var(--md-sys-color-on-surface-variant);
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Instant client-side filter hides non-matching rows ─────────── */
 .smart-hidden {
-    display: none !important;
+  display: none !important;
 }
 
 /* ── Make the legacy submit button less central in smart forms ──── */
 .smart-search-form button[type="submit"] {
-    display: none;
+  display: none;
 }
 
 /* Keep submit visible when JS is disabled (no .smart-search-form yet) */
 .list-toolbar form:not(.smart-search-form) button[type="submit"] {
-    display: inline-flex;
+  display: inline-flex;
 }
 
 @media (max-width: 640px) {
-    .smart-search-wrap {
-        max-width: none;
-    }
-    .smart-search-meta {
-        margin-top: 0.25rem;
-    }
+  .smart-search-wrap {
+    max-width: none;
+  }
+
+  .smart-search-meta {
+    margin-top: 0.25rem;
+  }
 }
 
 /* ── Typed-field filter button ──────────────────────────────────── */
 .smart-filter-btn {
-    height: 2.5rem;
-    padding: 0 0.875rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    background: transparent;
-    color: var(--md-sys-color-primary);
-    border: 1px dashed var(--md-sys-color-outline);
-    border-radius: var(--md-sys-shape-xs);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.12s ease, border-color 0.12s ease;
+  height: 2.5rem;
+  padding: 0 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  border: 1px dashed var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-xs);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
 .smart-filter-btn:hover,
 .smart-filter-btn:focus-visible {
-    background: var(--md-sys-color-primary-container);
-    color: var(--md-sys-color-on-primary-container);
-    border-color: var(--md-sys-color-primary);
-    outline: none;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border-color: var(--md-sys-color-primary);
+  outline: none;
 }
 
 /* ── Typed-field popover ────────────────────────────────────────── */
 .smart-filter-pop {
-    z-index: 40;
-    background: var(--md-sys-color-surface-container-high);
-    border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: var(--md-sys-shape-sm);
-    box-shadow: var(--md-sys-elevation-2);
-    padding: 0.25rem 0;
-    min-width: 14rem;
-    max-width: 22rem;
+  z-index: 40;
+  background: var(--md-sys-color-surface-container-high);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-sm);
+  box-shadow: var(--md-sys-elevation-2);
+  padding: 0.25rem 0;
+  min-width: 14rem;
+  max-width: 22rem;
 }
 
 .smart-filter-pop-item {
-    display: block;
-    width: 100%;
-    text-align: start;
-    padding: 0.5rem 0.875rem;
-    background: transparent;
-    border: 0;
-    cursor: pointer;
-    font-size: 0.8125rem;
-    color: var(--md-sys-color-on-surface);
-    transition: background 0.1s ease;
+  display: block;
+  width: 100%;
+  text-align: start;
+  padding: 0.5rem 0.875rem;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--md-sys-color-on-surface);
+  transition: background 0.1s ease;
 }
 
 .smart-filter-pop-item:hover,
 .smart-filter-pop-item:focus-visible {
-    background: var(--md-sys-color-secondary-container);
-    color: var(--md-sys-color-on-secondary-container);
-    outline: none;
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  outline: none;
 }
 
 .smart-filter-pop-empty {
-    padding: 0.625rem 0.875rem;
-    font-size: 0.75rem;
-    color: var(--md-sys-color-on-surface-variant);
-    font-style: italic;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.75rem;
+  color: var(--md-sys-color-on-surface-variant);
+  font-style: italic;
 }
 
 /* ── Typed-field chip variant (slightly stronger than select chip) ─ */
 .smart-chip.smart-chip-typed {
-    background: var(--md-sys-color-tertiary-container);
-    color: var(--md-sys-color-on-tertiary-container);
-    border-color: var(--md-sys-color-tertiary);
-    font-weight: 600;
+  background: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
+  border-color: var(--md-sys-color-tertiary);
+  font-weight: 600;
 }
 
 .smart-chip.smart-chip-typed:hover,
 .smart-chip.smart-chip-typed:focus-visible {
-    background: var(--md-sys-color-tertiary);
-    color: var(--md-sys-color-on-tertiary);
+  background: var(--md-sys-color-tertiary);
+  color: var(--md-sys-color-on-tertiary);
 }
 
 /* ── "Tab to search by phone…" inline hint under the input ───────── */
 .smart-search-hint {
-    position: absolute;
-    top: calc(100% + 4px);
-    inset-inline-start: 0;
-    inset-inline-end: 0;
-    z-index: 25;
-    pointer-events: auto;
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  z-index: 25;
+  pointer-events: auto;
 }
 
 .smart-search-hint-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    height: 1.875rem;
-    padding: 0 0.75rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    background: var(--md-sys-color-primary-container);
-    color: var(--md-sys-color-on-primary-container);
-    border: 0;
-    border-radius: var(--md-sys-shape-xs);
-    cursor: pointer;
-    box-shadow: var(--md-sys-elevation-1);
-    transition: background 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.875rem;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border: 0;
+  border-radius: var(--md-sys-shape-xs);
+  cursor: pointer;
+  box-shadow: var(--md-sys-elevation-1);
+  transition: background 0.12s ease;
 }
 
 .smart-search-hint-btn:hover,
 .smart-search-hint-btn:focus-visible {
-    background: var(--md-sys-color-primary);
-    color: var(--md-sys-color-on-primary);
-    outline: none;
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  outline: none;
 }

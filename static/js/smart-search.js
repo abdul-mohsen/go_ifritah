@@ -34,31 +34,31 @@
   var FIELD_MENUS = {
     '/dashboard/invoices': [
       { param: 'sequence_number', label: 'رقم الفاتورة', icon: '#', kind: 'digits' },
-      { param: 'phone',           label: 'رقم الهاتف',   icon: '☎', kind: 'digits' },
-      { param: 'vin',             label: 'رقم الهيكل',   icon: '🚗', kind: 'alnum' },
+      { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
+      { param: 'vin', label: 'رقم الهيكل', icon: '🚗', kind: 'alnum' },
     ],
     '/dashboard/purchase-bills': [
-      { param: 'sequence_number',          label: 'رقم الفاتورة',         icon: '#', kind: 'digits' },
-      { param: 'supplier_sequence_number', label: 'رقم فاتورة المورد',    icon: '№', kind: 'alnum'  },
+      { param: 'sequence_number', label: 'رقم الفاتورة', icon: '#', kind: 'digits' },
+      { param: 'supplier_sequence_number', label: 'رقم فاتورة المورد', icon: '№', kind: 'alnum' },
     ],
     '/dashboard/products': [
       { param: 'part_number', label: 'رقم القطعة', icon: '⛓', kind: 'alnum' },
-      { param: 'barcode',     label: 'الباركود',   icon: '|||', kind: 'alnum' },
+      { param: 'barcode', label: 'الباركود', icon: '|||', kind: 'alnum' },
     ],
     '/dashboard/clients': [
-      { param: 'phone',                  label: 'رقم الهاتف',     icon: '☎', kind: 'digits' },
-      { param: 'vat_number',             label: 'الرقم الضريبي',  icon: '%', kind: 'alnum'  },
-      { param: 'commercial_registration',label: 'السجل التجاري',  icon: '📄', kind: 'alnum' },
+      { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
+      { param: 'vat_number', label: 'الرقم الضريبي', icon: '%', kind: 'alnum' },
+      { param: 'commercial_registration', label: 'السجل التجاري', icon: '📄', kind: 'alnum' },
     ],
     '/dashboard/suppliers': [
-      { param: 'phone',                  label: 'رقم الهاتف',     icon: '☎', kind: 'digits' },
-      { param: 'vat_number',             label: 'الرقم الضريبي',  icon: '%', kind: 'alnum'  },
-      { param: 'commercial_registration',label: 'السجل التجاري',  icon: '📄', kind: 'alnum' },
+      { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
+      { param: 'vat_number', label: 'الرقم الضريبي', icon: '%', kind: 'alnum' },
+      { param: 'commercial_registration', label: 'السجل التجاري', icon: '📄', kind: 'alnum' },
     ],
     '/dashboard/orders': [
-      { param: 'sequence_number', label: 'رقم الطلب',    icon: '#', kind: 'digits' },
-      { param: 'phone',           label: 'رقم الهاتف',   icon: '☎', kind: 'digits' },
-      { param: 'vin',             label: 'رقم الهيكل',   icon: '🚗', kind: 'alnum' },
+      { param: 'sequence_number', label: 'رقم الطلب', icon: '#', kind: 'digits' },
+      { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
+      { param: 'vin', label: 'رقم الهيكل', icon: '🚗', kind: 'alnum' },
     ],
     '/dashboard/cash-vouchers': [
       { param: 'sequence_number', label: 'رقم السند', icon: '#', kind: 'digits' },
@@ -67,8 +67,8 @@
       { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
     ],
     '/dashboard/users': [
-      { param: 'email', label: 'البريد الإلكتروني', icon: '@', kind: 'email'  },
-      { param: 'phone', label: 'رقم الهاتف',         icon: '☎', kind: 'digits' },
+      { param: 'email', label: 'البريد الإلكتروني', icon: '@', kind: 'email' },
+      { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
     ],
   };
 
@@ -77,7 +77,8 @@
     return FIELD_MENUS[path] || [];
   }
 
-
+  // ── Arabic/Latin/digit normaliser ─────────────────────────────────
+  function normalize(s) {
     if (s == null) return '';
     s = String(s).toLowerCase().trim();
     if (!s) return '';
@@ -226,9 +227,9 @@
     typed.forEach(function (hi) {
       var menu = fieldMenuFor(form);
       var def = menu.find ? menu.find(function (f) { return f.param === hi.name; })
-                         : null;
+        : null;
       var label = def ? def.label : hi.name;
-      var icon  = def ? def.icon  : '⌗';
+      var icon = def ? def.icon : '⌗';
       var chip = el('button', {
         type: 'button',
         class: 'smart-chip smart-chip-typed',
@@ -282,8 +283,8 @@
     var current = input.value.trim();
     var matches =
       (fieldDef.kind === 'digits' && /^[\u0660-\u0669\u06F0-\u06F90-9]+$/.test(current)) ||
-      (fieldDef.kind === 'alnum'  && current && !/\s/.test(current))                   ||
-      (fieldDef.kind === 'email'  && /@/.test(current));
+      (fieldDef.kind === 'alnum' && current && !/\s/.test(current)) ||
+      (fieldDef.kind === 'email' && /@/.test(current));
     if (matches) {
       addTypedFilter(form, fieldDef.param, current, fieldDef.kind);
       input.value = '';
@@ -466,9 +467,9 @@
       var picks = [];
       if (isDigits) {
         var phoneF = menu.find(function (f) { return f.param === 'phone'; });
-        var seqF   = menu.find(function (f) { return f.param === 'sequence_number'; });
+        var seqF = menu.find(function (f) { return f.param === 'sequence_number'; });
         if (phoneF) picks.push(phoneF);
-        if (seqF)   picks.push(seqF);
+        if (seqF) picks.push(seqF);
       } else if (/@/.test(v)) {
         var emailF = menu.find(function (f) { return f.param === 'email'; });
         if (emailF) picks.push(emailF);
@@ -552,7 +553,7 @@
         // Tab → first pick (phone preferred); Shift+Tab → second pick if any (seq).
         var idx = e.shiftKey ? 1 : 0;
         var btn = hint.querySelector('button[data-pick-idx="' + idx + '"]') ||
-                  (idx === 0 ? hint.querySelector('button') : null);
+          (idx === 0 ? hint.querySelector('button') : null);
         if (btn) {
           e.preventDefault();
           btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));

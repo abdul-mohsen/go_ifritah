@@ -273,9 +273,24 @@ document.addEventListener("showToast", function (evt) {
 // ── Reset accumulated query string on HTMX GET form submits ───────
 // Without this, list pages that use `hx-get=""` reuse window.location
 // (which already contains ?q=a&sort=…) so the next typed value gets
-// appended (?q=a&sort=…&q=b). Strip ONLY the params that the form is
-// re-submitting (so a literal `hx-get='/x?fixed=1'` keeps `fixed=1`),
-// and drop empty parameters so the resulting URL stays tidy.
+// appended (?q=a&sort=…&q=b).
+//
+// Strategy: for list-search forms (the `hx-target="#list-results"`
+// convention used by every list page) the FORM IS THE SOURCE OF TRUTH —
+// any param that isn't on the form right now should be gone from the
+// URL too. Otherwise removing a typed-filter chip leaves its `phone=…`
+// glued to every subsequent submit forever (regression bug 2026-05-07).
+//
+// For non-list forms we keep the old conservative behaviour: drop only
+// keys the form is re-submitting so deep-link state on bespoke pages
+// survives.
+function __isListSearchForm(el) {
+    if (!el) return false;
+    const form = el.tagName === 'FORM' ? el : (el.closest && el.closest('form'));
+    if (!form) return false;
+    return form.getAttribute('hx-target') === '#list-results';
+}
+
 document.addEventListener("htmx:configRequest", function (evt) {
     let d = evt.detail;
     if (!d) return;
@@ -283,12 +298,18 @@ document.addEventListener("htmx:configRequest", function (evt) {
         let qIdx = d.path.indexOf('?');
         if (qIdx >= 0) {
             let head = d.path.slice(0, qIdx);
-            let qs = new URLSearchParams(d.path.slice(qIdx + 1));
-            // Drop only the keys the form is about to re-add. Anything else
-            // (deep-link state, mode flags, etc.) is preserved.
-            Object.keys(d.parameters).forEach(function (k) { qs.delete(k); });
-            let rest = qs.toString();
-            d.path = rest ? head + '?' + rest : head;
+            if (__isListSearchForm(evt.target || d.elt)) {
+                // List-search form owns the URL — drop everything, the form
+                // will rebuild the query from its current state.
+                d.path = head;
+            } else {
+                // Non-list form: only strip keys the form is re-adding so
+                // unrelated deep-link state is preserved.
+                let qs = new URLSearchParams(d.path.slice(qIdx + 1));
+                Object.keys(d.parameters).forEach(function (k) { qs.delete(k); });
+                let rest = qs.toString();
+                d.path = rest ? head + '?' + rest : head;
+            }
         }
     }
     if (d.parameters && typeof d.parameters === 'object') {

@@ -946,7 +946,10 @@ func HandleDashboardExportPDF(w http.ResponseWriter, r *http.Request) {
 	go func() { defer wg.Done(); clients, clientErr = helpers.FetchClients(token) }()
 	go func() { defer wg.Done(); suppliers, suppErr = helpers.FetchSuppliers(token) }()
 	go func() { defer wg.Done(); orders, orderErr = helpers.FetchOrders(token) }()
-	go func() { defer wg.Done(); purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "") }()
+	go func() {
+		defer wg.Done()
+		purchaseBills, pbErr = helpers.FetchPurchaseBillsAll(token, 1, "", "")
+	}()
 	wg.Wait()
 
 	for _, err := range []error{invErr, prodErr, clientErr, suppErr, orderErr, pbErr} {

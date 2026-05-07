@@ -401,17 +401,36 @@ type StockEnforcementResponse struct {
 // Notifications
 // ============================================================================
 
-// Notification represents a single notification
+// Notification represents a single notification.
+// JSON tag for Read is `read` to match the ifritah-go backend contract
+// (`GET /api/v2/notification`); a custom UnmarshalJSON also accepts the
+// legacy `is_read` key for forward-compatibility with older payloads.
 type Notification struct {
 	ID         int       `json:"id"`
 	UserID     int       `json:"user_id"`
 	Type       string    `json:"type"`
 	Title      string    `json:"title"`
 	Message    string    `json:"message"`
-	IsRead     bool      `json:"is_read"`
+	IsRead     bool      `json:"read"`
 	Resource   string    `json:"resource"`
 	ResourceID string    `json:"resource_id"`
 	CreatedAt  time.Time `json:"created_at"`
+}
+
+// UnmarshalJSON accepts both the new `read` key and the legacy `is_read` key.
+func (n *Notification) UnmarshalJSON(data []byte) error {
+	type alias Notification
+	aux := struct {
+		LegacyIsRead *bool `json:"is_read,omitempty"`
+		*alias
+	}{alias: (*alias)(n)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.LegacyIsRead != nil {
+		n.IsRead = *aux.LegacyIsRead
+	}
+	return nil
 }
 
 // NotificationConfig holds per-user notification preferences

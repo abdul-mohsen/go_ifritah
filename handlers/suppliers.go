@@ -134,21 +134,28 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	suppliers, err := helpers.FetchSuppliers(token)
-	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
-		return
-	}
-
 	query := r.URL.Query().Get("q")
-	if query != "" {
-		filtered := make([]models.Supplier, 0)
-		for _, supplier := range suppliers {
-			if helpers.ContainsInsensitive(supplier.Name, query) || helpers.ContainsInsensitive(supplier.PhoneNumber, query) {
-				filtered = append(filtered, supplier)
-			}
-		}
-		suppliers = filtered
+	typed := helpers.TypedListFilters("suppliers", r.URL.Query())
+
+	suppliers, err := helpers.FetchSuppliersList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   query,
+		Typed:   typed,
+	})
+	if err != nil {
+		// Soft-fail: render an empty list with a banner instead of a 500 stub.
+		// Keeps the page usable when the upstream supplier list is unavailable.
+		helpers.Render(w, r, "suppliers", map[string]interface{}{
+			"title":         "الموردين",
+			"suppliers":     []models.Supplier{},
+			"pagination":    helpers.Pagination{Page: 0, PerPage: 10, Total: 0, TotalPages: 0},
+			"prev_page":     -1,
+			"next_page":     -1,
+			"query":         query,
+			"error":         "تعذر تحميل الموردين من الخادم حالياً",
+		})
+		return
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))

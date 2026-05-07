@@ -12,6 +12,11 @@ import (
 	"afrita/helpers"
 )
 
+// partsResultsTpl is the partial template name rendered by the parts
+// live-search endpoint. Extracted so it isn't duplicated across the four
+// branches that render an empty/successful result set.
+const partsResultsTpl = "parts-results"
+
 // HandleVerifyVIN performs VIN lookup and renders result partial.
 func HandleVerifyVIN(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -86,21 +91,32 @@ func HandlePartsSearchResults(w http.ResponseWriter, r *http.Request) {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
+		// Network error — render empty results so the live-search UX
+		// degrades gracefully instead of showing a 500 panel.
+		helpers.RenderPartial(w, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
 		return
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		helpers.HandleUnauthorized(w, r)
+		return
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		helpers.RenderPartial(w, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
+		return
+	}
+
 	var results []map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
+		helpers.RenderPartial(w, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
 		return
 	}
 
 	data := map[string]interface{}{
 		"results": results,
 	}
-	helpers.RenderPartial(w, "parts-results", data)
+	helpers.RenderPartial(w, partsResultsTpl, data)
 }
 
 // HandlePartsSearchJSON returns parts search results as JSON (for AJAX dropdowns).
@@ -143,8 +159,15 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := strings.ToLower(strings.TrimSpace(r.FormValue("query")))
-	products, err := helpers.FetchProducts(token)
+	query := strings.TrimSpace(r.FormValue("query"))
+
+	// Search is 100% backend-driven: forward the query to the BE products
+	// list endpoint and trust whatever it returns (top 50).
+	products, err := helpers.FetchProductsList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 50,
+		Query:   query,
+	})
 	if err != nil || products == nil {
 		_ = json.NewEncoder(w).Encode([]interface{}{})
 		return
@@ -157,17 +180,15 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 		Quantity string `json:"quantity"`
 	}
 
-	var results []productResult
+	results := make([]productResult, 0, len(products))
 	for _, p := range products {
-		if query != "" {
-			idStr := fmt.Sprintf("%d", p.ID)
-			if !strings.Contains(strings.ToLower(p.PartName), query) && !strings.Contains(idStr, query) {
-				continue
-			}
+		name := p.PartName
+		if name == "" {
+			name = p.Name
 		}
 		results = append(results, productResult{
 			ID:       p.ID,
-			Name:     p.PartName,
+			Name:     name,
 			Price:    p.Price,
 			Quantity: p.Quantity,
 		})
@@ -176,9 +197,6 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if results == nil {
-		results = []productResult{}
-	}
 	_ = json.NewEncoder(w).Encode(results)
 }
 

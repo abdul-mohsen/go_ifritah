@@ -3,6 +3,8 @@
 
 const { test, expect } = require('@playwright/test');
 
+// /dashboard/users and /dashboard/zatca-monitor were removed on dev (no
+// real backend yet). Keep this list in sync with main.go.
 const PROTECTED = [
   '/dashboard',
   '/dashboard/invoices',
@@ -11,11 +13,14 @@ const PROTECTED = [
   '/dashboard/products',
   '/dashboard/clients',
   '/dashboard/suppliers',
-  '/dashboard/users',
   '/dashboard/settings',
   '/dashboard/notifications',
-  '/dashboard/zatca-monitor',
 ];
+
+// All tests in this file must run anonymously: the `parallel` project
+// loads an authenticated storageState by default, which would defeat the
+// "unauth" assertions below.
+test.use({ storageState: { cookies: [], origins: [] } });
 
 for (const url of PROTECTED) {
   test(`unauth ${url} redirects to login`, async ({ page }) => {

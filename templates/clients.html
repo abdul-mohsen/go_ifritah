@@ -1,7 +1,7 @@
 {{ define "content" }}
 {{ template "error-alert" . }}
 <div class="list-toolbar">
-    <form method="get">
+    <form method="get" hx-get="" hx-target="#list-results" hx-select="#list-results" hx-swap="outerHTML" hx-push-url="true" hx-trigger="submit, input changed delay:400ms from:input[name='q'], change from:select" hx-indicator="#list-results">
         <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.client.search_placeholder" }}"
             class="search-input">
         {{ template "per-page-select" dict "pagination" .pagination }}
@@ -21,14 +21,15 @@
     </div>
 </div>
 
+<div id="list-results">
 <div class="data-table-wrapper">
     <table aria-label="{{ L "tpl.client.table_label" }}">
         <thead>
             <tr>
-                <th data-sortable>{{ L "tpl.client.name" }}</th>
-                <th data-sortable>{{ L "tpl.client.company_name" }}</th>
-                <th data-sortable>{{ L "tpl.client.email" }}</th>
-                <th data-sortable>{{ L "tpl.client.phone" }}</th>
+                <th data-sortable data-sort-key="name" data-sort-current="{{ if eq .sort "name" }}{{ .dir }}{{ end }}">{{ L "tpl.client.name" }}</th>
+                <th data-sortable data-sort-key="company_name" data-sort-current="{{ if eq .sort "company_name" }}{{ .dir }}{{ end }}">{{ L "tpl.client.company_name" }}</th>
+                <th data-sortable data-sort-key="email" data-sort-current="{{ if eq .sort "email" }}{{ .dir }}{{ end }}">{{ L "tpl.client.email" }}</th>
+                <th data-sortable data-sort-key="phone" data-sort-current="{{ if eq .sort "phone" }}{{ .dir }}{{ end }}">{{ L "tpl.client.phone" }}</th>
                 <th>{{ L "tpl.actions" }}</th>
             </tr>
         </thead>
@@ -59,5 +60,6 @@
 </div>
 
 {{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
-"extra_params" "" }}
+"extra_params" (printf "") }}
+</div>
 {{ end }}

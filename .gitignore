@@ -35,6 +35,8 @@ e2e/*.err
 e2e/*.txt
 e2e/package-lock.json
 e2e/probe-*.js
+# Per-developer test-run artifacts (pw-*.json, pw-local-*.json …) — never commit
+e2e/pw-*.json
 
 # Scripts (local only)
 scripts/
@@ -89,3 +91,27 @@ api_docs/
 
 chat/
 
+e2elogs/
+e2elogs.zip
+e2e-run.json
+runs.json
+runs.txt
+e2e-jobs.json
+jobs.txt
+
+chat/
+quality-gate/cookie-header.txt
+quality-gate/cookies.json
+quality-gate/storage.json
+quality-gate/logs/
+quality-gate/reports/
+*.zip
+
+e2elogs*/
+
+
+handlers/users_crud.go
+templates/users.html
+pr_comments.json
+test-results/
+pr_threads.json

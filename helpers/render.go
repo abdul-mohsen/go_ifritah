@@ -8,10 +8,6 @@ import (
 	"afrita/config"
 )
 
-// NotificationCountFunc is set by the notification store init() to provide
-// unread notification count to templates without circular imports.
-var NotificationCountFunc func() int
-
 // Render executes a cached template by name, automatically injecting common
 // data (version, user_role). For templates with a base layout it executes
 // "base.html"; standalone/partial templates are executed directly.

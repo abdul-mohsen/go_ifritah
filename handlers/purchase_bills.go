@@ -37,15 +37,18 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 		page = 0
 	}
 
-	// Fetch ALL from backend (page=1 returns all), client-side pagination after state filter
-	bills, err := helpers.FetchPurchaseBillsAll(token, 1, query)
+	// Search + state filter are BE-driven. Sort is FE-only (see
+	// static/js/script.js sortable table init).
+	bills, err := helpers.FetchPurchaseBillsAll(token, 1, query, stateFilter)
+	backendErr := ""
 	if err != nil {
 		if helpers.IsUnauthorizedError(err) {
 			helpers.HandleUnauthorized(w, r)
 			return
 		}
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
-		return
+		log.Printf("[purchase-bills] backend list fetch failed: %v", err)
+		bills = nil
+		backendErr = "تعذر تحميل فواتير المشتريات من الخادم حالياً"
 	}
 
 	displayBills := make([]map[string]interface{}, 0)
@@ -75,18 +78,6 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// Apply state filter
-	if stateFilter != "" {
-		stateValue, _ := strconv.Atoi(stateFilter)
-		filtered := make([]map[string]interface{}, 0)
-		for _, b := range displayBills {
-			if s, ok := b["state"].(int); ok && s == stateValue {
-				filtered = append(filtered, b)
-			}
-		}
-		displayBills = filtered
-	}
-
 	pagedBills, pagination := helpers.PaginateSlice(displayBills, page, perPage)
 	prevPage := -1
 	nextPage := -1
@@ -105,6 +96,7 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 		"next_page":  nextPage,
 		"query":      query,
 		"state":      stateFilter,
+		"error":      backendErr,
 	})
 }
 
@@ -122,7 +114,7 @@ func HandleAddPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		"title":           "إضافة فاتورة مشتريات",
 		"stores":          stores,
 		"suppliers":       suppliers,
-		"pb_pdf_required": GetSettingValue("pb_pdf_required"),
+		"pb_pdf_required": GetSettingValue(token, "pb_pdf_required"),
 	})
 }
 
@@ -489,7 +481,7 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		"subtotal":                 subtotal,
 		"bill_products":            billProducts,
 		"bill_manual":              billManual,
-		"pb_pdf_required":          GetSettingValue("pb_pdf_required"),
+		"pb_pdf_required":          GetSettingValue(token, "pb_pdf_required"),
 	})
 }
 

@@ -1,7 +1,7 @@
 {{ define "content" }}
 {{ template "error-alert" . }}
 <div class="list-toolbar">
-    <form method="get">
+    <form method="get" hx-get="" hx-target="#list-results" hx-select="#list-results" hx-swap="outerHTML" hx-push-url="true" hx-trigger="submit, input changed delay:400ms from:input[name='q'], change from:select" hx-indicator="#list-results">
         <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.pb.search_placeholder" }}" class="search-input">
         <select name="state">
             <option value="">{{ L "tpl.all_statuses" }}</option>
@@ -20,17 +20,18 @@
     </div>
 </div>
 
+<div id="list-results">
 <div class="data-table-wrapper">
     <table aria-label="{{ L "tpl.pb.table_label" }}">
         <thead>
             <tr>
                 <th>#</th>
-                <th data-sortable>{{ L "tpl.pb.supplier_seq" }}</th>
-                <th data-sortable>{{ L "tpl.pb.bill_id" }}</th>
-                <th data-sortable>{{ L "tpl.pb.total" }}</th>
-                <th data-sortable>{{ L "tpl.pb.date" }}</th>
-                <th data-sortable>{{ L "tpl.pb.type" }}</th>
-                <th data-sortable>{{ L "tpl.pb.status" }}</th>
+                <th data-sortable data-sort-key="supplier_sequence_number" data-sort-current="{{ if eq .sort "supplier_sequence_number" }}{{ .dir }}{{ end }}">{{ L "tpl.pb.supplier_seq" }}</th>
+                <th data-sortable data-sort-key="id" data-sort-current="{{ if eq .sort "id" }}{{ .dir }}{{ end }}">{{ L "tpl.pb.bill_id" }}</th>
+                <th data-sortable data-sort-key="total" data-sort-current="{{ if eq .sort "total" }}{{ .dir }}{{ end }}">{{ L "tpl.pb.total" }}</th>
+                <th data-sortable data-sort-key="effective_date" data-sort-current="{{ if eq .sort "effective_date" }}{{ .dir }}{{ end }}">{{ L "tpl.pb.date" }}</th>
+                <th data-sortable data-sort-key="type" data-sort-current="{{ if eq .sort "type" }}{{ .dir }}{{ end }}">{{ L "tpl.pb.type" }}</th>
+                <th data-sortable data-sort-key="state" data-sort-current="{{ if eq .sort "state" }}{{ .dir }}{{ end }}">{{ L "tpl.pb.status" }}</th>
                 <th>{{ L "tpl.actions" }}</th>
             </tr>
         </thead>
@@ -68,4 +69,5 @@
 
 {{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
 "extra_params" (printf "&state=%s" .state) }}
+</div>
 {{ end }}

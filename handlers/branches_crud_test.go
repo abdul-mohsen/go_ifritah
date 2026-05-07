@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"afrita/config"
+	"afrita/helpers"
 	"afrita/models"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -29,7 +31,21 @@ func branchMockBackend(t *testing.T) *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.URL.Path == "/api/v2/branch/all" && r.Method == "POST":
-			resp := map[string]interface{}{"data": branches}
+			// Mock BE honors `query` body field with Arabic-aware match.
+			body, _ := io.ReadAll(r.Body)
+			var payload map[string]interface{}
+			_ = json.Unmarshal(body, &payload)
+			q, _ := payload["query"].(string)
+			filtered := branches
+			if q != "" {
+				filtered = filtered[:0]
+				for _, b := range branches {
+					if helpers.MatchSearchQuery(q, b.Name, b.Address, b.Phone, b.ManagerName) {
+						filtered = append(filtered, b)
+					}
+				}
+			}
+			resp := map[string]interface{}{"data": filtered}
 			json.NewEncoder(w).Encode(resp)
 		case strings.HasPrefix(r.URL.Path, "/api/v2/branch/") && r.Method == "GET":
 			idStr := strings.TrimPrefix(r.URL.Path, "/api/v2/branch/")

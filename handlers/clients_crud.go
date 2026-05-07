@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,22 +22,24 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clients, err := helpers.FetchClients(token)
-	if err != nil {
-		clients = []models.Client{}
-	}
-
 	query := r.URL.Query().Get("q")
-	if query != "" {
-		filtered := make([]models.Client, 0)
-		for _, c := range clients {
-			if helpers.ContainsInsensitive(c.Name, query) ||
-				helpers.ContainsInsensitive(c.Email, query) ||
-				helpers.ContainsInsensitive(c.Phone, query) {
-				filtered = append(filtered, c)
-			}
+	typed := helpers.TypedListFilters("clients", r.URL.Query())
+
+	clients, err := helpers.FetchClientsList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   query,
+		Typed:   typed,
+	})
+	backendErr := ""
+	if err != nil {
+		if helpers.IsUnauthorizedError(err) {
+			helpers.HandleUnauthorized(w, r)
+			return
 		}
-		clients = filtered
+		log.Printf("[clients] backend list fetch failed: %v", err)
+		clients = []models.Client{}
+		backendErr = "تعذر تحميل العملاء من الخادم حالياً"
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
@@ -58,6 +61,7 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 		"pagination": pagination,
 		"prev_page":  prevPage,
 		"next_page":  nextPage,
+		"error":      backendErr,
 	})
 }
 

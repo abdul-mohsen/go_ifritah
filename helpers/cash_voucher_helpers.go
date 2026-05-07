@@ -14,9 +14,16 @@ import (
 	"afrita/models"
 )
 
-// FetchCashVouchers fetches cash vouchers from backend with pagination, search, and type filter.
+// FetchCashVouchers fetches cash vouchers from backend with pagination,
+// search and type filter. Sort is FE-only (BE returns canonical order).
 func FetchCashVouchers(token string, page, perPage int, query, voucherType string) ([]models.CashVoucher, error) {
-	cacheKey := fmt.Sprintf("cash_vouchers_%d_%d_%s_%s", page, perPage, query, voucherType)
+	return FetchCashVouchersWithTyped(token, page, perPage, query, voucherType, nil)
+}
+
+// FetchCashVouchersWithTyped is FetchCashVouchers + typed-field filters
+// (currently `sequence_number`, server-side aliased to `voucher_number`).
+func FetchCashVouchersWithTyped(token string, page, perPage int, query, voucherType string, typed map[string]string) ([]models.CashVoucher, error) {
+	cacheKey := fmt.Sprintf("cash_vouchers_%d_%d_%s_%s_%s", page, perPage, query, voucherType, typedCacheSuffix(typed))
 	if cached, ok := APICache.Get(cacheKey); ok {
 		if v, ok := cached.([]models.CashVoucher); ok {
 			return v, nil
@@ -32,6 +39,11 @@ func FetchCashVouchers(token string, page, perPage int, query, voucherType strin
 	}
 	if voucherType != "" {
 		payload["voucher_type"] = voucherType
+	}
+	for k, v := range typed {
+		if k != "" && v != "" {
+			payload[k] = v
+		}
 	}
 
 	body, _ := json.Marshal(payload)
@@ -63,6 +75,32 @@ func FetchCashVouchers(token string, page, perPage int, query, voucherType strin
 
 	APICache.Set(cacheKey, vouchers, 1*time.Minute)
 	return vouchers, nil
+}
+
+// typedCacheSuffix produces a deterministic cache-key suffix for a typed
+// filter map so cached entries don't collide across distinct filter sets.
+func typedCacheSuffix(typed map[string]string) string {
+	if len(typed) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(typed))
+	for k := range typed {
+		keys = append(keys, k)
+	}
+	// sort for determinism
+	for i := 1; i < len(keys); i++ {
+		for j := i; j > 0 && keys[j-1] > keys[j]; j-- {
+			keys[j-1], keys[j] = keys[j], keys[j-1]
+		}
+	}
+	var b strings.Builder
+	for _, k := range keys {
+		b.WriteString(k)
+		b.WriteByte('=')
+		b.WriteString(typed[k])
+		b.WriteByte('|')
+	}
+	return b.String()
 }
 
 // FetchCashVoucherDetail fetches a single cash voucher as raw map.

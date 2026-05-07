@@ -23,20 +23,18 @@ func HandleBranches(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	branches, err := helpers.FetchBranches(token)
+	query := r.URL.Query().Get("q")
+	typed := helpers.TypedListFilters("branches", r.URL.Query())
+
+	// Search/sort are 100% backend-driven on this branch — no FE post-filter.
+	branches, err := helpers.FetchBranchesList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   query,
+		Typed:   typed,
+	})
 	if err != nil {
 		branches = []models.Branch{}
-	}
-
-	query := r.URL.Query().Get("q")
-	if query != "" {
-		filtered := make([]models.Branch, 0)
-		for _, b := range branches {
-			if helpers.ContainsInsensitive(b.Name, query) || helpers.ContainsInsensitive(b.Address, query) || helpers.ContainsInsensitive(b.Phone, query) {
-				filtered = append(filtered, b)
-			}
-		}
-		branches = filtered
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))

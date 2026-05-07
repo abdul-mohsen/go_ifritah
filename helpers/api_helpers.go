@@ -10,10 +10,41 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 )
+
+// apiDebug gates verbose [API ...] tracelogs (request body, response status,
+// user-supplied query strings) behind an env flag. Logging the raw user
+// `query` and full request bodies on every list call is a PII / log-injection
+// risk and very noisy in prod. Opt-in with AFRITA_API_DEBUG=1.
+var apiDebug = os.Getenv("AFRITA_API_DEBUG") == "1"
+
+// Log format constants for apiLogf — keep duplicated emoji-prefixed strings
+// out of the call sites (SonarCloud S1192 / "no duplicated string literals").
+const (
+	logFmtAPIRequest  = "🔵 [API REQUEST] POST %s%s"
+	logFmtAPIBody     = "🔵 [API BODY] %s"
+	logFmtAPIRespErr  = "🔴 [API RESPONSE] Status: %d"
+	logMsgAPIRespOK   = "🟢 [API RESPONSE] Status: 200 OK"
+)
+
+// apiLogf is a no-op unless AFRITA_API_DEBUG=1 in the environment.
+func apiLogf(format string, args ...interface{}) {
+	if !apiDebug {
+		return
+	}
+	// Defensive: scrub CR/LF from any string args so an attacker can't forge
+	// extra log lines via injected user input (CWE-117).
+	for i, a := range args {
+		if s, ok := a.(string); ok {
+			args[i] = strings.NewReplacer("\r", " ", "\n", " ").Replace(s)
+		}
+	}
+	log.Printf(format, args...)
+}
 
 // HttpClient is the shared HTTP client for API calls. Exported for test injection.
 // Uses an optimized transport with connection pooling and keep-alive so that
@@ -89,6 +120,24 @@ func StringContains(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// applyListFilters adds query / state to a backend list payload only when
+// set, so empty fields fall through to BE defaults. Used by the bill and
+// purchase-bill list fetchers (formerly duplicated inline).
+//
+// Sort is FE-only (backend ignores sort/dir on list endpoints — see
+// search-and-filters mailbox msg #10), so we no longer forward them.
+func applyListFilters(payload map[string]interface{}, query, stateFilter string) {
+	if query != "" {
+		payload["query"] = query
+		apiLogf("🔵 [API SEARCH] query=%s", query)
+	}
+	if stateFilter != "" {
+		if v, err := strconv.Atoi(stateFilter); err == nil {
+			payload["state"] = v
+		}
+	}
 }
 
 func DoAuthedRequest(req *http.Request, token string) (*http.Response, error) {
@@ -175,23 +224,36 @@ func DoAuthedRequestWithRetry(req *http.Request, sessionID string) (*http.Respon
 }
 
 func FetchInvoices(token string) ([]models.Invoice, error) {
-	return FetchInvoicesAll(token, 1, "")
+	return FetchInvoicesAll(token, 1, "", "")
 }
 
-func FetchInvoicesAll(token string, page int, query string) ([]models.Invoice, error) {
+// FetchInvoicesAll fetches bills from the backend with search + state filter.
+//
+// Sort is FE-only (BE returns rows in canonical keyset order). Search and
+// state filter are forwarded to BE; empty values fall through to defaults.
+func FetchInvoicesAll(token string, page int, query, stateFilter string) ([]models.Invoice, error) {
+	return FetchInvoicesAllWithTyped(token, page, query, stateFilter, nil)
+}
+
+// FetchInvoicesAllWithTyped is FetchInvoicesAll with extra typed-field
+// filters (phone, sequence_number, vin) that the BE applies as prefix-LIKE
+// on indexed columns. Per the contract in mailbox #19/#21.
+func FetchInvoicesAllWithTyped(token string, page int, query, stateFilter string, typed map[string]string) ([]models.Invoice, error) {
 	if page < 1 {
 		page = 1
 	}
 
-	// Always fetch all bills from backend (page_number 0) and paginate client-side
+	// Always fetch all bills from backend (page_number 0) and paginate client-side.
 	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
-	log.Printf("🔵 [API REQUEST] POST %s/api/v2/bill/all", config.BackendDomain)
-	if query != "" {
-		payload["query"] = query
-		log.Printf("🔵 [API SEARCH] query=%s", query)
+	apiLogf(logFmtAPIRequest, config.BackendDomain, "/api/v2/bill/all")
+	applyListFilters(payload, query, stateFilter)
+	for k, v := range typed {
+		if k != "" && v != "" {
+			payload[k] = v
+		}
 	}
 	body, _ := json.Marshal(payload)
-	log.Printf("🔵 [API BODY] %s", string(body))
+	apiLogf(logFmtAPIBody, string(body))
 
 	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill/all", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -201,11 +263,11 @@ func FetchInvoicesAll(token string, page int, query string) ([]models.Invoice, e
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("🔴 [API RESPONSE] Status: %d", resp.StatusCode)
+		apiLogf(logFmtAPIRespErr, resp.StatusCode)
 		return nil, fmt.Errorf("backend status %d", resp.StatusCode)
 	}
 
-	log.Printf("🟢 [API RESPONSE] Status: 200 OK")
+	apiLogf(logMsgAPIRespOK)
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -232,8 +294,8 @@ func FetchAllInvoicesUnpaginated(token string) ([]models.Invoice, error) {
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
 
-	log.Printf("🔵 [API REQUEST] POST %s/api/v2/bill/all (page_size=10000 for dashboard)", config.BackendDomain)
-	log.Printf("🔵 [API BODY] %s", string(body))
+	apiLogf(logFmtAPIRequest, config.BackendDomain, "/api/v2/bill/all (page_size=10000 for dashboard)")
+	apiLogf(logFmtAPIBody, string(body))
 
 	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill/all", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -243,11 +305,11 @@ func FetchAllInvoicesUnpaginated(token string) ([]models.Invoice, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("🔴 [API RESPONSE] Status: %d", resp.StatusCode)
+		apiLogf(logFmtAPIRespErr, resp.StatusCode)
 		return nil, fmt.Errorf("backend status %d", resp.StatusCode)
 	}
 
-	log.Printf("🟢 [API RESPONSE] Status: 200 OK")
+	apiLogf(logMsgAPIRespOK)
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -261,16 +323,17 @@ func FetchAllInvoicesUnpaginated(token string) ([]models.Invoice, error) {
 	return invoices, decErr
 }
 
-// FetchPurchaseBillsAll fetches purchase bills with smart pagination
-// For page 1, returns all bills (including drafts)
-// For other pages, sends page_number to backend
-func FetchPurchaseBillsAll(token string, page int, query string) ([]models.Invoice, error) {
+// FetchPurchaseBillsAll fetches purchase bills with search + state filter.
+//
+// Sort is FE-only (BE returns rows in canonical keyset order). Search and
+// state filter are forwarded to BE; empty values fall through to defaults.
+func FetchPurchaseBillsAll(token string, page int, query, stateFilter string) ([]models.Invoice, error) {
 	if page < 1 {
 		page = 1
 	}
 
-	// Cache only the default dashboard call (page 1, no query)
-	if page == 1 && query == "" {
+	// Cache only the default dashboard call (page 1, no params)
+	if page == 1 && query == "" && stateFilter == "" {
 		if cached, found := APICache.Get("purchase_bills"); found {
 			log.Printf("⚡ [CACHE HIT] purchase_bills")
 			if v, ok := cached.([]models.Invoice); ok {
@@ -279,18 +342,15 @@ func FetchPurchaseBillsAll(token string, page int, query string) ([]models.Invoi
 		}
 	}
 
-	// Always fetch all purchase bills from backend (page_number 0) and paginate client-side
+	// Always fetch all purchase bills from backend (page_number 0) and paginate client-side.
 	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
-	log.Printf("🔵 [API REQUEST] POST %s/api/v2/purchase_bill/all", config.BackendDomain)
-	if query != "" {
-		payload["query"] = query
-		log.Printf("🔵 [API SEARCH] query=%s", query)
-	}
+	apiLogf(logFmtAPIRequest, config.BackendDomain, "/api/v2/purchase_bill/all")
+	applyListFilters(payload, query, stateFilter)
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
-	log.Printf("🔵 [API BODY] %s", string(body))
+	apiLogf(logFmtAPIBody, string(body))
 
 	req, err := http.NewRequest("POST", config.BackendDomain+"/api/v2/purchase_bill/all", bytes.NewBuffer(body))
 	if err != nil {
@@ -303,11 +363,11 @@ func FetchPurchaseBillsAll(token string, page int, query string) ([]models.Invoi
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("🔴 [API RESPONSE] Status: %d", resp.StatusCode)
+		apiLogf(logFmtAPIRespErr, resp.StatusCode)
 		return nil, fmt.Errorf("backend status %d", resp.StatusCode)
 	}
 
-	log.Printf("🟢 [API RESPONSE] Status: 200 OK")
+	apiLogf(logMsgAPIRespOK)
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -317,7 +377,7 @@ func FetchPurchaseBillsAll(token string, page int, query string) ([]models.Invoi
 	// Purchase bill list returns numeric fields as strings ("total": "287.5").
 	// Decode into raw maps first, then manually coerce into []Invoice.
 	result, err := decodePurchaseBillList(bodyBytes)
-	if err == nil && page == 1 && query == "" {
+	if err == nil && page == 1 && query == "" && stateFilter == "" {
 		APICache.Set("purchase_bills", result, CacheTTLPurchBill)
 		log.Printf("💾 [CACHE SET] purchase_bills (TTL %v)", CacheTTLPurchBill)
 	}
@@ -340,8 +400,8 @@ func FetchInvoicesPaginated(token string, page int, perPage int) ([]models.Invoi
 	body, _ := json.Marshal(payload)
 
 	// Debug logging
-	log.Printf("🔵 [API REQUEST] POST %s/api/v2/bill/all", config.BackendDomain)
-	log.Printf("🔵 [API BODY] %s", string(body))
+	apiLogf(logFmtAPIRequest, config.BackendDomain, "/api/v2/bill/all")
+	apiLogf(logFmtAPIBody, string(body))
 
 	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill/all", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -351,11 +411,11 @@ func FetchInvoicesPaginated(token string, page int, perPage int) ([]models.Invoi
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("🔴 [API RESPONSE] Status: %d", resp.StatusCode)
+		apiLogf(logFmtAPIRespErr, resp.StatusCode)
 		return nil, fmt.Errorf("backend status %d", resp.StatusCode)
 	}
 
-	log.Printf("🟢 [API RESPONSE] Status: 200 OK")
+	apiLogf(logMsgAPIRespOK)
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -820,7 +880,7 @@ func safeStringDate(v interface{}) string {
 func fetchSupplierReportLegacy(token string, supplierID int, dateFrom, dateTo string) (SupplierReportResult, error) {
 	var result SupplierReportResult
 
-	allBills, err := FetchPurchaseBillsAll(token, 1, "")
+	allBills, err := FetchPurchaseBillsAll(token, 1, "", "")
 	if err != nil {
 		return result, fmt.Errorf("fetch bills: %w", err)
 	}

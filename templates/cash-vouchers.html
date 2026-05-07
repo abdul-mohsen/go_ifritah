@@ -1,7 +1,7 @@
 {{ define "content" }}
 {{ template "error-alert" . }}
 <div class="list-toolbar">
-    <form method="get">
+    <form method="get" hx-get="" hx-target="#list-results" hx-select="#list-results" hx-swap="outerHTML" hx-push-url="true" hx-trigger="submit, input changed delay:400ms from:input[name='q'], change from:select" hx-indicator="#list-results">
         <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "cash_voucher.recipient_name" }}..." class="search-input">
         <select name="type">
             <option value="">{{ L "cash_voucher_type.all" }}</option>
@@ -18,17 +18,18 @@
     </div>
 </div>
 
+<div id="list-results">
 <div class="data-table-wrapper">
     <table aria-label="{{ L "cash_voucher.list_title" }}">
         <thead>
             <tr>
                 <th>#</th>
-                <th data-sortable>{{ L "cash_voucher.voucher_number" }}</th>
-                <th data-sortable>{{ L "cash_voucher.voucher_type" }}</th>
-                <th data-sortable>{{ L "cash_voucher.recipient_name" }}</th>
-                <th data-sortable>{{ L "cash_voucher.amount" }}</th>
-                <th data-sortable>{{ L "cash_voucher.effective_date" }}</th>
-                <th data-sortable>{{ L "cash_voucher.state" }}</th>
+                <th data-sortable data-sort-key="voucher_number" data-sort-current="{{ if eq .sort "voucher_number" }}{{ .dir }}{{ end }}">{{ L "cash_voucher.voucher_number" }}</th>
+                <th data-sortable data-sort-key="voucher_type" data-sort-current="{{ if eq .sort "voucher_type" }}{{ .dir }}{{ end }}">{{ L "cash_voucher.voucher_type" }}</th>
+                <th data-sortable data-sort-key="recipient_name" data-sort-current="{{ if eq .sort "recipient_name" }}{{ .dir }}{{ end }}">{{ L "cash_voucher.recipient_name" }}</th>
+                <th data-sortable data-sort-key="amount" data-sort-current="{{ if eq .sort "amount" }}{{ .dir }}{{ end }}">{{ L "cash_voucher.amount" }}</th>
+                <th data-sortable data-sort-key="effective_date" data-sort-current="{{ if eq .sort "effective_date" }}{{ .dir }}{{ end }}">{{ L "cash_voucher.effective_date" }}</th>
+                <th data-sortable data-sort-key="state" data-sort-current="{{ if eq .sort "state" }}{{ .dir }}{{ end }}">{{ L "cash_voucher.state" }}</th>
                 <th>{{ L "tpl.actions" }}</th>
             </tr>
         </thead>
@@ -86,4 +87,5 @@
 
 {{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
 "extra_params" (printf "&type=%s" .voucher_type) }}
+</div>
 {{ end }}

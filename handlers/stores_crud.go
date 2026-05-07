@@ -20,20 +20,15 @@ func HandleStores(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stores, err := helpers.FetchStores(token)
+	query := r.URL.Query().Get("q")
+
+	stores, err := helpers.FetchStoresList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   query,
+	})
 	if err != nil {
 		stores = []models.Store{}
-	}
-
-	query := r.URL.Query().Get("q")
-	if query != "" {
-		filtered := make([]models.Store, 0)
-		for _, s := range stores {
-			if helpers.ContainsInsensitive(s.Name, query) {
-				filtered = append(filtered, s)
-			}
-		}
-		stores = filtered
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))

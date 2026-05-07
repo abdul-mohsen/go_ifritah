@@ -16,7 +16,21 @@
     <script>
         // Apply dark mode BEFORE CSS renders — prevents white flash
         (function () { if (localStorage.getItem('afrita_theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark') })();
+        // Suppress all transitions/animations until the sidebar restore IIFE runs
+        // so collapsed sections / sidebar don't visibly animate open → closed on
+        // page reload (FOUC). The class is removed at the end of the body-bottom
+        // restore script via two requestAnimationFrame calls (one full paint).
+        document.documentElement.classList.add('preload-no-anim');
     </script>
+    <style>
+        html.preload-no-anim *,
+        html.preload-no-anim *::before,
+        html.preload-no-anim *::after {
+            transition: none !important;
+            animation-duration: 0s !important;
+            animation-delay: 0s !important;
+        }
+    </style>
     <link href="/static/output.css" rel="stylesheet">
     <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
     <script>
@@ -29,6 +43,7 @@
         });
     </script>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/smart-search.css">
 </head>
 
 <body style="background: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface)" class="text-right">
@@ -290,15 +305,18 @@
                 </button>
                 <h2 class="text-xl font-bold flex-1" style="color: var(--md-sys-color-on-surface)">{{ .title }}</h2>
                 <!-- Notification Bell -->
-                <a href="/dashboard/notifications" class="relative p-2 rounded-full transition hover:bg-black/5"
-                    style="color: var(--md-sys-color-on-surface-variant)" title="{{ L "layout.notifications" }}">
+                <a href="/dashboard/notifications" id="notification-bell" class="relative p-2 rounded-full transition hover:bg-black/5"
+                    style="color: var(--md-sys-color-on-surface-variant)" title="{{ L "layout.notifications" }}"
+                    aria-label="{{ L "layout.notifications" }}"
+                    data-unread-count-url="/api/notifications/unread-count">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
                     </svg>
-                    {{ if .notification_count }}
-                    <span class="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">{{ .notification_count }}</span>
-                    {{ end }}
+                    <span id="notification-badge"
+                        class="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full"
+                        style="display: {{ if .notification_count }}flex{{ else }}none{{ end }}"
+                        aria-live="polite">{{ if .notification_count }}{{ .notification_count }}{{ end }}</span>
                 </a>
             </header>
 
@@ -490,11 +508,20 @@
                     }
                 }
             } catch (e) { }
+            // Re-enable transitions after the restored state has painted once,
+            // so subsequent user interactions animate normally.
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    document.documentElement.classList.remove('preload-no-anim');
+                });
+            });
         })();
     </script>
     <script src="/static/js/darkmode.js"></script>
     <script src="/static/js/i18n.js"></script>
+    <script src="/static/js/notifications.js" defer></script>
     <script src="/static/js/script.js" defer></script>
+    <script src="/static/js/smart-search.js" defer></script>
 </body>
 
 </html>

@@ -1,631 +1,222 @@
-//go:build ignore
-// +build ignore
-
-// Disabled: depends on notifications_store.go.disabled mock stores.
-
 package handlers
 
 import (
-	"afrita/config"
-	"afrita/helpers"
 	"encoding/json"
-	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"afrita/models"
+	"afrita/config"
 
 	"github.com/gorilla/mux"
 )
 
-// ============================================================================
-// Notification Store Tests
-// ============================================================================
-
-func TestNotificationStoreList(t *testing.T) {
-	store := NewMockNotificationStore()
-	list := store.List()
-
-	if len(list) != 8 {
-		t.Fatalf("expected 8 seed notifications, got %d", len(list))
-	}
-
-	// Should be sorted by CreatedAt desc (newest first)
-	for i := 1; i < len(list); i++ {
-		if list[i].CreatedAt.After(list[i-1].CreatedAt) {
-			t.Errorf("notifications not sorted desc: %v after %v", list[i].CreatedAt, list[i-1].CreatedAt)
-		}
-	}
+// notifTestBackend wires a fake backend, registers a session token, and
+// returns helpers to build authenticated requests + cleanup.
+type notifTestBackend struct {
+	srv     *httptest.Server
+	sessKey string
 }
 
-func TestNotificationStoreUnreadCount(t *testing.T) {
-	store := NewMockNotificationStore()
-	count := store.UnreadCount()
+func newNotifTestBackend(t *testing.T, h http.Handler) *notifTestBackend {
+	t.Helper()
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
 
-	// 6 seeded as unread, 2 as read
-	if count != 6 {
-		t.Errorf("expected 6 unread, got %d", count)
-	}
-}
+	prev := config.BackendDomain
+	config.BackendDomain = srv.URL
+	t.Cleanup(func() { config.BackendDomain = prev })
 
-func TestNotificationStoreMarkRead(t *testing.T) {
-	store := NewMockNotificationStore()
-
-	if !store.MarkRead(1) {
-		t.Fatal("expected MarkRead(1) to return true")
-	}
-
-	n := store.GetByID(1)
-	if n == nil || !n.IsRead {
-		t.Error("notification 1 should be marked as read")
-	}
-
-	// Unread count should decrease
-	if count := store.UnreadCount(); count != 5 {
-		t.Errorf("expected 5 unread after marking 1, got %d", count)
-	}
-
-	// Non-existent ID
-	if store.MarkRead(999) {
-		t.Error("expected MarkRead(999) to return false")
-	}
-}
-
-func TestNotificationStoreMarkAllRead(t *testing.T) {
-	store := NewMockNotificationStore()
-
-	marked := store.MarkAllRead()
-	if marked != 6 {
-		t.Errorf("expected 6 marked as read, got %d", marked)
-	}
-
-	if count := store.UnreadCount(); count != 0 {
-		t.Errorf("expected 0 unread after mark-all, got %d", count)
-	}
-
-	// Calling again should mark 0
-	marked = store.MarkAllRead()
-	if marked != 0 {
-		t.Errorf("expected 0 newly marked, got %d", marked)
-	}
-}
-
-func TestNotificationStoreCreate(t *testing.T) {
-	store := NewMockNotificationStore()
-	initial := len(store.List())
-
-	n := &models.Notification{
-		UserID:  1,
-		Type:    "info",
-		Title:   "إشعار اختبار",
-		Message: "هذا إشعار اختباري",
-	}
-	id := store.Create(n)
-
-	if id < 9 {
-		t.Errorf("expected new ID >= 9, got %d", id)
-	}
-	if len(store.List()) != initial+1 {
-		t.Error("list length should increase by 1")
-	}
-
-	created := store.GetByID(id)
-	if created == nil {
-		t.Fatal("created notification not found")
-	}
-	if created.Title != "إشعار اختبار" {
-		t.Errorf("title = %q, want 'إشعار اختبار'", created.Title)
-	}
-}
-
-func TestNotificationStoreGetByID(t *testing.T) {
-	store := NewMockNotificationStore()
-
-	n := store.GetByID(1)
-	if n == nil {
-		t.Fatal("expected notification 1 to exist")
-	}
-	if n.Type != "low_stock" {
-		t.Errorf("type = %q, want 'low_stock'", n.Type)
-	}
-
-	if store.GetByID(999) != nil {
-		t.Error("expected nil for non-existent ID")
-	}
-}
-
-// ============================================================================
-// Notification Config Store Tests
-// ============================================================================
-
-func TestNotifConfigStoreGetDefault(t *testing.T) {
-	store := NewMockNotifConfigStore()
-
-	cfg := store.Get(1) // seeded user
-	if !cfg.LowStockAlert {
-		t.Error("expected LowStockAlert = true for seeded user")
-	}
-	if cfg.LowStockThreshold != 5 {
-		t.Errorf("LowStockThreshold = %d, want 5", cfg.LowStockThreshold)
-	}
-
-	// Unknown user gets defaults
-	cfg2 := store.Get(999)
-	if !cfg2.LowStockAlert {
-		t.Error("expected default LowStockAlert = true")
-	}
-	if cfg2.UserID != 999 {
-		t.Errorf("UserID = %d, want 999", cfg2.UserID)
-	}
-}
-
-func TestNotifConfigStoreSave(t *testing.T) {
-	store := NewMockNotifConfigStore()
-
-	cfg := models.NotificationConfig{
-		UserID:             2,
-		LowStockAlert:      false,
-		LowStockThreshold:  10,
-		PendingInvoiceDays: 14,
-		EmailEnabled:       true,
-	}
-	store.Save(cfg)
-
-	got := store.Get(2)
-	if got.LowStockAlert {
-		t.Error("expected LowStockAlert = false after save")
-	}
-	if got.LowStockThreshold != 10 {
-		t.Errorf("LowStockThreshold = %d, want 10", got.LowStockThreshold)
-	}
-	if !got.EmailEnabled {
-		t.Error("expected EmailEnabled = true after save")
-	}
-}
-
-// ============================================================================
-// Notification Handler Tests
-// ============================================================================
-
-func TestHandleNotificationsPage(t *testing.T) {
-	NotificationStore = NewMockNotificationStore()
+	const sessKey = "notif-test-sess"
 	config.SessionTokensMutex.Lock()
-	config.SessionTokens["test-session"] = "test-token"
+	config.SessionTokens[sessKey] = "notif-test-token"
 	config.SessionTokensMutex.Unlock()
+	t.Cleanup(func() {
+		config.SessionTokensMutex.Lock()
+		delete(config.SessionTokens, sessKey)
+		config.SessionTokensMutex.Unlock()
+	})
 
-	req := httptest.NewRequest("GET", "/dashboard/notifications", nil)
-	req.AddCookie(&http.Cookie{Name: "session_id", Value: "test-session"})
+	return &notifTestBackend{srv: srv, sessKey: sessKey}
+}
+
+func (b *notifTestBackend) authedRequest(method, path string, body string) *http.Request {
+	var r *http.Request
+	if body != "" {
+		r = httptest.NewRequest(method, path, strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+	} else {
+		r = httptest.NewRequest(method, path, nil)
+	}
+	r.AddCookie(&http.Cookie{Name: "session_id", Value: b.sessKey})
+	return r
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestHandleNotificationUnreadCount_ProxiesToBackend(t *testing.T) {
+	var hit string
+	b := newNotifTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hit = r.Method + " " + r.URL.Path
+		_, _ = io.WriteString(w, `{"count": 3}`)
+	}))
+
+	req := b.authedRequest(http.MethodGet, "/api/notifications/unread-count", "")
 	w := httptest.NewRecorder()
-
-	HandleNotifications(w, req)
-	body := w.Body.String()
+	HandleNotificationUnreadCount(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
 	}
-
-	// Should contain notification titles
-	mustContain := []string{
-		"الإشعارات",          // page title
-		"غير مقروءة",        // unread section header
-		"مقروءة",            // read section header
-		"تنبيه مخزون منخفض", // notification 1 title
-		"فاتورة مستحقة",     // notification 2 title fragment
-		"تعيين الكل كمقروء", // mark-all button
+	if hit != "GET /api/v2/notification/unread-count" {
+		t.Errorf("backend hit = %q", hit)
 	}
-	for _, s := range mustContain {
-		if !strings.Contains(body, s) {
-			t.Errorf("notifications page missing: %s", s)
-		}
+	var got map[string]int
+	_ = json.Unmarshal(w.Body.Bytes(), &got)
+	if got["count"] != 3 {
+		t.Errorf("count=%v", got)
 	}
 }
 
-func TestHandleNotificationsRequiresAuth(t *testing.T) {
-	req := httptest.NewRequest("GET", "/dashboard/notifications", nil)
+func TestHandleNotificationUnreadCount_BackendDownReturnsZero(t *testing.T) {
+	b := newNotifTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	req := b.authedRequest(http.MethodGet, "/api/notifications/unread-count", "")
 	w := httptest.NewRecorder()
+	HandleNotificationUnreadCount(w, req)
 
-	HandleNotifications(w, req)
-
-	if w.Code != http.StatusFound && w.Code != http.StatusSeeOther {
-		t.Fatalf("expected redirect (no auth), got %d", w.Code)
+	if w.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
+	}
+	var got map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &got)
+	if got["count"] != float64(0) {
+		t.Errorf("expected count=0 on failure, got %v", got)
 	}
 }
 
-func TestHandleMarkNotificationRead(t *testing.T) {
-	NotificationStore = NewMockNotificationStore()
-
-	req := httptest.NewRequest("POST", "/api/notifications/1/read", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+func TestHandleMarkNotificationRead_HappyPath(t *testing.T) {
+	var hit string
+	b := newNotifTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hit = r.Method + " " + r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := b.authedRequest(http.MethodPost, "/api/notifications/42/read", "")
+	req = mux.SetURLVars(req, map[string]string{"id": "42"})
 	w := httptest.NewRecorder()
-
 	HandleMarkNotificationRead(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
 	}
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON response: %v", err)
-	}
-	if resp["success"] != true {
-		t.Error("expected success: true")
+	if hit != "POST /api/v2/notification/42/read" {
+		t.Errorf("backend hit = %q", hit)
 	}
 }
 
-func TestHandleMarkNotificationReadNotFound(t *testing.T) {
-	NotificationStore = NewMockNotificationStore()
-
-	req := httptest.NewRequest("POST", "/api/notifications/999/read", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "999"})
+func TestHandleMarkNotificationRead_BadID(t *testing.T) {
+	b := newNotifTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Fatalf("backend should not be called on bad id")
+	}))
+	req := b.authedRequest(http.MethodPost, "/api/notifications/not-a-number/read", "")
+	req = mux.SetURLVars(req, map[string]string{"id": "not-a-number"})
 	w := httptest.NewRecorder()
-
 	HandleMarkNotificationRead(w, req)
 
-	// Now returns 200 always (best-effort API call, no mock validation)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
-	}
-}
-
-func TestHandleMarkNotificationReadInvalidID(t *testing.T) {
-	req := httptest.NewRequest("POST", "/api/notifications/abc/read", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "abc"})
-	w := httptest.NewRecorder()
-
-	HandleMarkNotificationRead(w, req)
-
-	// Now returns 200 always (best-effort API call)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
+	_ = b // unused
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d body=%s", w.Code, w.Body.String())
 	}
 }
 
 func TestHandleMarkAllNotificationsRead(t *testing.T) {
-	NotificationStore = NewMockNotificationStore()
-
-	req := httptest.NewRequest("POST", "/api/notifications/read-all", nil)
+	b := newNotifTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/notification/read-all" {
+			t.Errorf("path=%s", r.URL.Path)
+		}
+		_, _ = io.WriteString(w, `{"count": 5}`)
+	}))
+	req := b.authedRequest(http.MethodPost, "/api/notifications/read-all", "")
 	w := httptest.NewRecorder()
-
 	HandleMarkAllNotificationsRead(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
 	}
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON response: %v", err)
-	}
-	if resp["success"] != true {
-		t.Error("expected success: true")
+	var got map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &got)
+	if got["count"] != float64(5) || got["success"] != true {
+		t.Errorf("body=%v", got)
 	}
 }
 
-func TestHandleNotificationConfig(t *testing.T) {
-	NotifConfigStore = NewMockNotifConfigStore()
-
-	payload := `{"lowStockThreshold":10,"pendingInvoiceDays":14,"notifLowStock":true,"notifPending":false,"notifOrders":true}`
-	req := httptest.NewRequest("POST", "/api/notification-config", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
+func TestHandleNotificationConfig_ForwardsPartialPayload(t *testing.T) {
+	var captured map[string]any
+	b := newNotifTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("method = %s, want PUT", r.Method)
+		}
+		_ = json.NewDecoder(r.Body).Decode(&captured)
+		_, _ = io.WriteString(w, `{"data":{"low_stock_threshold":7}}`)
+	}))
+	body := `{"low_stock_threshold": 7, "low_stock_alert": true}`
+	req := b.authedRequest(http.MethodPost, "/api/notification-config", body)
 	w := httptest.NewRecorder()
-
 	HandleNotificationConfig(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
 	}
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON response: %v", err)
+	if captured["low_stock_threshold"] != float64(7) || captured["low_stock_alert"] != true {
+		t.Errorf("forwarded payload = %v", captured)
 	}
-	if resp["success"] != true {
-		t.Error("expected success: true")
-	}
-
-	// Verify config was saved
-	cfg := NotifConfigStore.Get(1)
-	if cfg.LowStockThreshold != 10 {
-		t.Errorf("LowStockThreshold = %d, want 10", cfg.LowStockThreshold)
-	}
-	if !cfg.NewOrderAlert {
-		t.Error("expected NewOrderAlert = true")
+	if _, ok := captured["payment_due_alert"]; ok {
+		t.Errorf("untouched fields should not be forwarded; got %v", captured)
 	}
 }
 
-func TestHandleNotificationConfigInvalidJSON(t *testing.T) {
-	req := httptest.NewRequest("POST", "/api/notification-config", strings.NewReader("invalid"))
-	req.Header.Set("Content-Type", "application/json")
+func TestHandleNotificationConfig_AcceptsLegacyKeys(t *testing.T) {
+	var captured map[string]any
+	b := newNotifTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&captured)
+		_, _ = io.WriteString(w, `{}`)
+	}))
+	body := `{"lowStockThreshold": 8, "notifLowStock": true, "notifPending": false}`
+	req := b.authedRequest(http.MethodPost, "/api/notification-config", body)
 	w := httptest.NewRecorder()
-
 	HandleNotificationConfig(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
+	}
+	if captured["low_stock_threshold"] != float64(8) {
+		t.Errorf("legacy lowStockThreshold not mapped: %v", captured)
+	}
+	if captured["low_stock_alert"] != true {
+		t.Errorf("legacy notifLowStock not mapped: %v", captured)
+	}
+	if captured["payment_due_alert"] != false {
+		t.Errorf("legacy notifPending not mapped: %v", captured)
 	}
 }
 
 func TestHandleGetNotificationConfig(t *testing.T) {
-	NotifConfigStore = NewMockNotifConfigStore()
-
-	req := httptest.NewRequest("GET", "/api/notification-config", nil)
+	b := newNotifTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"data":{"low_stock_threshold":4,"low_stock_alert":true}}`)
+	}))
+	req := b.authedRequest(http.MethodGet, "/api/notification-config", "")
 	w := httptest.NewRecorder()
-
 	HandleGetNotificationConfig(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
 	}
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON response: %v", err)
+	var cfg map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &cfg)
+	if cfg["low_stock_threshold"] != float64(4) {
+		t.Errorf("threshold not surfaced: %v", cfg)
 	}
-	if resp["success"] != true {
-		t.Error("expected success: true")
-	}
-}
-
-func TestHandleCurrentUser(t *testing.T) {
-	UserStore = NewMockUserStore()
-
-	req := httptest.NewRequest("GET", "/api/users/me", nil)
-	w := httptest.NewRecorder()
-
-	HandleCurrentUser(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
-	}
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON response: %v", err)
-	}
-
-	if resp["username"] == nil || resp["username"] == "" {
-		t.Error("expected non-empty username")
-	}
-	if resp["email"] == nil || resp["email"] == "" {
-		t.Error("expected non-empty email")
-	}
-	if resp["role"] == nil || resp["role"] == "" {
-		t.Error("expected non-empty role")
-	}
-}
-
-// ============================================================================
-// Register Integration with UserStore
-// ============================================================================
-
-func TestHandleRegisterPostCreatesUser(t *testing.T) {
-	UserStore = NewMockUserStore()
-	initial := len(UserStore.List())
-
-	payload := `{"username":"testuser","email":"test@new.com","password":"Test1234","full_name":"مستخدم اختبار","phone":"0501111111"}`
-	req := httptest.NewRequest("POST", "/api/register", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	HandleRegisterPost(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
-	if resp["success"] != true {
-		t.Errorf("expected success: true, got %v", resp)
-	}
-
-	// User should be in store
-	if len(UserStore.List()) != initial+1 {
-		t.Errorf("expected %d users after register, got %d", initial+1, len(UserStore.List()))
-	}
-}
-
-func TestHandleRegisterPostDuplicateUsername(t *testing.T) {
-	UserStore = NewMockUserStore()
-
-	// Get an existing username
-	users := UserStore.List()
-	existingUsername := users[0].Username
-
-	payload := `{"username":"` + existingUsername + `","email":"unique@test.com","password":"Test1234"}`
-	req := httptest.NewRequest("POST", "/api/register", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	HandleRegisterPost(w, req)
-
-	if w.Code != http.StatusConflict {
-		t.Fatalf("expected 409 conflict, got %d", w.Code)
-	}
-}
-
-func TestHandleRegisterPostDuplicateEmail(t *testing.T) {
-	UserStore = NewMockUserStore()
-
-	users := UserStore.List()
-	existingEmail := users[0].Email
-
-	payload := `{"username":"uniqueuser","email":"` + existingEmail + `","password":"Test1234"}`
-	req := httptest.NewRequest("POST", "/api/register", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	HandleRegisterPost(w, req)
-
-	if w.Code != http.StatusConflict {
-		t.Fatalf("expected 409 conflict, got %d", w.Code)
-	}
-}
-
-func TestHandleRegisterPostMissingFields(t *testing.T) {
-	payload := `{"username":"","email":"","password":""}`
-	req := httptest.NewRequest("POST", "/api/register", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	HandleRegisterPost(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", w.Code)
-	}
-}
-
-// ============================================================================
-// Backend Integration Tests — JSON deserialization + caching
-// ============================================================================
-
-// TestNotificationJSONReadField verifies that backend JSON with "read" field
-// (not "is_read") correctly deserializes into the Go Notification model.
-func TestNotificationJSONReadField(t *testing.T) {
-	backendJSON := `{"data": [
-		{"id": 1, "type": "low_stock", "title": "مخزون منخفض", "message": "فلتر زيت - الكمية: 2", "read": true, "created_at": "2026-03-25T10:00:00Z"},
-		{"id": 2, "type": "new_order", "title": "طلب جديد", "message": "طلب كبير", "read": false, "created_at": "2026-03-25T09:00:00Z"}
-	]}`
-
-	var wrapper struct {
-		Data []models.Notification `json:"data"`
-	}
-	if err := json.Unmarshal([]byte(backendJSON), &wrapper); err != nil {
-		t.Fatalf("failed to unmarshal backend JSON: %v", err)
-	}
-
-	if len(wrapper.Data) != 2 {
-		t.Fatalf("expected 2 notifications, got %d", len(wrapper.Data))
-	}
-
-	// ID 1 has "read": true → IsRead must be true
-	if !wrapper.Data[0].IsRead {
-		t.Error("notification 1: expected IsRead=true (backend sent 'read': true)")
-	}
-	// ID 2 has "read": false → IsRead must be false
-	if wrapper.Data[1].IsRead {
-		t.Error("notification 2: expected IsRead=false (backend sent 'read': false)")
-	}
-}
-
-// TestFetchNotificationsCaching verifies that FetchNotifications caches
-// results and subsequent calls return cached data.
-func TestFetchNotificationsCaching(t *testing.T) {
-	callCount := 0
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"data": [{"id": %d, "type": "info", "title": "test", "message": "msg", "read": false, "created_at": "2026-03-25T10:00:00Z"}]}`, callCount)
-	}))
-	defer ts.Close()
-
-	origDomain := config.BackendDomain
-	config.BackendDomain = ts.URL
-	defer func() { config.BackendDomain = origDomain }()
-
-	helpers.APICache.Delete("notifications")
-
-	// First call should hit the server
-	notifs, err := helpers.FetchNotifications("test-token")
-	if err != nil {
-		t.Fatalf("first call error: %v", err)
-	}
-	if len(notifs) != 1 {
-		t.Fatalf("expected 1 notification, got %d", len(notifs))
-	}
-	if callCount != 1 {
-		t.Errorf("expected 1 server call, got %d", callCount)
-	}
-
-	// Second call should use cache (no new server hit)
-	notifs2, err := helpers.FetchNotifications("test-token")
-	if err != nil {
-		t.Fatalf("second call error: %v", err)
-	}
-	if len(notifs2) != 1 {
-		t.Fatalf("expected 1 cached notification, got %d", len(notifs2))
-	}
-	if callCount != 1 {
-		t.Errorf("expected still 1 server call (cached), got %d", callCount)
-	}
-
-	// Clean up
-	helpers.APICache.Delete("notifications")
-}
-
-// TestMarkReadInvalidatesCache verifies that marking a notification as read
-// clears the notifications cache.
-func TestMarkReadInvalidatesCache(t *testing.T) {
-	helpers.APICache.Set("notifications", []models.Notification{
-		{ID: 1, IsRead: false, Title: "cached"},
-	}, 5*60*1000)
-
-	_, found := helpers.APICache.Get("notifications")
-	if !found {
-		t.Fatal("expected notifications to be in cache before mark-read")
-	}
-
-	req := httptest.NewRequest("POST", "/api/notifications/1/read", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
-	w := httptest.NewRecorder()
-
-	HandleMarkNotificationRead(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
-	}
-
-	_, found = helpers.APICache.Get("notifications")
-	if found {
-		t.Error("expected notifications cache to be cleared after mark-read")
-	}
-}
-
-// TestMarkAllReadInvalidatesCache verifies that mark-all-read clears cache.
-func TestMarkAllReadInvalidatesCache(t *testing.T) {
-	helpers.APICache.Set("notifications", []models.Notification{
-		{ID: 1, IsRead: false, Title: "cached"},
-	}, 5*60*1000)
-
-	req := httptest.NewRequest("POST", "/api/notifications/read-all", nil)
-	w := httptest.NewRecorder()
-
-	HandleMarkAllNotificationsRead(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
-	}
-
-	_, found := helpers.APICache.Get("notifications")
-	if found {
-		t.Error("expected notifications cache to be cleared after mark-all-read")
-	}
-}
-
-// TestNotificationCountFromCache verifies the bell badge count uses
-// cached notifications when available.
-func TestNotificationCountFromCache(t *testing.T) {
-	// Set up cached notifications with 2 unread, 1 read
-	cached := []models.Notification{
-		{ID: 1, IsRead: false, Title: "unread 1"},
-		{ID: 2, IsRead: false, Title: "unread 2"},
-		{ID: 3, IsRead: true, Title: "read 1"},
-	}
-	helpers.APICache.Set("notifications", cached, 5*60*1000)
-
-	if helpers.NotificationCountFunc == nil {
-		t.Skip("NotificationCountFunc not wired")
-	}
-	count := helpers.NotificationCountFunc()
-
-	if count != 2 {
-		t.Errorf("expected bell badge count=2 from cache, got %d", count)
-	}
-
-	helpers.APICache.Delete("notifications")
 }

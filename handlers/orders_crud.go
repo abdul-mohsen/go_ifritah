@@ -71,7 +71,13 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orders, err := helpers.FetchOrders(token)
+	query := r.URL.Query().Get("q")
+
+	orders, err := helpers.FetchOrdersList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   query,
+	})
 	if err != nil {
 		orders = []map[string]interface{}{}
 	}
@@ -90,19 +96,6 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 				orders[i]["status"] = "قيد المعالجة"
 			}
 		}
-	}
-
-	query := r.URL.Query().Get("q")
-	if query != "" {
-		filtered := make([]map[string]interface{}, 0)
-		for _, o := range orders {
-			num, _ := o["number"].(string)
-			client, _ := o["client"].(string)
-			if helpers.ContainsInsensitive(num, query) || helpers.ContainsInsensitive(client, query) {
-				filtered = append(filtered, o)
-			}
-		}
-		orders = filtered
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))

@@ -105,22 +105,20 @@ test.describe('sidebar visibility', () => {
 
 // Unauthenticated paths.
 test.describe('unauthenticated', () => {
-  test('hitting protected page redirects to login', async ({ browser }) => {
-    const ctx = await browser.newContext();
-    const page = await ctx.newPage();
+  // Override the project storageState (which is authenticated) with an
+  // anonymous one so the page fixture starts logged-out.
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test('hitting protected page redirects to login', async ({ page }) => {
     await page.goto('/dashboard/settings');
     expect(page.url()).toMatch(/\/(login)?$/);
-    await ctx.close();
   });
 
-  test('tampered session cookie is treated as unauthenticated', async ({ browser }) => {
-    const ctx = await browser.newContext();
-    await ctx.addCookies([
+  test('tampered session cookie is treated as unauthenticated', async ({ context, page }) => {
+    await context.addCookies([
       { name: 'session_id', value: 'not-real', domain: 'localhost', path: '/' },
     ]);
-    const page = await ctx.newPage();
     await page.goto('/dashboard/settings');
     expect(page.url()).toMatch(/\/(login)?$/);
-    await ctx.close();
   });
 });

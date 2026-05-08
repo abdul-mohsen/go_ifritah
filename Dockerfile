@@ -32,8 +32,17 @@ ENV GOPRIVATE=
 ENV CGO_ENABLED=0
 RUN go mod download
 
-# Copy Go source files (preserve output.css by not copying static folder)
+# Copy Go source: top-level files plus all internal packages.
+# Previously only `*.go` was copied, which left `config/`, `handlers/`,
+# `helpers/`, `middleware/`, `models/` out of the build context, causing
+# `package afrita/<pkg> is not in std`.
 COPY *.go ./
+COPY config ./config
+COPY handlers ./handlers
+COPY helpers ./helpers
+COPY middleware ./middleware
+COPY models ./models
+COPY resources ./resources
 
 # Build the application (optimized)
 RUN CGO_ENABLED=0 GOOS=linux GOFLAGS="-trimpath -buildvcs=false" \

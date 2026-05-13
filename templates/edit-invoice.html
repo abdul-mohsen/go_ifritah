@@ -210,6 +210,8 @@
 </div>
 
 <script>
+    var invoiceLabels = {{ dict "partLabel" (L "tpl.invoice.form.part_label") "searchPart" (L "tpl.invoice.form.search_part") "quantity" (L "tpl.invoice.quantity") "price" (L "tpl.invoice.price") "discountAmount" (L "tpl.invoice.form.discount_amt") "discountModeValue" (L "tpl.invoice.form.discount_mode_val") "discountModePercent" (L "tpl.invoice.form.discount_mode_pct") "totalWithVat" (L "tpl.invoice.form.total_with_vat") "deleteLabel" (L "tpl.delete") "productName" (L "tpl.invoice.form.product_name") "partNumber" (L "tpl.invoice.form.part_number") | json }};
+
     // Show/hide payment_due_date based on payment_method
     (function() {
         var pmSelect = document.querySelector('select[name="payment_method"]');
@@ -229,35 +231,35 @@
             <div class="item-row border rounded p-3" data-row-id="${rowId}">
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                     <div class="md:col-span-2 relative">
-                        <label class="form-label">{{ L "tpl.invoice.form.part_label" }}</label>
-                        <input type="text" class="w-full product-search" placeholder="{{ L "tpl.invoice.form.search_part" }}" autocomplete="off"
+                        <label class="form-label">${escapeHtml(invoiceLabels.partLabel)}</label>
+                        <input type="text" class="w-full product-search" placeholder="${escapeAttr(invoiceLabels.searchPart)}" autocomplete="off"
                                oninput="searchProducts(this, '${rowId}')" onfocus="showProductDropdown('${rowId}')">
                         <input type="hidden" name="products_product_id" value="0">
                         <input type="hidden" name="products_name" value="">
                         <div id="pdropdown_${rowId}" class="absolute z-50 w-full border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1" style="background:var(--md-sys-color-surface-container)"></div>
                     </div>
                     <div>
-                        <label class="form-label">{{ L "tpl.invoice.quantity" }}</label>
+                        <label class="form-label">${escapeHtml(invoiceLabels.quantity)}</label>
                         <input type="number" name="products_quantity" min="1" value="1" class="w-full" oninput="recalculateTotal()">
                     </div>
                     <div>
-                        <label class="form-label">{{ L "tpl.invoice.price" }}</label>
+                        <label class="form-label">${escapeHtml(invoiceLabels.price)}</label>
                         <input type="text" name="products_price" class="w-full" oninput="recalculateTotal()">
                     </div>
                     <div>
-                        <label class="form-label">{{ L "tpl.invoice.form.discount_amt" }}</label>
+                        <label class="form-label">${escapeHtml(invoiceLabels.discountAmount)}</label>
                         <div class="flex gap-1">
                             <input type="number" name="products_discount" min="0" step="0.01" value="0" class="w-full discount-value" oninput="recalculateTotal()">
-                            <button type="button" class="btn btn-tonal btn-xs discount-toggle" style="white-space:nowrap;min-width:2.5rem" onclick="toggleDiscountMode(this)">{{ L "tpl.invoice.form.discount_mode_val" }}</button>
+                            <button type="button" class="btn btn-tonal btn-xs discount-toggle" style="white-space:nowrap;min-width:2.5rem" onclick="toggleDiscountMode(this)">${escapeHtml(invoiceLabels.discountModeValue)}</button>
                         </div>
                     </div>
                     <div>
-                        <label class="form-label">{{ L "tpl.invoice.form.total_with_vat" }}</label>
+                        <label class="form-label">${escapeHtml(invoiceLabels.totalWithVat)}</label>
                         <input type="text" class="w-full line-total-vat" step="0.01" min="0" placeholder="0.00" oninput="updatePriceFromTotal(this)">
                     </div>
                 </div>
                 <div class="mt-2 flex justify-end">
-                    <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">{{ L "tpl.delete" }}</button>
+                    <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">${escapeHtml(invoiceLabels.deleteLabel)}</button>
                 </div>
             </div>
         `;
@@ -359,34 +361,34 @@
             <div class="item-row border rounded p-3">
                 <div class="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
                 <div>
-                    <label class="form-label">{{ L "tpl.invoice.form.product_name" }}</label>
+                    <label class="form-label">${escapeHtml(invoiceLabels.productName)}</label>
                     <input type="text" name="manual_part_name" class="w-full" oninput="recalculateTotal()">
                 </div>
                 <div>
-                    <label class="form-label">{{ L "tpl.invoice.form.part_number" }}</label>
+                    <label class="form-label">${escapeHtml(invoiceLabels.partNumber)}</label>
                     <input type="text" name="manual_part_number" class="w-full">
                 </div>
                 <div>
-                    <label class="form-label">{{ L "tpl.invoice.quantity" }}</label>
+                    <label class="form-label">${escapeHtml(invoiceLabels.quantity)}</label>
                     <input type="number" name="manual_quantity" min="1" value="1" class="w-full" oninput="recalculateTotal()">
                 </div>
                 <div>
-                    <label class="form-label">{{ L "tpl.invoice.price" }}</label>
+                    <label class="form-label">${escapeHtml(invoiceLabels.price)}</label>
                     <input type="text" name="manual_price" min="0" step="0.01" class="w-full" oninput="recalculateTotal()">
                 </div>
                 <div>
-                    <label class="form-label">{{ L "tpl.invoice.form.discount_amt" }}</label>
+                    <label class="form-label">${escapeHtml(invoiceLabels.discountAmount)}</label>
                     <div class="flex gap-1">
                         <input type="number" name="manual_discount" min="0" step="0.01" value="0" class="w-full discount-value" oninput="recalculateTotal()">
-                        <button type="button" class="btn btn-tonal btn-xs discount-toggle" style="white-space:nowrap;min-width:2.5rem" onclick="toggleDiscountMode(this)">{{ L "tpl.invoice.form.discount_mode_val" }}</button>
+                        <button type="button" class="btn btn-tonal btn-xs discount-toggle" style="white-space:nowrap;min-width:2.5rem" onclick="toggleDiscountMode(this)">${escapeHtml(invoiceLabels.discountModeValue)}</button>
                     </div>
                 </div>
                 <div>
-                    <label class="form-label">{{ L "tpl.invoice.form.total_with_vat" }}</label>
+                    <label class="form-label">${escapeHtml(invoiceLabels.totalWithVat)}</label>
                     <input type="text" class="w-full line-total-vat" step="0.01" min="0" placeholder="0.00" oninput="updatePriceFromTotal(this)">
                 </div>
                 <div class="flex items-end">
-                    <button type="button" class="text-red-600 text-sm" onclick="removeRow(this)">{{ L "tpl.delete" }}</button>
+                    <button type="button" class="text-red-600 text-sm" onclick="removeRow(this)">${escapeHtml(invoiceLabels.deleteLabel)}</button>
                 </div>
                 </div>
             </div>
@@ -489,12 +491,12 @@
         var lineTotal = price * qty;
         var currentMode = discInput.dataset.mode || 'val';
         if (currentMode === 'val') {
-            btn.textContent = '{{ L "tpl.invoice.form.discount_mode_pct" }}';
+            btn.textContent = invoiceLabels.discountModePercent;
             var currentVal = parseFloat(discInput.value || 0);
             discInput.value = lineTotal > 0 ? ((currentVal / lineTotal) * 100).toFixed(2) : '0';
             discInput.dataset.mode = 'pct';
         } else {
-            btn.textContent = '{{ L "tpl.invoice.form.discount_mode_val" }}';
+            btn.textContent = invoiceLabels.discountModeValue;
             var pct = parseFloat(discInput.value || 0);
             var val = Math.min((pct / 100) * lineTotal, lineTotal);
             discInput.value = val.toFixed(2);

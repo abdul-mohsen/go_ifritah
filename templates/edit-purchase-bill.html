@@ -171,6 +171,8 @@
 </div>
 
 <script>
+    var purchaseBillLabels = {{ dict "oemLabel" (L "tpl.pb.oem_label") "oemPlaceholder" (L "tpl.pb.oem_placeholder") "quantity" (L "tpl.pb.quantity") "sellingPrice" (L "tpl.product.selling_price") "costPrice" (L "tpl.product.cost_price") "shelfNumber" (L "tpl.product.shelf_number") "removeLabel" (L "tpl.pb.remove") "enterPartName" (L "tpl.pb.enter_part_name") "purchasePrice" (L "tpl.pb.purchase_price") | json }};
+
     // Supplier payment data for payment method defaults and credit checks
     var suppliersData = {
         {{ range .suppliers }}
@@ -257,8 +259,8 @@
             <div class="item-row border rounded p-3" data-row-id="${rowId}">
                 <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
                     <div class="md:col-span-2 relative">
-                        <label class="form-label">{{ L "tpl.pb.oem_label" }}</label>
-                        <input type="text" class="w-full part-search" placeholder="{{ L "tpl.pb.oem_placeholder" }}" autocomplete="off"
+                        <label class="form-label">${escapeHtml(purchaseBillLabels.oemLabel)}</label>
+                        <input type="text" class="w-full part-search" placeholder="${escapeAttr(purchaseBillLabels.oemPlaceholder)}" autocomplete="off"
                                value="${escapeAttr(partName)}"
                                oninput="searchParts(this, '${rowId}')" onfocus="showDropdown('${rowId}')">
                         <input type="hidden" name="products_product_id" value="${prodId}">
@@ -266,24 +268,24 @@
                         <div id="dropdown_${rowId}" class="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
                     </div>
                     <div>
-                        <label class="form-label">{{ L "tpl.pb.quantity" }}</label>
+                        <label class="form-label">${escapeHtml(purchaseBillLabels.quantity)}</label>
                         <input type="number" name="products_quantity" min="1" value="${qty}" class="w-full" oninput="recalculateTotal()">
                     </div>
                     <div>
-                        <label class="form-label">{{ L "tpl.product.selling_price" }}</label>
+                        <label class="form-label">${escapeHtml(purchaseBillLabels.sellingPrice)}</label>
                         <input type="text" name="products_price" value="${price}" class="w-full" oninput="recalculateTotal()">
                     </div>
                     <div>
-                        <label class="form-label">{{ L "tpl.product.cost_price" }}</label>
+                        <label class="form-label">${escapeHtml(purchaseBillLabels.costPrice)}</label>
                         <input type="text" name="products_cost_price" class="w-full" placeholder="0" value="${costPrice}">
                     </div>
                     <div>
-                        <label class="form-label">{{ L "tpl.product.shelf_number" }}</label>
+                        <label class="form-label">${escapeHtml(purchaseBillLabels.shelfNumber)}</label>
                         <input type="text" name="products_shelf_number" class="w-full" placeholder="" value="${shelfNumber}">
                     </div>
                 </div>
                 <div class="mt-2 flex justify-end">
-                    <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">{{ L "tpl.pb.remove" }}</button>
+                    <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">${escapeHtml(purchaseBillLabels.removeLabel)}</button>
                 </div>
             </div>
         `;
@@ -387,18 +389,18 @@
         return `
             <div class="item-row grid grid-cols-1 md:grid-cols-4 gap-3 items-end border rounded p-3">
                 <div class="md:col-span-2">
-                    <label class="form-label">{{ L "tpl.pb.enter_part_name" }}</label>
-                    <input type="text" name="manual_part_name" value="${escapeAttr(name)}" class="w-full" placeholder="{{ L "tpl.pb.enter_part_name" }}" oninput="recalculateTotal()">
+                    <label class="form-label">${escapeHtml(purchaseBillLabels.enterPartName)}</label>
+                    <input type="text" name="manual_part_name" value="${escapeAttr(name)}" class="w-full" placeholder="${escapeAttr(purchaseBillLabels.enterPartName)}" oninput="recalculateTotal()">
                 </div>
                 <div>
-                    <label class="form-label">{{ L "tpl.pb.quantity" }}</label>
+                    <label class="form-label">${escapeHtml(purchaseBillLabels.quantity)}</label>
                     <input type="number" name="manual_quantity" value="${qty}" min="1" class="w-full" oninput="recalculateTotal()">
                 </div>
                 <div>
-                    <label class="form-label">{{ L "tpl.pb.purchase_price" }}</label>
+                    <label class="form-label">${escapeHtml(purchaseBillLabels.purchasePrice)}</label>
                     <input type="text" name="manual_price" value="${price}" class="w-full" placeholder="0" oninput="recalculateTotal()">
                 </div>
-                <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">{{ L "tpl.pb.remove" }}</button>
+                <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">${escapeHtml(purchaseBillLabels.removeLabel)}</button>
             </div>
         `;
     }

@@ -145,7 +145,6 @@ func HandleAddInvoice(w http.ResponseWriter, r *http.Request) {
 
 	stores, _ := helpers.FetchStores(token)
 	branches, _ := helpers.FetchBranches(token)
-	products, _ := helpers.FetchProducts(token)
 	today := time.Now().Format("2006-01-02")
 
 	isCompany := r.URL.Query().Get("type") == "company"
@@ -154,7 +153,6 @@ func HandleAddInvoice(w http.ResponseWriter, r *http.Request) {
 		"title":      "إضافة فاتورة",
 		"stores":     stores,
 		"branches":   branches,
-		"products":   products,
 		"today":      today,
 		"is_company": isCompany,
 	}

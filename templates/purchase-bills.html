@@ -37,7 +37,7 @@
         </thead>
         <tbody>
             {{ if not .bills }}
-            {{ template "empty-table-row" dict "colspan" 8 "message" (L "tpl.pb.no_bills") "action_url" "/dashboard/purchases/add" "action_label" (L "tpl.pb.add") }} }}
+            {{ template "empty-table-row" dict "colspan" 8 "message" (L "tpl.pb.no_bills") "action_url" "/dashboard/purchase-bills/add" "action_label" (L "tpl.pb.add") }} }}
             {{ end }}
             {{ range .bills }}
             <tr>

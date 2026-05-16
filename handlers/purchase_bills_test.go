@@ -66,6 +66,50 @@ func TestAddPurchaseBillPageHasManualSection(t *testing.T) {
 	}
 }
 
+func TestPurchaseBillsEmptyStateAddLinkUsesRegisteredRoute(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/v2/purchase_bill/all" {
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	helpers.APICache.Delete("purchase_bills")
+
+	config.SessionTokensMutex.Lock()
+	config.SessionTokens["pb-empty-state-session"] = "pb-test-token"
+	config.SessionTokensMutex.Unlock()
+	defer func() {
+		config.SessionTokensMutex.Lock()
+		delete(config.SessionTokens, "pb-empty-state-session")
+		config.SessionTokensMutex.Unlock()
+	}()
+
+	req := httptest.NewRequest("GET", "/dashboard/purchase-bills", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-empty-state-session"})
+	w := httptest.NewRecorder()
+
+	HandlePurchaseBills(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200\nBody: %.300s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `href="/dashboard/purchase-bills/add"`) {
+		t.Fatalf("empty state add link should use registered route /dashboard/purchase-bills/add\nBody: %.800s", body)
+	}
+	if strings.Contains(body, `/dashboard/purchases/add`) {
+		t.Fatalf("empty state still contains removed 404 route /dashboard/purchases/add")
+	}
+}
+
 // TestAddPurchaseBillTotalIncludesManual verifies the JS recalculateTotal
 // function sums both catalog and manual items.
 func TestAddPurchaseBillTotalIncludesManual(t *testing.T) {

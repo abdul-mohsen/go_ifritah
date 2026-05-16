@@ -227,16 +227,16 @@ func pbDetailMockBackend(billID, pdfLink string, attachments []string) *httptest
 
 		if strings.Contains(path, "/api/v2/purchase_bill/"+billID) {
 			detail := map[string]interface{}{
-				"id":         billID,
-				"bill_type":  5,
-				"state":      0,
-				"sub_total":  100.0,
-				"discount":   0,
-				"total_vat":  15.0,
-				"total":      115.0,
-				"products":   []interface{}{},
-				"store_id":   1,
-				"pdf_link":   pdfLink,
+				"id":        billID,
+				"bill_type": 5,
+				"state":     0,
+				"sub_total": 100.0,
+				"discount":  0,
+				"total_vat": 15.0,
+				"total":     115.0,
+				"products":  []interface{}{},
+				"store_id":  1,
+				"pdf_link":  pdfLink,
 			}
 			if attachments != nil {
 				detail["attachments"] = attachments

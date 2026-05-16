@@ -7,6 +7,16 @@ test('purchase bills list page loads', async ({ page }) => {
   await expect(page).toHaveURL(/purchase-bills/);
 });
 
+test('purchase bills empty state CTA has no leaked template delimiters', async ({ page }) => {
+  await login(page);
+  await page.goto('/dashboard/purchase-bills?q=__empty_purchase_bill_delimiter_check__');
+
+  await expect(page.locator('a[href="/dashboard/purchase-bills/add"]').first()).toBeVisible();
+  await expect(page.locator('a[href="/dashboard/purchases/add"]')).toHaveCount(0);
+  await expect(page.locator('body')).not.toContainText('{{');
+  await expect(page.locator('body')).not.toContainText('}}');
+});
+
 test('add purchase bill form loads', async ({ page }) => {
   await login(page);
   await page.goto('/dashboard/purchase-bills/add');

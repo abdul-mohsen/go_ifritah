@@ -1,22 +1,48 @@
 // QA suite shared helpers — login, settings, seeding, dashboard reads.
 const { expect } = require('@playwright/test');
+const path = require('path');
+const fs = require('fs');
 
-const BASE = 'http://localhost:8001';
+const BASE = process.env.PW_BASE_URL || 'http://127.0.0.1:8000';
 const USER = process.env.PW_USER || 'admin';
 const PASS = process.env.PW_PASS || 'admin';
+const STORAGE = path.join(__dirname, '..', '.auth', 'storageState.json');
+
+function appURL(route) {
+  return new URL(route, BASE).toString();
+}
+
+async function applyStoredAuth(page) {
+  if (!fs.existsSync(STORAGE)) return;
+
+  let state;
+  try {
+    state = JSON.parse(fs.readFileSync(STORAGE, 'utf8'));
+  } catch (e) {
+    return;
+  }
+
+  if (Array.isArray(state.cookies) && state.cookies.length) {
+    await page.context().addCookies(state.cookies);
+  }
+}
 
 async function login(page, user = USER, pass = PASS) {
-  await page.goto('/login');
-  await page.fill('input[name="username"]', user);
-  await page.fill('input[name="password"]', pass);
-  await page.click('button[type="submit"]');
-  await page.waitForURL('**/dashboard**', { timeout: 15000 });
+  try {
+    await applyStoredAuth(page);
+    await page.goto(appURL('/dashboard'), { waitUntil: 'domcontentloaded', timeout: 20000 });
+    if (/\/dashboard/.test(new URL(page.url()).pathname)) return;
+  } catch (e) {
+    throw new Error(`stored auth could not open dashboard at ${BASE}: ${e.message}`);
+  }
+
+  throw new Error(`stored auth was rejected at ${BASE}; regenerate .auth/storageState.json for ${user}`);
 }
 
 // Set a single settings field (checkbox/select/number) by submitting the
 // settings form. Reads existing values first to preserve other fields.
 async function setSetting(page, key, value) {
-  await page.goto('/dashboard/settings');
+  await page.goto(appURL('/dashboard/settings'));
   await page.waitForLoadState('domcontentloaded');
 
   // Find the field
@@ -42,9 +68,10 @@ async function setSetting(page, key, value) {
   // some toggles attach click-time JS that can intercept .click()).
   const form = field.locator('xpath=ancestor::form[1]');
   await Promise.all([
-    page.waitForURL('**/dashboard/settings**', { timeout: 10000 }),
+    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {}),
     form.evaluate((f) => f.submit()),
   ]);
+  await page.waitForLoadState('load', { timeout: 10000 }).catch(() => {});
   // Allow flash to render
   await page.waitForTimeout(300);
 
@@ -52,7 +79,7 @@ async function setSetting(page, key, value) {
   // (caching layer between Go FE and the DB). Re-fetch with a cache-bust
   // and retry until the new value is visible (or we exhaust retries).
   for (let i = 0; i < 5; i++) {
-    await page.goto('/dashboard/settings?_=' + Date.now());
+    await page.goto(appURL('/dashboard/settings?_=' + Date.now()));
     await page.waitForLoadState('domcontentloaded');
     const fresh = page.locator(`[name="${key}"]`).first();
     let actual;
@@ -69,7 +96,7 @@ async function setSetting(page, key, value) {
 
 // Read a numeric KPI from the dashboard by visible label fragment.
 async function readDashboardNumber(page, labelFragment) {
-  await page.goto('/dashboard');
+  await page.goto(appURL('/dashboard'));
   await page.waitForLoadState('domcontentloaded');
   const card = page.locator(`xpath=//*[contains(normalize-space(.), "${labelFragment}")]/ancestor::*[self::div or self::a][1]`).first();
   const text = await card.innerText().catch(() => '');
@@ -84,4 +111,4 @@ function uniqueTag(prefix = 'QA') {
   return `${prefix}-${ts}-${suffix}`;
 }
 
-module.exports = { BASE, login, setSetting, readDashboardNumber, uniqueTag, expect };
+module.exports = { BASE, appURL, login, setSetting, readDashboardNumber, uniqueTag, expect };

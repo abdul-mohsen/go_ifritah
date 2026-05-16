@@ -30,7 +30,7 @@
         <tbody>
             {{ if not .orders }}
             {{ template "empty-table-row" dict "colspan" 5 "message" (L "tpl.order.no_orders") "action_url"
-            "/dashboard/orders/add" "action_label" (L "tpl.order.add_new") }} }}
+            "/dashboard/orders/add" "action_label" (L "tpl.order.add_new") }}
             {{ end }}
             {{ range .orders }}
             <tr>

@@ -36,7 +36,7 @@
         <tbody>
             {{ if not .suppliers }}
             {{ template "empty-table-row" dict "colspan" 6 "message" (L "tpl.supplier.no_suppliers") "action_url"
-            "/dashboard/suppliers/add" "action_label" (L "tpl.supplier.add_new") }} }}
+            "/dashboard/suppliers/add" "action_label" (L "tpl.supplier.add_new") }}
             {{ end }}
             {{ range .suppliers }}
             <tr>

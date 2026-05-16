@@ -2,6 +2,7 @@
 // Unauth requests should be redirected/rejected, no protected page leaks data.
 
 const { test, expect } = require('@playwright/test');
+const { USER, PASS } = require('../helpers/auth');
 
 // /dashboard/users and /dashboard/zatca-monitor were removed on dev (no
 // real backend yet). Keep this list in sync with main.go.
@@ -44,10 +45,9 @@ test('login form rejects bad credentials', async ({ page }) => {
 });
 
 test('logout clears session', async ({ page }) => {
-  // Log in via UI
   await page.goto('/login');
-  await page.fill('input[name="username"]', 'ssda');
-  await page.fill('input[name="password"]', 'Qwerty123');
+  await page.fill('input[name="username"]', USER);
+  await page.fill('input[name="password"]', PASS);
   await page.click('button[type="submit"]');
   await page.waitForURL('**/dashboard**');
   // Logout

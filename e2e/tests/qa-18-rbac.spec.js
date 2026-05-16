@@ -10,14 +10,25 @@
 // /api/v2/users we'll re-add coverage here.
 
 const { test, expect } = require('@playwright/test');
+const { login, USER, PASS, BASE } = require('../helpers/auth');
 
-const USERS = [
-  { role: 'admin', user: 'admin', pass: 'admin' },
-  { role: 'manager', user: 'manager', pass: 'manager' },
-  { role: 'employee', user: 'employee', pass: 'employee' },
-];
+const isLocalRun = /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(BASE);
+const includeDemoRoles = process.env.PW_RBAC_DEMO_USERS === '1' || isLocalRun;
+
+const USERS = [{ role: 'admin', user: USER, pass: PASS }];
+if (includeDemoRoles) {
+  USERS.push(
+    { role: 'manager', user: 'manager', pass: 'manager' },
+    { role: 'employee', user: 'employee', pass: 'employee' },
+  );
+}
 
 async function loginAs(page, user, pass) {
+  if (user === USER && pass === PASS) {
+    await login(page);
+    return;
+  }
+
   await page.goto('/login');
   await page.fill('input[name="username"]', user);
   await page.fill('input[name="password"]', pass);
@@ -84,12 +95,13 @@ for (const u of USERS) {
 // Sidebar sanity: admin must see settings link, others must not.
 test.describe('sidebar visibility', () => {
   test('admin sees settings link', async ({ page }) => {
-    await loginAs(page, 'admin', 'admin');
+    await loginAs(page, USER, PASS);
     const link = page.locator('a[href="/dashboard/settings"]').first();
     await expect(link, 'admin should have settings link in sidebar').toBeVisible();
   });
 
   test('manager does not see settings link', async ({ page }) => {
+    test.skip(!includeDemoRoles, 'manager demo user is not available in this environment');
     await loginAs(page, 'manager', 'manager');
     // The link is rendered but should be hidden by data-role="admin" filter.
     const visible = await page.locator('a[href="/dashboard/settings"]:visible').count();
@@ -97,6 +109,7 @@ test.describe('sidebar visibility', () => {
   });
 
   test('employee does not see settings link', async ({ page }) => {
+    test.skip(!includeDemoRoles, 'employee demo user is not available in this environment');
     await loginAs(page, 'employee', 'employee');
     const visible = await page.locator('a[href="/dashboard/settings"]:visible').count();
     expect(visible, 'employee must not have visible settings link').toBe(0);

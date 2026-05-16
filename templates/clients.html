@@ -36,7 +36,7 @@
         <tbody>
             {{ if not .clients }}
             {{ template "empty-table-row" dict "colspan" 5 "message" (L "tpl.client.no_clients") "action_url"
-            "/dashboard/clients/add" "action_label" (L "tpl.client.add_new") }} }}
+            "/dashboard/clients/add" "action_label" (L "tpl.client.add_new") }}
             {{ end }}
             {{ range .clients }}
             <tr>

@@ -8,11 +8,10 @@
 //   2 = posted (no action buttons; immutable)
 
 const { test, expect } = require('@playwright/test');
-const { login, uniqueTag } = require('../helpers/qa');
+const { login, uniqueTag, appURL } = require('../helpers/qa');
 
 async function findVoucherIdByRecipient(page, needle) {
-  await page.goto('/dashboard/cash-vouchers?q=' + encodeURIComponent(needle));
-  await page.waitForLoadState('domcontentloaded');
+  await page.goto(appURL('/dashboard/cash-vouchers?q=' + encodeURIComponent(needle)), { waitUntil: 'domcontentloaded' });
   const id = await page.evaluate((n) => {
     const rows = Array.from(document.querySelectorAll('tr'));
     for (const r of rows) {
@@ -30,8 +29,7 @@ async function findVoucherIdByRecipient(page, needle) {
 }
 
 async function createDraftVoucher(page, tag) {
-  await page.goto('/dashboard/cash-vouchers/add');
-  await page.waitForLoadState('domcontentloaded');
+  await page.goto(appURL('/dashboard/cash-vouchers/add'), { waitUntil: 'domcontentloaded' });
   await expect(page.locator('input[name="effective_date"]')).not.toHaveValue('');
   await page.fill('input[name="amount"]', '5.55');
   await page.fill('input[name="recipient_name"]', tag);
@@ -55,8 +53,7 @@ test.describe('Cash voucher state transitions', () => {
     expect(id, `voucher id for ${tag} must be findable on list page`).toBeTruthy();
 
     // --- DRAFT detail: must offer Approve + Edit + Delete buttons. ---
-    await page.goto(`/dashboard/cash-vouchers/${id}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto(appURL(`/dashboard/cash-vouchers/${id}`), { waitUntil: 'domcontentloaded' });
     const draftHtml = await page.content();
     expect(draftHtml, 'draft must expose approve form').toContain(`/api/cash-vouchers/${id}/approve`);
     expect(draftHtml, 'draft must NOT yet expose post form').not.toContain(`/api/cash-vouchers/${id}/post`);
@@ -74,8 +71,7 @@ test.describe('Cash voucher state transitions', () => {
 
     if (approveResp.status() < 400) {
       // Re-fetch detail page so the rendered template reflects the new state.
-      await page.goto(`/dashboard/cash-vouchers/${id}`);
-      await page.waitForLoadState('domcontentloaded');
+      await page.goto(appURL(`/dashboard/cash-vouchers/${id}`), { waitUntil: 'domcontentloaded' });
       // Success path → post action must now appear.
       const approvedHtml = await page.content();
       expect(approvedHtml, 'after approve, post action must be available').toContain(`/api/cash-vouchers/${id}/post`);
@@ -92,8 +88,7 @@ test.describe('Cash voucher state transitions', () => {
       expect(postResp.status(), 'post must not 5xx').toBeLessThan(500);
 
       if (postResp.status() < 400) {
-        await page.goto(`/dashboard/cash-vouchers/${id}`);
-        await page.waitForLoadState('domcontentloaded');
+        await page.goto(appURL(`/dashboard/cash-vouchers/${id}`), { waitUntil: 'domcontentloaded' });
         const postedHtml = await page.content();
         expect(postedHtml, 'after post, no approve action').not.toContain(`/api/cash-vouchers/${id}/approve`);
         expect(postedHtml, 'after post, no post action (immutable)').not.toContain(`/api/cash-vouchers/${id}/post`);
@@ -104,8 +99,7 @@ test.describe('Cash voucher state transitions', () => {
       const errHtml = await page.content();
       expect(errHtml, 'failed approve must render an error message to the user').toMatch(/فشل|error|خطأ|اعتماد/);
       // The voucher must remain in draft state — approve action still present.
-      await page.goto(`/dashboard/cash-vouchers/${id}`);
-      await page.waitForLoadState('domcontentloaded');
+      await page.goto(appURL(`/dashboard/cash-vouchers/${id}`), { waitUntil: 'domcontentloaded' });
       const stillDraft = await page.content();
       expect(stillDraft, 'failed approve must leave voucher in draft state').toContain(`/api/cash-vouchers/${id}/approve`);
     }

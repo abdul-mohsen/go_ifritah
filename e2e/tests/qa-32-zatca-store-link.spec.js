@@ -19,15 +19,10 @@
 //      must be visible (i.e. linked successfully).
 
 const { test, expect } = require('@playwright/test');
+const { login } = require('../helpers/qa');
 
 async function loginAsAdmin(page) {
-  await page.goto('/login');
-  await page.fill('input[name="username"]', 'admin');
-  await page.fill('input[name="password"]', 'admin');
-  await Promise.all([
-    page.waitForURL('**/dashboard**', { timeout: 15000 }),
-    page.click('button[type="submit"]'),
-  ]);
+  await login(page);
 }
 
 async function pickFirstBranchId(page) {

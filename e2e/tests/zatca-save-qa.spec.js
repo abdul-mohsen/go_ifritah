@@ -352,7 +352,7 @@ test('53. switching branch then saving uses correct branch ID in URL', async ({ 
   await page.locator('#zatca-branch-select').dispatchEvent('change');
   await page.waitForTimeout(200);
 
-  await page.fill('#zatca_seller_vat', '300000000000003');
+  await fillAllZatcaFields(page);
 
   let capturedUrl = null;
   await page.route('/api/zatca/branch/**', async (route) => {

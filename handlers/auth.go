@@ -283,5 +283,9 @@ func generateSecureSessionID() string {
 // isLocalhost returns true when running on localhost (no HTTPS available).
 func isLocalhost() bool {
 	domain := strings.ToLower(os.Getenv("APP_DOMAIN"))
-	return domain == "" || domain == "localhost" || strings.HasPrefix(domain, "127.0.0.1")
+	return domain == "" ||
+		domain == "localhost" ||
+		strings.HasPrefix(domain, "127.0.0.1") ||
+		domain == "localtest.me" ||
+		strings.HasSuffix(domain, ".localtest.me")
 }

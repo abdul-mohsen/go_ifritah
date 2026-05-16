@@ -12,6 +12,7 @@
 
 const { test, expect } = require('@playwright/test');
 const { login } = require('../helpers/qa');
+const { USER, PASS } = require('../helpers/auth');
 
 function isLoggedOutUrl(url) {
   // Server may redirect logged-out requests to either / or /login.
@@ -51,13 +52,24 @@ test.describe('Token refresh on idle', () => {
     expect(isLoggedOutUrl(page.url())).toBe(true);
   });
 
-  test('logout (GET) invalidates the session', async ({ page }) => {
-    await login(page);
+  test('logout (GET) invalidates the session', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await context.newPage();
+
+    await page.goto('/login');
+    await page.fill('input[name="username"]', USER);
+    await page.fill('input[name="password"]', PASS);
+    await Promise.all([
+      page.waitForURL('**/dashboard**', { timeout: 15000 }),
+      page.click('button[type="submit"]'),
+    ]);
+
     await page.goto('/logout');
     await page.waitForLoadState('domcontentloaded');
-    // After /logout, going to /dashboard must NOT show the dashboard
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
     expect(isLoggedOutUrl(page.url())).toBe(true);
+
+    await context.close();
   });
 });

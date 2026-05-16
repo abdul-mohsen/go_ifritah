@@ -15,6 +15,7 @@ const SERIAL_SPECS = [
 
 const resultsFile = process.env.PW_RESULTS_FILE || 'playwright-results.json';
 const MOBILE_MATCH = /tests[\\/]ui-ux[\\/].*\.spec\.js$/;
+const STORAGE_STATE = '.auth/storageState.json';
 
 // Workers is a global Playwright option (not per-project). CI runs each
 // project in its own `npx playwright test --project=…` invocation so each
@@ -44,6 +45,7 @@ module.exports = defineConfig({
     locale: 'ar-SA',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
+    storageState: STORAGE_STATE,
   },
   projects: [
     {
@@ -55,13 +57,11 @@ module.exports = defineConfig({
       name: 'parallel',
       testIgnore: SERIAL_SPECS,
       fullyParallel: true,
-      use: { storageState: '.auth/storageState.json' },
     },
     {
       name: 'mobile',
       testMatch: MOBILE_MATCH,
       use: {
-        storageState: '.auth/storageState.json',
         viewport: { width: 390, height: 844 },
       },
     },

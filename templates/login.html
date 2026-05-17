@@ -21,18 +21,34 @@
             <p class="login-subtitle text-sm">{{ L "tpl.auth.app_subtitle" }}</p>
         </div>
 
-        <form hx-post="/login" hx-indicator="#login-spinner" hx-disabled-elt="button[type='submit']">
+        <form id="login-form" hx-post="/login" hx-indicator="#login-spinner" hx-disabled-elt="button[type='submit']" novalidate>
+            <div id="login-error" class="login-error hidden mb-4" role="alert" aria-live="polite"></div>
+
             <div class="mb-4">
-                <label class="login-label block text-xs font-semibold mb-1.5">{{ L "tpl.auth.username" }}</label>
-                <input type="text" name="username" placeholder="{{ L "tpl.auth.username_placeholder" }}" class="w-full" required>
+                <label for="login-username" class="login-label block text-xs font-semibold mb-1.5">{{ L "tpl.auth.username" }}</label>
+                <input id="login-username" type="text" name="username" placeholder="{{ L "tpl.auth.username_placeholder" }}" class="w-full" autocomplete="username" required>
             </div>
 
             <div class="mb-5">
-                <label class="login-label block text-xs font-semibold mb-1.5">{{ L "tpl.auth.password" }}</label>
-                <input type="password" name="password" placeholder="••••••••" class="w-full" required>
+                <label for="login-password" class="login-label block text-xs font-semibold mb-1.5">{{ L "tpl.auth.password" }}</label>
+                <div class="login-password-field">
+                    <input id="login-password" type="password" name="password" placeholder="••••••••" class="w-full" autocomplete="current-password" required>
+                    <button id="toggle-login-password" type="button" class="login-password-toggle" aria-label="{{ L "tpl.auth.show_password" }}" title="{{ L "tpl.auth.show_password" }}" aria-controls="login-password" aria-pressed="false">
+                        <svg class="login-eye-show" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        <svg class="login-eye-hide hidden" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m2 2 20 20" />
+                            <path d="M6.7 6.7C3.6 8.7 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.2" />
+                            <path d="M9.9 4.2C10.6 4.1 11.3 4 12 4c6.5 0 10 8 10 8s-.9 2.1-2.8 4" />
+                            <path d="M14.1 14.1A3 3 0 0 1 9.9 9.9" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-            <button type="submit"
+            <button id="login-submit" type="submit"
                 class="w-full py-2.5 rounded-lg font-bold transition text-sm flex items-center justify-center gap-2"
                 style="background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary)">
                 <svg id="login-spinner" class="htmx-indicator animate-spin h-4 w-4 text-white"
@@ -40,7 +56,7 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                {{ L "tpl.auth.login_btn" }}
+                <span>{{ L "tpl.auth.login_btn" }}</span>
             </button>
         </form>
 
@@ -64,6 +80,56 @@
          shared toast renderer explicitly here. -->
     <div id="toast-container"></div>
     <script src="/static/js/script.js"></script>
+    <script>
+        (function () {
+            var form = document.getElementById('login-form');
+            var password = document.getElementById('login-password');
+            var toggle = document.getElementById('toggle-login-password');
+            var error = document.getElementById('login-error');
+            var showLabel = '{{ L "tpl.auth.show_password" }}';
+            var hideLabel = '{{ L "tpl.auth.hide_password" }}';
+
+            function setError(message) {
+                if (!error) return;
+                error.textContent = message || '{{ L "tpl.auth.unexpected_error" }}';
+                error.classList.remove('hidden');
+            }
+
+            function clearError() {
+                if (!error) return;
+                error.textContent = '';
+                error.classList.add('hidden');
+            }
+
+            if (toggle && password) {
+                toggle.addEventListener('click', function () {
+                    var visible = password.type === 'text';
+                    password.type = visible ? 'password' : 'text';
+                    toggle.setAttribute('aria-pressed', String(!visible));
+                    toggle.setAttribute('aria-label', visible ? showLabel : hideLabel);
+                    toggle.setAttribute('title', visible ? showLabel : hideLabel);
+                    var showIcon = toggle.querySelector('.login-eye-show');
+                    var hideIcon = toggle.querySelector('.login-eye-hide');
+                    if (showIcon) showIcon.classList.toggle('hidden', !visible);
+                    if (hideIcon) hideIcon.classList.toggle('hidden', visible);
+                    password.focus();
+                });
+            }
+
+            if (form) {
+                form.addEventListener('input', clearError);
+                form.addEventListener('htmx:beforeRequest', clearError);
+                form.addEventListener('htmx:validation:failed', function () {
+                    setError('{{ L "tpl.auth.login_required" }}');
+                });
+            }
+
+            document.addEventListener('showToast', function (evt) {
+                if (!form || !evt.detail) return;
+                setError(evt.detail.message || '');
+            });
+        })();
+    </script>
 </body>
 
 </html>

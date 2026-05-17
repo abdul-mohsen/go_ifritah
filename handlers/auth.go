@@ -26,8 +26,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
-		helpers.WriteErrorToast(w, "بيانات غير صالحة")
-		w.WriteHeader(http.StatusBadRequest)
+		writeLoginError(w, r, http.StatusBadRequest, "بيانات غير صالحة")
 		return
 	}
 
@@ -35,8 +34,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	if username == "" || password == "" {
-		helpers.WriteErrorToast(w, "يرجى إدخال اسم المستخدم وكلمة المرور")
-		w.WriteHeader(http.StatusBadRequest)
+		writeLoginError(w, r, http.StatusBadRequest, "يرجى إدخال اسم المستخدم وكلمة المرور")
 		return
 	}
 
@@ -52,8 +50,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		log.Printf("❌ Backend connection error: %v", err)
-		helpers.WriteErrorToast(w, "خطأ في الاتصال بالخادم")
-		w.WriteHeader(http.StatusInternalServerError)
+		writeLoginError(w, r, http.StatusInternalServerError, "خطأ في الاتصال بالخادم")
 		return
 	}
 	defer resp.Body.Close()
@@ -69,8 +66,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 		if errMsg == "" {
 			errMsg = "اسم المستخدم أو كلمة المرور غير صحيحة"
 		}
-		helpers.WriteErrorToast(w, errMsg)
-		w.WriteHeader(http.StatusUnauthorized)
+		writeLoginError(w, r, http.StatusUnauthorized, errMsg)
 		return
 	}
 
@@ -114,6 +110,17 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("HX-Redirect", "/dashboard")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(backendResp)
+}
+
+func writeLoginError(w http.ResponseWriter, r *http.Request, statusCode int, msg string) {
+	helpers.WriteErrorToast(w, msg)
+	if r.Header.Get("HX-Request") == "true" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(statusCode)
+	_, _ = w.Write([]byte(msg))
 }
 
 // HandleLogout clears session and removes persisted tokens

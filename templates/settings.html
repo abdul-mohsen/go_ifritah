@@ -21,6 +21,13 @@
             </svg>
             {{ L "tpl.settings.tab_zatca" }}
         </button>
+        <button type="button" onclick="switchSettingsTab('integrations')" id="tab-integrations"
+            class="settings-tab px-4 py-2.5 text-sm font-medium rounded-t-lg transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 4v-4z"></path>
+            </svg>
+            {{ L "tpl.settings.tab_integrations" }}
+        </button>
         <button type="button" onclick="switchSettingsTab('import')" id="tab-import"
             class="settings-tab px-4 py-2.5 text-sm font-medium rounded-t-lg transition flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -416,7 +423,54 @@
     </div><!-- /panel-general -->
 
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!-- TAB 2: ZATCA E-Invoicing Settings                             -->
+    <!-- TAB 2: Integrations                                           -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="panel-integrations" style="display:none">
+        <div class="section-card">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 4v-4z"></path>
+                </svg>
+                {{ L "tpl.settings.whatsapp_section" }}
+            </h3>
+            <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
+                    <div>
+                        <span class="text-sm font-medium text-gray-700">{{ L "tpl.settings.whatsapp_enabled" }}</span>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ L "tpl.settings.whatsapp_enabled_desc" }}</p>
+                    </div>
+                    <input type="checkbox" name="whatsapp_enabled" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "whatsapp_enabled") "true" }}checked{{ end }}>
+                </label>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label" for="whatsapp_business_account_id">{{ L "tpl.settings.whatsapp_business_account_id" }}</label>
+                        <input type="text" id="whatsapp_business_account_id" name="whatsapp_business_account_id" value="{{ index .Settings "whatsapp_business_account_id" }}" autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="form-label" for="whatsapp_phone_number_id">{{ L "tpl.settings.whatsapp_phone_number_id" }}</label>
+                        <input type="text" id="whatsapp_phone_number_id" name="whatsapp_phone_number_id" value="{{ index .Settings "whatsapp_phone_number_id" }}" autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="form-label" for="whatsapp_api_version">{{ L "tpl.settings.whatsapp_api_version" }}</label>
+                        <input type="text" id="whatsapp_api_version" name="whatsapp_api_version" value="{{ index .Settings "whatsapp_api_version" }}" placeholder="v18.0" autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="form-label" for="whatsapp_access_token">{{ L "tpl.settings.whatsapp_access_token" }}</label>
+                        <input type="password" id="whatsapp_access_token" name="whatsapp_access_token" value="" placeholder="{{ if index .Settings "whatsapp_access_token" }}{{ L "tpl.settings.whatsapp_token_saved" }}{{ else }}{{ L "tpl.settings.whatsapp_token_placeholder" }}{{ end }}" autocomplete="new-password">
+                        <p class="text-xs text-gray-400 mt-1">{{ L "tpl.settings.whatsapp_token_help" }}</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="form-label" for="whatsapp_invoice_message">{{ L "tpl.settings.whatsapp_invoice_message" }}</label>
+                        <textarea id="whatsapp_invoice_message" name="whatsapp_invoice_message" rows="3">{{ index .Settings "whatsapp_invoice_message" }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div><!-- /panel-integrations -->
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 3: ZATCA E-Invoicing Settings                             -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <div id="panel-zatca" style="display:none">
 
@@ -799,7 +853,7 @@
     </div><!-- /panel-zatca -->
 
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!-- TAB 3: Data Import                                            -->
+    <!-- TAB 4: Data Import                                            -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <div id="panel-import" style="display:none">
         <div class="section-card mb-6">
@@ -983,7 +1037,7 @@
 
         // ── Settings tab switching ──
         window.switchSettingsTab = function(tab) {
-            var panels = ['general', 'zatca', 'import'];
+            var panels = ['general', 'zatca', 'integrations', 'import'];
             panels.forEach(function(p) {
                 var panel = document.getElementById('panel-' + p);
                 var tabBtn = document.getElementById('tab-' + p);

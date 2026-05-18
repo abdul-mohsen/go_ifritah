@@ -135,6 +135,10 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	defer purchaseBillCreateLock.Delete(token)
 
 	payload := helpers.BuildPurchaseBillPayload(r)
+	if payload.Subtotal <= 0 {
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "You can't submit an invoice with 0")
+		return
+	}
 	jsonPayload, _ := json.Marshal(payload)
 
 	log.Printf("[CREATE PURCHASE BILL] Payload: %s", string(jsonPayload))

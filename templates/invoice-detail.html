@@ -43,6 +43,14 @@
                                         <path stroke-linecap="round" stroke-linejoin="round"
                                                 d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg> {{ L "tpl.download_pdf" }}</button>
+                        {{ if .whatsapp_enabled }}
+                        <button hx-post="{{ printf "/api/invoices/%s/whatsapp" .invoice_id }}"
+                                hx-swap="none" class="btn btn-tonal btn-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                        stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg> {{ L "tpl.send_whatsapp" }}</button>
+                        {{ end }}
                         {{ end }}
                         {{ if .is_draft }}
                         <a href="{{ printf "/dashboard/invoices/edit/%s" .invoice_id }}"

@@ -28,6 +28,13 @@
             </svg>
             {{ L "tpl.settings.tab_import" }}
         </button>
+        <button type="button" onclick="switchSettingsTab('whatsapp')" id="tab-whatsapp"
+            class="settings-tab px-4 py-2.5 text-sm font-medium rounded-t-lg transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+            </svg>
+            {{ L "tpl.settings.tab_whatsapp" }}
+        </button>
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -895,6 +902,50 @@
         </div>
     </div><!-- /panel-import -->
 
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 4: WhatsApp                                               -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="panel-whatsapp" style="display:none">
+        <div class="section-card mb-6">
+            <h3 class="section-card-title">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+                {{ L "tpl.settings.section_whatsapp" }}
+            </h3>
+            <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
+                    <span class="text-sm font-medium text-gray-700">{{ L "tpl.settings.whatsapp_enabled" }}</span>
+                    <input type="checkbox" name="whatsapp_enabled" value="true" class="w-4 h-4 text-blue-600 rounded" {{ if eq (index .Settings "whatsapp_enabled") "true" }}checked{{ end }}>
+                </label>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.whatsapp_business_account_id" }}</label>
+                        <input type="text" name="whatsapp_business_account_id" dir="ltr" value="{{ index .Settings "whatsapp_business_account_id" }}">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.whatsapp_phone_number_id" }}</label>
+                        <input type="text" name="whatsapp_phone_number_id" dir="ltr" value="{{ index .Settings "whatsapp_phone_number_id" }}">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.whatsapp_access_token" }}</label>
+                        <input type="password" name="whatsapp_access_token" dir="ltr" autocomplete="new-password" placeholder="{{ if index .Settings "whatsapp_access_token" }}{{ L "tpl.settings.whatsapp_token_saved" }}{{ end }}">
+                    </div>
+                    <div>
+                        <label class="form-label">{{ L "tpl.settings.whatsapp_api_version" }}</label>
+                        <input type="text" name="whatsapp_api_version" dir="ltr" value="{{ index .Settings "whatsapp_api_version" }}" placeholder="v18.0">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label">{{ L "tpl.settings.whatsapp_invoice_message" }}</label>
+                    <textarea name="whatsapp_invoice_message" rows="3" placeholder="{{ L "tpl.settings.whatsapp_message_placeholder" }}">{{ index .Settings "whatsapp_invoice_message" }}</textarea>
+                </div>
+            </div>
+        </div>
+    </div><!-- /panel-whatsapp -->
+
     <!-- ── Sticky Save Button (hidden on ZATCA tab — ZATCA has its own save) ─── -->
     <div id="sticky-save-bar" class="sticky bottom-0 z-10 mt-6 py-4 px-4 flex items-center justify-between gap-4 rounded-lg"
         style="background: var(--md-sys-color-surface-container); border-top: 1px solid var(--md-sys-color-outline-variant)">
@@ -983,7 +1034,7 @@
 
         // ── Settings tab switching ──
         window.switchSettingsTab = function(tab) {
-            var panels = ['general', 'zatca', 'import'];
+            var panels = ['general', 'zatca', 'import', 'whatsapp'];
             panels.forEach(function(p) {
                 var panel = document.getElementById('panel-' + p);
                 var tabBtn = document.getElementById('tab-' + p);

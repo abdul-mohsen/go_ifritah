@@ -1,6 +1,7 @@
 // ── Toast Notification System ──────────────────────────────
 (function () {
     let TOAST_DURATION = 5000;
+    let lastToast = { message: '', type: '', at: 0 };
     let ICONS = {
         error: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>',
         success: '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>',
@@ -11,6 +12,11 @@
     window.showToast = function (message, type) {
         type = type || 'error';
         if (!message) message = 'حدث خطأ، يرجى المحاولة مرة أخرى';
+
+        let now = Date.now();
+        if (message === lastToast.message && type === lastToast.type && now - lastToast.at < 750) return;
+        lastToast = { message: message, type: type, at: now };
+
         let container = document.getElementById('toast-container');
         if (!container) return;
 

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,50 +25,70 @@ import (
 // entry the first time we see a session. The actual cache is per-token (see
 // settingsByToken) — there is NO global mutable map shared across users.
 var settingsDefaults = map[string]string{
-	"vat_rate":                "15",
-	"currency":                "SAR",
-	"language":                "ar",
-	"date_format":             "DD/MM/YYYY",
-	"theme":                   "light",
-	"low_stock_threshold":     "10",
-	"zatca_enabled":           "false",
-	"invoice_prefix":          "INV-",
-	"payment_terms":           "",
-	"show_vat_breakdown":      "true",
-	"auto_calculate_vat":      "true",
-	"prices_include_vat":      "false",
-	"pb_pdf_required":         "required",
-	"default_payment_method":  "10",
-	"invoice_footer":          "",
-	"paper_size":              "A4",
-	"print_copies":            "",
-	"show_logo_print":         "true",
-	"show_company_info_print": "true",
-	"show_qr_print":           "true",
-	"show_bank_details":       "false",
-	"bank_details":            "",
-	"number_format":           "ar",
-	"notif_invoices":          "true",
-	"notif_stock":             "true",
-	"notif_payments":          "true",
-	"notif_orders":            "true",
-	"notif_session":           "true",
-	"session_duration":        "",
-	"max_login_attempts":      "",
-	"require_strong_password": "true",
-	"auto_logout_inactive":    "true",
-	"default_unit":            "piece",
-	"stock_enforcement":       "disable",
-	"track_inventory":         "true",
-	"allow_negative_stock":    "false",
-	"show_cost_price":         "false",
-	"company_name":            "",
-	"company_email":           "",
-	"company_vat":             "",
-	"company_cr":              "",
-	"company_description":     "",
-	"company_address":         "",
-	"company_phone":           "",
+	"vat_rate":                     "15",
+	"currency":                     "SAR",
+	"language":                     "ar",
+	"date_format":                  "DD/MM/YYYY",
+	"theme":                        "light",
+	"low_stock_threshold":          "10",
+	"zatca_enabled":                "false",
+	"invoice_prefix":               "INV-",
+	"payment_terms":                "",
+	"show_vat_breakdown":           "true",
+	"auto_calculate_vat":           "true",
+	"prices_include_vat":           "false",
+	"pb_pdf_required":              "required",
+	"default_payment_method":       "10",
+	"invoice_footer":               "",
+	"paper_size":                   "A4",
+	"print_copies":                 "",
+	"show_logo_print":              "true",
+	"show_company_info_print":      "true",
+	"show_qr_print":                "true",
+	"show_bank_details":            "false",
+	"bank_details":                 "",
+	"number_format":                "ar",
+	"notif_invoices":               "true",
+	"notif_stock":                  "true",
+	"notif_payments":               "true",
+	"notif_orders":                 "true",
+	"notif_session":                "true",
+	"session_duration":             "",
+	"max_login_attempts":           "",
+	"require_strong_password":      "true",
+	"auto_logout_inactive":         "true",
+	"default_unit":                 "piece",
+	"stock_enforcement":            "disable",
+	"track_inventory":              "true",
+	"allow_negative_stock":         "false",
+	"show_cost_price":              "false",
+	"company_name":                 "",
+	"company_email":                "",
+	"company_vat":                  "",
+	"company_cr":                   "",
+	"company_description":          "",
+	"company_address":              "",
+	"company_phone":                "",
+	"whatsapp_enabled":             "false",
+	"whatsapp_business_account_id": "",
+	"whatsapp_phone_number_id":     "",
+	"whatsapp_access_token":        "",
+	"whatsapp_api_version":         "v18.0",
+	"whatsapp_invoice_message":     "Invoice PDF is attached.",
+}
+
+const whatsappMaskedToken = "********"
+
+func preserveWhatsAppTokenValue(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	return trimmed == "" || trimmed == whatsappMaskedToken
+}
+
+func normalizeSettingsValue(key string, value string) string {
+	if (key == "whatsapp_api_version" || key == "whatsapp_invoice_message") && strings.TrimSpace(value) == "" {
+		return settingsDefaults[key]
+	}
+	return value
 }
 
 // tenantSettings is the per-token cache cell. mu protects values.
@@ -132,6 +153,10 @@ var settingsCategoryMap = map[string]string{
 	// security
 	"session_duration": "security", "max_login_attempts": "security",
 	"require_strong_password": "security", "auto_logout_inactive": "security",
+	// integrations
+	"whatsapp_enabled": "integrations", "whatsapp_business_account_id": "integrations",
+	"whatsapp_phone_number_id": "integrations", "whatsapp_access_token": "integrations",
+	"whatsapp_api_version": "integrations", "whatsapp_invoice_message": "integrations",
 }
 
 // allSettingsKeys lists every key the template uses.
@@ -147,6 +172,8 @@ var allSettingsKeys = []string{
 	"default_unit", "stock_enforcement", "track_inventory", "allow_negative_stock",
 	"show_cost_price", "company_name", "company_email", "company_vat",
 	"company_cr", "company_description", "company_address", "company_phone",
+	"whatsapp_enabled", "whatsapp_business_account_id", "whatsapp_phone_number_id",
+	"whatsapp_access_token", "whatsapp_api_version", "whatsapp_invoice_message",
 }
 
 // loadSettingsFromBackend fetches settings from GET /api/v2/settings
@@ -177,7 +204,7 @@ func loadSettingsFromBackend(token string) {
 	ts.mu.Lock()
 	for _, categorySettings := range result.Data {
 		for key, value := range categorySettings {
-			ts.values[key] = value
+			ts.values[key] = normalizeSettingsValue(key, value)
 		}
 	}
 	ts.mu.Unlock()
@@ -214,6 +241,9 @@ func saveSettingsToBackend(token string, settings map[string]string) error {
 	// Group settings by category
 	categories := map[string]map[string]string{}
 	for key, value := range settings {
+		if key == "whatsapp_access_token" && preserveWhatsAppTokenValue(value) {
+			continue
+		}
 		cat, ok := settingsCategoryMap[key]
 		if !ok {
 			continue // frontend-only setting (zatca_enabled, pb_pdf_required, etc.)
@@ -356,6 +386,7 @@ func HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		"notif_invoices", "notif_stock", "notif_payments", "notif_orders", "notif_session",
 		"require_strong_password", "auto_logout_inactive",
 		"track_inventory", "allow_negative_stock", "show_cost_price",
+		"whatsapp_enabled",
 	}
 	checkboxSet := make(map[string]bool, len(checkboxKeys))
 	for _, k := range checkboxKeys {
@@ -372,6 +403,9 @@ func HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, key := range allSettingsKeys {
 		val := r.FormValue(key)
+		if key == "whatsapp_access_token" && preserveWhatsAppTokenValue(val) {
+			continue
+		}
 		if val != "" {
 			ts.values[key] = val
 			newSettings[key] = val

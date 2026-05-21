@@ -61,4 +61,18 @@ test.describe('Settings tab reorganization', () => {
     });
     expect(generalHasVat).toBe(false);
   });
+
+  test('Integrations tab exposes WhatsApp settings without token value', async ({ page }) => {
+    await login(page);
+    await page.goto('/dashboard/settings');
+    await page.click('#tab-integrations');
+
+    await expect(page.locator('#panel-integrations')).toBeVisible();
+    await expect(page.locator('input[name="whatsapp_enabled"]')).toBeVisible();
+    await expect(page.locator('input[name="whatsapp_business_account_id"]')).toBeVisible();
+    await expect(page.locator('input[name="whatsapp_phone_number_id"]')).toBeVisible();
+    await expect(page.locator('input[name="whatsapp_api_version"]')).toHaveValue(/v\d+\.\d+/);
+    await expect(page.locator('textarea[name="whatsapp_invoice_message"]')).toBeVisible();
+    await expect(page.locator('input[name="whatsapp_access_token"]')).toHaveValue('');
+  });
 });

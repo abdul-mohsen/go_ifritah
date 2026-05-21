@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"afrita/config"
@@ -57,14 +58,14 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 		// a generic 500 stub when the upstream bill list is hiccuping.
 		log.Printf("[invoices] backend list fetch failed: %v", err)
 		helpers.Render(w, r, "invoices", map[string]interface{}{
-			"title":         "الفواتير",
-			"invoices":      []map[string]interface{}{},
-			"pagination":    helpers.Pagination{Page: 0, PerPage: 10, Total: 0, TotalPages: 0},
-			"prev_page":     -1,
-			"next_page":     -1,
-			"query":         query,
-			"state":         stateFilter,
-			"error":         "تعذر تحميل الفواتير من الخادم حالياً",
+			"title":      "الفواتير",
+			"invoices":   []map[string]interface{}{},
+			"pagination": helpers.Pagination{Page: 0, PerPage: 10, Total: 0, TotalPages: 0},
+			"prev_page":  -1,
+			"next_page":  -1,
+			"query":      query,
+			"state":      stateFilter,
+			"error":      "تعذر تحميل الفواتير من الخادم حالياً",
 		})
 		return
 	}
@@ -322,6 +323,7 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	loadSettingsFromBackend(token)
 
 	// Fetch the full raw bill data from backend
 	raw, err := helpers.FetchBillRaw(token, id)
@@ -402,8 +404,56 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 		"is_credit":        false,
 		"is_standard":      invoice.Type,
 		"bill_type_label":  helpers.InvoiceTypeLabel(invoice),
+		"whatsapp_enabled": GetSettingValue(token, "whatsapp_enabled") == "true",
 	}
 	helpers.Render(w, r, "invoice-detail", data)
+}
+
+// HandleSendInvoiceWhatsApp proxies invoice PDF WhatsApp sending to the backend.
+func HandleSendInvoiceWhatsApp(w http.ResponseWriter, r *http.Request) {
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return
+	}
+
+	id := mux.Vars(r)["id"]
+	if strings.TrimSpace(id) == "" {
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "رقم الفاتورة غير صالح")
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodPost, config.BackendDomain+"/api/v2/bill/"+id+"/whatsapp", nil)
+	if err != nil {
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر إرسال الفاتورة عبر واتساب")
+		return
+	}
+
+	resp, err := helpers.DoAuthedRequest(req, token)
+	if err != nil {
+		log.Printf("[WHATSAPP] send failed: %v", err)
+		helpers.WriteErrorResponse(w, http.StatusBadGateway, nil, "تعذر الاتصال بخدمة واتساب")
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		helpers.HandleUnauthorized(w, r)
+		return
+	}
+	if resp.StatusCode >= 300 {
+		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, body, "تعذر إرسال الفاتورة عبر واتساب")
+		return
+	}
+
+	msg := helpers.ExtractMessageFromBytes(body)
+	if msg == "" || strings.EqualFold(msg, "sent") {
+		msg = "تم إرسال الفاتورة عبر واتساب"
+	}
+	helpers.WriteSuccessToast(w, msg)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{"detail": msg})
 }
 
 // HandleInvoicePreview displays invoice preview page
@@ -734,74 +784,74 @@ func HandleCreateCompanyInvoice(w http.ResponseWriter, r *http.Request) {
 // buildSubmitProductItems converts persisted bill product rows into the
 // API payload shape (string price, string quantity).
 func buildSubmitProductItems(products []models.BillItem) []models.BillProductItem {
-items := make([]models.BillProductItem, 0, len(products))
-for _, p := range products {
-items = append(items, models.BillProductItem{
-ID:       p.ProductID,
-PartName: p.PartName,
-Price:    fmt.Sprintf("%g", p.Price),
-Quantity: strconv.Itoa(p.Quantity),
-})
-}
-return items
+	items := make([]models.BillProductItem, 0, len(products))
+	for _, p := range products {
+		items = append(items, models.BillProductItem{
+			ID:       p.ProductID,
+			PartName: p.PartName,
+			Price:    fmt.Sprintf("%g", p.Price),
+			Quantity: strconv.Itoa(p.Quantity),
+		})
+	}
+	return items
 }
 
 // buildSubmitManualItems converts persisted manual-product rows into the
 // API payload shape (string price, string quantity).
 func buildSubmitManualItems(products []models.BillItem) []models.BillManualItem {
-items := make([]models.BillManualItem, 0, len(products))
-for _, p := range products {
-items = append(items, models.BillManualItem{
-PartName:   p.PartName,
-PartNumber: p.PartNumber,
-Price:      fmt.Sprintf("%g", p.Price),
-Quantity:   strconv.Itoa(p.Quantity),
-})
-}
-return items
+	items := make([]models.BillManualItem, 0, len(products))
+	for _, p := range products {
+		items = append(items, models.BillManualItem{
+			PartName:   p.PartName,
+			PartNumber: p.PartNumber,
+			Price:      fmt.Sprintf("%g", p.Price),
+			Quantity:   strconv.Itoa(p.Quantity),
+		})
+	}
+	return items
 }
 
 // extraInt reads an int field from the loose-typed `extra` map returned by
 // FetchBillDetail; missing/invalid values become 0 to keep callers small.
 func extraInt(extra map[string]interface{}, key string) int {
-if v, ok := helpers.CoerceFloat(extra[key]); ok {
-return int(v)
-}
-return 0
+	if v, ok := helpers.CoerceFloat(extra[key]); ok {
+		return int(v)
+	}
+	return 0
 }
 
 // extraIntPtr is like extraInt but yields *int for fields that distinguish
 // "absent" from "zero" on the wire (e.g. client_id).
 func extraIntPtr(extra map[string]interface{}, key string) *int {
-if v, ok := helpers.CoerceFloat(extra[key]); ok && v > 0 {
-i := int(v)
-return &i
-}
-return nil
+	if v, ok := helpers.CoerceFloat(extra[key]); ok && v > 0 {
+		i := int(v)
+		return &i
+	}
+	return nil
 }
 
 // buildSubmitDraftPayload assembles the BillPayload for the
 // draft-to-processing transition. Date and maintenance_cost overrides are
 // applied by the caller because they require their own conditional logic.
 func buildSubmitDraftPayload(inv models.Invoice, extra map[string]interface{}, prodItems []models.BillProductItem, manualItems []models.BillManualItem) models.BillPayload {
-p := models.BillPayload{
-StoreID:         extraInt(extra, "store_id"),
-Products:        prodItems,
-ManualProducts:  manualItems,
-TotalAmount:     inv.Total,
-Discount:        fmt.Sprintf("%g", inv.Discount),
-MaintenanceCost: "0",
-State:           1, // submit as processing
-VIN:             helpers.SafeString(extra["vin"]),
-UserName:        helpers.SafeString(extra["user_name"]),
-UserPhoneNumber: helpers.SafeString(extra["user_phone_number"]),
-Note:            helpers.SafeString(extra["note"]),
-PaymentMethod:   extraInt(extra, "payment_method"),
-ClientID:        extraIntPtr(extra, "client_id"),
-BranchID:        extraInt(extra, "branch_id"),
-}
-if inv.EffectiveDate.Valid {
-p.EffectiveDate = helpers.ToBackendDatePtr(inv.EffectiveDate.Time)
-}
-return p
+	p := models.BillPayload{
+		StoreID:         extraInt(extra, "store_id"),
+		Products:        prodItems,
+		ManualProducts:  manualItems,
+		TotalAmount:     inv.Total,
+		Discount:        fmt.Sprintf("%g", inv.Discount),
+		MaintenanceCost: "0",
+		State:           1, // submit as processing
+		VIN:             helpers.SafeString(extra["vin"]),
+		UserName:        helpers.SafeString(extra["user_name"]),
+		UserPhoneNumber: helpers.SafeString(extra["user_phone_number"]),
+		Note:            helpers.SafeString(extra["note"]),
+		PaymentMethod:   extraInt(extra, "payment_method"),
+		ClientID:        extraIntPtr(extra, "client_id"),
+		BranchID:        extraInt(extra, "branch_id"),
+	}
+	if inv.EffectiveDate.Valid {
+		p.EffectiveDate = helpers.ToBackendDatePtr(inv.EffectiveDate.Time)
+	}
+	return p
 }

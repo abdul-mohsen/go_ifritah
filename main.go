@@ -85,6 +85,7 @@ func main() {
 	router.HandleFunc("/api/invoices/{id}/edit", protect("invoices", "edit", handlers.HandleEditInvoice)).Methods("GET")
 	router.HandleFunc("/api/invoices/{id}", protect("invoices", "edit", handlers.HandleUpdateInvoice)).Methods("PUT")
 	router.HandleFunc("/api/invoices/{id}/submit", protect("invoices", "edit", handlers.HandleSubmitDraftInvoice)).Methods("POST")
+	router.HandleFunc("/api/invoices/{id}/whatsapp", protect("invoices", "view", handlers.HandleSendInvoiceWhatsApp)).Methods("POST")
 	router.HandleFunc("/api/invoices/{id}", protect("invoices", "delete", handlers.HandleDeleteInvoice)).Methods("DELETE")
 
 	// Purchase bill routes — RBAC protected

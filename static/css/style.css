@@ -233,6 +233,55 @@
     color: var(--text-gray);
 }
 
+.login-error {
+    border: 1px solid var(--md-sys-color-error);
+    border-radius: var(--md-sys-shape-sm);
+    background-color: var(--md-sys-color-error-container);
+    color: var(--md-sys-color-on-error-container);
+    padding: 0.75rem 0.875rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+.login-password-field {
+    position: relative;
+}
+
+.login-password-field input,
+.login-password-field input:focus {
+    padding-inline-end: 3rem;
+}
+
+.login-password-toggle {
+    position: absolute;
+    inset-inline-end: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: var(--md-sys-shape-full);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    cursor: pointer;
+    transition: background-color 160ms, color 160ms;
+}
+
+.login-password-toggle:hover,
+.login-password-toggle:focus-visible {
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    outline: none;
+}
+
+.login-card button:disabled {
+    cursor: wait;
+    opacity: 0.75;
+}
+
 [data-theme="dark"] .login-body {
     background: linear-gradient(135deg, #0f172a, #1e1b4b) !important;
 }
@@ -249,6 +298,22 @@
 
 [data-theme="dark"] .login-label {
     color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .login-error {
+    border-color: #f87171;
+    background-color: #450a0a;
+    color: #fecaca;
+}
+
+[data-theme="dark"] .login-password-toggle {
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .login-password-toggle:hover,
+[data-theme="dark"] .login-password-toggle:focus-visible {
+    background-color: #1e3a5f;
+    color: #bfdbfe;
 }
 
 [data-theme="dark"] .login-card input {

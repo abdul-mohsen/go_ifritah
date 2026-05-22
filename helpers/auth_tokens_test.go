@@ -61,6 +61,42 @@ func TestAccessTokenExpiryFallsBackForOpaqueToken(t *testing.T) {
 	}
 }
 
+func TestShouldRefreshTokenUsesTwoMinuteWindowBeforeExpiry(t *testing.T) {
+	sessionID := "session-refresh-window-test"
+
+	config.SessionTokensMutex.Lock()
+	oldTokenExpiry := cloneTimeMap(config.SessionTokenExpiry)
+	config.SessionTokensMutex.Unlock()
+	t.Cleanup(func() {
+		config.SessionTokensMutex.Lock()
+		config.SessionTokenExpiry = oldTokenExpiry
+		config.SessionTokensMutex.Unlock()
+	})
+
+	tests := []struct {
+		name    string
+		expires time.Duration
+		want    bool
+	}{
+		{name: "fifteen minutes remaining", expires: 15 * time.Minute, want: false},
+		{name: "more than two minutes remaining", expires: 3 * time.Minute, want: false},
+		{name: "inside two minute refresh window", expires: 119 * time.Second, want: true},
+		{name: "already expired", expires: -1 * time.Second, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.SessionTokensMutex.Lock()
+			config.SessionTokenExpiry = map[string]time.Time{sessionID: time.Now().Add(tt.expires)}
+			config.SessionTokensMutex.Unlock()
+
+			if got := ShouldRefreshToken(sessionID); got != tt.want {
+				t.Fatalf("ShouldRefreshToken() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestGetTokenOrRedirectRefreshesExpiredAccessToken(t *testing.T) {
 	oldBackendDomain := config.BackendDomain
 	oldTokenStoreDir := config.TokenStoreDir

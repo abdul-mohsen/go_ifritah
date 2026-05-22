@@ -2,11 +2,26 @@ package helpers
 
 import (
 	"afrita/config"
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 )
+
+func testJWTWithExpiry(t *testing.T, expiry time.Time) string {
+	t.Helper()
+	header, err := json.Marshal(map[string]string{"alg": "none", "typ": "JWT"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(map[string]interface{}{"exp": expiry.Unix(), "role": "admin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return base64.RawURLEncoding.EncodeToString(header) + "." + base64.RawURLEncoding.EncodeToString(payload) + ".sig"
+}
 
 func cloneStringMap(source map[string]string) map[string]string {
 	cloned := make(map[string]string, len(source))
@@ -22,6 +37,28 @@ func cloneTimeMap(source map[string]time.Time) map[string]time.Time {
 		cloned[key] = value
 	}
 	return cloned
+}
+
+func TestAccessTokenExpiryUsesJWTExp(t *testing.T) {
+	issuedAt := time.Now().Truncate(time.Second)
+	expectedExpiry := issuedAt.Add(30 * time.Minute)
+
+	got := AccessTokenExpiry(testJWTWithExpiry(t, expectedExpiry), issuedAt)
+
+	if !got.Equal(expectedExpiry) {
+		t.Fatalf("expected JWT exp %v, got %v", expectedExpiry, got)
+	}
+}
+
+func TestAccessTokenExpiryFallsBackForOpaqueToken(t *testing.T) {
+	issuedAt := time.Now().Truncate(time.Second)
+
+	got := AccessTokenExpiry("opaque-token", issuedAt)
+	want := issuedAt.Add(defaultAccessTokenTTL)
+
+	if !got.Equal(want) {
+		t.Fatalf("expected fallback expiry %v, got %v", want, got)
+	}
 }
 
 func TestGetTokenOrRedirectRefreshesExpiredAccessToken(t *testing.T) {
@@ -43,6 +80,8 @@ func TestGetTokenOrRedirectRefreshesExpiredAccessToken(t *testing.T) {
 	})
 
 	refreshSeen := false
+	expectedExpiry := time.Now().Add(30 * time.Minute).Truncate(time.Second)
+	freshToken := testJWTWithExpiry(t, expectedExpiry)
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v2/refresh" {
 			t.Fatalf("unexpected refresh path %s", r.URL.Path)
@@ -52,7 +91,7 @@ func TestGetTokenOrRedirectRefreshesExpiredAccessToken(t *testing.T) {
 		}
 		refreshSeen = true
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"access_token":"fresh-token","refresh_token":"fresh-refresh"}`))
+		_ = json.NewEncoder(w).Encode(map[string]string{"access_token": freshToken, "refresh_token": "fresh-refresh"})
 	}))
 	t.Cleanup(backend.Close)
 
@@ -73,10 +112,17 @@ func TestGetTokenOrRedirectRefreshesExpiredAccessToken(t *testing.T) {
 	if !ok {
 		t.Fatal("expected token lookup to succeed")
 	}
-	if token != "fresh-token" {
+	if token != freshToken {
 		t.Fatalf("expected refreshed token, got %q", token)
 	}
 	if !refreshSeen {
 		t.Fatal("expected refresh endpoint to be called")
+	}
+
+	config.SessionTokensMutex.RLock()
+	storedExpiry := config.SessionTokenExpiry[sessionID]
+	config.SessionTokensMutex.RUnlock()
+	if !storedExpiry.Equal(expectedExpiry) {
+		t.Fatalf("expected stored expiry from JWT exp %v, got %v", expectedExpiry, storedExpiry)
 	}
 }

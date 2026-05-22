@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,19 @@ import (
 	"afrita/config"
 	"afrita/models"
 )
+
+func jwtWithExpiryForTest(t *testing.T, expiry time.Time) string {
+	t.Helper()
+	header, err := json.Marshal(map[string]string{"alg": "none", "typ": "JWT"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(map[string]interface{}{"exp": expiry.Unix(), "role": "admin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return base64.RawURLEncoding.EncodeToString(header) + "." + base64.RawURLEncoding.EncodeToString(payload) + ".sig"
+}
 
 // ──────────────────────────────────────────────
 // Token Refresh Middleware Tests
@@ -61,7 +75,9 @@ func TestMiddlewareRefresh_DoesNotUpdateExpiry(t *testing.T) {
 	defer clearTestSession(sessionID)
 
 	// Start a mock backend that returns 200 on refresh
-	mockBackend := fakeRefreshServer("new-access-token", "new-refresh-token", http.StatusOK)
+	expectedExpiry := time.Now().Add(30 * time.Minute).Truncate(time.Second)
+	freshAccess := jwtWithExpiryForTest(t, expectedExpiry)
+	mockBackend := fakeRefreshServer(freshAccess, "new-refresh-token", http.StatusOK)
 	defer mockBackend.Close()
 
 	origDomain := config.BackendDomain
@@ -84,17 +100,50 @@ func TestMiddlewareRefresh_DoesNotUpdateExpiry(t *testing.T) {
 	newExpiry := config.SessionTokenExpiry[sessionID]
 	config.SessionTokensMutex.RUnlock()
 
-	if newAccess != "new-access-token" {
-		t.Errorf("expected access token to be updated to 'new-access-token', got '%s'", newAccess)
+	if newAccess != freshAccess {
+		t.Errorf("expected access token to be updated to refreshed JWT, got '%s'", newAccess)
 	}
 
-	// FIXED: After middleware refresh, expiry should be updated to ~15 min from now
+	// FIXED: After middleware refresh, expiry should be updated from the JWT exp claim.
 	if newExpiry.Equal(oldExpiry) {
 		t.Errorf("SessionTokenExpiry was NOT updated after middleware refresh. "+
-			"Still: %v (should be ~15 min from now)", newExpiry)
+			"Still: %v (should be %v)", newExpiry, expectedExpiry)
 	}
-	if time.Until(newExpiry) < 14*time.Minute {
-		t.Errorf("SessionTokenExpiry should be ~15 min from now, got %v", newExpiry)
+	if !newExpiry.Equal(expectedExpiry) {
+		t.Errorf("SessionTokenExpiry should match JWT exp %v, got %v", expectedExpiry, newExpiry)
+	}
+}
+
+func TestMiddlewareRefresh_UsesJWTExpiry(t *testing.T) {
+	sessionID := "test-session-jwt-exp"
+	oldExpiry := time.Now().Add(-5 * time.Minute)
+	setupTestSession(sessionID, "old-access", "valid-refresh", oldExpiry)
+	defer clearTestSession(sessionID)
+
+	expectedExpiry := time.Now().Add(30 * time.Minute).Truncate(time.Second)
+	freshAccess := jwtWithExpiryForTest(t, expectedExpiry)
+	mockBackend := fakeRefreshServer(freshAccess, "new-refresh-token", http.StatusOK)
+	defer mockBackend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = mockBackend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	handler := TokenRefreshMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+
+	req := httptest.NewRequest("GET", "/dashboard", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: sessionID})
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	config.SessionTokensMutex.RLock()
+	newExpiry := config.SessionTokenExpiry[sessionID]
+	config.SessionTokensMutex.RUnlock()
+
+	if !newExpiry.Equal(expectedExpiry) {
+		t.Fatalf("expected middleware to store JWT exp %v, got %v", expectedExpiry, newExpiry)
 	}
 }
 
@@ -136,7 +185,7 @@ func TestMiddlewareRefresh_DoesNotPersistToDisk(t *testing.T) {
 		t.Fatal("expected SessionTokenExpiry to exist for session")
 	}
 
-	// FIXED: Expiry should be updated to ~now+15min (which means persist was also called)
+	// FIXED: Expiry should be updated to a future value (which means persist was also called)
 	if time.Until(expiry) > 0 {
 		t.Log("OK: Expiry was updated and token persisted")
 	} else {
@@ -190,7 +239,9 @@ func TestIdleFor20Minutes_DoesNotLogOut(t *testing.T) {
 	setupTestSession(sessionID, "stale-access", "still-valid-refresh", expiredExpiry)
 	defer clearTestSession(sessionID)
 
-	mockBackend := fakeRefreshServer("fresh-access", "fresh-refresh", http.StatusOK)
+	expectedExpiry := time.Now().Add(30 * time.Minute).Truncate(time.Second)
+	freshAccess := jwtWithExpiryForTest(t, expectedExpiry)
+	mockBackend := fakeRefreshServer(freshAccess, "fresh-refresh", http.StatusOK)
 	defer mockBackend.Close()
 
 	origDomain := config.BackendDomain
@@ -222,14 +273,14 @@ func TestIdleFor20Minutes_DoesNotLogOut(t *testing.T) {
 	expiry := config.SessionTokenExpiry[sessionID]
 	config.SessionTokensMutex.RUnlock()
 
-	if access != "fresh-access" {
+	if access != freshAccess {
 		t.Errorf("access token not refreshed, got '%s'", access)
 	}
 	if refresh != "fresh-refresh" {
 		t.Errorf("refresh token not updated, got '%s'", refresh)
 	}
-	if time.Until(expiry) < 14*time.Minute {
-		t.Errorf("expiry should be ~15 min from now, got %v", expiry)
+	if !expiry.Equal(expectedExpiry) {
+		t.Errorf("expiry should match JWT exp %v, got %v", expectedExpiry, expiry)
 	}
 }
 
@@ -345,7 +396,6 @@ func TestIdleFor20Minutes_HandlerCallsHandleUnauthorized(t *testing.T) {
 	}
 }
 
-
 func TestStandaloneRefreshIfNeeded_AlsoMissesExpiry(t *testing.T) {
 	sessionID := "test-standalone-refresh"
 
@@ -353,7 +403,9 @@ func TestStandaloneRefreshIfNeeded_AlsoMissesExpiry(t *testing.T) {
 	setupTestSession(sessionID, "old-access", "valid-refresh", oldExpiry)
 	defer clearTestSession(sessionID)
 
-	mockBackend := fakeRefreshServer("standalone-new-access", "standalone-new-refresh", http.StatusOK)
+	expectedExpiry := time.Now().Add(30 * time.Minute).Truncate(time.Second)
+	freshAccess := jwtWithExpiryForTest(t, expectedExpiry)
+	mockBackend := fakeRefreshServer(freshAccess, "standalone-new-refresh", http.StatusOK)
 	defer mockBackend.Close()
 
 	origDomain := config.BackendDomain
@@ -371,16 +423,16 @@ func TestStandaloneRefreshIfNeeded_AlsoMissesExpiry(t *testing.T) {
 	newExpiry := config.SessionTokenExpiry[sessionID]
 	config.SessionTokensMutex.RUnlock()
 
-	if newAccess != "standalone-new-access" {
-		t.Errorf("expected access token 'standalone-new-access', got '%s'", newAccess)
+	if newAccess != freshAccess {
+		t.Errorf("expected refreshed JWT access token, got '%s'", newAccess)
 	}
 
 	// FIXED: The middleware's RefreshTokenIfNeeded should now update expiry
 	if newExpiry.Equal(oldExpiry) {
 		t.Errorf("middleware.RefreshTokenIfNeeded does NOT update SessionTokenExpiry. "+
-			"Still: %v (should be ~15 min from now)", newExpiry)
+			"Still: %v (should be %v)", newExpiry, expectedExpiry)
 	}
-	if time.Until(newExpiry) < 14*time.Minute {
-		t.Errorf("SessionTokenExpiry should be ~15 min from now, got %v", newExpiry)
+	if !newExpiry.Equal(expectedExpiry) {
+		t.Errorf("SessionTokenExpiry should match JWT exp %v, got %v", expectedExpiry, newExpiry)
 	}
 }

@@ -72,7 +72,8 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 
 	// Success - store token in session and redirect
 	sessionID := generateSecureSessionID()
-	expiryTime := time.Now().Add(15 * time.Minute)
+	issuedAt := time.Now()
+	expiryTime := helpers.AccessTokenExpiry(backendResp.AccessToken, issuedAt)
 
 	config.SessionTokensMutex.Lock()
 	config.SessionTokens[sessionID] = backendResp.AccessToken
@@ -86,7 +87,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 		AccessToken:  backendResp.AccessToken,
 		RefreshToken: backendResp.RefreshToken,
 		ExpiresAt:    expiryTime,
-		CreatedAt:    time.Now(),
+		CreatedAt:    issuedAt,
 	}
 
 	if err := helpers.SaveTokenToFile(sessionID, token); err != nil {

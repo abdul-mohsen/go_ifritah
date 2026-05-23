@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -17,10 +18,10 @@ func TestLoadAppVersionReadsVersionFile(t *testing.T) {
 	t.Setenv("APP_VERSION", "")
 
 	tempDir := t.TempDir()
-	if err := os.WriteFile(tempDir+"/VERSION", []byte("v1.2.3\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(tempDir, "VERSION"), []byte("v1.2.3\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	t.Chdir(tempDir)
+	chdir(t, tempDir)
 
 	if got := loadAppVersion(); got != "v1.2.3" {
 		t.Fatalf("loadAppVersion() = %q, want v1.2.3", got)
@@ -29,11 +30,30 @@ func TestLoadAppVersionReadsVersionFile(t *testing.T) {
 
 func TestLoadAppVersionFallback(t *testing.T) {
 	t.Setenv("APP_VERSION", "")
-	t.Chdir(t.TempDir())
+	chdir(t, t.TempDir())
 
 	if got := loadAppVersion(); got != "v0.0.0" {
 		t.Fatalf("loadAppVersion() = %q, want v0.0.0", got)
 	}
+}
+
+func chdir(t *testing.T, dir string) {
+	t.Helper()
+
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestFormatSAR_Zero(t *testing.T) {

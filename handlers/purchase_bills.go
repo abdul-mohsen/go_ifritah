@@ -22,6 +22,11 @@ import (
 // purchaseBillCreateLock prevents duplicate purchase bill creation per user session.
 var purchaseBillCreateLock sync.Map
 
+type purchaseBillDuplicateCheckRequest struct {
+	SupplierID             int    `json:"supplier_id"`
+	SupplierSequenceNumber uint64 `json:"supplier_sequence_number"`
+}
+
 // HandlePurchaseBills renders the purchase bills list page.
 func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 	token, ok := helpers.GetTokenOrRedirect(w, r)
@@ -116,6 +121,65 @@ func HandleAddPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		"suppliers":       suppliers,
 		"pb_pdf_required": GetSettingValue(token, "pb_pdf_required"),
 	})
+}
+
+func HandlePurchaseBillDuplicateCheck(w http.ResponseWriter, r *http.Request) {
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return
+	}
+
+	var payload purchaseBillDuplicateCheckRequest
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || payload.SupplierID <= 0 || payload.SupplierSequenceNumber == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "invalid duplicate check payload",
+		})
+		return
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "failed to build duplicate check payload",
+		})
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodPost, config.BackendDomain+"/api/v2/purchase_bill/duplicate-check", bytes.NewBuffer(body))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "failed to build duplicate check request",
+		})
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := helpers.DoAuthedRequest(req, token)
+	if err != nil {
+		log.Printf("[PURCHASE BILL DUPLICATE CHECK] backend request failed: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "duplicate check unavailable",
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/json"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.WriteHeader(resp.StatusCode)
+	_, _ = w.Write(respBody)
 }
 
 // HandleCreatePurchaseBill creates a new purchase bill.
@@ -375,10 +439,10 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		"title":                    "تفاصيل فاتورة المشتريات",
 		"bill":                     invoice,
 		"bill_id":                  id,
-		"catalog_products":          products,
-		"manual_products":           manualProducts,
-		"products_subtotal":         helpers.SumBillItemsTotal(products),
-		"manual_subtotal":           helpers.SumBillItemsTotal(manualProducts),
+		"catalog_products":         products,
+		"manual_products":          manualProducts,
+		"products_subtotal":        helpers.SumBillItemsTotal(products),
+		"manual_subtotal":          helpers.SumBillItemsTotal(manualProducts),
 		"store_name":               storeName,
 		"supplier_name":            supplierName,
 		"supplier":                 matchedSupplier,
@@ -549,37 +613,37 @@ func HandleDeletePurchaseBill(w http.ResponseWriter, r *http.Request) {
 // extractDateField pulls a YYYY-MM-DD string out of a backend date field
 // that may be either a {Time, Valid} object, a plain ISO string, or absent.
 func extractDateField(raw interface{}) string {
-if m, ok := raw.(map[string]interface{}); ok {
-if t, ok := m["Time"].(string); ok && len(t) >= 10 {
-return t[:10]
-}
-return ""
-}
-if s, ok := raw.(string); ok && len(s) >= 10 {
-return s[:10]
-}
-return ""
+	if m, ok := raw.(map[string]interface{}); ok {
+		if t, ok := m["Time"].(string); ok && len(t) >= 10 {
+			return t[:10]
+		}
+		return ""
+	}
+	if s, ok := raw.(string); ok && len(s) >= 10 {
+		return s[:10]
+	}
+	return ""
 }
 
 // firstNonEmptyString returns the first string-valued key from m whose
 // value is non-empty. Used when the backend exposes the same field under
 // multiple historical names (e.g. supplier_sequance_number vs *_sequence_*).
 func firstNonEmptyString(m map[string]interface{}, keys ...string) string {
-for _, k := range keys {
-if v, ok := m[k].(string); ok && v != "" {
-return v
-}
-}
-return ""
+	for _, k := range keys {
+		if v, ok := m[k].(string); ok && v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // firstFloat returns the first numeric-valued key from m. CoerceFloat
 // accepts both float64 and numeric strings.
 func firstFloat(m map[string]interface{}, keys ...string) float64 {
-for _, k := range keys {
-if v, ok := helpers.CoerceFloat(m[k]); ok {
-return v
-}
-}
-return 0
+	for _, k := range keys {
+		if v, ok := helpers.CoerceFloat(m[k]); ok {
+			return v
+		}
+	}
+	return 0
 }

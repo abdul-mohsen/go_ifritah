@@ -255,13 +255,7 @@ func Initialize() {
 		AppPort = "8000"
 	}
 
-	// Load version from VERSION file
-	versionBytes, err := os.ReadFile("VERSION")
-	if err == nil {
-		AppVersion = strings.TrimSpace(string(versionBytes))
-	} else {
-		AppVersion = "0.0.0"
-	}
+	AppVersion = loadAppVersion()
 
 	log.Printf("Frontend: %s | Backend: %s | Version: %s", AppDomain, BackendDomain, AppVersion)
 
@@ -279,6 +273,21 @@ func Initialize() {
 	}
 
 	log.Printf("🔐 Token storage initialized at: %s", TokenStoreDir)
+}
+
+func loadAppVersion() string {
+	if version := strings.TrimSpace(os.Getenv("APP_VERSION")); version != "" {
+		return version
+	}
+
+	versionBytes, err := os.ReadFile("VERSION")
+	if err == nil {
+		if version := strings.TrimSpace(string(versionBytes)); version != "" {
+			return version
+		}
+	}
+
+	return "v0.0.0"
 }
 
 // LoadTemplates pre-parses every template at startup into the Templates map.

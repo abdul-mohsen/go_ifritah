@@ -14,6 +14,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-v0.0.1}
     image: afrita-go:dev
     container_name: afrita-go
     ports:
@@ -23,6 +25,7 @@ services:
       APP_DOMAIN: ${APP_DOMAIN:-localhost}
       BACKEND_URL: ${BACKEND_URL:-http://backend:8090}
       AFRITA_TOKEN_DIR: ${AFRITA_TOKEN_DIR:-/app/data/tokens}
+      APP_VERSION: ${APP_VERSION:-v0.0.1}
     volumes:
       # Persist OAuth/session tokens across container restarts.
       - afrita-tokens:/app/data

@@ -217,7 +217,7 @@
     document.querySelector('[name="supplier_id"]').addEventListener('change', onSupplierChange);
     document.querySelector('[name="payment_date"]').addEventListener('change', onPaymentMethodChange);
 
-    var purchaseBillDuplicateState = { exists: false, requestId: 0, timer: null };
+    var purchaseBillDuplicateState = { exists: false, requestId: 0, timer: null, lastCheckedKey: '', inFlightKey: '' };
 
     function getPurchaseSubmitButton() {
         var form = document.getElementById('purchase-form');
@@ -275,16 +275,30 @@
         };
     }
 
+    function purchaseBillDuplicateKey(payload) {
+        return payload ? String(payload.supplier_id) + ':' + String(payload.supplier_sequence_number) : '';
+    }
+
     function checkPurchaseBillDuplicate() {
+        window.clearTimeout(purchaseBillDuplicateState.timer);
+        purchaseBillDuplicateState.timer = null;
         var payload = readPurchaseBillDuplicateValues();
-        purchaseBillDuplicateState.requestId += 1;
-        var requestId = purchaseBillDuplicateState.requestId;
+        var key = purchaseBillDuplicateKey(payload);
         if (!payload) {
+            purchaseBillDuplicateState.requestId += 1;
+            purchaseBillDuplicateState.lastCheckedKey = '';
+            purchaseBillDuplicateState.inFlightKey = '';
             purchaseBillDuplicateState.exists = false;
             clearPurchaseBillDuplicateMessages();
             updatePurchaseSubmitState();
             return;
         }
+        if (key === purchaseBillDuplicateState.lastCheckedKey || key === purchaseBillDuplicateState.inFlightKey) {
+            return;
+        }
+        purchaseBillDuplicateState.requestId += 1;
+        var requestId = purchaseBillDuplicateState.requestId;
+        purchaseBillDuplicateState.inFlightKey = key;
         fetch('/api/purchase-bills/duplicate-check', {
             method: 'POST',
             headers: {
@@ -299,6 +313,8 @@
             })
             .then(function (data) {
                 if (requestId !== purchaseBillDuplicateState.requestId) return;
+                purchaseBillDuplicateState.inFlightKey = '';
+                purchaseBillDuplicateState.lastCheckedKey = key;
                 clearPurchaseBillDuplicateMessages();
                 purchaseBillDuplicateState.exists = !!(data && data.exists);
                 if (purchaseBillDuplicateState.exists) {
@@ -308,6 +324,8 @@
             })
             .catch(function () {
                 if (requestId !== purchaseBillDuplicateState.requestId) return;
+                purchaseBillDuplicateState.inFlightKey = '';
+                purchaseBillDuplicateState.lastCheckedKey = key;
                 clearPurchaseBillDuplicateMessages();
                 purchaseBillDuplicateState.exists = false;
                 setPurchaseBillDuplicateWarning();
@@ -317,6 +335,21 @@
 
     function debouncePurchaseBillDuplicateCheck() {
         window.clearTimeout(purchaseBillDuplicateState.timer);
+        var payload = readPurchaseBillDuplicateValues();
+        var key = purchaseBillDuplicateKey(payload);
+        if (!payload) {
+            purchaseBillDuplicateState.requestId += 1;
+            purchaseBillDuplicateState.lastCheckedKey = '';
+            purchaseBillDuplicateState.inFlightKey = '';
+            purchaseBillDuplicateState.exists = false;
+            clearPurchaseBillDuplicateMessages();
+            updatePurchaseSubmitState();
+            return;
+        }
+        if (key === purchaseBillDuplicateState.lastCheckedKey || key === purchaseBillDuplicateState.inFlightKey) {
+            return;
+        }
+        purchaseBillDuplicateState.requestId += 1;
         purchaseBillDuplicateState.exists = false;
         clearPurchaseBillDuplicateMessages();
         updatePurchaseSubmitState();

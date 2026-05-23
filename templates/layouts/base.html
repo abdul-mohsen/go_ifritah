@@ -304,6 +304,9 @@
                     </svg>
                 </button>
                 <h2 class="text-xl font-bold flex-1" style="color: var(--md-sys-color-on-surface)">{{ .title }}</h2>
+                <span class="shrink-0 px-2 py-1 rounded-full text-xs font-semibold"
+                    style="background: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface-variant)"
+                    title="UI {{ .version }}" aria-label="UI {{ .version }}" data-build-version="{{ .version }}">{{ .version }}</span>
                 <!-- Notification Bell -->
                 <a href="/dashboard/notifications" id="notification-bell" class="relative p-2 rounded-full transition hover:bg-black/5"
                     style="color: var(--md-sys-color-on-surface-variant)" title="{{ L "layout.notifications" }}"
@@ -337,7 +340,7 @@
                             style="color: var(--md-sys-color-primary)">
                             {{ L "layout.brand" }}
                         </a>
-                        <span>v{{ .version }}</span>
+                        <span>{{ .version }}</span>
                     </div>
                     <div>
                         © 2024-<span id="footer-year"></span> Afrita. {{ L "layout.all_rights" }}

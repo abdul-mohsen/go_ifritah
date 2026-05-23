@@ -1,6 +1,9 @@
 # Multi-stage build
 FROM golang:1.21-alpine AS builder
 
+ARG APP_VERSION=v0.0.0
+ENV APP_VERSION=${APP_VERSION}
+
 WORKDIR /app
 
 # Install build dependencies including Node.js for Tailwind and ca-certificates
@@ -32,6 +35,8 @@ ENV GOPRIVATE=
 ENV CGO_ENABLED=0
 RUN go mod download
 
+COPY VERSION VERSION
+
 # Copy Go source: top-level files plus all internal packages.
 # Previously only `*.go` was copied, which left `config/`, `handlers/`,
 # `helpers/`, `middleware/`, `models/` out of the build context, causing
@@ -51,6 +56,9 @@ RUN CGO_ENABLED=0 GOOS=linux GOFLAGS="-trimpath -buildvcs=false" \
 # Final stage
 FROM alpine:latest
 
+ARG APP_VERSION=v0.0.0
+ENV APP_VERSION=${APP_VERSION}
+
 WORKDIR /app
 
 # Install ca-certificates for HTTPS
@@ -58,6 +66,7 @@ RUN apk --no-cache add ca-certificates
 
 # Copy binary from builder
 COPY --from=builder /app/main .
+COPY --from=builder /app/VERSION ./VERSION
 
 # Copy templates
 COPY --from=builder /app/templates ./templates

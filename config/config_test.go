@@ -1,8 +1,40 @@
 package config
 
 import (
+	"os"
 	"testing"
 )
+
+func TestLoadAppVersionPrefersEnv(t *testing.T) {
+	t.Setenv("APP_VERSION", "v2.3.4")
+
+	if got := loadAppVersion(); got != "v2.3.4" {
+		t.Fatalf("loadAppVersion() = %q, want v2.3.4", got)
+	}
+}
+
+func TestLoadAppVersionReadsVersionFile(t *testing.T) {
+	t.Setenv("APP_VERSION", "")
+
+	tempDir := t.TempDir()
+	if err := os.WriteFile(tempDir+"/VERSION", []byte("v1.2.3\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(tempDir)
+
+	if got := loadAppVersion(); got != "v1.2.3" {
+		t.Fatalf("loadAppVersion() = %q, want v1.2.3", got)
+	}
+}
+
+func TestLoadAppVersionFallback(t *testing.T) {
+	t.Setenv("APP_VERSION", "")
+	t.Chdir(t.TempDir())
+
+	if got := loadAppVersion(); got != "v0.0.0" {
+		t.Fatalf("loadAppVersion() = %q, want v0.0.0", got)
+	}
+}
 
 func TestFormatSAR_Zero(t *testing.T) {
 	result := formatSAR(0)

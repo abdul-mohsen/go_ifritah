@@ -261,6 +261,149 @@ func setupPBTestSession(sessionID, token string) func() {
 	}
 }
 
+func TestPurchaseBillDuplicateCheckProxyForwardsBackendContract(t *testing.T) {
+	var receivedPayload map[string]interface{}
+	var receivedAuth string
+
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path != "/api/v2/purchase_bill/duplicate-check" {
+			t.Fatalf("unexpected backend path: %s", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", r.Method)
+		}
+		receivedAuth = r.Header.Get("Authorization")
+		if err := json.NewDecoder(r.Body).Decode(&receivedPayload); err != nil {
+			t.Fatalf("failed to decode backend payload: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"exists":true,"purchase_bill_id":789}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	cleanup := setupPBTestSession("pb-duplicate-proxy", "pb-duplicate-token")
+	defer cleanup()
+
+	req := httptest.NewRequest("POST", "/api/purchase-bills/duplicate-check", strings.NewReader(`{"supplier_id":123,"supplier_sequence_number":456}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-duplicate-proxy"})
+	w := httptest.NewRecorder()
+
+	HandlePurchaseBillDuplicateCheck(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d. body: %s", w.Code, w.Body.String())
+	}
+	if receivedAuth != "Bearer pb-duplicate-token" {
+		t.Fatalf("expected bearer auth token to backend, got %q", receivedAuth)
+	}
+	if receivedPayload["supplier_id"] != float64(123) {
+		t.Fatalf("expected supplier_id 123, got %v", receivedPayload["supplier_id"])
+	}
+	if receivedPayload["supplier_sequence_number"] != float64(456) {
+		t.Fatalf("expected supplier_sequence_number 456, got %v", receivedPayload["supplier_sequence_number"])
+	}
+	if !strings.Contains(w.Body.String(), `"exists":true`) || !strings.Contains(w.Body.String(), `"purchase_bill_id":789`) {
+		t.Fatalf("expected backend duplicate response to be proxied, got %s", w.Body.String())
+	}
+}
+
+func TestAddPurchaseBillDuplicateCheckUIIsRendered(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "/api/v2/store/all") {
+			_, _ = w.Write([]byte(`{"data":[{"id":1,"name":"Main"}]}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/v2/supplier/all") {
+			_, _ = w.Write([]byte(`{"data":[{"id":123,"name":"Supplier"}]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	cleanup := setupPBTestSession("pb-duplicate-ui", "pb-duplicate-ui-token")
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/dashboard/purchase-bills/add", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-duplicate-ui"})
+	w := httptest.NewRecorder()
+
+	HandleAddPurchaseBill(w, req)
+
+	body := w.Body.String()
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d. body: %s", w.Code, body[:min(500, len(body))])
+	}
+	for _, want := range []string{
+		`<span class="required-mark">*</span>`,
+		`name="supplier_sequance_number" id="supplier_sequence_input" class="w-full" maxlength="50" inputmode="numeric" aria-describedby="supplier-sequence-duplicate-error supplier-sequence-duplicate-warning" required`,
+		`id="supplier_sequence_input"`,
+		`id="supplier-sequence-duplicate-error"`,
+		`id="supplier-sequence-duplicate-warning"`,
+		`/api/purchase-bills/duplicate-check`,
+		`lastCheckedKey`,
+		`inFlightKey`,
+		`key === purchaseBillDuplicateState.lastCheckedKey || key === purchaseBillDuplicateState.inFlightKey`,
+		`purchaseBillDuplicateState.exists = !!(data && data.exists)`,
+		`submit.disabled = purchaseBillDuplicateState.exists`,
+		`setPurchaseBillDuplicateWarning()`,
+		`e.preventDefault()`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected add purchase bill page to include %q", want)
+		}
+	}
+}
+
+func TestCreatePurchaseBillConflictPreservesBackendMessage(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/v2/purchase_bill" && r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusConflict)
+			_, _ = w.Write([]byte(`{"message":"supplier bill number already exists for this supplier"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+	helpers.APICache.Delete("purchase_bills")
+
+	cleanup := setupPBTestSession("pb-conflict-create", "pb-conflict-token")
+	defer cleanup()
+
+	form := "store_id=4&supplier_id=251&supplier_sequance_number=456&payment_date=2026-04-10&payment_method=10" +
+		"&manual_part_name=%D9%81%D9%84%D8%AA%D8%B1+%D8%B2%D9%8A%D8%AA" +
+		"&manual_quantity=2&manual_price=50&discount=0&total_amount=115"
+	req := httptest.NewRequest("POST", "/api/purchase-bills", strings.NewReader(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-conflict-create"})
+	w := httptest.NewRecorder()
+
+	HandleCreatePurchaseBill(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d. body: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "رقم فاتورة المورد مكرر لهذا المورد") {
+		t.Fatalf("expected translated backend conflict message, got %q", w.Body.String())
+	}
+}
+
 // TestPBDetailShowsPdfLinkFromBackend verifies that when the backend returns a
 // real pdf_link (with file extension), it is shown in the detail page.
 func TestPBDetailShowsPdfLinkFromBackend(t *testing.T) {

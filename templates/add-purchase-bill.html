@@ -20,8 +20,10 @@
                 </select>
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.pb.supplier_bill_number" }}</label>
-                <input type="text" name="supplier_sequance_number" class="w-full" maxlength="50">
+                <label class="form-label">{{ L "tpl.pb.supplier_bill_number" }} <span class="required-mark">*</span></label>
+                <input type="text" name="supplier_sequance_number" id="supplier_sequence_input" class="w-full" maxlength="50" inputmode="numeric" aria-describedby="supplier-sequence-duplicate-error supplier-sequence-duplicate-warning" required>
+                <p id="supplier-sequence-duplicate-error" class="text-xs mt-1 text-red-600 hidden" role="alert"></p>
+                <p id="supplier-sequence-duplicate-warning" class="text-xs mt-1 text-amber-700 hidden"></p>
             </div>
             <div>
                 <label class="form-label">{{ L "tpl.pb.date" }}</label>
@@ -146,7 +148,7 @@
 </div>
 
 <script>
-    var purchaseBillLabels = {{ dict "oemLabel" (L "tpl.pb.oem_label") "oemPlaceholder" (L "tpl.pb.oem_placeholder") "quantity" (L "tpl.pb.quantity") "sellingPrice" (L "tpl.product.selling_price") "costPrice" (L "tpl.product.cost_price") "shelfNumber" (L "tpl.product.shelf_number") "deleteLabel" (L "tpl.delete") "partName" (L "tpl.pb.part_name") "enterPartName" (L "tpl.pb.enter_part_name") "purchasePrice" (L "tpl.pb.purchase_price") | json }};
+    var purchaseBillLabels = {{ dict "oemLabel" (L "tpl.pb.oem_label") "oemPlaceholder" (L "tpl.pb.oem_placeholder") "quantity" (L "tpl.pb.quantity") "sellingPrice" (L "tpl.product.selling_price") "costPrice" (L "tpl.product.cost_price") "shelfNumber" (L "tpl.product.shelf_number") "deleteLabel" (L "tpl.delete") "partName" (L "tpl.pb.part_name") "enterPartName" (L "tpl.pb.enter_part_name") "purchasePrice" (L "tpl.pb.purchase_price") "duplicateSupplierInvoice" (L "tpl.pb.duplicate_supplier_invoice") "duplicateCheckWarning" (L "tpl.pb.duplicate_check_warning") "viewPurchaseBill" (L "tpl.pb.view_purchase_bill") | json }};
 
     // Supplier payment data for payment method defaults and credit checks
     var suppliersData = {
@@ -214,6 +216,154 @@
     }
     document.querySelector('[name="supplier_id"]').addEventListener('change', onSupplierChange);
     document.querySelector('[name="payment_date"]').addEventListener('change', onPaymentMethodChange);
+
+    var purchaseBillDuplicateState = { exists: false, requestId: 0, timer: null, lastCheckedKey: '', inFlightKey: '' };
+
+    function getPurchaseSubmitButton() {
+        var form = document.getElementById('purchase-form');
+        return form ? form.querySelector('button[type="submit"]') : null;
+    }
+
+    function updatePurchaseSubmitState() {
+        var submit = getPurchaseSubmitButton();
+        if (!submit) return;
+        submit.disabled = purchaseBillDuplicateState.exists;
+    }
+
+    function clearPurchaseBillDuplicateMessages() {
+        var errorEl = document.getElementById('supplier-sequence-duplicate-error');
+        var warningEl = document.getElementById('supplier-sequence-duplicate-warning');
+        if (errorEl) {
+            errorEl.classList.add('hidden');
+            errorEl.textContent = '';
+        }
+        if (warningEl) {
+            warningEl.classList.add('hidden');
+            warningEl.textContent = '';
+        }
+    }
+
+    function setPurchaseBillDuplicateError(data) {
+        var errorEl = document.getElementById('supplier-sequence-duplicate-error');
+        if (!errorEl) return;
+        var message = escapeHtml(purchaseBillLabels.duplicateSupplierInvoice);
+        if (data && data.purchase_bill_id) {
+            message += ' <a class="underline" href="/dashboard/purchase-bills/' + encodeURIComponent(data.purchase_bill_id) + '">' + escapeHtml(purchaseBillLabels.viewPurchaseBill) + '</a>';
+        }
+        errorEl.innerHTML = message;
+        errorEl.classList.remove('hidden');
+    }
+
+    function setPurchaseBillDuplicateWarning() {
+        var warningEl = document.getElementById('supplier-sequence-duplicate-warning');
+        if (!warningEl) return;
+        warningEl.textContent = purchaseBillLabels.duplicateCheckWarning;
+        warningEl.classList.remove('hidden');
+    }
+
+    function readPurchaseBillDuplicateValues() {
+        var supplierEl = document.querySelector('[name="supplier_id"]');
+        var sequenceEl = document.getElementById('supplier_sequence_input');
+        var supplierId = parseInt(supplierEl ? supplierEl.value : '', 10);
+        var sequenceValue = sequenceEl ? sequenceEl.value.trim() : '';
+        if (!supplierId || !/^\d+$/.test(sequenceValue)) {
+            return null;
+        }
+        return {
+            supplier_id: supplierId,
+            supplier_sequence_number: parseInt(sequenceValue, 10)
+        };
+    }
+
+    function purchaseBillDuplicateKey(payload) {
+        return payload ? String(payload.supplier_id) + ':' + String(payload.supplier_sequence_number) : '';
+    }
+
+    function checkPurchaseBillDuplicate() {
+        window.clearTimeout(purchaseBillDuplicateState.timer);
+        purchaseBillDuplicateState.timer = null;
+        var payload = readPurchaseBillDuplicateValues();
+        var key = purchaseBillDuplicateKey(payload);
+        if (!payload) {
+            purchaseBillDuplicateState.requestId += 1;
+            purchaseBillDuplicateState.lastCheckedKey = '';
+            purchaseBillDuplicateState.inFlightKey = '';
+            purchaseBillDuplicateState.exists = false;
+            clearPurchaseBillDuplicateMessages();
+            updatePurchaseSubmitState();
+            return;
+        }
+        if (key === purchaseBillDuplicateState.lastCheckedKey || key === purchaseBillDuplicateState.inFlightKey) {
+            return;
+        }
+        purchaseBillDuplicateState.requestId += 1;
+        var requestId = purchaseBillDuplicateState.requestId;
+        purchaseBillDuplicateState.inFlightKey = key;
+        fetch('/api/purchase-bills/duplicate-check', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': getCsrfCookie()
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(function (response) {
+                if (!response.ok) throw new Error('duplicate check failed');
+                return response.json();
+            })
+            .then(function (data) {
+                if (requestId !== purchaseBillDuplicateState.requestId) return;
+                purchaseBillDuplicateState.inFlightKey = '';
+                purchaseBillDuplicateState.lastCheckedKey = key;
+                clearPurchaseBillDuplicateMessages();
+                purchaseBillDuplicateState.exists = !!(data && data.exists);
+                if (purchaseBillDuplicateState.exists) {
+                    setPurchaseBillDuplicateError(data);
+                }
+                updatePurchaseSubmitState();
+            })
+            .catch(function () {
+                if (requestId !== purchaseBillDuplicateState.requestId) return;
+                purchaseBillDuplicateState.inFlightKey = '';
+                purchaseBillDuplicateState.lastCheckedKey = key;
+                clearPurchaseBillDuplicateMessages();
+                purchaseBillDuplicateState.exists = false;
+                setPurchaseBillDuplicateWarning();
+                updatePurchaseSubmitState();
+            });
+    }
+
+    function debouncePurchaseBillDuplicateCheck() {
+        window.clearTimeout(purchaseBillDuplicateState.timer);
+        var payload = readPurchaseBillDuplicateValues();
+        var key = purchaseBillDuplicateKey(payload);
+        if (!payload) {
+            purchaseBillDuplicateState.requestId += 1;
+            purchaseBillDuplicateState.lastCheckedKey = '';
+            purchaseBillDuplicateState.inFlightKey = '';
+            purchaseBillDuplicateState.exists = false;
+            clearPurchaseBillDuplicateMessages();
+            updatePurchaseSubmitState();
+            return;
+        }
+        if (key === purchaseBillDuplicateState.lastCheckedKey || key === purchaseBillDuplicateState.inFlightKey) {
+            return;
+        }
+        purchaseBillDuplicateState.requestId += 1;
+        purchaseBillDuplicateState.exists = false;
+        clearPurchaseBillDuplicateMessages();
+        updatePurchaseSubmitState();
+        purchaseBillDuplicateState.timer = window.setTimeout(checkPurchaseBillDuplicate, 350);
+    }
+
+    (function setupPurchaseBillDuplicateCheck() {
+        var supplierEl = document.querySelector('[name="supplier_id"]');
+        var sequenceEl = document.getElementById('supplier_sequence_input');
+        if (!supplierEl || !sequenceEl) return;
+        supplierEl.addEventListener('change', checkPurchaseBillDuplicate);
+        sequenceEl.addEventListener('blur', checkPurchaseBillDuplicate);
+        sequenceEl.addEventListener('input', debouncePurchaseBillDuplicateCheck);
+    })();
 
     var searchTimers = {};
 
@@ -614,6 +764,12 @@
 
     // Prevent form submission if bill_pdf has validation errors
     document.getElementById('purchase-form').addEventListener('htmx:configRequest', function(e) {
+        if (purchaseBillDuplicateState.exists) {
+            e.preventDefault();
+            var sequenceInput = document.getElementById('supplier_sequence_input');
+            if (sequenceInput) sequenceInput.focus();
+            return;
+        }
         var pdfRequired = '{{ .pb_pdf_required }}' === 'required';
         if (!pdfRequired) return; // optional or disabled — skip PDF validation
         var pdfInput = document.querySelector('[name="bill_pdf"]');

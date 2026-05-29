@@ -224,7 +224,8 @@ func (rw *responseWrapper) attemptTokenRefresh() bool {
 	}
 
 	// Update session with new tokens AND expiry
-	newExpiry := time.Now().Add(15 * time.Minute)
+	issuedAt := time.Now()
+	newExpiry := helpers.AccessTokenExpiry(authResp.AccessToken, issuedAt)
 	config.SessionTokensMutex.Lock()
 	config.SessionTokens[rw.sessionID] = authResp.AccessToken
 	if authResp.RefreshToken != "" {
@@ -242,7 +243,7 @@ func (rw *responseWrapper) attemptTokenRefresh() bool {
 		AccessToken:  authResp.AccessToken,
 		RefreshToken: refTok,
 		ExpiresAt:    newExpiry,
-		CreatedAt:    time.Now(),
+		CreatedAt:    issuedAt,
 	}
 	if err := helpers.SaveTokenToFile(rw.sessionID, token); err != nil {
 		log.Printf("⚠️  Failed to persist refreshed token: %v", err)
@@ -294,7 +295,8 @@ func RefreshTokenIfNeeded(sessionID string) error {
 	}
 
 	// Update session with new tokens AND expiry
-	newExpiry := time.Now().Add(15 * time.Minute)
+	issuedAt := time.Now()
+	newExpiry := helpers.AccessTokenExpiry(authResp.AccessToken, issuedAt)
 	config.SessionTokensMutex.Lock()
 	config.SessionTokens[sessionID] = authResp.AccessToken
 	if authResp.RefreshToken != "" {
@@ -312,7 +314,7 @@ func RefreshTokenIfNeeded(sessionID string) error {
 		AccessToken:  authResp.AccessToken,
 		RefreshToken: refTok,
 		ExpiresAt:    newExpiry,
-		CreatedAt:    time.Now(),
+		CreatedAt:    issuedAt,
 	}
 	if err := helpers.SaveTokenToFile(sessionID, token); err != nil {
 		log.Printf("⚠️  Failed to persist refreshed token: %v", err)

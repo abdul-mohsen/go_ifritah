@@ -25,10 +25,10 @@ var apiDebug = os.Getenv("AFRITA_API_DEBUG") == "1"
 // Log format constants for apiLogf — keep duplicated emoji-prefixed strings
 // out of the call sites (SonarCloud S1192 / "no duplicated string literals").
 const (
-	logFmtAPIRequest  = "🔵 [API REQUEST] POST %s%s"
-	logFmtAPIBody     = "🔵 [API BODY] %s"
-	logFmtAPIRespErr  = "🔴 [API RESPONSE] Status: %d"
-	logMsgAPIRespOK   = "🟢 [API RESPONSE] Status: 200 OK"
+	logFmtAPIRequest = "🔵 [API REQUEST] POST %s%s"
+	logFmtAPIBody    = "🔵 [API BODY] %s"
+	logFmtAPIRespErr = "🔴 [API RESPONSE] Status: %d"
+	logMsgAPIRespOK  = "🟢 [API RESPONSE] Status: 200 OK"
 )
 
 // apiLogf is a no-op unless AFRITA_API_DEBUG=1 in the environment.
@@ -75,7 +75,29 @@ func GetTokenFromRequest(r *http.Request) string {
 }
 
 func GetTokenOrRedirect(w http.ResponseWriter, r *http.Request) (string, bool) {
-	token := GetTokenFromRequest(r)
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return "", false
+	}
+
+	sessionID := cookie.Value
+	config.SessionTokensMutex.RLock()
+	token, exists := config.SessionTokens[sessionID]
+	config.SessionTokensMutex.RUnlock()
+	if !exists || token == "" {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return "", false
+	}
+
+	if !RefreshTokenIfNeeded(w, r, sessionID) {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return "", false
+	}
+
+	config.SessionTokensMutex.RLock()
+	token = config.SessionTokens[sessionID]
+	config.SessionTokensMutex.RUnlock()
 	if token == "" {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return "", false

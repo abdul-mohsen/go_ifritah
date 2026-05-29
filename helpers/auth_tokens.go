@@ -15,6 +15,8 @@ import (
 	"afrita/models"
 )
 
+const defaultAccessTokenTTL = 15 * time.Minute
+
 // SaveTokenToFile persists token data to a JSON file
 func SaveTokenToFile(sessionID string, token *models.Token) error {
 	if sessionID == "" || token == nil {
@@ -77,6 +79,59 @@ func DeleteTokenFile(sessionID string) error {
 
 	log.Printf("🗑️  Token file deleted for session: %s", sessionID)
 	return nil
+}
+
+// AccessTokenExpiry returns the JWT exp claim when the backend provides a JWT.
+// The fallback keeps older/opaque test tokens working instead of logging users out.
+func AccessTokenExpiry(accessToken string, issuedAt time.Time) time.Time {
+	if expiry, ok := DecodeJWTExpiry(accessToken); ok {
+		return expiry
+	}
+	return issuedAt.Add(defaultAccessTokenTTL)
+}
+
+func DecodeJWTExpiry(accessToken string) (time.Time, bool) {
+	parts := strings.Split(accessToken, ".")
+	if len(parts) < 2 {
+		return time.Time{}, false
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		segment := parts[1]
+		switch len(segment) % 4 {
+		case 2:
+			segment += "=="
+		case 3:
+			segment += "="
+		}
+		payload, err = base64.URLEncoding.DecodeString(segment)
+		if err != nil {
+			return time.Time{}, false
+		}
+	}
+
+	var claims struct {
+		Exp json.Number `json:"exp"`
+	}
+	decoder := json.NewDecoder(strings.NewReader(string(payload)))
+	decoder.UseNumber()
+	if err := decoder.Decode(&claims); err != nil || claims.Exp == "" {
+		return time.Time{}, false
+	}
+
+	seconds, err := claims.Exp.Int64()
+	if err != nil {
+		floatSeconds, floatErr := claims.Exp.Float64()
+		if floatErr != nil {
+			return time.Time{}, false
+		}
+		seconds = int64(floatSeconds)
+	}
+	if seconds <= 0 {
+		return time.Time{}, false
+	}
+	return time.Unix(seconds, 0), true
 }
 
 // LoadPersistedTokens loads all tokens from disk into memory on app startup
@@ -222,7 +277,8 @@ func RefreshTokenIfNeeded(w http.ResponseWriter, r *http.Request, sessionID stri
 	}
 
 	// Update session with new tokens
-	newExpiryTime := time.Now().Add(15 * time.Minute)
+	issuedAt := time.Now()
+	newExpiryTime := AccessTokenExpiry(authResp.AccessToken, issuedAt)
 	config.SessionTokensMutex.Lock()
 	config.SessionTokens[sessionID] = authResp.AccessToken
 	if authResp.RefreshToken != "" {
@@ -236,7 +292,7 @@ func RefreshTokenIfNeeded(w http.ResponseWriter, r *http.Request, sessionID stri
 		AccessToken:  authResp.AccessToken,
 		RefreshToken: authResp.RefreshToken,
 		ExpiresAt:    newExpiryTime,
-		CreatedAt:    time.Now(),
+		CreatedAt:    issuedAt,
 	}
 	if err := SaveTokenToFile(sessionID, token); err != nil {
 		log.Printf("⚠️  Failed to persist refreshed token: %v", err)

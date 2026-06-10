@@ -13,11 +13,16 @@
             </div>
             <div>
                 <label class="form-label">{{ L "tpl.pb.supplier" }} <span class="required-mark">*</span></label>
-                <select name="supplier_id" class="w-full" required>
-                    {{ range .suppliers }}
-                    <option value="{{ .ID }}">{{ .Name }}</option>
-                    {{ end }}
-                </select>
+                <div class="supplier-search-wrap">
+                    <input type="text" id="supplier_search_input" class="w-full supplier-search-input" placeholder="{{ L "tpl.pb.search_supplier" }}" autocomplete="off">
+                    <div id="supplier_search_results" class="supplier-search-results hidden"></div>
+                    <select name="supplier_id" id="supplier_id_select" class="hidden" required>
+                        <option value="">{{ L "tpl.pb.select_supplier" }}</option>
+                        {{ range .suppliers }}
+                        <option value="{{ .ID }}" data-name="{{ .Name }}" data-credit-limit="{{ .CreditLimit }}">{{ .Name }}</option>
+                        {{ end }}
+                    </select>
+                </div>
             </div>
             <div>
                 <label class="form-label">{{ L "tpl.pb.supplier_bill_number" }} <span class="required-mark">*</span></label>
@@ -214,7 +219,7 @@
         }
         checkCreditLimit();
     }
-    document.querySelector('[name="supplier_id"]').addEventListener('change', onSupplierChange);
+    document.getElementById('supplier_id_select').addEventListener('change', onSupplierChange);
     document.querySelector('[name="payment_date"]').addEventListener('change', onPaymentMethodChange);
 
     var purchaseBillDuplicateState = { exists: false, requestId: 0, timer: null, lastCheckedKey: '', inFlightKey: '' };

@@ -31,3 +31,4 @@ jobs:
           cache: true
       - name: Run go test
         run: go test ./handlers/... ./helpers/... ./config/... ./middleware/... ./models/... -count=1 -short
+# Fixed

@@ -13,11 +13,15 @@
             </div>
             <div>
                 <label class="form-label">{{ L "tpl.pb.supplier" }} <span class="required-mark">*</span></label>
-                <select name="supplier_id" class="w-full" required>
-                    {{ range .suppliers }}
-                    <option value="{{ .ID }}">{{ .Name }}</option>
-                    {{ end }}
-                </select>
+                <div class="relative">
+                    <input type="text" id="supplier_search_input" class="w-full border border-gray-300 rounded px-3 py-2 mb-2" placeholder="Search supplier..." autocomplete="off">
+                    <select name="supplier_id" class="w-full" required>
+                        {{ range .suppliers }}
+                        <option value="{{ .ID }}" data-name="{{ .Name }}">{{ .Name }}</option>
+                        {{ end }}
+                    </select>
+                    <div id="supplier_search_results" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg z-50 max-h-48 overflow-y-auto"></div>
+                </div>
             </div>
             <div>
                 <label class="form-label">{{ L "tpl.pb.supplier_bill_number" }} <span class="required-mark">*</span></label>
@@ -486,6 +490,79 @@
     function escapeAttr(s) {
         return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
+
+    // Supplier search dropdown
+    (function() {
+        var input = document.getElementById('supplier_search_input');
+        var results = document.getElementById('supplier_search_results');
+        var select = document.querySelector('[name="supplier_id"]');
+        if (!input || !select) {
+            return;
+        }
+
+        function getSuppliers() {
+            var list = [];
+            var opts = select.querySelectorAll('option');
+            for (var i = 0; i < opts.length; i++) {
+                if (opts[i].value) {
+                    var name = opts[i].getAttribute('data-name') || opts[i].textContent;
+                    list.push({id: opts[i].value, name: name});
+                }
+            }
+            return list;
+        }
+
+        function filter(q) {
+            if (!q) {
+                return [];
+            }
+            var lower = q.toLowerCase();
+            return getSuppliers().filter(function(s) {
+                return s.name.toLowerCase().includes(lower);
+            });
+        }
+
+        function render(items) {
+            if (!items.length) {
+                results.innerHTML = '';
+                results.classList.add('hidden');
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < items.length; i++) {
+                html += '<div class="supplier-search-item px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer" data-id="' + escapeAttr(items[i].id) + '">' + escapeHtml(items[i].name) + '</div>';
+            }
+            results.innerHTML = html;
+            results.classList.remove('hidden');
+        }
+
+        input.addEventListener('input', function() {
+            render(filter(this.value));
+        });
+        input.addEventListener('blur', function() {
+            setTimeout(function() {
+                results.classList.add('hidden');
+            }, 100);
+        });
+
+        results.addEventListener('click', function(e) {
+            var item = e.target.closest('.supplier-search-item');
+            if (!item) {
+                return;
+            }
+            input.value = item.textContent;
+            select.value = item.getAttribute('data-id');
+            results.classList.add('hidden');
+            select.dispatchEvent(new Event('change', {bubbles: true}));
+        });
+
+        var first = select.querySelector('option[value]');
+        if (first) {
+            select.value = first.value;
+            var name = first.getAttribute('data-name') || first.textContent;
+            input.value = name;
+        }
+    })();
 
     // Close dropdowns when clicking outside
     document.addEventListener('click', function (e) {

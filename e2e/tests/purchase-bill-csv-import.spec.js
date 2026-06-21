@@ -6,24 +6,28 @@ test.describe('Purchase Bill CSV Import', () => {
   });
 
   test('CSV import buttons visible', async ({ page }) => {
-    const downloadBtn = page.locator('button:has-text("Download Template")');
-    const uploadLabel = page.locator('label:has-text("Upload CSV")');
+    const downloadBtn = page.locator('button[onclick="downloadCSVTemplate()"]');
+    const uploadInput = page.locator('input[type="file"][accept=".csv"]');
     
     await expect(downloadBtn).toBeVisible();
-    await expect(uploadLabel).toBeVisible();
+    await expect(uploadInput).toBeVisible();
   });
 
   test('download CSV template', async ({ page, context }) => {
-    // Intercept download
-    const downloadPromise = context.waitForEvent('page');
-    await page.click('button:has-text("Download Template")');
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle');
     
-    // Verify download initiated (page won't be created for file download)
+    // Click download button
+    const downloadBtn = page.locator('button[onclick="downloadCSVTemplate()"]');
+    await downloadBtn.click();
+    
+    // Wait for download to initiate
     await page.waitForTimeout(500);
-    // Just verify no errors occurred
   });
 
   test('upload and populate CSV items', async ({ page }) => {
+    await page.waitForLoadState('networkidle');
+    
     // Create a test CSV file
     const csvContent = `اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف
 محرك,5,150.50,130.00,A1
@@ -48,6 +52,8 @@ test.describe('Purchase Bill CSV Import', () => {
   });
 
   test('handles invalid CSV gracefully', async ({ page }) => {
+    await page.waitForLoadState('networkidle');
+    
     const fileInput = page.locator('input[type="file"][accept=".csv"]');
     
     // Upload empty/invalid file

@@ -700,7 +700,10 @@
         var preview = document.getElementById('documents_preview');
         preview.innerHTML = '';
         var files = accumulatedDocFiles.files;
-        if (files.length === 0) { zone.classList.remove('has-file'); return; }
+        if (files.length === 0) {
+           zone.classList.remove('has-file');
+           return;
+        }
         zone.classList.add('has-file');
         zone.classList.remove('has-error');
         for (var i = 0; i < files.length; i++) {

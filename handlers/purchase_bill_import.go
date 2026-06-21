@@ -3,13 +3,10 @@ package handlers
 import (
 	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"afrita/helpers"
 )
 
 type ImportedItem struct {

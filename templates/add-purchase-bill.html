@@ -230,7 +230,9 @@
 
     function updatePurchaseSubmitState() {
         var submit = getPurchaseSubmitButton();
-        if (!submit) return;
+        if (!submit) {
+            return;
+        }
         submit.disabled = purchaseBillDuplicateState.exists;
     }
 
@@ -249,7 +251,9 @@
 
     function setPurchaseBillDuplicateError(data) {
         var errorEl = document.getElementById('supplier-sequence-duplicate-error');
-        if (!errorEl) return;
+        if (!errorEl) {
+            return;
+        }
         var message = escapeHtml(purchaseBillLabels.duplicateSupplierInvoice);
         if (data && data.purchase_bill_id) {
             message += ' <a class="underline" href="/dashboard/purchase-bills/' + encodeURIComponent(data.purchase_bill_id) + '">' + escapeHtml(purchaseBillLabels.viewPurchaseBill) + '</a>';
@@ -260,7 +264,9 @@
 
     function setPurchaseBillDuplicateWarning() {
         var warningEl = document.getElementById('supplier-sequence-duplicate-warning');
-        if (!warningEl) return;
+        if (!warningEl) {
+            return;
+        }
         warningEl.textContent = purchaseBillLabels.duplicateCheckWarning;
         warningEl.classList.remove('hidden');
     }
@@ -316,7 +322,9 @@
                 return response.json();
             })
             .then(function (data) {
-                if (requestId !== purchaseBillDuplicateState.requestId) return;
+                if (requestId !== purchaseBillDuplicateState.requestId) {
+                    return;
+                }
                 purchaseBillDuplicateState.inFlightKey = '';
                 purchaseBillDuplicateState.lastCheckedKey = key;
                 clearPurchaseBillDuplicateMessages();
@@ -327,7 +335,9 @@
                 updatePurchaseSubmitState();
             })
             .catch(function () {
-                if (requestId !== purchaseBillDuplicateState.requestId) return;
+                if (requestId !== purchaseBillDuplicateState.requestId) {
+                    return;
+                }
                 purchaseBillDuplicateState.inFlightKey = '';
                 purchaseBillDuplicateState.lastCheckedKey = key;
                 clearPurchaseBillDuplicateMessages();
@@ -363,7 +373,9 @@
     (function setupPurchaseBillDuplicateCheck() {
         var supplierEl = document.querySelector('[name="supplier_id"]');
         var sequenceEl = document.getElementById('supplier_sequence_input');
-        if (!supplierEl || !sequenceEl) return;
+        if (!supplierEl || !sequenceEl) {
+            return;
+        }
         supplierEl.addEventListener('change', checkPurchaseBillDuplicate);
         sequenceEl.addEventListener('blur', checkPurchaseBillDuplicate);
         sequenceEl.addEventListener('input', debouncePurchaseBillDuplicateCheck);
@@ -736,7 +748,9 @@
         errorEl.classList.add('hidden');
         errorEl.textContent = '';
         zone.classList.remove('has-file', 'has-error');
-        if (!input.files || input.files.length === 0) return;
+        if (!input.files || input.files.length === 0) {
+            return;
+        }
         var file = input.files[0];
         if (file.size > 5 * 1024 * 1024) {
             errorEl.textContent = '{{ L "tpl.pb.file_size_exceeded" }}';
@@ -760,7 +774,9 @@
         var zone = document.getElementById('documents_zone');
         errorEl.classList.add('hidden');
         errorEl.textContent = '';
-        if (!input.files || input.files.length === 0) return;
+        if (!input.files || input.files.length === 0) {
+            return;
+        }
         var allowed = ['.pdf', '.jpg', '.jpeg', '.png'];
         // Validate new files before adding
         for (var i = 0; i < input.files.length; i++) {
@@ -847,11 +863,15 @@
         if (purchaseBillDuplicateState.exists) {
             e.preventDefault();
             var sequenceInput = document.getElementById('supplier_sequence_input');
-            if (sequenceInput) sequenceInput.focus();
+            if (sequenceInput) {
+                sequenceInput.focus();
+            }
             return;
         }
         var pdfRequired = '{{ .pb_pdf_required }}' === 'required';
-        if (!pdfRequired) return; // optional or disabled — skip PDF validation
+        if (!pdfRequired) {
+            return; // optional or disabled — skip PDF validation
+        }
         var pdfInput = document.querySelector('[name="bill_pdf"]');
         var pdfError = document.getElementById('bill_pdf_error');
         var pdfZone = document.getElementById('bill_pdf_zone');

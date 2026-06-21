@@ -675,8 +675,12 @@
     recalculateTotal();
 
     function formatFileSize(bytes) {
-        if (bytes < 1024) return bytes + ' {{ L "tpl.pb.file_bytes" }}';
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' {{ L "tpl.pb.file_kb" }}';
+        if (bytes < 1024) {
+            return bytes + ' {{ L "tpl.pb.file_bytes" }}';
+        }
+        if (bytes < 1024 * 1024) {
+            return (bytes / 1024).toFixed(1) + ' {{ L "tpl.pb.file_kb" }}';
+        }
         return (bytes / (1024 * 1024)).toFixed(1) + ' {{ L "tpl.pb.file_mb" }}';
     }
 
@@ -812,7 +816,9 @@
         function setupDragDrop(zoneId, inputId, validateFn) {
             var zone = document.getElementById(zoneId);
             var input = document.getElementById(inputId);
-            if (!zone || !input) return;
+            if (!zone || !input) {
+                return;
+            }
             var dragCounter = 0;
 
             zone.addEventListener('dragenter', function(e) {

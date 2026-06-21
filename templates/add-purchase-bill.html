@@ -79,6 +79,21 @@
         </div>
 
         <div class="mt-6">
+            <h4 class="section-card-title">{{ L "tpl.pb.csv_import" }}</h4>
+            <div class="flex gap-2 mb-4">
+                <button type="button" onclick="downloadCSVTemplate()" class="btn btn-outline btn-xs">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    {{ L "tpl.pb.download_template" }}
+                </button>
+                <label class="btn btn-outline btn-xs cursor-pointer">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    {{ L "tpl.pb.upload_csv" }}
+                    <input type="file" accept=".csv" onchange="handleCSVUpload(this)" style="display:none">
+                </label>
+            </div>
+        </div>
+
+        <div class="mt-6">
             <h4 class="section-card-title">{{ L "tpl.pb.manual_parts" }}</h4>
             <div id="manual-container" class="space-y-3"></div>
             <button type="button" onclick="addManualItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.pb.add_manual_part" }}</button>
@@ -786,5 +801,41 @@
             e.preventDefault();
         }
     });
+
+    // CSV import functions
+    function downloadCSVTemplate() {
+        window.location.href = '/api/purchase-bills/import-template';
+    }
+
+    function handleCSVUpload(input) {
+        if (!input.files || input.files.length === 0) return;
+        
+        const formData = new FormData();
+        formData.append('file', input.files[0]);
+        
+        fetch('/api/purchase-bills/parse-csv', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(items => {
+            if (items.error) {
+                alert('خطأ في الملف: ' + items.error);
+                return;
+            }
+            const container = document.getElementById('manual-container');
+            items.forEach(item => {
+                const row = createManualRow(container.children.length);
+                row.querySelector('[name="part_name[]"]').value = item.partName;
+                row.querySelector('[name="quantity[]"]').value = item.quantity;
+                row.querySelector('[name="purchase_price[]"]').value = item.purchasePrice;
+                row.querySelector('[name="cost_price[]"]').value = item.costPrice;
+                row.querySelector('[name="shelf_number[]"]').value = item.shelfNumber;
+                container.appendChild(row);
+            });
+            input.value = '';
+        })
+        .catch(e => alert('فشل التحميل: ' + e.message));
+    }
 </script>
 {{ end }}

@@ -293,9 +293,9 @@
       return;
     }
     // Inline mini-prompt — replace the search input contents with a
-    // placeholder hint and listen for the next Enter / Tab.
+    // placeholder hint and listen for every keystroke (live update).
     var prevPh = input.placeholder;
-    input.placeholder = fieldDef.label + ' — اكتب القيمة ثم Enter';
+    input.placeholder = fieldDef.label + ' — اكتب القيمة (البحث مباشر)';
     input.value = '';
     input.focus();
     function onKey(e) {
@@ -314,11 +314,27 @@
         cleanup();
       }
     }
+    var submitTimer = null;
+    function onInput(e) {
+      var v = input.value.trim();
+      if (v) {
+        addTypedFilter(form, fieldDef.param, v, fieldDef.kind);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        // Debounce form submission: cancel previous timer, set new one
+        if (submitTimer) clearTimeout(submitTimer);
+        submitTimer = setTimeout(function () {
+          if (typeof form.requestSubmit === 'function') form.requestSubmit();
+        }, 350);  // 350ms debounce
+      }
+    }
     function cleanup() {
       input.placeholder = prevPh;
       input.removeEventListener('keydown', onKey);
+      input.removeEventListener('input', onInput);
+      if (submitTimer) clearTimeout(submitTimer);
     }
     input.addEventListener('keydown', onKey);
+    input.addEventListener('input', onInput);
   }
 
   // Backend (mailbox #34) does plain LIKE on the raw column — no Arabic-Indic

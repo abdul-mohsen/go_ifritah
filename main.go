@@ -94,6 +94,8 @@ func main() {
 	router.HandleFunc("/dashboard/purchase-bills/edit/{id}", protect("purchase_bills", "edit", handlers.HandleEditPurchaseBill)).Methods("GET")
 	router.HandleFunc("/dashboard/purchase-bills/{id}", protect("purchase_bills", "view", handlers.HandleGetPurchaseBill)).Methods("GET")
 	router.HandleFunc("/api/purchase-bills/duplicate-check", protect("purchase_bills", "add", handlers.HandlePurchaseBillDuplicateCheck)).Methods("POST")
+	router.HandleFunc("/api/purchase-bills/excel-template", protect("purchase_bills", "add", handlers.HandleDownloadPurchaseBillExcelTemplate)).Methods("GET")
+	router.HandleFunc("/api/purchase-bills/parse-excel", protect("purchase_bills", "add", handlers.HandleParseExcelItems)).Methods("POST")
 	router.HandleFunc("/api/purchase-bills/import-template", protect("purchase_bills", "add", handlers.HandleDownloadPurchaseBillTemplate)).Methods("GET")
 	router.HandleFunc("/api/purchase-bills/parse-csv", protect("purchase_bills", "add", handlers.HandleParseCSVItems)).Methods("POST")
 	router.HandleFunc("/api/purchase-bills/{id}", protect("purchase_bills", "view", handlers.HandleGetPurchaseBill)).Methods("GET")

@@ -66,6 +66,56 @@ func TestAddPurchaseBillPageHasManualSection(t *testing.T) {
 	}
 }
 
+func TestAddPurchaseBillPageHasWorkingExcelImportSection(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	config.SessionTokensMutex.Lock()
+	config.SessionTokens["pb-import-test-session"] = "pb-import-test-token"
+	config.SessionTokensMutex.Unlock()
+	defer func() {
+		config.SessionTokensMutex.Lock()
+		delete(config.SessionTokens, "pb-import-test-session")
+		config.SessionTokensMutex.Unlock()
+	}()
+
+	req := httptest.NewRequest("GET", "/dashboard/purchase-bills/add", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-import-test-session"})
+	w := httptest.NewRecorder()
+
+	HandleAddPurchaseBill(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, "downloadExcelTemplate") {
+		t.Error("expected add-purchase-bill page to expose the Excel template download action")
+	}
+	if !strings.Contains(body, "/api/purchase-bills/excel-template") {
+		t.Error("expected add-purchase-bill page to use the Excel template endpoint")
+	}
+	if !strings.Contains(body, "handleExcelUpload") {
+		t.Error("expected add-purchase-bill page to expose the Excel upload handler")
+	}
+	if !strings.Contains(body, `accept=".xlsx"`) {
+		t.Error("expected add-purchase-bill page to accept .xlsx uploads")
+	}
+	if strings.Contains(body, "createManualRow") {
+		t.Error("imported purchase-bill rows should reuse the existing itemRow builder, not the missing createManualRow helper")
+	}
+	if !strings.Contains(body, `container.insertAdjacentHTML('beforeend', itemRow())`) {
+		t.Error("expected Excel import to append rows using the existing purchase-bill itemRow builder")
+	}
+	if !strings.Contains(body, `row.querySelector('[name="products_part_name"]')`) {
+		t.Error("expected Excel import to populate products_part_name so imported rows submit correctly")
+	}
+}
+
 func TestPurchaseBillsEmptyStateAddLinkUsesRegisteredRoute(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

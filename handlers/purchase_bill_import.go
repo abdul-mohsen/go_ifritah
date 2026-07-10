@@ -25,8 +25,19 @@ type ImportedItem struct {
 
 var purchaseBillImportTemplateHeader = []string{"اسم القطعة", "الكمية", "سعر الشراء", "سعر التكلفة", "رقم الرف"}
 
-// HandleDownloadPurchaseBillTemplate generates the purchase-bill import template.
+// HandleDownloadPurchaseBillTemplate generates the purchase-bill CSV import template.
 func HandleDownloadPurchaseBillTemplate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Disposition", "attachment; filename=purchase-bill-template.csv")
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+
+	if _, err := w.Write(buildPurchaseBillImportCSVTemplate()); err != nil {
+		http.Error(w, "failed to write template", http.StatusInternalServerError)
+		return
+	}
+}
+
+// HandleDownloadPurchaseBillExcelTemplate keeps the Excel template endpoint working.
+func HandleDownloadPurchaseBillExcelTemplate(w http.ResponseWriter, r *http.Request) {
 	workbook, err := buildPurchaseBillImportWorkbook([][]string{
 		purchaseBillImportTemplateHeader,
 		{"مثال", "10", "100.00", "90.00", "A1"},
@@ -41,12 +52,8 @@ func HandleDownloadPurchaseBillTemplate(w http.ResponseWriter, r *http.Request) 
 
 	if _, err := w.Write(workbook); err != nil {
 		http.Error(w, "failed to write template", http.StatusInternalServerError)
+		return
 	}
-}
-
-// HandleDownloadPurchaseBillExcelTemplate serves the canonical Excel template endpoint.
-func HandleDownloadPurchaseBillExcelTemplate(w http.ResponseWriter, r *http.Request) {
-	HandleDownloadPurchaseBillTemplate(w, r)
 }
 
 // HandleParseExcelItems parses the uploaded import file and returns purchase-bill items.
@@ -208,6 +215,15 @@ func parseOptionalFloat(value string) (float64, error) {
 func writeImportError(w http.ResponseWriter, status int, message string) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+func buildPurchaseBillImportCSVTemplate() []byte {
+	var buffer bytes.Buffer
+	writer := csv.NewWriter(&buffer)
+	_ = writer.Write(purchaseBillImportTemplateHeader)
+	_ = writer.Write([]string{"مثال", "10", "100.00", "90.00", "A1"})
+	writer.Flush()
+	return buffer.Bytes()
 }
 
 func buildPurchaseBillImportWorkbook(rows [][]string) ([]byte, error) {

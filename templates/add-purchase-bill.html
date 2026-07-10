@@ -607,7 +607,6 @@
     function formatFileSize(bytes) {
         if (bytes < 1024) return bytes + ' {{ L "tpl.pb.file_bytes" }}';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' {{ L "tpl.pb.file_kb" }}';
-        }
         return (bytes / (1024 * 1024)).toFixed(1) + ' {{ L "tpl.pb.file_mb" }}';
     }
 

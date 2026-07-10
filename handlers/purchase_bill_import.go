@@ -219,7 +219,9 @@ func writeImportError(w http.ResponseWriter, status int, message string) {
 
 func buildPurchaseBillImportCSVTemplate() []byte {
 	var buffer bytes.Buffer
+	buffer.Write([]byte{0xEF, 0xBB, 0xBF})
 	writer := csv.NewWriter(&buffer)
+	writer.UseCRLF = true
 	_ = writer.Write(purchaseBillImportTemplateHeader)
 	_ = writer.Write([]string{"مثال", "10", "100.00", "90.00", "A1"})
 	writer.Flush()

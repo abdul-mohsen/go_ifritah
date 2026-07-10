@@ -27,12 +27,16 @@ func TestHandleDownloadPurchaseBillTemplateReturnsCSVSample(t *testing.T) {
 	if got := resp.Header.Get("Content-Disposition"); !strings.Contains(got, "purchase-bill-template.csv") {
 		t.Fatalf("content disposition = %q, want .csv filename", got)
 	}
-	body := w.Body.String()
-	if !strings.Contains(body, "اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف") {
-		t.Fatalf("csv should contain import headers, got %q", body)
+	bodyBytes := w.Body.Bytes()
+	if !bytes.HasPrefix(bodyBytes, []byte{0xEF, 0xBB, 0xBF}) {
+		t.Fatalf("csv should start with UTF-8 BOM for Excel compatibility, got %v", bodyBytes[:min(3, len(bodyBytes))])
 	}
-	if !strings.Contains(body, "مثال,10,100.00,90.00,A1") {
-		t.Fatalf("csv should contain example row, got %q", body)
+	body := string(bodyBytes)
+	if !strings.Contains(body, "اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف\r\n") {
+		t.Fatalf("csv should contain CRLF-terminated import headers, got %q", body)
+	}
+	if !strings.Contains(body, "مثال,10,100.00,90.00,A1\r\n") {
+		t.Fatalf("csv should contain CRLF-terminated example row, got %q", body)
 	}
 }
 

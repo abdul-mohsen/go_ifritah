@@ -13,11 +13,15 @@
             </div>
             <div>
                 <label class="form-label">{{ L "tpl.pb.supplier" }} <span class="required-mark">*</span></label>
-                <select name="supplier_id" class="w-full" required>
-                    {{ range .suppliers }}
-                    <option value="{{ .ID }}">{{ .Name }}</option>
-                    {{ end }}
-                </select>
+                <div class="relative">
+                    <input type="text" id="supplier_search_input" class="w-full border border-gray-300 rounded px-3 py-2 mb-2" placeholder="Search supplier..." autocomplete="off">
+                    <select name="supplier_id" class="w-full" required>
+                        {{ range .suppliers }}
+                        <option value="{{ .ID }}" data-name="{{ .Name }}">{{ .Name }}</option>
+                        {{ end }}
+                    </select>
+                    <div id="supplier_search_results" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg z-50 max-h-48 overflow-y-auto"></div>
+                </div>
             </div>
             <div>
                 <label class="form-label">{{ L "tpl.pb.supplier_bill_number" }} <span class="required-mark">*</span></label>
@@ -603,6 +607,7 @@
     function formatFileSize(bytes) {
         if (bytes < 1024) return bytes + ' {{ L "tpl.pb.file_bytes" }}';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' {{ L "tpl.pb.file_kb" }}';
+        }
         return (bytes / (1024 * 1024)).toFixed(1) + ' {{ L "tpl.pb.file_mb" }}';
     }
 
@@ -855,4 +860,5 @@
         });
     }
 </script>
+<script src="/static/js/supplier-search.js"></script>
 {{ end }}

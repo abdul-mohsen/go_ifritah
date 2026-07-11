@@ -114,7 +114,7 @@
                 const isSelected = selected?.id === supplier.id;
                 const stateClass = isSelected ? ' bg-blue-50 text-blue-700' : ' hover:bg-blue-50';
 
-                return `<div class="supplier-search-item px-3 py-2 text-sm cursor-pointer${stateClass}" role="option" aria-selected="${isSelected ? 'true' : 'false'}" data-id="${escapeHtml(supplier.id)}" data-name="${escapeHtml(supplier.name)}">${escapeHtml(supplier.name)}</div>`;
+                return `<div class="supplier-search-item px-3 py-2 text-sm cursor-pointer truncate${stateClass}" role="option" aria-selected="${isSelected ? 'true' : 'false'}" data-id="${escapeHtml(supplier.id)}" data-name="${escapeHtml(supplier.name)}" title="${escapeHtml(supplier.name)}">${escapeHtml(supplier.name)}</div>`;
             })
             .join('');
 

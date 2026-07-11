@@ -31,7 +31,7 @@
                         <option value="{{ .ID }}" data-name="{{ .Name }}" {{ if eq .ID $.supplier_id }}selected{{ end }}>{{ .Name }}</option>
                         {{ end }}
                     </select>
-                    <div id="supplier_search_results" class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg z-50 max-h-48 overflow-y-auto" data-supplier-results></div>
+                    <div id="supplier_search_results" class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg z-50 max-h-48 overflow-y-auto overflow-x-hidden" style="width:100%;min-width:100%;max-width:100%;box-sizing:border-box;" data-supplier-results></div>
                 </div>
             </div>
             <div>

@@ -24,6 +24,49 @@ test('add purchase bill form loads', async ({ page }) => {
   await expect(page.locator('form')).toBeVisible();
 });
 
+test('supplier picker uses one anchored combobox with a default value', async ({ page }) => {
+  await login(page);
+  await page.goto('/dashboard/purchase-bills/add');
+  await page.waitForLoadState('domcontentloaded');
+
+  const combobox = page.locator('[data-supplier-combobox]');
+  const searchInput = combobox.locator('input[data-supplier-search-input]');
+  const hiddenSelect = combobox.locator('select[name="supplier_id"]');
+  const results = combobox.locator('[data-supplier-results]');
+  const sequenceInput = page.locator('[name="supplier_sequance_number"]');
+
+  await expect(combobox).toBeVisible();
+  await expect(searchInput).toBeVisible();
+  await expect(hiddenSelect).toBeHidden();
+  await expect(combobox.locator('input[type="text"]')).toHaveCount(1);
+  await expect(searchInput).not.toHaveValue('');
+
+  const topBefore = await sequenceInput.evaluate((el) => el.getBoundingClientRect().top);
+  const originalValue = await searchInput.inputValue();
+
+  await searchInput.click();
+  await expect(results).toBeVisible();
+
+  const topAfterOpen = await sequenceInput.evaluate((el) => el.getBoundingClientRect().top);
+  expect(Math.abs(topAfterOpen - topBefore)).toBeLessThanOrEqual(1);
+
+  const query = originalValue.slice(0, Math.min(2, originalValue.length));
+  await searchInput.fill(query);
+  await expect(results.locator('.supplier-search-item').first()).toBeVisible();
+
+  const firstItem = results.locator('.supplier-search-item').first();
+  const selectedName = (await firstItem.textContent()).trim();
+  const selectedId = await firstItem.getAttribute('data-id');
+
+  await firstItem.click();
+  await expect(results).toBeHidden();
+  await expect(searchInput).toHaveValue(selectedName);
+  await expect(hiddenSelect).toHaveValue(selectedId);
+
+  const topAfterSelect = await sequenceInput.evaluate((el) => el.getBoundingClientRect().top);
+  expect(Math.abs(topAfterSelect - topBefore)).toBeLessThanOrEqual(1);
+});
+
 test('submit button disables on click (no double submit)', async ({ page }) => {
   await login(page);
   await page.goto('/dashboard/purchase-bills/add');
@@ -67,13 +110,15 @@ test('supplier invoice duplicate check is debounced and user-friendly', async ({
   await page.goto('/dashboard/purchase-bills/add');
   await page.waitForLoadState('domcontentloaded');
 
-  const supplierSelect = page.locator('[name="supplier_id"]');
+  const supplierSelect = page.locator('select[name="supplier_id"]');
+  const supplierSearchInput = page.locator('[data-supplier-search-input]');
   const sequenceInput = page.locator('[name="supplier_sequance_number"]');
   const submitButton = page.locator('#purchase-form button[type="submit"]');
   const duplicateError = page.locator('#supplier-sequence-duplicate-error');
   const duplicateWarning = page.locator('#supplier-sequence-duplicate-warning');
 
-  await expect(supplierSelect).toBeVisible();
+  await expect(supplierSearchInput).toBeVisible();
+  await expect(supplierSelect).toBeHidden();
   await expect(sequenceInput).toBeVisible();
   await expect(sequenceInput).toHaveAttribute('required', '');
   await expect(

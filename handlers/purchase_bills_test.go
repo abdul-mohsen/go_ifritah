@@ -102,6 +102,62 @@ func TestAddPurchaseBillPageUsesSingleSupplierCombobox(t *testing.T) {
 	}
 }
 
+func TestAddPurchaseBillPageHasWorkingCSVImportSection(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	config.SessionTokensMutex.Lock()
+	config.SessionTokens["pb-import-test-session"] = "pb-import-test-token"
+	config.SessionTokensMutex.Unlock()
+	defer func() {
+		config.SessionTokensMutex.Lock()
+		delete(config.SessionTokens, "pb-import-test-session")
+		config.SessionTokensMutex.Unlock()
+	}()
+
+	req := httptest.NewRequest("GET", "/dashboard/purchase-bills/add", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-import-test-session"})
+	w := httptest.NewRecorder()
+
+	HandleAddPurchaseBill(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, "downloadImportTemplate") {
+		t.Error("expected add-purchase-bill page to expose the CSV template download action")
+	}
+	if !strings.Contains(body, "/api/purchase-bills/import-template") {
+		t.Error("expected add-purchase-bill page to use the CSV template endpoint")
+	}
+	if !strings.Contains(body, "handleImportUpload") {
+		t.Error("expected add-purchase-bill page to expose the CSV upload handler")
+	}
+	if !strings.Contains(body, `accept=".csv,text/csv"`) {
+		t.Error("expected add-purchase-bill page to accept .csv uploads")
+	}
+	if strings.Contains(body, "createManualRow") {
+		t.Error("imported purchase-bill rows should reuse the existing itemRow builder, not the missing createManualRow helper")
+	}
+	if !strings.Contains(body, `/api/purchase-bills/parse-csv`) {
+		t.Error("expected add-purchase-bill page to post uploads to the CSV parser endpoint")
+	}
+	if !strings.Contains(body, `'X-CSRF-Token': getCsrfCookie()`) {
+		t.Error("expected CSV upload fetch to send the CSRF token")
+	}
+	if !strings.Contains(body, `container.insertAdjacentHTML('beforeend', itemRow())`) {
+		t.Error("expected CSV import to append rows using the existing purchase-bill itemRow builder")
+	}
+	if !strings.Contains(body, `row.querySelector('[name="products_part_name"]')`) {
+		t.Error("expected CSV import to populate products_part_name so imported rows submit correctly")
+	}
+}
+
 func TestPurchaseBillsEmptyStateAddLinkUsesRegisteredRoute(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

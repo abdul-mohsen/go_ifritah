@@ -1011,6 +1011,8 @@ var labels = map[string]Label{
 	"tpl.pb.csv_import":                     {Ar: "استيراد من CSV", En: "Import from CSV"},
 	"tpl.pb.download_template":              {Ar: "تحميل النموذج", En: "Download Template"},
 	"tpl.pb.upload_csv":                     {Ar: "تحميل CSV", En: "Upload CSV"},
+	"tpl.pb.invalid_import_items":           {Ar: "لم يتم العثور على عناصر صالحة في الملف", En: "No valid items were found in the file"},
+	"tpl.pb.import_failed_prefix":           {Ar: "فشل التحميل: ", En: "Upload failed: "},
 	"tpl.pb.manual_parts":                   {Ar: "قطع يدوية", En: "Manual Parts"},
 	"tpl.pb.add_manual_part":                {Ar: "+ إضافة قطعة يدوية", En: "+ Add Manual Part"},
 	"tpl.pb.purchase_pdf_label":             {Ar: "فاتورة الشراء (PDF)", En: "Purchase Invoice (PDF)"},

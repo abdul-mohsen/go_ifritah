@@ -85,14 +85,14 @@
         <div class="mt-6">
             <h4 class="section-card-title">{{ L "tpl.pb.csv_import" }}</h4>
             <div class="flex gap-2 mb-4">
-                <button type="button" onclick="downloadCSVTemplate()" class="btn btn-outline btn-xs">
+                <button type="button" onclick="downloadImportTemplate()" class="btn btn-outline btn-xs">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     {{ L "tpl.pb.download_template" }}
                 </button>
                 <label class="btn btn-outline btn-xs cursor-pointer">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     {{ L "tpl.pb.upload_csv" }}
-                    <input type="file" accept=".csv" onchange="handleCSVUpload(this)" style="display:none">
+                    <input type="file" accept=".csv,text/csv" onchange="handleImportUpload(this)" style="display:none">
                 </label>
             </div>
         </div>
@@ -167,7 +167,7 @@
 </div>
 
 <script>
-    var purchaseBillLabels = {{ dict "oemLabel" (L "tpl.pb.oem_label") "oemPlaceholder" (L "tpl.pb.oem_placeholder") "quantity" (L "tpl.pb.quantity") "sellingPrice" (L "tpl.product.selling_price") "costPrice" (L "tpl.product.cost_price") "shelfNumber" (L "tpl.product.shelf_number") "deleteLabel" (L "tpl.delete") "partName" (L "tpl.pb.part_name") "enterPartName" (L "tpl.pb.enter_part_name") "purchasePrice" (L "tpl.pb.purchase_price") "duplicateSupplierInvoice" (L "tpl.pb.duplicate_supplier_invoice") "duplicateCheckWarning" (L "tpl.pb.duplicate_check_warning") "viewPurchaseBill" (L "tpl.pb.view_purchase_bill") | json }};
+    var purchaseBillLabels = {{ dict "oemLabel" (L "tpl.pb.oem_label") "oemPlaceholder" (L "tpl.pb.oem_placeholder") "quantity" (L "tpl.pb.quantity") "sellingPrice" (L "tpl.product.selling_price") "costPrice" (L "tpl.product.cost_price") "shelfNumber" (L "tpl.product.shelf_number") "deleteLabel" (L "tpl.delete") "partName" (L "tpl.pb.part_name") "enterPartName" (L "tpl.pb.enter_part_name") "purchasePrice" (L "tpl.pb.purchase_price") "duplicateSupplierInvoice" (L "tpl.pb.duplicate_supplier_invoice") "duplicateCheckWarning" (L "tpl.pb.duplicate_check_warning") "viewPurchaseBill" (L "tpl.pb.view_purchase_bill") "invalidImportItems" (L "tpl.pb.invalid_import_items") "importFailedPrefix" (L "tpl.pb.import_failed_prefix") | json }};
 
     // Supplier payment data for payment method defaults and credit checks
     var suppliersData = {
@@ -607,7 +607,6 @@
     function formatFileSize(bytes) {
         if (bytes < 1024) return bytes + ' {{ L "tpl.pb.file_bytes" }}';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' {{ L "tpl.pb.file_kb" }}';
-        }
         return (bytes / (1024 * 1024)).toFixed(1) + ' {{ L "tpl.pb.file_mb" }}';
     }
 
@@ -808,39 +807,56 @@
     });
 
     // CSV import functions
-    function downloadCSVTemplate() {
+    function downloadImportTemplate() {
         window.location.href = '/api/purchase-bills/import-template';
     }
 
-    function handleCSVUpload(input) {
+    function handleImportUpload(input) {
         if (!input.files || input.files.length === 0) return;
-        
+
         const formData = new FormData();
         formData.append('file', input.files[0]);
-        
+
         fetch('/api/purchase-bills/parse-csv', {
             method: 'POST',
+            headers: {
+                'X-CSRF-Token': getCsrfCookie()
+            },
             body: formData
         })
-        .then(r => r.json())
+        .then(async r => {
+            const data = await r.json().catch(() => ({ error: 'Failed to parse file' }));
+            if (!r.ok || data.error) {
+                throw new Error(data.error || 'Failed to parse file');
+            }
+            return data;
+        })
         .then(items => {
-            if (items.error) {
-                alert('خطأ في الملف: ' + items.error);
+            if (!Array.isArray(items) || items.length === 0) {
+                alert(purchaseBillLabels.invalidImportItems);
+                input.value = '';
                 return;
             }
-            const container = document.getElementById('manual-container');
+
+            const container = document.getElementById('products-container');
             items.forEach(item => {
-                const row = createManualRow(container.children.length);
-                row.querySelector('[name="part_name[]"]').value = item.partName;
-                row.querySelector('[name="quantity[]"]').value = item.quantity;
-                row.querySelector('[name="purchase_price[]"]').value = item.purchasePrice;
-                row.querySelector('[name="cost_price[]"]').value = item.costPrice;
-                row.querySelector('[name="shelf_number[]"]').value = item.shelfNumber;
-                container.appendChild(row);
+                container.insertAdjacentHTML('beforeend', itemRow());
+                const row = container.lastElementChild;
+                row.querySelector('.part-search').value = item.partName;
+                row.querySelector('[name="products_product_id"]').value = '0';
+                row.querySelector('[name="products_part_name"]').value = item.partName;
+                row.querySelector('[name="products_quantity"]').value = item.quantity;
+                row.querySelector('[name="products_price"]').value = item.purchasePrice;
+                row.querySelector('[name="products_cost_price"]').value = item.costPrice;
+                row.querySelector('[name="products_shelf_number"]').value = item.shelfNumber || '';
             });
+            recalculateTotal();
             input.value = '';
         })
-        .catch(e => alert('فشل التحميل: ' + e.message));
+        .catch(e => {
+            alert(purchaseBillLabels.importFailedPrefix + e.message);
+            input.value = '';
+        });
     }
 </script>
 <script src="/static/js/supplier-search.js"></script>

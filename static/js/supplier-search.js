@@ -11,6 +11,7 @@
     let activeIndex = -1;
     let pointerSelecting = false;
     const emptyLabel = root.dataset.emptyLabel || 'No matching suppliers';
+    const preferredMaxHeight = 256;
 
     const normalizeArabicDigit = (digit, baseCodePoint) =>
         String.fromCodePoint(digit.codePointAt(0) - baseCodePoint + 0x30);
@@ -87,6 +88,27 @@
         results.style.boxSizing = 'border-box';
     };
 
+    const syncResultsMaxHeight = () => {
+        const boundary = root.closest('form') || root.closest('.page-card-wide') || root.parentElement;
+        if (!boundary) {
+            results.style.maxHeight = `${preferredMaxHeight}px`;
+            return;
+        }
+
+        const inputRect = input.getBoundingClientRect();
+        const boundaryRect = boundary.getBoundingClientRect();
+        const viewportBottom = window.innerHeight - 8;
+        const boundaryBottom = Math.min(boundaryRect.bottom, viewportBottom);
+        const availableHeight = Math.floor(boundaryBottom - inputRect.bottom - 8);
+
+        if (availableHeight <= 0) {
+            results.style.maxHeight = '0px';
+            return;
+        }
+
+        results.style.maxHeight = `${Math.min(preferredMaxHeight, availableHeight)}px`;
+    };
+
     const syncInputToSelection = () => {
         const selected = getSelectedSupplier();
         input.value = selected ? selected.name : '';
@@ -94,6 +116,7 @@
 
     const renderEmptyState = () => {
         syncResultsWidth();
+        syncResultsMaxHeight();
         results.innerHTML = `<div class="px-3 py-2 text-sm text-gray-500">${escapeHtml(emptyLabel)}</div>`;
         results.classList.remove('hidden');
         input.setAttribute('aria-expanded', 'true');
@@ -119,6 +142,7 @@
             .join('');
 
         syncResultsWidth();
+        syncResultsMaxHeight();
         results.innerHTML = html;
         results.classList.remove('hidden');
         input.setAttribute('aria-expanded', 'true');
@@ -168,6 +192,7 @@
     }
 
     syncResultsWidth();
+    syncResultsMaxHeight();
     syncInputToSelection();
 
     input.addEventListener('focus', () => {
@@ -245,7 +270,10 @@
     });
 
     select.addEventListener('change', syncInputToSelection);
-    window.addEventListener('resize', syncResultsWidth);
+    window.addEventListener('resize', () => {
+        syncResultsWidth();
+        syncResultsMaxHeight();
+    });
 
     document.addEventListener('click', (event) => {
         if (!root.contains(event.target)) {

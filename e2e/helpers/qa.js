@@ -92,6 +92,8 @@ async function setSetting(page, key, value) {
     if (actual === want) return;
     await page.waitForTimeout(400);
   }
+
+  throw new Error(`setting ${key} did not persist as ${value}`);
 }
 
 // Read a numeric KPI from the dashboard by visible label fragment.

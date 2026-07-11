@@ -12,15 +12,15 @@
                 </select>
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.pb.supplier" }} <span class="required-mark">*</span></label>
-                <div class="relative">
-                    <input type="text" id="supplier_search_input" class="w-full border border-gray-300 rounded px-3 py-2 mb-2" placeholder="Search supplier..." autocomplete="off">
-                    <select name="supplier_id" class="w-full" required>
+                <label class="form-label" id="supplier_search_label" for="supplier_search_input">{{ L "tpl.pb.supplier" }} <span class="required-mark">*</span></label>
+                <div class="relative" data-supplier-combobox data-empty-label="{{ L "tpl.pb.no_supplier_matches" }}">
+                    <input type="text" id="supplier_search_input" class="w-full" placeholder="{{ L "tpl.pb.search_supplier" }}" autocomplete="off" data-supplier-search-input role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="supplier_search_results">
+                    <select id="supplier_id_hidden" name="supplier_id" class="hidden" data-supplier-select required aria-hidden="true" aria-labelledby="supplier_search_label" tabindex="-1">
                         {{ range .suppliers }}
                         <option value="{{ .ID }}" data-name="{{ .Name }}">{{ .Name }}</option>
                         {{ end }}
                     </select>
-                    <div id="supplier_search_results" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg z-50 max-h-48 overflow-y-auto"></div>
+                    <div id="supplier_search_results" class="supplier-search-results hidden absolute left-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg z-50" style="width:100%;min-width:100%;max-width:100%;box-sizing:border-box;" data-supplier-results></div>
                 </div>
             </div>
             <div>

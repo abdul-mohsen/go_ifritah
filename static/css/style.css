@@ -1790,6 +1790,12 @@ aside nav a.nav-link svg {
     padding: 1.5rem;
 }
 
+.supplier-search-results {
+    max-height: 16rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
 /* ── Data Table Wrapper ─────────────────────────────────────── */
 .data-table-wrapper {
     background: var(--md-sys-color-surface-container-lowest);

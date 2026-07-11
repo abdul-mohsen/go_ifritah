@@ -35,7 +35,6 @@ const CHECKBOXES = [
 for (const [key, val] of NUMERIC) {
   test(`numeric setting ${key}=${val}`, async ({ page }) => {
     await setSetting(page, key, val);
-    await page.goto('/dashboard/settings');
     await expect(page.locator(`[name="${key}"]`)).toHaveValue(String(val));
   });
 }
@@ -43,7 +42,6 @@ for (const [key, val] of NUMERIC) {
 for (const [key, val] of SELECTS) {
   test(`select setting ${key}=${val}`, async ({ page }) => {
     await setSetting(page, key, val);
-    await page.goto('/dashboard/settings');
     await expect(page.locator(`[name="${key}"]`)).toHaveValue(val);
   });
 }
@@ -51,7 +49,6 @@ for (const [key, val] of SELECTS) {
 for (const [key, val] of CHECKBOXES) {
   test(`checkbox setting ${key}=${val}`, async ({ page }) => {
     await setSetting(page, key, val);
-    await page.goto('/dashboard/settings');
     const cb = page.locator(`[name="${key}"]`).first();
     if (val) await expect(cb).toBeChecked();
     else await expect(cb).not.toBeChecked();

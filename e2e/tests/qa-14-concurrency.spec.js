@@ -17,8 +17,8 @@ test('two simultaneous setting saves both succeed', async ({ browser }) => {
   // otherwise a parallel test (e.g. qa-03 setting it to 7) can overwrite
   // before our final read.
   await Promise.all([
-    setSetting(p1, 'low_stock_threshold', '81'),
-    setSetting(p2, 'low_stock_threshold', '82'),
+    setSetting(p1, 'low_stock_threshold', '81', { verifyPersisted: false }),
+    setSetting(p2, 'low_stock_threshold', '82', { verifyPersisted: false }),
   ]);
 
   // Final value is one of the two — the system must not 500.

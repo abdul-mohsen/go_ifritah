@@ -41,13 +41,14 @@ async function login(page, user = USER, pass = PASS) {
 
 // Set a single settings field (checkbox/select/number) by submitting the
 // settings form. Reads existing values first to preserve other fields.
-async function setSetting(page, key, value) {
-  await page.goto(appURL('/dashboard/settings'));
-  await page.waitForLoadState('domcontentloaded');
+async function setSetting(page, key, value, options = {}) {
+  const { verifyPersisted = true } = options;
+  const settingsUrl = '/dashboard/settings';
+  await page.goto(appURL(settingsUrl), { waitUntil: 'domcontentloaded', timeout: 30000 });
 
   // Find the field
   const field = page.locator(`[name="${key}"]`).first();
-  await field.waitFor({ state: 'attached', timeout: 5000 });
+  await field.waitFor({ state: 'attached', timeout: 10000 });
 
   const tag = await field.evaluate((el) => el.tagName.toLowerCase());
   const type = await field.evaluate((el) => el.type || '');
@@ -67,20 +68,31 @@ async function setSetting(page, key, value) {
   // single huge form with the submit button far below the viewport, and
   // some toggles attach click-time JS that can intercept .click()).
   const form = field.locator('xpath=ancestor::form[1]');
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {}),
-    form.evaluate((f) => f.submit()),
-  ]);
-  await page.waitForLoadState('load', { timeout: 10000 }).catch(() => {});
+  const saveResponsePromise = page.waitForResponse((response) => {
+    return response.request().method() === 'POST' && response.url().includes(settingsUrl);
+  }, { timeout: 15000 }).catch(() => null);
+  const navigationPromise = page.waitForURL((url) => url.pathname === settingsUrl, {
+    waitUntil: 'domcontentloaded',
+    timeout: 15000,
+  }).catch(() => null);
+  await form.evaluate((f) => {
+    if (typeof f.requestSubmit === 'function') {
+      f.requestSubmit();
+      return;
+    }
+    f.submit();
+  });
+  await Promise.all([saveResponsePromise, navigationPromise]);
   // Allow flash to render
   await page.waitForTimeout(300);
+
+  if (!verifyPersisted) return;
 
   // The dev backend's settings GET is occasionally read-after-write stale
   // (caching layer between Go FE and the DB). Re-fetch with a cache-bust
   // and retry until the new value is visible (or we exhaust retries).
-  for (let i = 0; i < 5; i++) {
-    await page.goto(appURL('/dashboard/settings?_=' + Date.now()));
-    await page.waitForLoadState('domcontentloaded');
+  for (let i = 0; i < 8; i++) {
+    await page.goto(appURL(`${settingsUrl}?_=${Date.now()}`), { waitUntil: 'domcontentloaded', timeout: 30000 });
     const fresh = page.locator(`[name="${key}"]`).first();
     let actual;
     if (type === 'checkbox') {
@@ -90,8 +102,10 @@ async function setSetting(page, key, value) {
     }
     const want = type === 'checkbox' ? (Boolean(value) ? 'true' : 'false') : String(value);
     if (actual === want) return;
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(600);
   }
+
+  throw new Error(`setting ${key} did not persist as ${value}`);
 }
 
 // Read a numeric KPI from the dashboard by visible label fragment.

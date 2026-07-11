@@ -41,21 +41,18 @@ test('settings page exposes stock_enforcement field', async ({ page }) => {
 test('mode=disable can be saved', async ({ page }) => {
   await login(page);
   await setSetting(page, 'stock_enforcement', 'disable');
-  await page.goto('/dashboard/settings');
   await expect(page.locator('[name="stock_enforcement"]')).toHaveValue('disable');
 });
 
 test('mode=warn can be saved', async ({ page }) => {
   await login(page);
   await setSetting(page, 'stock_enforcement', 'warn');
-  await page.goto('/dashboard/settings');
   await expect(page.locator('[name="stock_enforcement"]')).toHaveValue('warn');
 });
 
 test('mode=enforce can be saved', async ({ page }) => {
   await login(page);
   await setSetting(page, 'stock_enforcement', 'enforce');
-  await page.goto('/dashboard/settings');
   await expect(page.locator('[name="stock_enforcement"]')).toHaveValue('enforce');
 });
 

@@ -66,6 +66,42 @@ func TestAddPurchaseBillPageHasManualSection(t *testing.T) {
 	}
 }
 
+func TestAddPurchaseBillPageUsesSingleSupplierCombobox(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "/api/v2/supplier/all") {
+			_, _ = w.Write([]byte(`{"data":[{"id":7,"name":"شركة المروج"},{"id":9,"name":"مؤسسة الواحة"}]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	cleanup := setupPBTestSession("pb-supplier-combobox-add", "pb-supplier-combobox-token")
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/dashboard/purchase-bills/add", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-supplier-combobox-add"})
+	w := httptest.NewRecorder()
+
+	HandleAddPurchaseBill(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, `data-supplier-combobox`) {
+		t.Fatalf("expected supplier combobox wrapper in add purchase bill page")
+	}
+	if !strings.Contains(body, `data-supplier-search-input`) {
+		t.Fatalf("expected single visible supplier search input in add purchase bill page")
+	}
+	if !strings.Contains(body, `name="supplier_id" class="hidden"`) {
+		t.Fatalf("expected supplier select to stay hidden behind the combobox")
+	}
+}
+
 func TestAddPurchaseBillPageHasWorkingCSVImportSection(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -635,6 +671,12 @@ func TestEditPBManualProductNameField(t *testing.T) {
 	// Check for the specific pattern: product.name || product.part_name
 	if !strings.Contains(body, "product.name || product.part_name") {
 		t.Error("edit template manualItemRow should use 'product.name || product.part_name' to match BillItem JSON tag")
+	}
+	if !strings.Contains(body, `data-supplier-combobox`) || !strings.Contains(body, `data-supplier-search-input`) {
+		t.Error("edit purchase bill page should render the supplier combobox markup")
+	}
+	if !strings.Contains(body, `supplier-search.js`) {
+		t.Error("edit purchase bill page should load supplier-search.js")
 	}
 }
 

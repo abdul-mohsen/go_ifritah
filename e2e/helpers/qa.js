@@ -41,7 +41,8 @@ async function login(page, user = USER, pass = PASS) {
 
 // Set a single settings field (checkbox/select/number) by submitting the
 // settings form. Reads existing values first to preserve other fields.
-async function setSetting(page, key, value) {
+async function setSetting(page, key, value, options = {}) {
+  const { verifyPersisted = true } = options;
   await page.goto(appURL('/dashboard/settings'));
   await page.waitForLoadState('domcontentloaded');
 
@@ -74,6 +75,8 @@ async function setSetting(page, key, value) {
   await page.waitForLoadState('load', { timeout: 10000 }).catch(() => {});
   // Allow flash to render
   await page.waitForTimeout(300);
+
+  if (!verifyPersisted) return;
 
   // The dev backend's settings GET is occasionally read-after-write stale
   // (caching layer between Go FE and the DB). Re-fetch with a cache-bust

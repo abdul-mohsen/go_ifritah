@@ -12,10 +12,10 @@
                 </select>
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.pb.supplier" }} <span class="required-mark">*</span></label>
+                <label class="form-label" id="supplier_search_label" for="supplier_search_input">{{ L "tpl.pb.supplier" }} <span class="required-mark">*</span></label>
                 <div class="relative" data-supplier-combobox data-empty-label="{{ L "tpl.pb.no_supplier_matches" }}">
                     <input type="text" id="supplier_search_input" class="w-full" placeholder="{{ L "tpl.pb.search_supplier" }}" autocomplete="off" data-supplier-search-input role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="supplier_search_results">
-                    <select name="supplier_id" class="hidden" data-supplier-select required aria-hidden="true" tabindex="-1">
+                    <select id="supplier_id_hidden" name="supplier_id" class="hidden" data-supplier-select required aria-hidden="true" aria-labelledby="supplier_search_label" tabindex="-1">
                         {{ range .suppliers }}
                         <option value="{{ .ID }}" data-name="{{ .Name }}">{{ .Name }}</option>
                         {{ end }}

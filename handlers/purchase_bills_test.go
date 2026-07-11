@@ -97,7 +97,7 @@ func TestAddPurchaseBillPageUsesSingleSupplierCombobox(t *testing.T) {
 	if !strings.Contains(body, `data-supplier-search-input`) {
 		t.Fatalf("expected single visible supplier search input in add purchase bill page")
 	}
-	if !strings.Contains(body, `select name="supplier_id" class="hidden"`) {
+	if !strings.Contains(body, `name="supplier_id" class="hidden"`) {
 		t.Fatalf("expected supplier select to stay hidden behind the combobox")
 	}
 }

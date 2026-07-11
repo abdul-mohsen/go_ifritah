@@ -25,10 +25,12 @@ type ImportedItem struct {
 
 var purchaseBillImportTemplateHeader = []string{"اسم القطعة", "الكمية", "سعر الشراء", "سعر التكلفة", "رقم الرف"}
 
+const contentTypeHeader = "Content-Type"
+
 // HandleDownloadPurchaseBillTemplate generates the purchase-bill CSV import template.
 func HandleDownloadPurchaseBillTemplate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=purchase-bill-template.csv")
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set(contentTypeHeader, "text/csv; charset=utf-8")
 
 	if _, err := w.Write(buildPurchaseBillImportCSVTemplate()); err != nil {
 		http.Error(w, "failed to write template", http.StatusInternalServerError)
@@ -48,7 +50,7 @@ func HandleDownloadPurchaseBillExcelTemplate(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Disposition", "attachment; filename=purchase-bill-template.xlsx")
-	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set(contentTypeHeader, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 	if _, err := w.Write(workbook); err != nil {
 		http.Error(w, "failed to write template", http.StatusInternalServerError)
@@ -67,7 +69,7 @@ func HandleParseCSVItems(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleParseImportedItems(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, "application/json")
 
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		writeImportError(w, http.StatusBadRequest, "Failed to parse form")

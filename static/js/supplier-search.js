@@ -1,127 +1,132 @@
 // Purchase-bill supplier combobox.
-(function () {
-    var root = document.querySelector('[data-supplier-combobox]');
+(() => {
+    const root = document.querySelector('[data-supplier-combobox]');
     if (!root) return;
 
-    var input = root.querySelector('[data-supplier-search-input]');
-    var results = root.querySelector('[data-supplier-results]');
-    var select = root.querySelector('[data-supplier-select]');
+    const input = root.querySelector('[data-supplier-search-input]');
+    const results = root.querySelector('[data-supplier-results]');
+    const select = root.querySelector('[data-supplier-select]');
     if (!input || !results || !select) return;
 
-    var activeIndex = -1;
-    var pointerSelecting = false;
-    var emptyLabel = root.getAttribute('data-empty-label') || 'No matching suppliers';
+    let activeIndex = -1;
+    let pointerSelecting = false;
+    const emptyLabel = root.dataset.emptyLabel || 'No matching suppliers';
 
-    function normalize(value) {
+    const normalizeArabicDigit = (digit, baseCodePoint) =>
+        String.fromCodePoint(digit.codePointAt(0) - baseCodePoint + 0x30);
+
+    const normalize = (value) => {
         if (value == null) return '';
-        value = String(value).toLowerCase().trim();
-        if (!value) return '';
-        value = value.replace(/[\u064B-\u0652\u0640]/g, '');
-        value = value.replace(/[\u0623\u0625\u0622]/g, '\u0627');
-        value = value.replace(/\u0629/g, '\u0647');
-        value = value.replace(/\u0649/g, '\u064A');
-        value = value.replace(/[\u0660-\u0669]/g, function (digit) {
-            return String.fromCharCode(digit.charCodeAt(0) - 0x0660 + 0x30);
-        });
-        value = value.replace(/[\u06F0-\u06F9]/g, function (digit) {
-            return String.fromCharCode(digit.charCodeAt(0) - 0x06F0 + 0x30);
-        });
-        return value.replace(/\s+/g, ' ');
-    }
 
-    function escapeHtml(value) {
-        var div = document.createElement('div');
-        div.textContent = value == null ? '' : String(value);
-        return div.innerHTML;
-    }
+        const normalized = String(value)
+            .toLowerCase()
+            .trim()
+            .replaceAll(/[\u064B-\u0652\u0640]/g, '')
+            .replaceAll(/\u0623|\u0625|\u0622/g, '\u0627')
+            .replaceAll('\u0629', '\u0647')
+            .replaceAll('\u0649', '\u064A')
+            .replaceAll(/[\u0660-\u0669]/g, (digit) => normalizeArabicDigit(digit, 0x0660))
+            .replaceAll(/[\u06F0-\u06F9]/g, (digit) => normalizeArabicDigit(digit, 0x06F0))
+            .replaceAll(/\s+/g, ' ');
 
-    function suppliers() {
-        var list = [];
-        var options = select.querySelectorAll('option');
-        for (var i = 0; i < options.length; i++) {
-            var option = options[i];
-            if (!option.value) continue;
-            list.push({
+        return normalized;
+    };
+
+    const escapeHtml = (value) => {
+        const element = document.createElement('div');
+        element.textContent = value == null ? '' : String(value);
+        return element.innerHTML;
+    };
+
+    const getSuppliers = () =>
+        Array.from(select.querySelectorAll('option'))
+            .filter((option) => option.value)
+            .map((option) => ({
                 id: option.value,
-                name: (option.getAttribute('data-name') || option.textContent || '').trim()
-            });
-        }
-        return list;
-    }
+                name: (option.dataset.name || option.textContent || '').trim(),
+            }));
 
-    function selectedSupplier() {
-        var current = select.querySelector('option:checked');
+    const getSelectedSupplier = () => {
+        const current = select.querySelector('option:checked');
         if (!current || !current.value) return null;
+
         return {
             id: current.value,
-            name: (current.getAttribute('data-name') || current.textContent || '').trim()
+            name: (current.dataset.name || current.textContent || '').trim(),
         };
-    }
+    };
 
-    function filteredSuppliers(query) {
-        var normalizedQuery = normalize(query);
-        var list = suppliers();
-        if (!normalizedQuery) return list;
+    const filterSuppliers = (query) => {
+        const normalizedQuery = normalize(query);
+        const suppliers = getSuppliers();
+        if (!normalizedQuery) return suppliers;
 
-        var terms = normalizedQuery.split(' ');
-        return list.filter(function (supplier) {
-            var haystack = normalize(supplier.name);
-            for (var i = 0; i < terms.length; i++) {
-                if (terms[i] && haystack.indexOf(terms[i]) === -1) {
-                    return false;
-                }
-            }
-            return true;
+        const terms = normalizedQuery.split(' ');
+        return suppliers.filter((supplier) => {
+            const haystack = normalize(supplier.name);
+            return terms.every((term) => !term || haystack.includes(term));
         });
-    }
+    };
 
-    function closeResults() {
+    const closeResults = () => {
         results.classList.add('hidden');
         input.setAttribute('aria-expanded', 'false');
         activeIndex = -1;
-    }
+    };
 
-    function syncInputToSelection() {
-        var selected = selectedSupplier();
+    const syncResultsWidth = () => {
+        const width = input.getBoundingClientRect().width;
+        if (!width) return;
+
+        const cssWidth = `${width}px`;
+        results.style.width = cssWidth;
+        results.style.minWidth = cssWidth;
+        results.style.maxWidth = cssWidth;
+        results.style.boxSizing = 'border-box';
+    };
+
+    const syncInputToSelection = () => {
+        const selected = getSelectedSupplier();
         input.value = selected ? selected.name : '';
-    }
+    };
 
-    function render(query) {
-        var list = filteredSuppliers(query);
-        var selected = selectedSupplier();
+    const renderEmptyState = () => {
+        syncResultsWidth();
+        results.innerHTML = `<div class="px-3 py-2 text-sm text-gray-500">${escapeHtml(emptyLabel)}</div>`;
+        results.classList.remove('hidden');
+        input.setAttribute('aria-expanded', 'true');
+        activeIndex = -1;
+    };
 
-        if (!list.length) {
-            results.innerHTML = '<div class="px-3 py-2 text-sm text-gray-500">' + escapeHtml(emptyLabel) + '</div>';
-            results.classList.remove('hidden');
-            input.setAttribute('aria-expanded', 'true');
-            activeIndex = -1;
+    const renderResults = (query) => {
+        const filtered = filterSuppliers(query);
+        const selected = getSelectedSupplier();
+
+        if (!filtered.length) {
+            renderEmptyState();
             return;
         }
 
-        var html = '';
-        for (var i = 0; i < list.length; i++) {
-            var isSelected = selected && selected.id === list[i].id;
-            html += '<div class="supplier-search-item px-3 py-2 text-sm cursor-pointer' +
-                (isSelected ? ' bg-blue-50 text-blue-700' : ' hover:bg-blue-50') +
-                '" role="option" aria-selected="' + (isSelected ? 'true' : 'false') + '"' +
-                ' data-id="' + escapeHtml(list[i].id) + '"' +
-                ' data-name="' + escapeHtml(list[i].name) + '">' +
-                escapeHtml(list[i].name) +
-                '</div>';
-        }
+        const html = filtered
+            .map((supplier) => {
+                const isSelected = selected && selected.id === supplier.id;
+                const stateClass = isSelected ? ' bg-blue-50 text-blue-700' : ' hover:bg-blue-50';
 
+                return `<div class="supplier-search-item px-3 py-2 text-sm cursor-pointer${stateClass}" role="option" aria-selected="${isSelected ? 'true' : 'false'}" data-id="${escapeHtml(supplier.id)}" data-name="${escapeHtml(supplier.name)}">${escapeHtml(supplier.name)}</div>`;
+            })
+            .join('');
+
+        syncResultsWidth();
         results.innerHTML = html;
         results.classList.remove('hidden');
         input.setAttribute('aria-expanded', 'true');
         activeIndex = -1;
-    }
+    };
 
-    function supplierItems() {
-        return results.querySelectorAll('.supplier-search-item');
-    }
+    const getSupplierItems = () => Array.from(results.querySelectorAll('.supplier-search-item'));
 
-    function setActiveIndex(index) {
-        var items = supplierItems();
+    const setActiveIndex = (index) => {
+        const items = getSupplierItems();
         if (!items.length) {
             activeIndex = -1;
             return;
@@ -131,113 +136,118 @@
         if (index >= items.length) index = 0;
         activeIndex = index;
 
-        for (var i = 0; i < items.length; i++) {
-            items[i].classList.toggle('bg-blue-100', i === activeIndex);
+        for (const [itemIndex, item] of items.entries()) {
+            item.classList.toggle('bg-blue-100', itemIndex === activeIndex);
         }
-        items[activeIndex].scrollIntoView({ block: 'nearest' });
-    }
 
-    function commitSelection(id, name) {
+        items[activeIndex].scrollIntoView({ block: 'nearest' });
+    };
+
+    const commitSelection = (id, name) => {
         if (!id || !name) return;
-        var changed = select.value !== id;
+
+        const changed = select.value !== id;
         select.value = id;
         input.value = name;
         closeResults();
+
         if (changed) {
             select.dispatchEvent(new Event('change', { bubbles: true }));
         }
-    }
+    };
 
-    function firstSupplier() {
-        var list = suppliers();
-        return list.length ? list[0] : null;
-    }
+    const firstSupplier = () => getSuppliers()[0] || null;
 
-    if (!selectedSupplier()) {
-        var first = firstSupplier();
+    if (!getSelectedSupplier()) {
+        const first = firstSupplier();
         if (first) {
             select.value = first.id;
         }
     }
+
+    syncResultsWidth();
     syncInputToSelection();
 
-    input.addEventListener('focus', function () {
-        render('');
+    input.addEventListener('focus', () => {
+        renderResults('');
     });
 
-    input.addEventListener('input', function () {
-        render(input.value);
+    input.addEventListener('input', () => {
+        renderResults(input.value);
     });
 
-    input.addEventListener('keydown', function (event) {
-        var items = supplierItems();
+    input.addEventListener('keydown', (event) => {
         if (event.key === 'ArrowDown') {
             event.preventDefault();
             if (results.classList.contains('hidden')) {
-                render(input.value);
-                items = supplierItems();
+                renderResults(input.value);
             }
             setActiveIndex(activeIndex + 1);
             return;
         }
+
         if (event.key === 'ArrowUp') {
             event.preventDefault();
             if (results.classList.contains('hidden')) {
-                render(input.value);
-                items = supplierItems();
+                renderResults(input.value);
             }
             setActiveIndex(activeIndex - 1);
             return;
         }
+
         if (event.key === 'Enter' && !results.classList.contains('hidden')) {
-            items = supplierItems();
-            if (items.length) {
-                event.preventDefault();
-                if (activeIndex < 0) {
-                    setActiveIndex(0);
-                }
-                var active = supplierItems()[activeIndex];
-                if (active) {
-                    commitSelection(active.getAttribute('data-id'), active.getAttribute('data-name'));
-                }
+            const items = getSupplierItems();
+            if (!items.length) return;
+
+            event.preventDefault();
+            if (activeIndex < 0) {
+                setActiveIndex(0);
+            }
+
+            const activeItem = getSupplierItems()[activeIndex];
+            if (activeItem) {
+                commitSelection(activeItem.dataset.id, activeItem.dataset.name);
             }
             return;
         }
+
         if (event.key === 'Escape') {
             closeResults();
             syncInputToSelection();
         }
     });
 
-    input.addEventListener('blur', function () {
-        window.setTimeout(function () {
+    input.addEventListener('blur', () => {
+        window.setTimeout(() => {
             if (pointerSelecting) return;
             closeResults();
             syncInputToSelection();
         }, 120);
     });
 
-    results.addEventListener('mousedown', function (event) {
+    results.addEventListener('mousedown', (event) => {
         if (event.target.closest('.supplier-search-item')) {
             pointerSelecting = true;
             event.preventDefault();
         }
     });
 
-    results.addEventListener('mouseup', function () {
+    results.addEventListener('mouseup', () => {
         pointerSelecting = false;
     });
 
-    results.addEventListener('click', function (event) {
-        var item = event.target.closest('.supplier-search-item');
+    results.addEventListener('click', (event) => {
+        const item = event.target.closest('.supplier-search-item');
         if (!item) return;
-        commitSelection(item.getAttribute('data-id'), item.getAttribute('data-name'));
+
+        commitSelection(item.dataset.id, item.dataset.name);
         pointerSelecting = false;
     });
 
     select.addEventListener('change', syncInputToSelection);
+    window.addEventListener('resize', syncResultsWidth);
 
-    document.addEventListener('click', function (event) {
+    document.addEventListener('click', (event) => {
         if (!root.contains(event.target)) {
             closeResults();
             syncInputToSelection();

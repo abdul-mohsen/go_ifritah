@@ -47,6 +47,10 @@ test('supplier picker uses one anchored combobox with a default value', async ({
   await searchInput.click();
   await expect(results).toBeVisible();
 
+  const inputWidth = await searchInput.evaluate((el) => el.getBoundingClientRect().width);
+  const resultsWidth = await results.evaluate((el) => el.getBoundingClientRect().width);
+  expect(Math.abs(resultsWidth - inputWidth)).toBeLessThanOrEqual(1);
+
   const topAfterOpen = await sequenceInput.evaluate((el) => el.getBoundingClientRect().top);
   expect(Math.abs(topAfterOpen - topBefore)).toBeLessThanOrEqual(1);
 

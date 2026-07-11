@@ -22,7 +22,7 @@
             .toLowerCase()
             .trim()
             .replaceAll(/[\u064B-\u0652\u0640]/g, '')
-            .replaceAll(/\u0623|\u0625|\u0622/g, '\u0627')
+            .replaceAll(/[\u0623\u0625\u0622]/g, '\u0627')
             .replaceAll('\u0629', '\u0647')
             .replaceAll('\u0649', '\u064A')
             .replaceAll(/[\u0660-\u0669]/g, (digit) => normalizeArabicDigit(digit, 0x0660))
@@ -75,10 +75,12 @@
     };
 
     const syncResultsWidth = () => {
-        const width = input.getBoundingClientRect().width;
+        const width = input.offsetWidth;
         if (!width) return;
 
         const cssWidth = `${width}px`;
+        results.style.left = '0';
+        results.style.right = 'auto';
         results.style.width = cssWidth;
         results.style.minWidth = cssWidth;
         results.style.maxWidth = cssWidth;
@@ -109,7 +111,7 @@
 
         const html = filtered
             .map((supplier) => {
-                const isSelected = selected && selected.id === supplier.id;
+                const isSelected = selected?.id === supplier.id;
                 const stateClass = isSelected ? ' bg-blue-50 text-blue-700' : ' hover:bg-blue-50';
 
                 return `<div class="supplier-search-item px-3 py-2 text-sm cursor-pointer${stateClass}" role="option" aria-selected="${isSelected ? 'true' : 'false'}" data-id="${escapeHtml(supplier.id)}" data-name="${escapeHtml(supplier.name)}">${escapeHtml(supplier.name)}</div>`;
@@ -205,9 +207,7 @@
             }
 
             const activeItem = getSupplierItems()[activeIndex];
-            if (activeItem) {
-                commitSelection(activeItem.dataset.id, activeItem.dataset.name);
-            }
+            commitSelection(activeItem?.dataset.id, activeItem?.dataset.name);
             return;
         }
 

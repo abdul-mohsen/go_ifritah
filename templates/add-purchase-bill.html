@@ -4,8 +4,8 @@
     <form hx-post="/api/purchase-bills" hx-target="body" id="purchase-form" hx-indicator="#submit-spinner" hx-encoding="multipart/form-data" hx-disabled-elt="button[type='submit']">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label class="form-label">{{ L "tpl.pb.store_label" }} <span class="required-mark">*</span></label>
-                <select name="store_id" class="w-full" required>
+                <label class="form-label" for="purchase_store_id">{{ L "tpl.pb.store_label" }} <span class="required-mark">*</span></label>
+                <select name="store_id" id="purchase_store_id" class="w-full" required>
                     {{ range .stores }}
                     <option value="{{ .ID }}" {{ if eq .ID $.default_store_id }}selected{{ end }}>{{ .Name }}</option>
                     {{ end }}
@@ -24,29 +24,29 @@
                 </div>
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.pb.supplier_bill_number" }} <span class="required-mark">*</span></label>
+                <label class="form-label" for="supplier_sequence_input">{{ L "tpl.pb.supplier_bill_number" }} <span class="required-mark">*</span></label>
                 <input type="text" name="supplier_sequance_number" id="supplier_sequence_input" class="w-full" maxlength="50" inputmode="numeric" aria-describedby="supplier-sequence-duplicate-error supplier-sequence-duplicate-warning" required>
                 <p id="supplier-sequence-duplicate-error" class="text-xs mt-1 text-red-600 hidden" role="alert"></p>
                 <p id="supplier-sequence-duplicate-warning" class="text-xs mt-1 text-amber-700 hidden"></p>
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.pb.date" }}</label>
-                <input type="date" name="payment_date" class="w-full" required>
+                <label class="form-label" for="purchase_payment_date">{{ L "tpl.pb.date" }}</label>
+                <input type="date" name="payment_date" id="purchase_payment_date" class="w-full" required>
             </div>
             <div id="payment-due-date-field" style="display:none">
-                <label class="form-label">{{ L "tpl.pb.payment_due_date" }}</label>
-                <input type="date" name="payment_due_date" class="w-full">
+                <label class="form-label" for="purchase_payment_due_date">{{ L "tpl.pb.payment_due_date" }}</label>
+                <input type="date" name="payment_due_date" id="purchase_payment_due_date" class="w-full">
                 <p class="text-xs text-gray-400 mt-1">{{ L "tpl.pb.payment_due_date_help" }}</p>
             </div>
             <div>
-                <label class="form-label">{{ L "tpl.deliver_date" }}</label>
-                <input type="date" name="deliver_date" value="{{ .today }}" class="w-full">
+                <label class="form-label" for="purchase_deliver_date">{{ L "tpl.deliver_date" }}</label>
+                <input type="date" name="deliver_date" id="purchase_deliver_date" value="{{ .today }}" class="w-full">
             </div>
         </div>
 
         <!-- Payment Method -->
         <div class="mt-4">
-            <label class="form-label">{{ L "tpl.payment_method" }}</label>
+            <label class="form-label" for="payment_method_select">{{ L "tpl.payment_method" }}</label>
             <select name="payment_method" id="payment_method_select" class="w-full" onchange="onPaymentMethodChange()">
                 <option value="10" {{ if eq .default_payment_method "10" }}selected{{ end }}>{{ L "tpl.payment_method.cash" }} (10)</option>
                 <option value="30" {{ if eq .default_payment_method "30" }}selected{{ end }}>{{ L "tpl.payment_method.credit" }} (30)</option>

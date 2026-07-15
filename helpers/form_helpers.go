@@ -9,10 +9,10 @@ import (
 
 // DerefString safely dereferences a *string, returning "" if nil.
 func DerefString(s *string) string {
-if s == nil {
-return ""
-}
-return *s
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 func ParseUint64Value(value string) uint64 {
@@ -274,12 +274,15 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 	// ParseForm does NOT parse multipart bodies, leaving r.Form empty.
 	_ = r.ParseMultipartForm(32 << 20)
 
-	// Catalog products from products_* form fields
+	// Every UI item uses products_* fields. Only a dropdown-selected item is
+	// stock-tracked; typed and CSV-imported items remain manual purchase lines.
 	ids := r.Form["products_product_id"]
 	prices := r.Form["products_price"]
 	quantities := r.Form["products_quantity"]
 	names := r.Form["products_part_name"]
 	costPrices := r.Form["products_cost_price"]
+	shelfNumbers := r.Form["products_shelf_number"]
+	trackStocks := r.Form["products_track_stock"]
 
 	var products []models.BillProductItem
 	var manualProducts []models.BillManualItem
@@ -287,25 +290,33 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 	max := productRowMaxLen(ids, prices, quantities)
 	for i := 0; i < max; i++ {
 		row := readProductRow(i, ids, prices, quantities, names, costPrices)
-		if row.id == 0 && row.price == "0" && row.quantity == "0" {
+		if row.name == "" && row.price == "0" {
 			continue
 		}
-		if row.id != 0 {
-			products = append(products, models.BillProductItem{
-				ID:        row.id,
-				PartName:  row.name,
-				Price:     row.price,
-				Quantity:  row.quantity,
-				CostPrice: row.costPrice,
-			})
-		} else {
-			manualProducts = append(manualProducts, models.BillManualItem{
-				PartName:  row.name,
-				Price:     row.price,
-				Quantity:  row.quantity,
-				CostPrice: row.costPrice,
-			})
+		trackStock := i < len(trackStocks) && trackStocks[i] == "true"
+		shelfNumber := ""
+		if i < len(shelfNumbers) {
+			shelfNumber = shelfNumbers[i]
 		}
+		if trackStock && row.id > 0 {
+			products = append(products, models.BillProductItem{
+				ID:          row.id,
+				PartName:    row.name,
+				Price:       row.price,
+				Quantity:    row.quantity,
+				CostPrice:   row.costPrice,
+				ShelfNumber: shelfNumber,
+				TrackStock:  true,
+			})
+			continue
+		}
+		manualProducts = append(manualProducts, models.BillManualItem{
+			PartName:    row.name,
+			Price:       row.price,
+			Quantity:    row.quantity,
+			CostPrice:   row.costPrice,
+			ShelfNumber: shelfNumber,
+		})
 	}
 
 	// Manual products from separate manual_* form fields

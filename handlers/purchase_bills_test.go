@@ -13,9 +13,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// TestAddPurchaseBillPageHasManualSection verifies the add-purchase-bill form
-// has a manual products section with add button.
-func TestAddPurchaseBillPageHasManualSection(t *testing.T) {
+// TestAddPurchaseBillPageHasUnifiedItems verifies the add form uses one item
+// section whose rows explicitly indicate whether they are inventory-linked.
+func TestAddPurchaseBillPageHasUnifiedItems(t *testing.T) {
 	// Create a mock backend that returns empty stores/suppliers
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -45,24 +45,14 @@ func TestAddPurchaseBillPageHasManualSection(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Must have manual products section
-	if !strings.Contains(body, "قطع يدوية") {
-		t.Error("expected manual products section header 'قطع يدوية' in add-purchase-bill page")
+	if !strings.Contains(body, `id="products-container"`) || !strings.Contains(body, "addItem") {
+		t.Error("expected unified purchase item container and add action")
 	}
-
-	// Must have manual products container
-	if !strings.Contains(body, `id="manual-container"`) {
-		t.Error("expected manual-container div in add-purchase-bill page")
+	if !strings.Contains(body, "products_track_stock") || !strings.Contains(body, "item-state") {
+		t.Error("expected item rows to expose the inventory-link state")
 	}
-
-	// Must have add manual item button
-	if !strings.Contains(body, "addManualItem") {
-		t.Error("expected addManualItem button in add-purchase-bill page")
-	}
-
-	// Must have manual form fields in the JS template
-	if !strings.Contains(body, "manual_part_name") {
-		t.Error("expected manual_part_name input field in add-purchase-bill page")
+	if strings.Contains(body, `id="manual-container"`) || strings.Contains(body, "addManualItem") {
+		t.Error("expected manual entry to be merged into the unified item section")
 	}
 }
 
@@ -150,11 +140,11 @@ func TestAddPurchaseBillPageHasWorkingCSVImportSection(t *testing.T) {
 	if !strings.Contains(body, `'X-CSRF-Token': getCsrfCookie()`) {
 		t.Error("expected CSV upload fetch to send the CSRF token")
 	}
-	if !strings.Contains(body, `container.insertAdjacentHTML('beforeend', itemRow())`) {
-		t.Error("expected CSV import to append rows using the existing purchase-bill itemRow builder")
+	if !strings.Contains(body, `items.forEach(item => container.insertAdjacentHTML('beforeend', itemRow(item)))`) {
+		t.Error("expected CSV import to append populated rows using the purchase-bill itemRow builder")
 	}
-	if !strings.Contains(body, `row.querySelector('[name="products_part_name"]')`) {
-		t.Error("expected CSV import to populate products_part_name so imported rows submit correctly")
+	if !strings.Contains(body, `var name = product ? (product.name || product.partName || product.part_name || '') : '';`) {
+		t.Error("expected CSV import rows to populate the store item name")
 	}
 }
 
@@ -202,9 +192,9 @@ func TestPurchaseBillsEmptyStateAddLinkUsesRegisteredRoute(t *testing.T) {
 	}
 }
 
-// TestAddPurchaseBillTotalIncludesManual verifies the JS recalculateTotal
-// function sums both catalog and manual items.
-func TestAddPurchaseBillTotalIncludesManual(t *testing.T) {
+// TestAddPurchaseBillTotalUsesUnifiedItems verifies the JS total uses the
+// single purchase-item list.
+func TestAddPurchaseBillTotalUsesUnifiedItems(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"data":[]}`))
@@ -232,14 +222,11 @@ func TestAddPurchaseBillTotalIncludesManual(t *testing.T) {
 
 	body := w.Body.String()
 
-	// JS must have sumManualItems function
-	if !strings.Contains(body, "sumManualItems") {
-		t.Error("expected sumManualItems function in add-purchase-bill JS")
+	if !strings.Contains(body, "sumPurchaseItems") {
+		t.Error("expected recalculateTotal to use the unified purchase item total")
 	}
-
-	// recalculateTotal must reference both sumCatalogItems and sumManualItems
-	if !strings.Contains(body, "sumCatalogItems") || !strings.Contains(body, "sumManualItems") {
-		t.Error("expected recalculateTotal to use both sumCatalogItems and sumManualItems")
+	if strings.Contains(body, "sumManualItems") || strings.Contains(body, "sumCatalogItems") {
+		t.Error("expected no separate manual or catalog totals")
 	}
 }
 

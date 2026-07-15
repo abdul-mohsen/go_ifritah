@@ -1341,6 +1341,12 @@ func parseBillItems(raw interface{}) []models.BillItem {
 		if v, ok := CoerceFloat(m["quantity"]); ok {
 			item.Quantity = int(v)
 		}
+		if v, ok := CoerceFloat(m["cost_price"]); ok {
+			item.CostPrice = v
+		}
+		if v, ok := m["shelf_number"].(string); ok {
+			item.ShelfNumber = v
+		}
 		if v, ok := CoerceFloat(m["discount"]); ok {
 			item.Discount = v
 		}

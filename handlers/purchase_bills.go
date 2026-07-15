@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -223,90 +222,8 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-create products in the store from the purchase bill items
-	autoCreateProductsFromPurchaseBill(token, payload.StoreID, r)
-
 	helpers.APICache.Delete("purchase_bills")
 	helpers.WriteSuccessRedirect(w, "/dashboard/purchase-bills", "تم إنشاء فاتورة الشراء بنجاح")
-}
-
-// autoCreateProductsFromPurchaseBill creates products in the store for each item in the purchase bill.
-// It reads cost_price[] from the form and uses the purchase bill product data.
-func autoCreateProductsFromPurchaseBill(token string, storeID int, r *http.Request) {
-	productIDs := r.Form["products_product_id"]
-	quantities := r.Form["products_quantity"]
-	prices := r.Form["products_price"]
-	costPrices := r.Form["products_cost_price"]
-	shelfNumbers := r.Form["products_shelf_number"]
-
-	if len(quantities) == 0 || storeID == 0 {
-		return
-	}
-
-	products := make([]map[string]interface{}, 0, len(quantities))
-	for i := range quantities {
-		// Skip manual items (product_id=0 means unlinked/manual)
-		pid := 0
-		if i < len(productIDs) {
-			pid, _ = strconv.Atoi(productIDs[i])
-		}
-		if pid == 0 {
-			continue
-		}
-
-		qty, _ := strconv.Atoi(quantities[i])
-		price := 0
-		if i < len(prices) {
-			price, _ = strconv.Atoi(prices[i])
-		}
-		costPrice := 0
-		if i < len(costPrices) {
-			costPrice, _ = strconv.Atoi(costPrices[i])
-		}
-		shelfNum := ""
-		if i < len(shelfNumbers) {
-			shelfNum = shelfNumbers[i]
-		}
-
-		if qty == 0 && price == 0 {
-			continue
-		}
-
-		products = append(products, map[string]interface{}{
-			"product_id":   pid,
-			"quantity":     qty,
-			"price":        price,
-			"cost_price":   costPrice,
-			"shelf_number": shelfNum,
-		})
-	}
-
-	if len(products) == 0 {
-		return
-	}
-
-	payloadMap := map[string]interface{}{
-		"store_id": storeID,
-		"products": products,
-	}
-	jsonPayload, _ := json.Marshal(payloadMap)
-	log.Printf("[AUTO-CREATE PRODUCTS] From purchase bill → %s", string(jsonPayload))
-
-	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/product", bytes.NewBuffer(jsonPayload))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := helpers.DoAuthedRequest(req, token)
-	if err != nil {
-		log.Printf("[AUTO-CREATE PRODUCTS] Error: %v", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		respBody, _ := io.ReadAll(resp.Body)
-		log.Printf("[AUTO-CREATE PRODUCTS] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-	} else {
-		log.Printf("[AUTO-CREATE PRODUCTS] Success: %d products created in store %d", len(products), storeID)
-	}
 }
 
 // HandleGetPurchaseBill shows details for a purchase bill.

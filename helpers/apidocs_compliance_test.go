@@ -333,6 +333,7 @@ func TestPurchaseBillPayload_ProductPriceAndQuantityAreStrings(t *testing.T) {
 		"store_id":                 {"1"},
 		"supplier_id":              {"5"},
 		"products_product_id":      {"6"},
+		"products_track_stock":     {"true"},
 		"products_price":           {"50"},
 		"products_quantity":        {"10"},
 		"products_part_name":       {"فلتر"},

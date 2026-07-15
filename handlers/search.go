@@ -174,10 +174,13 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type productResult struct {
-		ID       int    `json:"id"`
-		Name     string `json:"name"`
-		Price    string `json:"price"`
-		Quantity string `json:"quantity"`
+		ID          int    `json:"id"`
+		Name        string `json:"name"`
+		StoreID     int    `json:"store_id"`
+		Price       string `json:"price"`
+		CostPrice   string `json:"cost_price"`
+		ShelfNumber string `json:"shelf_number"`
+		Quantity    string `json:"quantity"`
 	}
 
 	results := make([]productResult, 0, len(products))
@@ -187,10 +190,13 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 			name = p.Name
 		}
 		results = append(results, productResult{
-			ID:       p.ID,
-			Name:     name,
-			Price:    p.Price,
-			Quantity: p.Quantity,
+			ID:          p.ID,
+			Name:        name,
+			StoreID:     p.StoreID,
+			Price:       p.Price,
+			CostPrice:   p.CostPrice,
+			ShelfNumber: p.ShelfNumber,
+			Quantity:    p.Quantity,
 		})
 		if len(results) >= 50 {
 			break

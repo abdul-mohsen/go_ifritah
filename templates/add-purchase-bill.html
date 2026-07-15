@@ -77,9 +77,9 @@
         </div>
 
         <div class="mt-6">
-            <h4 class="section-card-title">{{ L "tpl.pb.catalog_parts" }}</h4>
+            <h4 class="section-card-title">{{ L "tpl.pb.items" }}</h4>
             <div id="products-container" class="space-y-3"></div>
-            <button type="button" onclick="addItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.pb.add_catalog_part" }}</button>
+            <button type="button" onclick="addItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.pb.add_item" }}</button>
         </div>
 
         <div class="mt-6">
@@ -95,12 +95,6 @@
                     <input type="file" accept=".csv,text/csv" onchange="handleImportUpload(this)" style="display:none">
                 </label>
             </div>
-        </div>
-
-        <div class="mt-6">
-            <h4 class="section-card-title">{{ L "tpl.pb.manual_parts" }}</h4>
-            <div id="manual-container" class="space-y-3"></div>
-            <button type="button" onclick="addManualItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.pb.add_manual_part" }}</button>
         </div>
 
         <div class="mt-6"{{ if eq .pb_pdf_required "disabled" }} style="display:none"{{ end }}>
@@ -167,7 +161,7 @@
 </div>
 
 <script>
-    var purchaseBillLabels = {{ dict "oemLabel" (L "tpl.pb.oem_label") "oemPlaceholder" (L "tpl.pb.oem_placeholder") "quantity" (L "tpl.pb.quantity") "sellingPrice" (L "tpl.product.selling_price") "costPrice" (L "tpl.product.cost_price") "shelfNumber" (L "tpl.product.shelf_number") "deleteLabel" (L "tpl.delete") "partName" (L "tpl.pb.part_name") "enterPartName" (L "tpl.pb.enter_part_name") "purchasePrice" (L "tpl.pb.purchase_price") "duplicateSupplierInvoice" (L "tpl.pb.duplicate_supplier_invoice") "duplicateCheckWarning" (L "tpl.pb.duplicate_check_warning") "viewPurchaseBill" (L "tpl.pb.view_purchase_bill") "invalidImportItems" (L "tpl.pb.invalid_import_items") "importFailedPrefix" (L "tpl.pb.import_failed_prefix") | json }};
+    var purchaseBillLabels = {{ dict "itemLabel" (L "tpl.pb.item_label") "itemPlaceholder" (L "tpl.pb.item_placeholder") "manualItem" (L "tpl.pb.manual_item") "inventoryItem" (L "tpl.pb.inventory_item") "quantity" (L "tpl.pb.quantity") "costPrice" (L "tpl.product.cost_price") "shelfNumber" (L "tpl.product.shelf_number") "deleteLabel" (L "tpl.delete") "purchasePrice" (L "tpl.pb.purchase_price") "duplicateSupplierInvoice" (L "tpl.pb.duplicate_supplier_invoice") "duplicateCheckWarning" (L "tpl.pb.duplicate_check_warning") "viewPurchaseBill" (L "tpl.pb.view_purchase_bill") "invalidImportItems" (L "tpl.pb.invalid_import_items") "importFailedPrefix" (L "tpl.pb.import_failed_prefix") | json }};
 
     // Supplier payment data for payment method defaults and credit checks
     var suppliersData = {
@@ -386,34 +380,45 @@
 
     var searchTimers = {};
 
-    function itemRow() {
+    function itemRow(product) {
         var rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        var productId = product ? (product.id || product.product_id || 0) : 0;
+        var trackStock = productId > 0 && (!product || product.track_stock !== false);
+        var name = product ? (product.name || product.partName || product.part_name || '') : '';
+        var quantity = product ? (product.quantity || 1) : 1;
+        var purchasePrice = product ? (product.purchasePrice !== undefined ? product.purchasePrice : (product.price || '')) : '';
+        var costPrice = product ? (product.costPrice !== undefined ? product.costPrice : (product.cost_price || '')) : '';
+        var shelfNumber = product ? (product.shelfNumber || product.shelf_number || '') : '';
         return `
             <div class="item-row border rounded p-3" data-row-id="${rowId}">
+                <div class="mb-2">
+                    <span class="item-state text-xs ${trackStock ? 'text-green-700' : 'text-gray-500'}">${escapeHtml(trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem)}</span>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
                     <div class="md:col-span-2 relative">
-                        <label class="form-label">${escapeHtml(purchaseBillLabels.oemLabel)}</label>
-                        <input type="text" class="w-full part-search" placeholder="${escapeAttr(purchaseBillLabels.oemPlaceholder)}" autocomplete="off"
-                               oninput="searchParts(this, '${rowId}')" onfocus="showDropdown('${rowId}')">
-                        <input type="hidden" name="products_product_id" value="0">
-                        <input type="hidden" name="products_part_name" value="">
+                        <label class="form-label">${escapeHtml(purchaseBillLabels.itemLabel)}</label>
+                        <input type="text" class="w-full store-product-search" placeholder="${escapeAttr(purchaseBillLabels.itemPlaceholder)}" autocomplete="off"
+                               value="${escapeAttr(name)}" oninput="onStoreItemInput(this, '${rowId}')" onfocus="showDropdown('${rowId}')">
+                        <input type="hidden" name="products_product_id" value="${productId}">
+                        <input type="hidden" name="products_part_name" value="${escapeAttr(name)}">
+                        <input type="hidden" name="products_track_stock" value="${trackStock}">
                         <div id="dropdown_${rowId}" class="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
                     </div>
                     <div>
                         <label class="form-label">${escapeHtml(purchaseBillLabels.quantity)}</label>
-                        <input type="number" name="products_quantity" min="1" value="1" class="w-full" oninput="recalculateTotal()">
+                        <input type="number" name="products_quantity" min="1" value="${quantity}" class="w-full" oninput="recalculateTotal()">
                     </div>
                     <div>
-                        <label class="form-label">${escapeHtml(purchaseBillLabels.sellingPrice)}</label>
-                        <input type="text" name="products_price" class="w-full" oninput="recalculateTotal()">
+                        <label class="form-label">${escapeHtml(purchaseBillLabels.purchasePrice)}</label>
+                        <input type="text" name="products_price" value="${purchasePrice}" class="w-full" oninput="recalculateTotal()">
                     </div>
                     <div>
                         <label class="form-label">${escapeHtml(purchaseBillLabels.costPrice)}</label>
-                        <input type="text" name="products_cost_price" class="w-full" placeholder="0">
+                        <input type="text" name="products_cost_price" value="${costPrice}" class="w-full" placeholder="0">
                     </div>
                     <div>
                         <label class="form-label">${escapeHtml(purchaseBillLabels.shelfNumber)}</label>
-                        <input type="text" name="products_shelf_number" class="w-full" placeholder="">
+                        <input type="text" name="products_shelf_number" value="${escapeAttr(shelfNumber)}" class="w-full" placeholder="">
                     </div>
                 </div>
                 <div class="mt-2 flex justify-end">
@@ -423,7 +428,15 @@
         `;
     }
 
-    function searchParts(input, rowId) {
+    function onStoreItemInput(input, rowId) {
+        var row = document.querySelector('[data-row-id="' + rowId + '"]');
+        row.querySelector('[name="products_product_id"]').value = '0';
+        row.querySelector('[name="products_part_name"]').value = input.value.trim();
+        setInventoryState(row, false);
+        searchStoreProducts(input, rowId);
+    }
+
+    function searchStoreProducts(input, rowId) {
         var query = input.value.trim();
         if (searchTimers[rowId]) clearTimeout(searchTimers[rowId]);
         if (query.length < 1) {
@@ -434,13 +447,13 @@
             var csrfToken = getCsrfCookie();
             var formData = new FormData();
             formData.append('query', query);
-            fetch('/api/parts/search-json', {
+            fetch('/api/products/search-json', {
                 method: 'POST',
                 headers: { 'X-CSRF-Token': csrfToken },
                 body: formData
             })
                 .then(function (r) { return r.json(); })
-                .then(function (parts) { renderDropdown(parts, rowId, input); })
+                .then(function (products) { renderStoreProductDropdown(products, rowId); })
                 .catch(function () { hideDropdown(rowId); });
         }, 300);
     }
@@ -450,23 +463,27 @@
         return match ? match[1] : '';
     }
 
-    function renderDropdown(parts, rowId, input) {
+    function renderStoreProductDropdown(products, rowId) {
         var dd = document.getElementById('dropdown_' + rowId);
-        if (!parts || parts.length === 0) {
+        var storeSelect = document.querySelector('[name="store_id"]');
+        var storeID = parseInt(storeSelect ? storeSelect.value : '', 10);
+        products = (products || []).filter(function (product) {
+            return product.store_id === storeID;
+        });
+        if (!products.length) {
             dd.innerHTML = '<div class="px-3 py-2 text-sm text-gray-500">{{ L "tpl.product.no_results" }}</div>';
             dd.classList.remove('hidden');
             return;
         }
         var html = '';
-        var count = Math.min(parts.length, 50);
+        var count = Math.min(products.length, 50);
         for (var i = 0; i < count; i++) {
-            var p = parts[i];
-            var oem = p.oem_number || '';
-            var partId = p.id || 0;
-            if (!oem || oem === '_' || oem === '-') continue;
+            var p = products[i];
+            var name = p.name || '';
+            if (!name) continue;
             html += '<div class="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer border-b" '
-                + 'onclick="selectPart(this, \'' + rowId + '\', \'' + escapeAttr(oem) + '\', ' + partId + ')">'
-                + escapeHtml(oem)
+                + 'onclick="selectStoreProduct(\'' + rowId + '\', ' + p.id + ', \'' + escapeAttr(name) + '\', \'' + escapeAttr(p.cost_price || '') + '\', \'' + escapeAttr(p.shelf_number || '') + '\')">'
+                + escapeHtml(name)
                 + '</div>';
         }
         if (!html) {
@@ -476,14 +493,23 @@
         dd.classList.remove('hidden');
     }
 
-    function selectPart(el, rowId, oem, partId) {
+    function selectStoreProduct(rowId, productId, name, costPrice, shelfNumber) {
         var row = document.querySelector('[data-row-id="' + rowId + '"]');
-        row.querySelector('.part-search').value = oem;
-        row.querySelector('[name="products_part_name"]').value = oem;
-        if (partId) {
-            row.querySelector('[name="products_product_id"]').value = partId;
-        }
+        row.querySelector('.store-product-search').value = name;
+        row.querySelector('[name="products_product_id"]').value = productId;
+        row.querySelector('[name="products_part_name"]').value = name;
+        row.querySelector('[name="products_cost_price"]').value = costPrice;
+        row.querySelector('[name="products_shelf_number"]').value = shelfNumber;
+        setInventoryState(row, true);
         hideDropdown(rowId);
+    }
+
+    function setInventoryState(row, trackStock) {
+        row.querySelector('[name="products_track_stock"]').value = String(trackStock);
+        var state = row.querySelector('.item-state');
+        state.textContent = trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem;
+        state.classList.toggle('text-green-700', trackStock);
+        state.classList.toggle('text-gray-500', !trackStock);
     }
 
     function showDropdown(rowId) {
@@ -508,39 +534,15 @@
 
     // Close dropdowns when clicking outside
     document.addEventListener('click', function (e) {
-        if (!e.target.classList.contains('part-search')) {
+        if (!e.target.classList.contains('store-product-search')) {
             var dds = document.querySelectorAll('[id^="dropdown_"]');
             for (var i = 0; i < dds.length; i++) dds[i].classList.add('hidden');
         }
     });
 
-    function manualItemRow() {
-        return `
-            <div class="item-row grid grid-cols-1 md:grid-cols-4 gap-3 items-end border rounded p-3">
-                <div class="md:col-span-2">
-                    <label class="form-label">${escapeHtml(purchaseBillLabels.partName)}</label>
-                    <input type="text" name="manual_part_name" class="w-full" placeholder="${escapeAttr(purchaseBillLabels.enterPartName)}" oninput="recalculateTotal()">
-                </div>
-                <div>
-                    <label class="form-label">${escapeHtml(purchaseBillLabels.quantity)}</label>
-                    <input type="number" name="manual_quantity" min="1" value="1" class="w-full" oninput="recalculateTotal()">
-                </div>
-                <div>
-                    <label class="form-label">${escapeHtml(purchaseBillLabels.purchasePrice)}</label>
-                    <input type="text" name="manual_price" class="w-full" placeholder="0" oninput="recalculateTotal()">
-                </div>
-                <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">${escapeHtml(purchaseBillLabels.deleteLabel)}</button>
-            </div>
-        `;
-    }
-
     function addItem() {
         var container = document.getElementById('products-container');
         container.insertAdjacentHTML('beforeend', itemRow());
-    }
-
-    function addManualItem() {
-        document.getElementById('manual-container').insertAdjacentHTML('beforeend', manualItemRow());
     }
 
     function removeRow(btn) {
@@ -549,7 +551,7 @@
         recalculateTotal();
     }
 
-    function sumCatalogItems() {
+    function sumPurchaseItems() {
         var prices = document.getElementsByName('products_price');
         var qtys = document.getElementsByName('products_quantity');
         var total = 0;
@@ -561,20 +563,8 @@
         return total;
     }
 
-    function sumManualItems() {
-        var prices = document.getElementsByName('manual_price');
-        var qtys = document.getElementsByName('manual_quantity');
-        var total = 0;
-        for (var i = 0; i < Math.max(prices.length, qtys.length); i++) {
-            var price = parseFloat(prices[i]?.value || 0);
-            var qty = parseFloat(qtys[i]?.value || 0);
-            total += price * qty;
-        }
-        return total;
-    }
-
     function recalculateTotal() {
-        var itemsTotal = sumCatalogItems() + sumManualItems();
+        var itemsTotal = sumPurchaseItems();
         var discount = parseFloat(document.getElementById('discount').value || 0);
         var subtotal = itemsTotal;
         var withVat = subtotal * 1.15;
@@ -839,17 +829,7 @@
             }
 
             const container = document.getElementById('products-container');
-            items.forEach(item => {
-                container.insertAdjacentHTML('beforeend', itemRow());
-                const row = container.lastElementChild;
-                row.querySelector('.part-search').value = item.partName;
-                row.querySelector('[name="products_product_id"]').value = '0';
-                row.querySelector('[name="products_part_name"]').value = item.partName;
-                row.querySelector('[name="products_quantity"]').value = item.quantity;
-                row.querySelector('[name="products_price"]').value = item.purchasePrice;
-                row.querySelector('[name="products_cost_price"]').value = item.costPrice;
-                row.querySelector('[name="products_shelf_number"]').value = item.shelfNumber || '';
-            });
+            items.forEach(item => container.insertAdjacentHTML('beforeend', itemRow(item)));
             recalculateTotal();
             input.value = '';
         })

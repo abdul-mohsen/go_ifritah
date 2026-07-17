@@ -1,0 +1,38 @@
+name: Validate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+  pull-requests: read # required by golangci-lint only-new-issues on PRs
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          # .golangci.yml is v1-format config; golangci-lint-action v7+
+          # only supports golangci-lint v2, so both are pinned to v1.
+          version: v1.64.8
+          # dev already has pre-existing lint debt (ineffassign, misspell
+          # findings). Only fail CI for issues introduced by this PR/push
+          # so the check is actionable instead of blocked on legacy debt.
+          only-new-issues: true

@@ -62,7 +62,9 @@
             <div id="excel-sheet-preview" class="mt-3 hidden">
                 <p class="text-sm font-medium mb-1">{{ L "tpl.import.data_preview" }}</p>
                 <div class="excel-preview-table-wrap">
-                    <table id="excel-preview-table" class="excel-preview-table"></table>
+                    <table id="excel-preview-table" class="excel-preview-table">
+                        <thead><tr><th>{{ L "tpl.import.data_preview" }}</th></tr></thead>
+                    </table>
                 </div>
             </div>
             <div class="mt-3 flex justify-start">
@@ -92,7 +94,9 @@
             <div id="mapping-preview" class="mt-3 hidden">
                 <p class="text-sm font-medium mb-1">{{ L "tpl.import.results_preview" }}</p>
                 <div class="excel-preview-table-wrap">
-                    <table id="mapping-preview-table" class="excel-preview-table"></table>
+                    <table id="mapping-preview-table" class="excel-preview-table">
+                        <thead><tr><th>{{ L "tpl.import.results_preview" }}</th></tr></thead>
+                    </table>
                 </div>
             </div>
 

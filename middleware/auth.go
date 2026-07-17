@@ -26,7 +26,7 @@ func TokenRefreshMiddleware(next http.Handler) http.Handler {
 		// Get session ID from cookie
 		cookie, err := r.Cookie("session_id")
 		if err != nil {
-			log.Printf("🔍 [AUTH] %s %s — no session_id cookie (err=%v)", r.Method, r.URL.Path, err)
+			log.Printf("🔍 [AUTH] %s %s — no session_id cookie (err=%v)", r.Method, helpers.SanitizeForLog(r.URL.Path), err)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -41,7 +41,7 @@ func TokenRefreshMiddleware(next http.Handler) http.Handler {
 		config.SessionTokensMutex.RUnlock()
 
 		log.Printf("🔍 [AUTH] %s %s session=%s hasAccess=%v hasRefresh=%v expiry=%v idleSinceExpiry=%v",
-			r.Method, r.URL.Path, sessionID[:min(8, len(sessionID))],
+			r.Method, helpers.SanitizeForLog(r.URL.Path), helpers.SanitizeForLog(sessionID[:min(8, len(sessionID))]),
 			hasAccess, hasRefresh,
 			hasExpiry, func() string {
 				if !hasExpiry {
@@ -57,7 +57,7 @@ func TokenRefreshMiddleware(next http.Handler) http.Handler {
 			config.SessionTokensMutex.RUnlock()
 
 			if hasRefresh && refreshToken != "" {
-				log.Printf("🔄 No access token but have refresh token, attempting refresh for session: %s", sessionID)
+				log.Printf("🔄 No access token but have refresh token, attempting refresh for session: %s", helpers.SanitizeForLog(sessionID))
 				wrapper := &responseWrapper{
 					ResponseWriter: w,
 					sessionID:      sessionID,
@@ -66,7 +66,7 @@ func TokenRefreshMiddleware(next http.Handler) http.Handler {
 					originalPath:   r.URL.RequestURI(),
 				}
 				if wrapper.attemptTokenRefresh() {
-					log.Printf("✅ Token refreshed (no access token path) for session: %s", sessionID)
+					log.Printf("✅ Token refreshed (no access token path) for session: %s", helpers.SanitizeForLog(sessionID))
 					if r.Header.Get("HX-Request") == "true" {
 						w.Header().Set("HX-Redirect", r.URL.RequestURI())
 						w.WriteHeader(http.StatusOK)
@@ -75,7 +75,7 @@ func TokenRefreshMiddleware(next http.Handler) http.Handler {
 					}
 					return
 				}
-				log.Printf("❌ Refresh failed (no access token path) for session: %s", sessionID)
+				log.Printf("❌ Refresh failed (no access token path) for session: %s", helpers.SanitizeForLog(sessionID))
 			}
 
 			// No refresh token or refresh failed — let the handler deal with it
@@ -115,6 +115,8 @@ func TokenRefreshMiddleware(next http.Handler) http.Handler {
 				Path:     "/",
 				MaxAge:   -1,
 				HttpOnly: true,
+				Secure:   !config.IsLocalhost(),
+				SameSite: http.SameSiteStrictMode,
 			})
 
 			// Check if it's an HTMX request
@@ -149,10 +151,10 @@ func (rw *responseWrapper) WriteHeader(statusCode int) {
 
 	// If we get a 401 Unauthorized, try to refresh the token
 	if statusCode == http.StatusUnauthorized && rw.hasRefresh && rw.refreshToken != "" {
-		log.Printf("🔄 Detected 401 Unauthorized, attempting token refresh for session: %s", rw.sessionID)
+		log.Printf("🔄 Detected 401 Unauthorized, attempting token refresh for session: %s", helpers.SanitizeForLog(rw.sessionID))
 
 		if rw.attemptTokenRefresh() {
-			log.Printf("✅ Token refreshed successfully for session: %s — marking for redirect", rw.sessionID)
+			log.Printf("✅ Token refreshed successfully for session: %s — marking for redirect", helpers.SanitizeForLog(rw.sessionID))
 			// Clear any pending headers set by the failed handler (e.g. cookie
 			// deletion from HandleUnauthorized, HX-Redirect to login page).
 			// Otherwise the browser would drop the session cookie and follow
@@ -167,7 +169,7 @@ func (rw *responseWrapper) WriteHeader(statusCode int) {
 			return
 		}
 
-		log.Printf("❌ Token refresh failed for session: %s, redirecting to login", rw.sessionID)
+		log.Printf("❌ Token refresh failed for session: %s, redirecting to login", helpers.SanitizeForLog(rw.sessionID))
 		rw.needsLoginRedirect = true
 		return
 	}
@@ -249,7 +251,7 @@ func (rw *responseWrapper) attemptTokenRefresh() bool {
 		log.Printf("⚠️  Failed to persist refreshed token: %v", err)
 	}
 
-	log.Printf("🔑 Token refreshed, expiry updated, and persisted for session: %s", rw.sessionID)
+	log.Printf("🔑 Token refreshed, expiry updated, and persisted for session: %s", helpers.SanitizeForLog(rw.sessionID))
 	return true
 }
 
@@ -320,6 +322,6 @@ func RefreshTokenIfNeeded(sessionID string) error {
 		log.Printf("⚠️  Failed to persist refreshed token: %v", err)
 	}
 
-	log.Printf("✅ Token proactively refreshed for session: %s", sessionID)
+	log.Printf("✅ Token proactively refreshed for session: %s", helpers.SanitizeForLog(sessionID))
 	return nil
 }

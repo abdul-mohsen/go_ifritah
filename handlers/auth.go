@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 
 	"afrita/config"
@@ -41,7 +39,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	// Call the real backend API with JSON payload
 	loginData := models.AuthRequest{Username: username, Password: password}
 	jsonPayload, _ := json.Marshal(loginData)
-	log.Printf("🔑 Attempting login to: %s/api/v2/login with username: %s", config.BackendDomain, username)
+	log.Printf("🔑 Attempting login to: %s/api/v2/login with username: %s", config.BackendDomain, helpers.SanitizeForLog(username))
 
 	resp, err := http.Post(
 		config.BackendDomain+"/api/v2/login",
@@ -95,7 +93,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set secure HttpOnly cookie; Secure=true when not localhost
-	isSecure := !isLocalhost()
+	isSecure := !config.IsLocalhost()
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
 		Value:    sessionID,
@@ -106,7 +104,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   7 * 24 * 60 * 60, // 7 days — matches refresh token lifetime
 	})
 
-	log.Printf("✅ Secure token storage: HttpOnly=true, Secure=%v, SameSite=Strict for user: %s", isSecure, username)
+	log.Printf("✅ Secure token storage: HttpOnly=true, Secure=%v, SameSite=Strict for user: %s", isSecure, helpers.SanitizeForLog(username))
 
 	w.Header().Set("HX-Redirect", "/dashboard")
 	w.WriteHeader(http.StatusOK)
@@ -143,7 +141,7 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 		delete(config.SessionTokenExpiry, sessionID)
 		config.SessionTokensMutex.Unlock()
 
-		log.Printf("✅ Session cleared for session: %s", sessionID)
+		log.Printf("✅ Session cleared for session: %s", helpers.SanitizeForLog(sessionID))
 	}
 
 	// Clear session cookie
@@ -153,6 +151,8 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
+		Secure:   !config.IsLocalhost(),
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -288,12 +288,3 @@ func generateSecureSessionID() string {
 	return "s_" + hex.EncodeToString(b)
 }
 
-// isLocalhost returns true when running on localhost (no HTTPS available).
-func isLocalhost() bool {
-	domain := strings.ToLower(os.Getenv("APP_DOMAIN"))
-	return domain == "" ||
-		domain == "localhost" ||
-		strings.HasPrefix(domain, "127.0.0.1") ||
-		domain == "localtest.me" ||
-		strings.HasSuffix(domain, ".localtest.me")
-}

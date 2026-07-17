@@ -275,6 +275,22 @@ func Initialize() {
 	log.Printf("🔐 Token storage initialized at: %s", TokenStoreDir)
 }
 
+// IsLocalhost returns true when the app is configured to run on localhost
+// (no HTTPS available in that case). Cookies should only set Secure=true
+// when this returns false, otherwise a local HTTP dev server would silently
+// drop the cookie.
+func IsLocalhost() bool {
+	domain := strings.ToLower(AppDomain)
+	if domain == "" {
+		domain = strings.ToLower(os.Getenv("APP_DOMAIN"))
+	}
+	return domain == "" ||
+		domain == "localhost" ||
+		strings.HasPrefix(domain, "127.0.0.1") ||
+		domain == "localtest.me" ||
+		strings.HasSuffix(domain, ".localtest.me")
+}
+
 func loadAppVersion() string {
 	if version := strings.TrimSpace(os.Getenv("APP_VERSION")); version != "" {
 		return version

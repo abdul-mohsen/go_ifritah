@@ -66,7 +66,9 @@
 
     <div class="flex h-screen">
         <!-- Mobile Sidebar Overlay -->
-        <div id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+        <div id="sidebar-overlay" role="button" tabindex="0" aria-label="{{ L "layout.close_sidebar" }}"
+            onclick="closeMobileSidebar()"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();closeMobileSidebar();}"></div>
         <!-- Sidebar / M3 Navigation Drawer -->
         <aside id="sidebar" class="flex flex-col overflow-hidden z-40"
             style="background: var(--md-sys-color-surface-container-lowest); border-left: 1px solid var(--md-sys-color-outline-variant)">

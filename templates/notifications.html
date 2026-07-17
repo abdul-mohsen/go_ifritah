@@ -28,7 +28,9 @@
         {{ range .unread }}
         <div class="section-card border-r-4 cursor-pointer hover:shadow-md transition relative"
             style="border-right-color: {{ if eq .Type "low_stock" }}var(--md-sys-color-error){{ else if eq .Type "payment_due" }}#f59e0b{{ else if eq .Type "new_order" }}var(--md-sys-color-primary){{ else if eq .Type "system" }}#6366f1{{ else }}#64748b{{ end }}"
-            onclick="markReadAndOpen({{ .ID }}, '{{ .Resource }}', '{{ .ResourceID }}')">
+            role="button" tabindex="0"
+            onclick="markReadAndOpen({{ .ID }}, '{{ .Resource }}', '{{ .ResourceID }}')"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();markReadAndOpen({{ .ID }}, '{{ .Resource }}', '{{ .ResourceID }}');}">
             <div class="flex items-start gap-3">
                 <!-- Icon -->
                 <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"

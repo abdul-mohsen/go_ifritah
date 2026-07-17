@@ -26,11 +26,9 @@
     <div class="space-y-3">
         <h4 class="text-sm font-semibold" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.notif.unread" }} ({{ len .unread }})</h4>
         {{ range .unread }}
-        <div class="section-card border-r-4 cursor-pointer hover:shadow-md transition relative"
+        <button type="button" class="section-card border-r-4 cursor-pointer hover:shadow-md transition relative block w-full text-right"
             style="border-right-color: {{ if eq .Type "low_stock" }}var(--md-sys-color-error){{ else if eq .Type "payment_due" }}#f59e0b{{ else if eq .Type "new_order" }}var(--md-sys-color-primary){{ else if eq .Type "system" }}#6366f1{{ else }}#64748b{{ end }}"
-            role="button" tabindex="0"
-            onclick="markReadAndOpen({{ .ID }}, '{{ .Resource }}', '{{ .ResourceID }}')"
-            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();markReadAndOpen({{ .ID }}, '{{ .Resource }}', '{{ .ResourceID }}');}">
+            onclick="markReadAndOpen({{ .ID }}, '{{ .Resource }}', '{{ .ResourceID }}')">
             <div class="flex items-start gap-3">
                 <!-- Icon -->
                 <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
@@ -69,7 +67,7 @@
                 <!-- Unread dot -->
                 <div class="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-blue-500 mt-1.5"></div>
             </div>
-        </div>
+        </button>
         {{ end }}
     </div>
     {{ end }}

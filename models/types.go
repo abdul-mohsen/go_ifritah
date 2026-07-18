@@ -456,6 +456,8 @@ type BillItem struct {
 	PartNumber     string  `json:"part_name"`
 	Price          float64 `json:"price"`
 	Quantity       int     `json:"quantity"`
+	CostPrice      float64 `json:"cost_price"`
+	ShelfNumber    string  `json:"shelf_number"`
 	Discount       float64 `json:"discount"`
 	TotalBeforeVAT float64 `json:"total_before_vat"`
 }
@@ -463,12 +465,14 @@ type BillItem struct {
 // BillProductItem represents a linked product in a bill payload.
 // Backend requires "product_id" (number), "name" (string), "price" (string), "quantity" (string).
 type BillProductItem struct {
-	ID        int    `json:"product_id"`
-	PartName  string `json:"name,omitempty"`
-	Price     string `json:"price"`
-	Quantity  string `json:"quantity"`
-	CostPrice string `json:"cost_price,omitempty"`
-	Discount  string `json:"discount,omitempty"`
+	ID          int    `json:"product_id"`
+	PartName    string `json:"name,omitempty"`
+	Price       string `json:"price"`
+	Quantity    string `json:"quantity"`
+	CostPrice   string `json:"cost_price,omitempty"`
+	ShelfNumber string `json:"shelf_number,omitempty"`
+	TrackStock  bool   `json:"track_stock,omitempty"`
+	Discount    string `json:"discount,omitempty"`
 }
 
 // BillManualItem represents a manual (text-based) product in a bill payload.
@@ -480,6 +484,7 @@ type BillManualItem struct {
 	Price      string `json:"price"`
 	Quantity   string `json:"quantity"`
 	CostPrice  string `json:"cost_price,omitempty"`
+	ShelfNumber string `json:"shelf_number,omitempty"`
 	Discount   string `json:"discount,omitempty"`
 }
 

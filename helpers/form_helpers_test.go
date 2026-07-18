@@ -42,13 +42,9 @@ func TestBuildPurchaseBillPayload_ManualProducts(t *testing.T) {
 	}
 }
 
-// TestBuildPurchaseBillPayload_CatalogRowWithoutSelection simulates the real
-// scenario: user adds a row in the catalog section, types a name, sets price
-// and quantity, but never selects from the dropdown so product_id stays 0.
-// The item must appear ONLY in manual_products, NOT in products.
-func TestBuildPurchaseBillPayload_CatalogRowWithoutSelection(t *testing.T) {
-	// This is exactly what the browser sends when user uses the catalog
-	// section to add an item without picking from the OEM dropdown
+// TestBuildPurchaseBillPayload_UnselectedItemIsManual verifies that a typed
+// item becomes a manual line unless the user chooses an inventory result.
+func TestBuildPurchaseBillPayload_UnselectedItemIsManual(t *testing.T) {
 	form := url.Values{
 		"store_id":              {"1"},
 		"supplier_id":           {"2"},
@@ -70,33 +66,35 @@ func TestBuildPurchaseBillPayload_CatalogRowWithoutSelection(t *testing.T) {
 	jsonBytes, _ := json.MarshalIndent(payload, "", "  ")
 	t.Logf("Payload JSON:\n%s", string(jsonBytes))
 
-	// Item with product_id=0 must go ONLY to manual_products
-	if len(payload.ManualProducts) != 1 {
-		t.Errorf("expected 1 manual_product, got %d", len(payload.ManualProducts))
-	}
-
-	// products[] must be empty — no duplication
 	if len(payload.Products) != 0 {
-		t.Errorf("products[] must be empty when product_id=0, got %d items: %+v", len(payload.Products), payload.Products)
+		t.Errorf("expected no stock products, got %d", len(payload.Products))
+	}
+	if len(payload.ManualProducts) != 1 {
+		t.Errorf("expected 1 manual product, got %d", len(payload.ManualProducts))
+	}
+	if got := payload.ManualProducts[0]; got.PartName != "فلتر زيت" {
+		t.Errorf("unexpected manual product: %+v", got)
+	}
+	if got := payload.ManualProducts[0]; got.CostPrice != "20" || got.ShelfNumber != "A1" {
+		t.Errorf("manual item should retain cost price and shelf number, got %+v", got)
 	}
 }
 
-// TestBuildPurchaseBillPayload_MixedCatalogAndManual simulates: one catalog item
-// selected from dropdown (product_id=100) + one manual item from the manual section.
-// Each must appear in its own array and nowhere else.
-func TestBuildPurchaseBillPayload_MixedCatalogAndManual(t *testing.T) {
+// TestBuildPurchaseBillPayload_MixedSelectedAndManual verifies that the
+// unified rows separate a selected inventory item from an unselected item.
+func TestBuildPurchaseBillPayload_MixedSelectedAndManual(t *testing.T) {
 	form := url.Values{
-		"store_id":             {"1"},
-		"supplier_id":          {"2"},
-		"products_product_id":  {"100"},
-		"products_price":       {"50"},
-		"products_quantity":    {"2"},
-		"products_part_name":   {"OEM-123"},
-		"manual_part_name":     {"فلتر يدوي"},
-		"manual_price":         {"30"},
-		"manual_quantity":      {"1"},
-		"discount":             {"0"},
-		"total_amount":         {"130"},
+		"store_id":              {"1"},
+		"supplier_id":           {"2"},
+		"products_product_id":   {"100", "0"},
+		"products_track_stock":  {"true", "false"},
+		"products_price":        {"50", "30"},
+		"products_quantity":     {"2", "1"},
+		"products_part_name":    {"فلتر مخزون", "فلتر يدوي"},
+		"products_cost_price":   {"40", "20"},
+		"products_shelf_number": {"A1", "B2"},
+		"discount":              {"0"},
+		"total_amount":          {"130"},
 	}
 
 	req, _ := http.NewRequest("POST", "/api/purchase-bills", strings.NewReader(form.Encode()))
@@ -107,9 +105,8 @@ func TestBuildPurchaseBillPayload_MixedCatalogAndManual(t *testing.T) {
 	jsonBytes, _ := json.MarshalIndent(payload, "", "  ")
 	t.Logf("Payload JSON:\n%s", string(jsonBytes))
 
-	// Exactly 1 catalog product
 	if len(payload.Products) != 1 {
-		t.Errorf("expected exactly 1 catalog product, got %d", len(payload.Products))
+		t.Errorf("expected exactly 1 stock product, got %d", len(payload.Products))
 	}
 
 	// Exactly 1 manual product
@@ -117,25 +114,28 @@ func TestBuildPurchaseBillPayload_MixedCatalogAndManual(t *testing.T) {
 		t.Errorf("expected exactly 1 manual product, got %d", len(payload.ManualProducts))
 	}
 
-	// Verify no data leak between arrays
-	if len(payload.Products) > 0 && payload.Products[0].ID == 0 {
-		t.Error("catalog product must not have ID=0")
+	if len(payload.Products) > 0 && !payload.Products[0].TrackStock {
+		t.Error("store product must be marked for stock tracking")
 	}
 	if len(payload.ManualProducts) > 0 {
 		mp := payload.ManualProducts[0]
 		if mp.PartName != "فلتر يدوي" {
 			t.Errorf("expected manual part name 'فلتر يدوي', got '%s'", mp.PartName)
 		}
+		if mp.CostPrice != "20" || mp.ShelfNumber != "B2" {
+			t.Errorf("manual item should preserve cost and shelf data, got %+v", mp)
+		}
 	}
 }
 
-// TestBuildPurchaseBillPayload_MixedProducts verifies that when both catalog
-// and manual products are provided, they go to separate arrays.
+// TestBuildPurchaseBillPayload_MixedProducts keeps the legacy manual fields
+// compatible with the unified rows while older clients are still in use.
 func TestBuildPurchaseBillPayload_MixedProducts(t *testing.T) {
 	form := url.Values{
 		"store_id":             {"1"},
 		"supplier_id":          {"2"},
 		"products_product_id":  {"100"},
+		"products_track_stock": {"true"},
 		"products_price":       {"50"},
 		"products_quantity":    {"2"},
 		"products_part_name":   {"OEM-123"},

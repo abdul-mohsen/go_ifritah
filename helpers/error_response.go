@@ -57,19 +57,7 @@ func WriteErrorToast(w http.ResponseWriter, msg string) {
 // The flash cookie is read on the target page to show a success toast.
 // This solves the problem of HX-Trigger not firing on HX-Redirect.
 func WriteSuccessRedirect(w http.ResponseWriter, redirectURL string, msg string) {
-	flash := map[string]string{"message": msg, "type": "success"}
-	flashJSON, _ := json.Marshal(flash)
-	http.SetCookie(w, &http.Cookie{
-		Name:     "afrita_flash",
-		Value:    url.QueryEscape(string(flashJSON)),
-		Path:     "/",
-		MaxAge:   10, // 10 seconds — read once then expire
-		HttpOnly: false,
-		Secure:   !config.IsLocalhost(),
-		SameSite: http.SameSiteLaxMode,
-	})
-	w.Header().Set("HX-Redirect", redirectURL)
-	w.WriteHeader(http.StatusOK)
+	writeFlashRedirect(w, redirectURL, msg, "success")
 }
 
 // WriteErrorRedirect sets a flash error cookie + HX-Redirect.
@@ -80,13 +68,20 @@ func WriteErrorRedirect(w http.ResponseWriter, redirectURL string, msg string) {
 	if msg == "" {
 		msg = DefaultErrorMessage
 	}
-	flash := map[string]string{"message": msg, "type": "error"}
+	writeFlashRedirect(w, redirectURL, msg, "error")
+}
+
+// writeFlashRedirect is the shared implementation behind WriteSuccessRedirect
+// and WriteErrorRedirect: it sets a short-lived flash cookie (read once on the
+// target page to show a toast) and an HX-Redirect header.
+func writeFlashRedirect(w http.ResponseWriter, redirectURL string, msg string, flashType string) {
+	flash := map[string]string{"message": msg, "type": flashType}
 	flashJSON, _ := json.Marshal(flash)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "afrita_flash",
 		Value:    url.QueryEscape(string(flashJSON)),
 		Path:     "/",
-		MaxAge:   10,
+		MaxAge:   10, // 10 seconds — read once then expire
 		HttpOnly: false,
 		Secure:   !config.IsLocalhost(),
 		SameSite: http.SameSiteLaxMode,

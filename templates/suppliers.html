@@ -7,6 +7,13 @@
         <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
     </form>
     <div class="toolbar-actions">
+        <button id="generateStatementBtn" type="button" onclick="generateSupplierStatement()" class="btn btn-tonal btn-sm" disabled
+            title="{{ L "tpl.supplier.statement_select_hint" }}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+            </svg>
+            <span id="generateStatementLabel">{{ L "tpl.supplier.generate_statement" }}</span>
+        </button>
         <a href="/dashboard/suppliers/export-csv" class="btn btn-tonal btn-sm"><svg class="w-4 h-4" fill="none"
                 stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round"
@@ -25,6 +32,7 @@
     <table aria-label="{{ L "tpl.supplier.table_label" }}">
         <thead>
             <tr>
+                <th style="width:2.5rem"><input type="checkbox" id="supplierSelectAll" onchange="toggleAllSupplierChecks(this)" aria-label="{{ L "tpl.supplier.select_for_statement" }}"></th>
                 <th data-sortable data-sort-key="name" data-sort-current="{{ if eq .sort "name" }}{{ .dir }}{{ end }}">{{ L "tpl.supplier.name" }}</th>
                 <th data-sortable data-sort-key="email" data-sort-current="{{ if eq .sort "email" }}{{ .dir }}{{ end }}">{{ L "tpl.supplier.email" }}</th>
                 <th data-sortable data-sort-key="phone_number" data-sort-current="{{ if eq .sort "phone_number" }}{{ .dir }}{{ end }}">{{ L "tpl.supplier.phone" }}</th>
@@ -35,11 +43,12 @@
         </thead>
         <tbody>
             {{ if not .suppliers }}
-            {{ template "empty-table-row" dict "colspan" 6 "message" (L "tpl.supplier.no_suppliers") "action_url"
+            {{ template "empty-table-row" dict "colspan" 7 "message" (L "tpl.supplier.no_suppliers") "action_url"
             "/dashboard/suppliers/add" "action_label" (L "tpl.supplier.add_new") }}
             {{ end }}
             {{ range .suppliers }}
             <tr>
+                <td><input type="checkbox" class="supplier-statement-check" value="{{ .ID }}" onchange="onSupplierCheckChange()" aria-label="{{ L "tpl.supplier.select_for_statement" }}: {{ .Name }}"></td>
                 <td>{{ .Name }}</td>
                 <td>{{ .Email }}</td>
                 <td>{{ .PhoneNumber }}</td>
@@ -66,4 +75,50 @@
 {{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
 "extra_params" (printf "") }}
 </div>
+
+<script>
+function onSupplierCheckChange() {
+    var checks = document.querySelectorAll('.supplier-statement-check');
+    var checkedCount = document.querySelectorAll('.supplier-statement-check:checked').length;
+    var btn = document.getElementById('generateStatementBtn');
+    var label = document.getElementById('generateStatementLabel');
+    if (btn) {
+        btn.disabled = checkedCount === 0;
+    }
+    if (label) {
+        label.textContent = checkedCount > 0
+            ? '{{ L "tpl.supplier.generate_statement" }} (' + checkedCount + ')'
+            : '{{ L "tpl.supplier.generate_statement" }}';
+    }
+    var selectAll = document.getElementById('supplierSelectAll');
+    if (selectAll) {
+        selectAll.checked = checks.length > 0 && checkedCount === checks.length;
+    }
+}
+
+function toggleAllSupplierChecks(source) {
+    document.querySelectorAll('.supplier-statement-check').forEach(function (cb) {
+        cb.checked = source.checked;
+    });
+    onSupplierCheckChange();
+}
+
+function generateSupplierStatement() {
+    var ids = Array.prototype.map.call(
+        document.querySelectorAll('.supplier-statement-check:checked'),
+        function (cb) { return cb.value; }
+    );
+    if (ids.length === 0) return;
+    window.location.href = '/dashboard/suppliers/statement?ids=' + encodeURIComponent(ids.join(','));
+}
+
+document.addEventListener('DOMContentLoaded', onSupplierCheckChange);
+// The toolbar button lives outside #list-results, so re-sync its state
+// whenever a search/pagination HTMX swap replaces the (unchecked) rows.
+document.body.addEventListener('htmx:afterSwap', function (evt) {
+    if (evt.detail && evt.detail.target && evt.detail.target.id === 'list-results') {
+        onSupplierCheckChange();
+    }
+});
+</script>
 {{ end }}

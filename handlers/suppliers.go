@@ -147,13 +147,13 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 		// Soft-fail: render an empty list with a banner instead of a 500 stub.
 		// Keeps the page usable when the upstream supplier list is unavailable.
 		helpers.Render(w, r, "suppliers", map[string]interface{}{
-			"title":         "الموردين",
-			"suppliers":     []models.Supplier{},
-			"pagination":    helpers.Pagination{Page: 0, PerPage: 10, Total: 0, TotalPages: 0},
-			"prev_page":     -1,
-			"next_page":     -1,
-			"query":         query,
-			"error":         "تعذر تحميل الموردين من الخادم حالياً",
+			"title":      "الموردين",
+			"suppliers":  []models.Supplier{},
+			"pagination": helpers.Pagination{Page: 0, PerPage: 10, Total: 0, TotalPages: 0},
+			"prev_page":  -1,
+			"next_page":  -1,
+			"query":      query,
+			"error":      "تعذر تحميل الموردين من الخادم حالياً",
 		})
 		return
 	}
@@ -604,8 +604,33 @@ func applySupplierCreditUtilization(report *helpers.SupplierReportResult, suppli
 	}
 }
 
+// writeSupplierReportDocument renders a single-supplier statement as a
+// complete standalone document (used by the per-supplier export routes).
 func writeSupplierReportDocument(w http.ResponseWriter, supplier models.Supplier, report helpers.SupplierReportResult, dateFrom, dateTo string, excel bool) {
 	title := fmt.Sprintf("Supplier Account Statement - %s", supplier.Name)
+	writeReportDocumentShell(w, title, excel, func() {
+		writeSupplierReportSection(w, title, supplier.Name, dateFrom, dateTo, report)
+	})
+}
+
+// writeMultiSupplierReportDocument renders a combined statement covering
+// several suppliers into a single document, one section per supplier. It
+// reuses writeSupplierReportSection so the per-supplier output is byte-for-
+// byte identical in shape to the single-supplier export.
+func writeMultiSupplierReportDocument(w http.ResponseWriter, entries []supplierStatementEntry, dateFrom, dateTo string, excel bool) {
+	title := fmt.Sprintf("Supplier Account Statement - %d suppliers", len(entries))
+	writeReportDocumentShell(w, title, excel, func() {
+		for _, entry := range entries {
+			sectionTitle := fmt.Sprintf("Supplier Account Statement - %s", entry.Supplier.Name)
+			writeSupplierReportSection(w, sectionTitle, entry.Supplier.Name, dateFrom, dateTo, entry.Report)
+		}
+	})
+}
+
+// writeReportDocumentShell writes the shared HTML head/style/print-button
+// wrapper, invokes body to write the page content, then closes the
+// document. Shared by both the single-supplier and multi-supplier exports.
+func writeReportDocumentShell(w http.ResponseWriter, title string, excel bool, body func()) {
 	media := "screen"
 	if !excel {
 		media = "print"
@@ -616,7 +641,17 @@ func writeSupplierReportDocument(w http.ResponseWriter, supplier models.Supplier
 	if !excel {
 		fmt.Fprint(w, `<button class="no-print" onclick="window.print()" style="margin-bottom:16px">Print / Save PDF</button>`)
 	}
-	fmt.Fprintf(w, `<h1>%s</h1><div class="meta">Supplier: %s | From: %s | To: %s</div>`, html.EscapeString(title), html.EscapeString(supplier.Name), html.EscapeString(dateFrom), html.EscapeString(dateTo))
+	body()
+	fmt.Fprint(w, `</body></html>`)
+}
+
+// writeSupplierReportSection writes one supplier's statement content
+// (title, summary metrics, ledger, bills, monthly spending, payment
+// methods, aging, and top items) without the outer <html> document shell,
+// so it can be composed into either a single-supplier document or a
+// combined multi-supplier document.
+func writeSupplierReportSection(w http.ResponseWriter, title, supplierName, dateFrom, dateTo string, report helpers.SupplierReportResult) {
+	fmt.Fprintf(w, `<h1>%s</h1><div class="meta">Supplier: %s | From: %s | To: %s</div>`, html.EscapeString(title), html.EscapeString(supplierName), html.EscapeString(dateFrom), html.EscapeString(dateTo))
 
 	fmt.Fprint(w, `<h2>Summary - الملخص</h2><div class="grid">`)
 	writeMetric(w, "Closing Balance", report.Summary.ClosingBalance)
@@ -673,7 +708,7 @@ func writeSupplierReportDocument(w http.ResponseWriter, supplier models.Supplier
 	for _, item := range report.TopItems {
 		fmt.Fprintf(w, `<tr><td>%s</td><td>%d</td><td>%s</td><td>%s</td><td>%d</td></tr>`, esc(item.Name), item.TotalQty, money(item.TotalVal), money(item.AvgPrice), item.BillCount)
 	}
-	fmt.Fprint(w, `</tbody></table></body></html>`)
+	fmt.Fprint(w, `</tbody></table>`)
 }
 
 func writeMetric(w http.ResponseWriter, label string, value interface{}) {

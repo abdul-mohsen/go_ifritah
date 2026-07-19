@@ -95,7 +95,7 @@ test.describe('Purchase-bill CSV import flow', () => {
     await expect(productRows).toHaveCount(2);
 
     const firstRow = productRows.nth(0);
-    await expect(firstRow.locator('.part-search')).toHaveValue('فلتر زيت E2E');
+    await expect(firstRow.locator('.store-product-search')).toHaveValue('فلتر زيت E2E');
     await expect(firstRow.locator('[name="products_part_name"]')).toHaveValue('فلتر زيت E2E');
     await expect(firstRow.locator('[name="products_product_id"]')).toHaveValue('0');
     await expect(firstRow.locator('[name="products_quantity"]')).toHaveValue('2');
@@ -104,7 +104,7 @@ test.describe('Purchase-bill CSV import flow', () => {
     await expect(firstRow.locator('[name="products_shelf_number"]')).toHaveValue('A-11');
 
     const secondRow = productRows.nth(1);
-    await expect(secondRow.locator('.part-search')).toHaveValue('بواجي E2E');
+    await expect(secondRow.locator('.store-product-search')).toHaveValue('بواجي E2E');
     await expect(secondRow.locator('[name="products_quantity"]')).toHaveValue('1');
     await expect(secondRow.locator('[name="products_price"]')).toHaveValue('12');
     await expect(secondRow.locator('[name="products_cost_price"]')).toHaveValue('10');
@@ -118,11 +118,11 @@ test.describe('Purchase-bill CSV import flow', () => {
     expect((await secondParseResponsePromise).ok()).toBeTruthy();
 
     await expect(productRows).toHaveCount(3);
-    await expect(firstRow.locator('.part-search')).toHaveValue('فلتر زيت E2E');
-    await expect(secondRow.locator('.part-search')).toHaveValue('بواجي E2E');
+    await expect(firstRow.locator('.store-product-search')).toHaveValue('فلتر زيت E2E');
+    await expect(secondRow.locator('.store-product-search')).toHaveValue('بواجي E2E');
 
     const thirdRow = productRows.nth(2);
-    await expect(thirdRow.locator('.part-search')).toHaveValue('سير مكينة E2E');
+    await expect(thirdRow.locator('.store-product-search')).toHaveValue('سير مكينة E2E');
     await expect(thirdRow.locator('[name="products_part_name"]')).toHaveValue('سير مكينة E2E');
     await expect(thirdRow.locator('[name="products_product_id"]')).toHaveValue('0');
     await expect(thirdRow.locator('[name="products_quantity"]')).toHaveValue('4');

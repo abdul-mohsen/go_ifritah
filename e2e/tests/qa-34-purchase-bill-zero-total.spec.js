@@ -21,11 +21,11 @@ test.describe('Purchase bill zero-total guard', () => {
       });
     }
 
-    await page.locator('button[onclick="addManualItem()"]').click();
-    const row = page.locator('#manual-container .item-row').last();
-    await row.locator('[name="manual_part_name"]').fill('Zero total part');
-    await row.locator('[name="manual_quantity"]').fill('1');
-    await row.locator('[name="manual_price"]').fill('0');
+    await page.locator('button[onclick="addItem()"]').click();
+    const row = page.locator('#products-container .item-row').last();
+    await row.locator('.store-product-search').fill('Zero total part');
+    await row.locator('[name="products_quantity"]').fill('1');
+    await row.locator('[name="products_price"]').fill('0');
 
     await expect(page.locator('#total_amount')).toHaveValue('0.00');
 

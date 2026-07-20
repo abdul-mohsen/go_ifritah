@@ -34,8 +34,10 @@ async function attemptOversellExpectingDialog(page, { mode, product, oversellQty
       productId: product.id, productName: product.name, productPrice: product.price,
       // userTag is a non-cryptographic test-fixture disambiguation suffix (see
       // uniqueTag() in helpers/qa.js, already NOSONAR'd for the same reason) -
-      // never used for anything security-sensitive.
-      qty: oversellQty, userName: userTag, userPhone: '0500000000', // codeql[js/insecure-randomness]
+      // never used for anything security-sensitive. The resulting CodeQL
+      // js/insecure-randomness alert (#16) was reviewed and dismissed as a
+      // false positive.
+      qty: oversellQty, userName: userTag, userPhone: '0500000000',
       expectDialog,
     });
     if (result.dialogs.length > 0) return result;

@@ -29,8 +29,6 @@ linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: false
-  govet:
-    check-shadowing: false
   revive:
     rules:
       - name: exported

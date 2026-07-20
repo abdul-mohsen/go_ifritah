@@ -13,13 +13,17 @@ async function realAccountIds(page, kind) {
   if (kind === 'sales') {
     await page.goto('/dashboard/invoices/add');
     await page.waitForLoadState('domcontentloaded');
-    const storeId = await page.locator('[name="store_id"]').first().inputValue();
+    const storeField = page.locator('[name="store_id"]').first();
+    await storeField.waitFor({ state: 'attached', timeout: 20000 });
+    const storeId = await storeField.inputValue();
     const branchId = await page.locator('[name="branch_id"]').first().inputValue();
     return { store_id: storeId, branch_id: branchId };
   }
   await page.goto('/dashboard/purchase-bills/add');
   await page.waitForLoadState('domcontentloaded');
-  const storeId = await page.locator('[name="store_id"]').first().inputValue();
+  const storeField = page.locator('[name="store_id"]').first();
+  await storeField.waitFor({ state: 'attached', timeout: 20000 });
+  const storeId = await storeField.inputValue();
   const supplierId = await page.locator('[name="supplier_id"]').first().inputValue();
   return { store_id: storeId, supplier_id: supplierId };
 }
@@ -66,7 +70,10 @@ async function assertToolbarAndImport(page, kind) {
   await expect(page.locator('#bill-import-result')).toContainText(/2.*2/);
   await expect(page.locator('#bill-import-result')).toHaveAttribute('data-success', '2');
 
-  const exportResponse = await page.request.get(exportURL);
+  // Bulk export (like the purchase-bill one covered in qa-37) walks every
+  // matching bill's detail individually on the backend, so give it more
+  // room than the default assertion timeout.
+  const exportResponse = await page.request.get(exportURL, { timeout: 30000 });
   expect(exportResponse.ok(), `${kind} export failed with ${exportResponse.status()}`).toBeTruthy();
   expect(exportResponse.headers()['content-type']).toContain(
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

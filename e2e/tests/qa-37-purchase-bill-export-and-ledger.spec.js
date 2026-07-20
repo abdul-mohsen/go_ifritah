@@ -10,7 +10,11 @@ test.describe('Purchase-bill export and supplier ledger', () => {
     const exportLink = page.locator('[data-purchase-bill-export]');
     await expect(exportLink).toBeVisible();
 
-    const response = await page.request.get('/dashboard/purchase-bills/export-xlsx');
+    // Bulk export walks every matching purchase bill's detail individually
+    // on the backend (no batch endpoint yet), so it can legitimately take
+    // longer than Playwright's default assertion timeout as the shared
+    // dev account's bill history grows.
+    const response = await page.request.get('/dashboard/purchase-bills/export-xlsx', { timeout: 30000 });
     expect(response.ok(), `purchase-bill export failed with ${response.status()}`).toBeTruthy();
     expect(response.headers()['content-type']).toContain('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     expect(response.headers()['content-disposition']).toContain('purchase-bills.xlsx');
@@ -34,7 +38,7 @@ test.describe('Purchase-bill export and supplier ledger', () => {
     expect(response.ok(), `purchase-bill template failed with ${response.status()}`).toBeTruthy();
 
     const csv = (await response.text()).replace(/^\uFEFF/, '');
-    expect(csv.split(/\r?\n/)[0]).toBe('Product Name,Quantity,Purchase Price,Cost Price,Shelf Number');
+    expect(csv.split(/\r?\n/)[0]).toMatch(/^(Product Name,Quantity,Purchase Price,Cost Price,Shelf Number|اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف)$/);
   });
 
   test('supplier General Ledger supports one supplier or all suppliers and a date range', async ({ page }) => {

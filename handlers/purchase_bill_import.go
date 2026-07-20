@@ -166,6 +166,12 @@ func parseXLSXItems(payload []byte) ([]ImportedItem, error) {
 
 func parseCSVItems(reader io.Reader) ([]ImportedItem, error) {
 	csvReader := csv.NewReader(reader)
+	// Allow rows with fewer fields than the header (e.g. sheets written
+	// before the optional trailing product-id column existed, or hand-
+	// edited exports that trim empty trailing cells). trimmedCell already
+	// treats an out-of-range index as blank, so a short row just means
+	// "no product id" rather than a hard parse failure.
+	csvReader.FieldsPerRecord = -1
 	rows, err := csvReader.ReadAll()
 	if err != nil {
 		return nil, err

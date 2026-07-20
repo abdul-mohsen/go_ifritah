@@ -113,6 +113,55 @@ func TestHandleParseCSVItemsParsesUploadedCSV(t *testing.T) {
 	}
 }
 
+// TestHandleParseCSVItemsToleratesShortRows is a regression test: rows
+// written before the optional trailing product-id column existed (or
+// hand-edited exports that trim empty trailing cells) have fewer fields
+// than the current 6-column header. Go's csv.Reader rejects that by
+// default ("wrong number of fields"), which would otherwise turn every
+// pre-existing/short-row import file into a hard failure instead of just
+// treating the missing column as blank (no product id).
+func TestHandleParseCSVItemsToleratesShortRows(t *testing.T) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	fileWriter, err := writer.CreateFormFile("file", "legacy-5-column.csv")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	// Header has all 6 columns (current template), but the data row only
+	// has the original 5 - no trailing product-id cell at all.
+	csvBody := "اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف,معرف المنتج (اختياري)\n" +
+		"فلتر زيت,3,25.5,20.25,A1\n"
+	if _, err := fileWriter.Write([]byte(csvBody)); err != nil {
+		t.Fatalf("write form file: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/purchase-bills/parse-csv", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	HandleParseCSVItems(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	var items []ImportedItem
+	if err := json.Unmarshal(w.Body.Bytes(), &items); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items len = %d, want 1", len(items))
+	}
+	if items[0].PartName != "فلتر زيت" || items[0].ShelfNumber != "A1" {
+		t.Fatalf("item = %+v, want parsed short row", items[0])
+	}
+	if items[0].ProductID != nil {
+		t.Fatalf("item product id = %v, want nil (column absent entirely)", *items[0].ProductID)
+	}
+}
+
 func TestParseOptionalProductID(t *testing.T) {
 	cases := []struct {
 		name  string

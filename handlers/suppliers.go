@@ -405,15 +405,7 @@ func HandleSupplierReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse date range — default: last 90 days
-	now := time.Now()
-	dateFrom := r.URL.Query().Get("from")
-	dateTo := r.URL.Query().Get("to")
-	if dateFrom == "" {
-		dateFrom = now.AddDate(0, 0, -90).Format("2006-01-02")
-	}
-	if dateTo == "" {
-		dateTo = now.Format("2006-01-02")
-	}
+	dateFrom, dateTo := supplierReportDateRange(r)
 
 	supplierID, _ := strconv.Atoi(id)
 	report, err := helpers.FetchSupplierReport(token, supplierID, dateFrom, dateTo)
@@ -453,15 +445,7 @@ func HandleSupplierLedger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
-	dateFrom := r.URL.Query().Get("from")
-	dateTo := r.URL.Query().Get("to")
-	if dateFrom == "" {
-		dateFrom = now.AddDate(0, 0, -90).Format("2006-01-02")
-	}
-	if dateTo == "" {
-		dateTo = now.Format("2006-01-02")
-	}
+	dateFrom, dateTo := supplierReportDateRange(r)
 	supplierID := r.URL.Query().Get("supplier_id")
 	if supplierID == "" {
 		supplierID = "all"
@@ -555,15 +539,7 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 
 	supplierID, _ := strconv.Atoi(id)
 
-	now := time.Now()
-	dateFrom := r.URL.Query().Get("from")
-	dateTo := r.URL.Query().Get("to")
-	if dateFrom == "" {
-		dateFrom = now.AddDate(0, 0, -90).Format("2006-01-02")
-	}
-	if dateTo == "" {
-		dateTo = now.Format("2006-01-02")
-	}
+	dateFrom, dateTo := supplierReportDateRange(r)
 
 	report, err := helpers.FetchSupplierReport(token, supplierID, dateFrom, dateTo)
 	if err != nil {

@@ -18,12 +18,11 @@
     <input id="bill-import-file" name="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
     <button id="bill-import-submit" type="submit" class="btn btn-filled mt-4">{{ if .arabic }}استيراد الفواتير{{ else }}Import bills{{ end }}</button>
   </form>
-  <div id="bill-import-result" class="mt-4" role="status"></div>
+  <output id="bill-import-result" class="mt-4"></output>
 </div>
 <script>
 (() => {
   const type = document.getElementById('bill-import-type');
-  const template = document.getElementById('bill-import-template');
   type.addEventListener('change', () => {
     const target = type.value;
     window.location.assign('/dashboard/bill-import?type=' + encodeURIComponent(target));

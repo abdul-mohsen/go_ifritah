@@ -74,7 +74,7 @@ func HandleDownloadBillImportTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer workbook.Close()
 
-	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set(headerContentType, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s-bills-import-template.xlsx", importType))
 	if err := workbook.Write(w); err != nil {
 		log.Printf("[bill import] template write failed: %v", err)
@@ -163,21 +163,34 @@ func billImportTitle(importType string, arabic bool) string {
 	return "Import Sales Bills"
 }
 
+// Column labels shared by more than one header row (the join column and a
+// few fields that appear on both the Bills and Products sheets). Named as
+// constants to avoid SonarCloud S1192 duplicate-literal warnings and to
+// guarantee the Bills/Products join column text always matches exactly.
+const (
+	colBillReferenceAr = "مرجع الفاتورة"
+	colBillReferenceEN = "Bill Reference"
+	colDiscountAr      = "الخصم"
+	colDiscountEN      = "Discount"
+	colLineTotalAr     = "إجمالي السطر"
+	colLineTotalEN     = "Line Total"
+)
+
 func billImportHeaders(importType string, arabic bool) ([]string, []string) {
 	if arabic {
 		if importType == billImportPurchase {
-			return []string{"مرجع الفاتورة", "معرف المخزن", "معرف المورد", "رقم فاتورة المورد", "التاريخ", "طريقة الدفع", "الخصم"},
-				[]string{"مرجع الفاتورة", "اسم المنتج", "الكمية", "سعر الشراء", "سعر التكلفة", "رقم الرف", "الخصم", "إجمالي السطر"}
+			return []string{colBillReferenceAr, "معرف المخزن", "معرف المورد", "رقم فاتورة المورد", "التاريخ", "طريقة الدفع", colDiscountAr},
+				[]string{colBillReferenceAr, "اسم المنتج", "الكمية", "سعر الشراء", "سعر التكلفة", "رقم الرف", colDiscountAr, colLineTotalAr}
 		}
-		return []string{"مرجع الفاتورة", "معرف المخزن", "معرف الفرع", "معرف العميل", "اسم العميل", "هاتف العميل", "التاريخ", "الخصم", "ملاحظة", "رقم الهيكل"},
-			[]string{"مرجع الفاتورة", "اسم المنتج", "الكمية", "سعر الوحدة", "إجمالي السطر"}
+		return []string{colBillReferenceAr, "معرف المخزن", "معرف الفرع", "معرف العميل", "اسم العميل", "هاتف العميل", "التاريخ", colDiscountAr, "ملاحظة", "رقم الهيكل"},
+			[]string{colBillReferenceAr, "اسم المنتج", "الكمية", "سعر الوحدة", colLineTotalAr}
 	}
 	if importType == billImportPurchase {
-		return []string{"Bill Reference", "Store ID", "Supplier ID", "Supplier Invoice Number", "Date", "Payment Method", "Discount"},
-			[]string{"Bill Reference", "Product Name", "Quantity", "Purchase Price", "Cost Price", "Shelf Number", "Discount", "Line Total"}
+		return []string{colBillReferenceEN, "Store ID", "Supplier ID", "Supplier Invoice Number", "Date", "Payment Method", colDiscountEN},
+			[]string{colBillReferenceEN, "Product Name", "Quantity", "Purchase Price", "Cost Price", "Shelf Number", colDiscountEN, colLineTotalEN}
 	}
-	return []string{"Bill Reference", "Store ID", "Branch ID", "Customer ID", "Customer Name", "Customer Phone", "Date", "Discount", "Note", "VIN"},
-		[]string{"Bill Reference", "Product Name", "Quantity", "Unit Price", "Line Total"}
+	return []string{colBillReferenceEN, "Store ID", "Branch ID", "Customer ID", "Customer Name", "Customer Phone", "Date", colDiscountEN, "Note", "VIN"},
+		[]string{colBillReferenceEN, "Product Name", "Quantity", "Unit Price", colLineTotalEN}
 }
 
 func buildBillImportTemplate(importType string, arabic bool) (*excelize.File, error) {
@@ -196,17 +209,19 @@ func buildBillImportTemplate(importType string, arabic bool) (*excelize.File, er
 		return nil, err
 	}
 	if importType == billImportPurchase {
-		_ = writeStringRow(workbook, "Bills", 2, []string{"PB-EXAMPLE-001", "1", "1", "10001", "2026-01-15", "10", "0"})
-		_ = writeStringRow(workbook, "Bills", 3, []string{"PB-EXAMPLE-002", "1", "2", "10002", "2026-01-16", "10", "5"})
-		_ = writeStringRow(workbook, "Products", 2, []string{"PB-EXAMPLE-001", "Oil Filter", "2", "25", "20", "A-01", "0", "50"})
-		_ = writeStringRow(workbook, "Products", 3, []string{"PB-EXAMPLE-001", "Air Filter", "1", "30", "24", "A-02", "0", "30"})
-		_ = writeStringRow(workbook, "Products", 4, []string{"PB-EXAMPLE-002", "Battery", "1", "200", "180", "B-01", "0", "200"})
+		const examplePB1, examplePB2 = "PB-EXAMPLE-001", "PB-EXAMPLE-002"
+		_ = writeStringRow(workbook, "Bills", 2, []string{examplePB1, "1", "1", "10001", "2026-01-15", "10", "0"})
+		_ = writeStringRow(workbook, "Bills", 3, []string{examplePB2, "1", "2", "10002", "2026-01-16", "10", "5"})
+		_ = writeStringRow(workbook, "Products", 2, []string{examplePB1, "Oil Filter", "2", "25", "20", "A-01", "0", "50"})
+		_ = writeStringRow(workbook, "Products", 3, []string{examplePB1, "Air Filter", "1", "30", "24", "A-02", "0", "30"})
+		_ = writeStringRow(workbook, "Products", 4, []string{examplePB2, "Battery", "1", "200", "180", "B-01", "0", "200"})
 	} else {
-		_ = writeStringRow(workbook, "Bills", 2, []string{"SB-EXAMPLE-001", "1", "1", "", "Walk-in Customer", "0500000001", "2026-01-15", "0", "First example bill", "VIN-EXAMPLE-001"})
-		_ = writeStringRow(workbook, "Bills", 3, []string{"SB-EXAMPLE-002", "1", "1", "", "Second Customer", "0500000002", "2026-01-16", "5", "Second example bill", "VIN-EXAMPLE-002"})
-		_ = writeStringRow(workbook, "Products", 2, []string{"SB-EXAMPLE-001", "Brake Pad", "2", "75", "150"})
-		_ = writeStringRow(workbook, "Products", 3, []string{"SB-EXAMPLE-001", "Engine Oil", "1", "40", "40"})
-		_ = writeStringRow(workbook, "Products", 4, []string{"SB-EXAMPLE-002", "Wiper Blade", "2", "20", "40"})
+		const exampleSB1, exampleSB2 = "SB-EXAMPLE-001", "SB-EXAMPLE-002"
+		_ = writeStringRow(workbook, "Bills", 2, []string{exampleSB1, "1", "1", "", "Walk-in Customer", "0500000001", "2026-01-15", "0", "First example bill", "VIN-EXAMPLE-001"})
+		_ = writeStringRow(workbook, "Bills", 3, []string{exampleSB2, "1", "1", "", "Second Customer", "0500000002", "2026-01-16", "5", "Second example bill", "VIN-EXAMPLE-002"})
+		_ = writeStringRow(workbook, "Products", 2, []string{exampleSB1, "Brake Pad", "2", "75", "150"})
+		_ = writeStringRow(workbook, "Products", 3, []string{exampleSB1, "Engine Oil", "1", "40", "40"})
+		_ = writeStringRow(workbook, "Products", 4, []string{exampleSB2, "Wiper Blade", "2", "20", "40"})
 	}
 	style, err := workbook.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}})
 	if err != nil {
@@ -529,7 +544,7 @@ func postImportedBill(token, path string, payload interface{}) error {
 	if err != nil {
 		return fmt.Errorf("prepare request")
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(headerContentType, mimeJSON)
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
 		return fmt.Errorf("backend request failed: %v", err)
@@ -544,7 +559,7 @@ func postImportedBill(token, path string, payload interface{}) error {
 }
 
 func writeBulkImportJSON(w http.ResponseWriter, status int, result bulkImportResponse) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set(headerContentType, "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(result)
 }

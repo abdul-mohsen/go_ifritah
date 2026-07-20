@@ -23,7 +23,7 @@ type ImportedItem struct {
 	ShelfNumber   string  `json:"shelfNumber"`
 }
 
-var purchaseBillImportTemplateHeader = []string{"Product Name", "Quantity", "Purchase Price", "Cost Price", "Shelf Number"}
+var purchaseBillImportTemplateHeader = []string{"اسم القطعة", "الكمية", "سعر الشراء", "سعر التكلفة", "رقم الرف"}
 
 const contentTypeHeader = "Content-Type"
 

@@ -32,7 +32,7 @@ func TestHandleDownloadPurchaseBillTemplateReturnsCSVSample(t *testing.T) {
 		t.Fatalf("csv should start with UTF-8 BOM for Excel compatibility, got %v", bodyBytes[:min(3, len(bodyBytes))])
 	}
 	body := string(bodyBytes)
-	if !strings.Contains(body, "Product Name,Quantity,Purchase Price,Cost Price,Shelf Number\r\n") {
+	if !strings.Contains(body, "اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف\r\n") {
 		t.Fatalf("csv should contain CRLF-terminated import headers, got %q", body)
 	}
 	if !strings.Contains(body, "مثال,10,100.00,90.00,A1\r\n") {
@@ -54,8 +54,8 @@ func TestHandleDownloadPurchaseBillExcelTemplateReturnsExcelWorkbook(t *testing.
 	if err != nil {
 		t.Fatalf("read worksheet xml: %v", err)
 	}
-	if !strings.Contains(string(worksheet), "Product Name") {
-		t.Fatalf("worksheet should contain canonical header, got %s", worksheet)
+	if !strings.Contains(string(worksheet), "اسم القطعة") {
+		t.Fatalf("worksheet should contain Arabic header, got %s", worksheet)
 	}
 	if !strings.Contains(string(worksheet), "مثال") {
 		t.Fatalf("worksheet should contain example row, got %s", worksheet)

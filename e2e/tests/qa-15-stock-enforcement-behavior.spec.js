@@ -32,7 +32,10 @@ async function attemptOversellExpectingDialog(page, { mode, product, oversellQty
     await setSetting(page, 'stock_enforcement', mode);
     result = await attemptCreateBill(page, {
       productId: product.id, productName: product.name, productPrice: product.price,
-      qty: oversellQty, userName: userTag, userPhone: '0500000000',
+      // userTag is a non-cryptographic test-fixture disambiguation suffix (see
+      // uniqueTag() in helpers/qa.js, already NOSONAR'd for the same reason) -
+      // never used for anything security-sensitive.
+      qty: oversellQty, userName: userTag, userPhone: '0500000000', // codeql[js/insecure-randomness]
       expectDialog,
     });
     if (result.dialogs.length > 0) return result;

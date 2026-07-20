@@ -141,6 +141,7 @@ var settingsCategoryMap = map[string]string{
 	"invoice_prefix": "invoice", "payment_terms": "invoice",
 	"show_vat_breakdown": "invoice", "auto_calculate_vat": "invoice",
 	"prices_include_vat": "invoice", "invoice_footer": "invoice",
+	"pb_pdf_required": "invoice",
 	// notifications
 	"notif_invoices": "notifications", "notif_stock": "notifications",
 	"notif_payments": "notifications", "notif_orders": "notifications",
@@ -246,7 +247,7 @@ func saveSettingsToBackend(token string, settings map[string]string) error {
 		}
 		cat, ok := settingsCategoryMap[key]
 		if !ok {
-			continue // frontend-only setting (zatca_enabled, pb_pdf_required, etc.)
+			continue // frontend-only setting (zatca_enabled, default_payment_method, etc.)
 		}
 		if categories[cat] == nil {
 			categories[cat] = map[string]string{}

@@ -136,7 +136,7 @@ func HandleExportSupplierStatementCSV(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := fmt.Sprintf("supplier_statement_%s_%s.csv", dateFrom, dateTo)
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set(headerContentType, "text/csv; charset=utf-8")
 	w.Header().Set(headerContentDisp, "attachment; filename="+filename)
 	_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF}) // UTF-8 BOM
 
@@ -172,7 +172,7 @@ func HandleExportSupplierStatementExcel(w http.ResponseWriter, r *http.Request) 
 	}
 
 	filename := fmt.Sprintf("supplier_statement_%s_%s.xls", dateFrom, dateTo)
-	w.Header().Set("Content-Type", "application/vnd.ms-excel; charset=utf-8")
+	w.Header().Set(headerContentType, "application/vnd.ms-excel; charset=utf-8")
 	w.Header().Set(headerContentDisp, "attachment; filename="+filename)
 	_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF})
 	writeMultiSupplierReportDocument(w, entries, dateFrom, dateTo, true)
@@ -189,7 +189,7 @@ func HandleExportSupplierStatementPDF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := fmt.Sprintf("supplier_statement_%s_%s.html", dateFrom, dateTo)
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set(headerContentType, "text/html; charset=utf-8")
 	w.Header().Set(headerContentDisp, "inline; filename="+filename)
 	writeMultiSupplierReportDocument(w, entries, dateFrom, dateTo, false)
 }

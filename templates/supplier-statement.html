@@ -6,12 +6,12 @@
     <form id="dateForm" method="get" class="flex flex-wrap items-end gap-3">
         <input type="hidden" name="ids" value="{{ .ids_param }}">
         <div>
-            <label class="detail-label block mb-1">{{ L "tpl.report.date_from" }}</label>
-            <input type="date" name="from" value="{{ .date_from }}" class="form-input" style="min-width:160px">
+            <label class="detail-label block mb-1" for="statement_date_from">{{ L "tpl.report.date_from" }}</label>
+            <input type="date" id="statement_date_from" name="from" value="{{ .date_from }}" class="form-input" style="min-width:160px">
         </div>
         <div>
-            <label class="detail-label block mb-1">{{ L "tpl.report.date_to" }}</label>
-            <input type="date" name="to" value="{{ .date_to }}" class="form-input" style="min-width:160px">
+            <label class="detail-label block mb-1" for="statement_date_to">{{ L "tpl.report.date_to" }}</label>
+            <input type="date" id="statement_date_to" name="to" value="{{ .date_to }}" class="form-input" style="min-width:160px">
         </div>
         <button type="submit" class="btn btn-filled btn-sm">{{ L "tpl.report.apply_filter" }}</button>
         <div class="mr-auto"></div>

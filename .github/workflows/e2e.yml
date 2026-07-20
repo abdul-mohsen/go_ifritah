@@ -19,8 +19,20 @@ permissions:
   contents: read
 
 concurrency:
-  group: e2e-${{ github.ref }}
-  cancel-in-progress: true
+  # This suite runs against a single shared live backend (dev.ifritah.com)
+  # and several "serial" specs (qa-03, qa-15, qa-19, ...) intentionally
+  # mutate *global* settings there (stock_enforcement, pb_pdf_required,
+  # etc.). Scoping the group by github.ref only serialized runs within the
+  # same branch/PR - concurrent e2e runs from *different* PRs still raced
+  # each other's global settings writes against the same shared backend,
+  # causing a different spec to fail intermittently on every run depending
+  # on which other PR's job happened to be mutating a setting at the same
+  # moment. Use one fixed, repo-wide group so every e2e run (regardless of
+  # branch) queues behind any currently-running one instead of racing it.
+  # Do not cancel-in-progress: a queued PR's run is still relevant and
+  # should get its own turn, not be discarded because another PR pushed.
+  group: e2e-shared-dev-backend
+  cancel-in-progress: false
 
 jobs:
   e2e:

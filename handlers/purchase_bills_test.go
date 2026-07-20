@@ -13,6 +13,56 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// TestAddPurchaseBillPageSellingPriceRoleGated verifies the catalog selling
+// price field is editable for admin/manager and disabled (non-submittable)
+// for employees — the server-side role check in the backend is the real
+// enforcement, but the field must not even look editable to a role that
+// can't use it.
+func TestAddPurchaseBillPageSellingPriceRoleGated(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"data":[]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	renderWithRole := func(t *testing.T, sessionID, role string) string {
+		t.Helper()
+		config.SessionTokensMutex.Lock()
+		config.SessionTokens[sessionID] = sessionID + "-token"
+		config.SessionUserRoles[sessionID] = role
+		config.SessionTokensMutex.Unlock()
+		defer func() {
+			config.SessionTokensMutex.Lock()
+			delete(config.SessionTokens, sessionID)
+			delete(config.SessionUserRoles, sessionID)
+			config.SessionTokensMutex.Unlock()
+		}()
+
+		req := httptest.NewRequest("GET", "/dashboard/purchase-bills/add", nil)
+		req.AddCookie(&http.Cookie{Name: "session_id", Value: sessionID})
+		w := httptest.NewRecorder()
+		HandleAddPurchaseBill(w, req)
+		return w.Body.String()
+	}
+
+	adminBody := renderWithRole(t, "pb-role-admin-session", "admin")
+	if !strings.Contains(adminBody, "var canEditSellingPrice = true;") {
+		t.Error("expected canEditSellingPrice to be true for an admin session")
+	}
+
+	employeeBody := renderWithRole(t, "pb-role-employee-session", "employee")
+	if !strings.Contains(employeeBody, "var canEditSellingPrice = false;") {
+		t.Error("expected canEditSellingPrice to be false for an employee session")
+	}
+	if !strings.Contains(employeeBody, `name="products_selling_price"`) {
+		t.Error("expected the selling price field to still render (read-only) for employees")
+	}
+}
+
 // TestAddPurchaseBillPageHasUnifiedItems verifies the add form uses one item
 // section whose rows explicitly indicate whether they are inventory-linked.
 func TestAddPurchaseBillPageHasUnifiedItems(t *testing.T) {
@@ -140,7 +190,7 @@ func TestAddPurchaseBillPageHasWorkingCSVImportSection(t *testing.T) {
 	if !strings.Contains(body, `'X-CSRF-Token': getCsrfCookie()`) {
 		t.Error("expected CSV upload fetch to send the CSRF token")
 	}
-	if !strings.Contains(body, `items.forEach(item => container.insertAdjacentHTML('beforeend', itemRow(item)))`) {
+	if !strings.Contains(body, `container.insertAdjacentHTML('beforeend', itemRow(item))`) {
 		t.Error("expected CSV import to append populated rows using the purchase-bill itemRow builder")
 	}
 	if !strings.Contains(body, `var name = product ? (product.name || product.partName || product.part_name || '') : '';`) {

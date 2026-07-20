@@ -161,7 +161,8 @@
 </div>
 
 <script>
-    var purchaseBillLabels = {{ dict "itemLabel" (L "tpl.pb.item_label") "itemPlaceholder" (L "tpl.pb.item_placeholder") "manualItem" (L "tpl.pb.manual_item") "inventoryItem" (L "tpl.pb.inventory_item") "quantity" (L "tpl.pb.quantity") "costPrice" (L "tpl.product.cost_price") "shelfNumber" (L "tpl.product.shelf_number") "deleteLabel" (L "tpl.delete") "purchasePrice" (L "tpl.pb.purchase_price") "duplicateSupplierInvoice" (L "tpl.pb.duplicate_supplier_invoice") "duplicateCheckWarning" (L "tpl.pb.duplicate_check_warning") "viewPurchaseBill" (L "tpl.pb.view_purchase_bill") "invalidImportItems" (L "tpl.pb.invalid_import_items") "importFailedPrefix" (L "tpl.pb.import_failed_prefix") | json }};
+    var canEditSellingPrice = {{ if or (eq .user_role "admin") (eq .user_role "manager") }}true{{ else }}false{{ end }};
+    var purchaseBillLabels = {{ dict "itemLabel" (L "tpl.pb.item_label") "itemPlaceholder" (L "tpl.pb.item_placeholder") "manualItem" (L "tpl.pb.manual_item") "inventoryItem" (L "tpl.pb.inventory_item") "quantity" (L "tpl.pb.quantity") "costPrice" (L "tpl.product.cost_price") "costPriceHint" (L "tpl.pb.cost_price_hint") "shelfNumber" (L "tpl.product.shelf_number") "deleteLabel" (L "tpl.delete") "purchasePrice" (L "tpl.pb.purchase_price") "purchasePriceHint" (L "tpl.pb.purchase_price_hint") "sellingPrice" (L "tpl.product.selling_price") "sellingPriceHint" (L "tpl.pb.selling_price_hint") "sellingPriceAutoHint" (L "tpl.pb.selling_price_auto_hint") "existingItemNameWarning" (L "tpl.pb.existing_item_name_warning") "duplicateSupplierInvoice" (L "tpl.pb.duplicate_supplier_invoice") "duplicateCheckWarning" (L "tpl.pb.duplicate_check_warning") "viewPurchaseBill" (L "tpl.pb.view_purchase_bill") "invalidImportItems" (L "tpl.pb.invalid_import_items") "importFailedPrefix" (L "tpl.pb.import_failed_prefix") | json }};
 
     // Supplier payment data for payment method defaults and credit checks
     var suppliersData = {
@@ -382,19 +383,23 @@
 
     function itemRow(product) {
         var rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-        var productId = product ? (product.id || product.product_id || 0) : 0;
+        var productId = product ? (product.id || product.product_id || product.productId || 0) : 0;
         var trackStock = productId > 0 && (!product || product.track_stock !== false);
         var name = product ? (product.name || product.partName || product.part_name || '') : '';
         var quantity = product ? (product.quantity || 1) : 1;
         var purchasePrice = product ? (product.purchasePrice !== undefined ? product.purchasePrice : (product.price || '')) : '';
         var costPrice = product ? (product.costPrice !== undefined ? product.costPrice : (product.cost_price || '')) : '';
         var shelfNumber = product ? (product.shelfNumber || product.shelf_number || '') : '';
+        var sellingPrice = product ? (product.sellingPrice || '') : '';
+        var sellingPriceAttrs = canEditSellingPrice ? '' : 'disabled';
+        var sellingPricePlaceholder = canEditSellingPrice ? escapeAttr(purchaseBillLabels.sellingPriceAutoHint) : '';
         return `
             <div class="item-row border rounded p-3" data-row-id="${rowId}">
                 <div class="mb-2">
                     <span class="item-state text-xs ${trackStock ? 'text-green-700' : 'text-gray-500'}">${escapeHtml(trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem)}</span>
+                    <span class="existing-item-warning text-xs text-amber-700 hidden"></span>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+                <div class="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
                     <div class="md:col-span-2 relative">
                         <label class="form-label">${escapeHtml(purchaseBillLabels.itemLabel)}</label>
                         <input type="text" class="w-full store-product-search" placeholder="${escapeAttr(purchaseBillLabels.itemPlaceholder)}" autocomplete="off"
@@ -409,16 +414,20 @@
                         <input type="number" name="products_quantity" min="1" value="${quantity}" class="w-full" oninput="recalculateTotal()">
                     </div>
                     <div>
-                        <label class="form-label">${escapeHtml(purchaseBillLabels.purchasePrice)}</label>
+                        <label class="form-label" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}">${escapeHtml(purchaseBillLabels.purchasePrice)}</label>
                         <input type="text" name="products_price" value="${purchasePrice}" class="w-full" oninput="recalculateTotal()">
                     </div>
                     <div>
-                        <label class="form-label">${escapeHtml(purchaseBillLabels.costPrice)}</label>
+                        <label class="form-label" title="${escapeAttr(purchaseBillLabels.costPriceHint)}">${escapeHtml(purchaseBillLabels.costPrice)}</label>
                         <input type="text" name="products_cost_price" value="${costPrice}" class="w-full" placeholder="0">
                     </div>
                     <div>
                         <label class="form-label">${escapeHtml(purchaseBillLabels.shelfNumber)}</label>
                         <input type="text" name="products_shelf_number" value="${escapeAttr(shelfNumber)}" class="w-full" placeholder="">
+                    </div>
+                    <div>
+                        <label class="form-label" title="${escapeAttr(purchaseBillLabels.sellingPriceHint)}">${escapeHtml(purchaseBillLabels.sellingPrice)}</label>
+                        <input type="text" name="products_selling_price" value="${escapeAttr(sellingPrice)}" class="w-full" placeholder="${sellingPricePlaceholder}" ${sellingPriceAttrs}>
                     </div>
                 </div>
                 <div class="mt-2 flex justify-end">
@@ -433,6 +442,7 @@
         row.querySelector('[name="products_product_id"]').value = '0';
         row.querySelector('[name="products_part_name"]').value = input.value.trim();
         setInventoryState(row, false);
+        hideExistingItemWarning(row);
         searchStoreProducts(input, rowId);
     }
 
@@ -482,7 +492,7 @@
             var name = p.name || '';
             if (!name) continue;
             html += '<div class="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer border-b" '
-                + 'onclick="selectStoreProduct(\'' + rowId + '\', ' + p.id + ', \'' + escapeAttr(name) + '\', \'' + escapeAttr(p.cost_price || '') + '\', \'' + escapeAttr(p.shelf_number || '') + '\')">'
+                + 'onclick="selectStoreProduct(\'' + rowId + '\', ' + p.id + ', \'' + escapeAttr(name) + '\', \'' + escapeAttr(p.cost_price || '') + '\', \'' + escapeAttr(p.shelf_number || '') + '\', \'' + escapeAttr(p.price || '') + '\')">'
                 + escapeHtml(name)
                 + '</div>';
         }
@@ -493,15 +503,23 @@
         dd.classList.remove('hidden');
     }
 
-    function selectStoreProduct(rowId, productId, name, costPrice, shelfNumber) {
+    function selectStoreProduct(rowId, productId, name, costPrice, shelfNumber, price) {
         var row = document.querySelector('[data-row-id="' + rowId + '"]');
         row.querySelector('.store-product-search').value = name;
         row.querySelector('[name="products_product_id"]').value = productId;
         row.querySelector('[name="products_part_name"]').value = name;
         row.querySelector('[name="products_cost_price"]').value = costPrice;
         row.querySelector('[name="products_shelf_number"]').value = shelfNumber;
+        var sellingPriceInput = row.querySelector('[name="products_selling_price"]');
+        if (sellingPriceInput) sellingPriceInput.value = price || '';
         setInventoryState(row, true);
+        hideExistingItemWarning(row);
         hideDropdown(rowId);
+    }
+
+    function hideExistingItemWarning(row) {
+        var warning = row.querySelector('.existing-item-warning');
+        if (warning) warning.classList.add('hidden');
     }
 
     function setInventoryState(row, trackStock) {
@@ -829,14 +847,71 @@
             }
 
             const container = document.getElementById('products-container');
-            items.forEach(item => container.insertAdjacentHTML('beforeend', itemRow(item)));
+            const inserted = items.map(item => {
+                const before = container.children.length;
+                container.insertAdjacentHTML('beforeend', itemRow(item));
+                return { row: container.children[before], item: item };
+            });
             recalculateTotal();
             input.value = '';
+            inserted.forEach(({ row, item }) => resolveImportedItemLookup(row, item));
         })
         .catch(e => {
             alert(purchaseBillLabels.importFailedPrefix + e.message);
             input.value = '';
         });
+    }
+
+    // For each imported row: if it carries a productId, fetch that catalog
+    // product's current shelf location + selling price so the user can
+    // review/adjust them before saving. If it doesn't, check by name and
+    // warn (without auto-linking) when a product with the same name
+    // already exists — importers commonly forget to fill the id column.
+    function resolveImportedItemLookup(row, item) {
+        var storeSelect = document.querySelector('[name="store_id"]');
+        var storeID = parseInt(storeSelect ? storeSelect.value : '', 10);
+
+        if (item.productId) {
+            fetchStoreProducts(String(item.productId)).then(function (products) {
+                var match = (products || []).find(function (p) {
+                    return p.id === item.productId && p.store_id === storeID;
+                });
+                if (!match) return;
+                row.querySelector('[name="products_product_id"]').value = match.id;
+                var shelfInput = row.querySelector('[name="products_shelf_number"]');
+                if (shelfInput && !shelfInput.value) shelfInput.value = match.shelf_number || '';
+                var sellingPriceInput = row.querySelector('[name="products_selling_price"]');
+                if (sellingPriceInput) sellingPriceInput.value = match.price || '';
+                setInventoryState(row, true);
+            });
+            return;
+        }
+
+        var name = (item.partName || '').trim();
+        if (!name) return;
+        fetchStoreProducts(name).then(function (products) {
+            var existsByName = (products || []).some(function (p) {
+                return p.store_id === storeID && (p.name || '').trim().toLowerCase() === name.toLowerCase();
+            });
+            if (existsByName) showExistingItemWarning(row);
+        });
+    }
+
+    function showExistingItemWarning(row) {
+        var warning = row.querySelector('.existing-item-warning');
+        if (!warning) return;
+        warning.textContent = purchaseBillLabels.existingItemNameWarning;
+        warning.classList.remove('hidden');
+    }
+
+    function fetchStoreProducts(query) {
+        var formData = new FormData();
+        formData.append('query', query);
+        return fetch('/api/products/search-json', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': getCsrfCookie() },
+            body: formData
+        }).then(function (r) { return r.json(); }).catch(function () { return []; });
     }
 </script>
 <script src="/static/js/supplier-search.js"></script>

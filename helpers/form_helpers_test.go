@@ -8,6 +8,44 @@ import (
 	"testing"
 )
 
+// TestBuildPurchaseBillPayload_SellingPriceOverride verifies that a
+// non-blank products_selling_price row is carried through to the tracked
+// product as an optional override, and that a blank value round-trips as
+// "no override" (nil) rather than "set the price to 0" — the backend only
+// honors this for admin/manager submissions, but the frontend's job is just
+// to forward whatever was actually typed.
+func TestBuildPurchaseBillPayload_SellingPriceOverride(t *testing.T) {
+	form := url.Values{
+		"store_id":               {"1"},
+		"supplier_id":            {"2"},
+		"products_product_id":    {"100", "200"},
+		"products_track_stock":   {"true", "true"},
+		"products_price":         {"50", "30"},
+		"products_quantity":      {"2", "1"},
+		"products_part_name":     {"فلتر مخزون", "فلتر آخر"},
+		"products_cost_price":    {"40", "20"},
+		"products_shelf_number":  {"A1", "B2"},
+		"products_selling_price": {"75", ""},
+		"discount":               {"0"},
+		"total_amount":           {"130"},
+	}
+
+	req, _ := http.NewRequest("POST", "/api/purchase-bills", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	payload := BuildPurchaseBillPayload(req)
+
+	if len(payload.Products) != 2 {
+		t.Fatalf("expected 2 tracked products, got %d", len(payload.Products))
+	}
+	if payload.Products[0].SellingPrice == nil || *payload.Products[0].SellingPrice != "75" {
+		t.Errorf("row 0: SellingPrice = %v, want \"75\"", payload.Products[0].SellingPrice)
+	}
+	if payload.Products[1].SellingPrice != nil {
+		t.Errorf("row 1: SellingPrice = %v, want nil (blank input must not force a price of 0)", *payload.Products[1].SellingPrice)
+	}
+}
+
 // TestBuildPurchaseBillPayload_ManualProducts verifies that manual-only products
 // appear ONLY in manual_products[] and NOT in products[].
 func TestBuildPurchaseBillPayload_ManualProducts(t *testing.T) {

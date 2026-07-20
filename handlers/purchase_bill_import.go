@@ -21,9 +21,18 @@ type ImportedItem struct {
 	PurchasePrice float64 `json:"purchasePrice"`
 	CostPrice     float64 `json:"costPrice"`
 	ShelfNumber   string  `json:"shelfNumber"`
+	// ProductID is an optional existing-catalog-product reference. When set,
+	// the frontend fetches that product's current shelf/cost/selling price
+	// for the user to review before submit. A blank/missing value means
+	// "this is a new item" — the frontend still checks by name and warns
+	// (without auto-linking) if a product with the same name already
+	// exists, since that's a common data-entry mistake in import sheets.
+	ProductID *int `json:"productId,omitempty"`
 }
 
-var purchaseBillImportTemplateHeader = []string{"اسم القطعة", "الكمية", "سعر الشراء", "سعر التكلفة", "رقم الرف"}
+var purchaseBillImportTemplateHeader = []string{
+	"اسم القطعة", "الكمية", "سعر الشراء", "سعر التكلفة", "رقم الرف", "معرف المنتج (اختياري)",
+}
 
 const contentTypeHeader = "Content-Type"
 
@@ -42,7 +51,7 @@ func HandleDownloadPurchaseBillTemplate(w http.ResponseWriter, r *http.Request) 
 func HandleDownloadPurchaseBillExcelTemplate(w http.ResponseWriter, r *http.Request) {
 	workbook, err := buildPurchaseBillImportWorkbook([][]string{
 		purchaseBillImportTemplateHeader,
-		{"مثال", "10", "100.00", "90.00", "A1"},
+		{"مثال", "10", "100.00", "90.00", "A1", ""},
 	})
 	if err != nil {
 		http.Error(w, "failed to create template", http.StatusInternalServerError)
@@ -141,7 +150,7 @@ func parseXLSXItems(payload []byte) ([]ImportedItem, error) {
 
 	rows := make([][]string, 0, len(worksheet.SheetData.Rows))
 	for _, row := range worksheet.SheetData.Rows {
-		rowValues := make([]string, 5)
+		rowValues := make([]string, 6)
 		for _, cell := range row.Cells {
 			column := excelColumnIndex(cell.Reference)
 			if column < 0 || column >= len(rowValues) {
@@ -194,10 +203,27 @@ func parseImportedRows(rows [][]string) []ImportedItem {
 			PurchasePrice: purchasePrice,
 			CostPrice:     costPrice,
 			ShelfNumber:   trimmedCell(row, 4),
+			ProductID:     parseOptionalProductID(trimmedCell(row, 5)),
 		})
 	}
 
 	return items
+}
+
+// parseOptionalProductID parses the optional "existing product id" import
+// column. Per product requirements: a blank value means "this is a new
+// item" (not an error); an unparseable value is treated the same way
+// rather than failing the whole row, since the frontend will still run its
+// own by-name existing-item check for items with no usable id.
+func parseOptionalProductID(value string) *int {
+	if value == "" {
+		return nil
+	}
+	id, err := strconv.Atoi(value)
+	if err != nil || id <= 0 {
+		return nil
+	}
+	return &id
 }
 
 func trimmedCell(row []string, index int) string {
@@ -225,7 +251,7 @@ func buildPurchaseBillImportCSVTemplate() []byte {
 	writer := csv.NewWriter(&buffer)
 	writer.UseCRLF = true
 	_ = writer.Write(purchaseBillImportTemplateHeader)
-	_ = writer.Write([]string{"مثال", "10", "100.00", "90.00", "A1"})
+	_ = writer.Write([]string{"مثال", "10", "100.00", "90.00", "A1", ""})
 	writer.Flush()
 	return buffer.Bytes()
 }

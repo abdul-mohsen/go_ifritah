@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // DerefString safely dereferences a *string, returning "" if nil.
@@ -163,6 +164,21 @@ func productRowMaxLen(slices ...[]string) int {
 	return m
 }
 
+// optionalSellingPrice returns row i of sellingPrices as a formatted price
+// string pointer, or nil if the row is out of range or blank — a blank
+// value means "no override," not "set the price to 0."
+func optionalSellingPrice(sellingPrices []string, i int) *string {
+	if i >= len(sellingPrices) {
+		return nil
+	}
+	raw := strings.TrimSpace(sellingPrices[i])
+	if raw == "" {
+		return nil
+	}
+	formatted := FormatStringPrice(raw)
+	return &formatted
+}
+
 // BuildBillProductItemsWithNames builds product items including part_name (for purchase bills).
 func BuildBillProductItemsWithNames(ids []string, prices []string, quantities []string, names []string) []models.BillProductItem {
 	items := make([]models.BillProductItem, 0)
@@ -283,6 +299,7 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 	costPrices := r.Form["products_cost_price"]
 	shelfNumbers := r.Form["products_shelf_number"]
 	trackStocks := r.Form["products_track_stock"]
+	sellingPrices := r.Form["products_selling_price"]
 
 	var products []models.BillProductItem
 	var manualProducts []models.BillManualItem
@@ -300,13 +317,14 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 		}
 		if trackStock && row.id > 0 {
 			products = append(products, models.BillProductItem{
-				ID:          row.id,
-				PartName:    row.name,
-				Price:       row.price,
-				Quantity:    row.quantity,
-				CostPrice:   row.costPrice,
-				ShelfNumber: shelfNumber,
-				TrackStock:  true,
+				ID:           row.id,
+				PartName:     row.name,
+				Price:        row.price,
+				Quantity:     row.quantity,
+				CostPrice:    row.costPrice,
+				ShelfNumber:  shelfNumber,
+				TrackStock:   true,
+				SellingPrice: optionalSellingPrice(sellingPrices, i),
 			})
 			continue
 		}

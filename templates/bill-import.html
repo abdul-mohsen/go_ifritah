@@ -1,0 +1,58 @@
+{{ define "content" }}
+<div class="page-card" id="bill-import-page">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="page-title" id="bill-import-title">{{ if eq .import_type "purchase" }}{{ L "tpl.import.title_purchase_bills" }}{{ else }}{{ L "tpl.import.title_invoices" }}{{ end }}</h2>
+    <a id="bill-import-back" href="{{ if eq .import_type "purchase" }}/dashboard/purchase-bills{{ else }}/dashboard/invoices{{ end }}" class="text-sm text-blue-600 hover:underline">{{ L "tpl.import.back" }}</a>
+  </div>
+  <p class="mb-4">{{ if .arabic }}ارفع ملف XLSX يحتوي على ورقتي <strong>Bills</strong> و<strong>Products</strong>. تربط صفوف المنتجات بالفواتير عبر <strong>مرجع الفاتورة</strong>.{{ else }}Upload an XLSX workbook with stable <strong>Bills</strong> and <strong>Products</strong> sheets. Product rows join bills using <strong>Bill Reference</strong>.{{ end }}</p>
+  <form id="bill-import-form" enctype="multipart/form-data">
+    <label class="form-label" for="bill-import-type">{{ if .arabic }}نوع المستند{{ else }}Document type{{ end }}</label>
+    <select id="bill-import-type" name="type" class="w-full mb-4" style="max-width:360px">
+      <option value="sales" {{ if eq .import_type "sales" }}selected{{ end }}>{{ if .arabic }}فواتير المبيعات{{ else }}Sales Bills{{ end }}</option>
+      <option value="purchase" {{ if eq .import_type "purchase" }}selected{{ end }}>{{ if .arabic }}فواتير المشتريات{{ else }}Purchase Bills{{ end }}</option>
+    </select>
+    <div class="flex gap-2 mb-4">
+      <a id="bill-import-template" data-template-url="/api/bill-import/template?type={{ .import_type }}" href="/api/bill-import/template?type={{ .import_type }}" class="btn btn-tonal btn-sm">{{ if .arabic }}تحميل نموذج XLSX{{ else }}Download example XLSX template{{ end }}</a>
+    </div>
+    <label class="form-label" for="bill-import-file">{{ if .arabic }}ملف XLSX{{ else }}XLSX workbook{{ end }}</label>
+    <input id="bill-import-file" name="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+    <button id="bill-import-submit" type="submit" class="btn btn-filled mt-4">{{ if .arabic }}استيراد الفواتير{{ else }}Import bills{{ end }}</button>
+  </form>
+  <div id="bill-import-result" class="mt-4" role="status"></div>
+</div>
+<script>
+(() => {
+  const type = document.getElementById('bill-import-type');
+  const template = document.getElementById('bill-import-template');
+  type.addEventListener('change', () => {
+    const target = type.value;
+    window.location.assign('/dashboard/bill-import?type=' + encodeURIComponent(target));
+  });
+  document.getElementById('bill-import-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const result = document.getElementById('bill-import-result');
+    const submit = document.getElementById('bill-import-submit');
+    submit.disabled = true;
+    result.textContent = '{{ if .arabic }}جارٍ الاستيراد…{{ else }}Importing…{{ end }}';
+    try {
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+      const csrfToken = csrfMatch ? csrfMatch[1] : '';
+      const response = await fetch('/api/bill-import/upload?type=' + encodeURIComponent(type.value), {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken },
+        body: new FormData(event.currentTarget)
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error || 'Import failed');
+      result.textContent = `{{ if .arabic }}تم استيراد ${data.success} من ${data.total} فاتورة بنجاح.{{ else }}Imported ${data.success} of ${data.total} bills successfully.{{ end }}`;
+      result.dataset.success = String(data.success);
+    } catch (error) {
+      result.textContent = error.message;
+      result.dataset.success = '0';
+    } finally {
+      submit.disabled = false;
+    }
+  });
+})();
+</script>
+{{ end }}

@@ -36,6 +36,12 @@ var saudiRegions = []string{
 	"الجوف",
 }
 
+type supplierLedgerTable struct {
+	Supplier models.Supplier
+	Summary  models.SupplierLedgerBreakdown
+	Entries  []models.SupplierLedgerEntry
+}
+
 // composeSupplierAddress builds a flat address string from the breakdown form fields.
 // Format: "رقم المبنى XXXX، شارع، الحي، المدينة، المنطقة XXXXX، البلد"
 func composeSupplierAddress(r *http.Request) string {
@@ -436,6 +442,97 @@ func HandleSupplierReport(w http.ResponseWriter, r *http.Request) {
 		"monthly_spending": report.Monthly,
 		"date_from":        dateFrom,
 		"date_to":          dateTo,
+	})
+}
+
+// HandleSupplierLedger renders the combined general ledger for one supplier
+// or all suppliers over the requested date range.
+func HandleSupplierLedger(w http.ResponseWriter, r *http.Request) {
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return
+	}
+
+	now := time.Now()
+	dateFrom := r.URL.Query().Get("from")
+	dateTo := r.URL.Query().Get("to")
+	if dateFrom == "" {
+		dateFrom = now.AddDate(0, 0, -90).Format("2006-01-02")
+	}
+	if dateTo == "" {
+		dateTo = now.Format("2006-01-02")
+	}
+	supplierID := r.URL.Query().Get("supplier_id")
+	if supplierID == "" {
+		supplierID = "all"
+	}
+
+	suppliers, err := helpers.FetchSuppliers(token)
+	if err != nil {
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل الموردين")
+		return
+	}
+	ledger, err := helpers.FetchSupplierLedger(token, supplierID, dateFrom, dateTo)
+	if err != nil {
+		helpers.WriteErrorResponse(w, http.StatusBadGateway, nil, "تعذر تحميل دفتر الأستاذ العام للموردين")
+		return
+	}
+
+	ledgerTables := make([]supplierLedgerTable, 0)
+	chartLabels := make([]string, 0)
+	chartDebits := make([]float64, 0)
+	chartCredits := make([]float64, 0)
+	if supplierID == "all" {
+		entriesBySupplier := make(map[int][]models.SupplierLedgerEntry)
+		for _, entry := range ledger.Ledger {
+			entriesBySupplier[entry.SupplierID] = append(entriesBySupplier[entry.SupplierID], entry)
+		}
+		summariesBySupplier := make(map[int]models.SupplierLedgerBreakdown)
+		for _, summary := range ledger.Suppliers {
+			summariesBySupplier[summary.SupplierID] = summary
+		}
+		for _, supplier := range suppliers {
+			summary := summariesBySupplier[supplier.ID]
+			if summary.SupplierName == "" {
+				summary.SupplierID = supplier.ID
+				summary.SupplierName = supplier.Name
+			}
+			ledgerTables = append(ledgerTables, supplierLedgerTable{
+				Supplier: supplier,
+				Summary:  summary,
+				Entries:  entriesBySupplier[supplier.ID],
+			})
+			chartLabels = append(chartLabels, supplier.Name)
+			chartDebits = append(chartDebits, summary.Debit)
+			chartCredits = append(chartCredits, summary.Credit)
+		}
+	} else {
+		supplierName := supplierID
+		if selectedID, err := strconv.Atoi(supplierID); err == nil {
+			for _, supplier := range suppliers {
+				if supplier.ID == selectedID {
+					supplierName = supplier.Name
+					break
+				}
+			}
+		}
+		chartLabels = append(chartLabels, supplierName)
+		chartDebits = append(chartDebits, ledger.Summary.TotalDebit)
+		chartCredits = append(chartCredits, ledger.Summary.TotalCredit)
+	}
+
+	helpers.Render(w, r, "supplier-ledger", map[string]interface{}{
+		"title":            "دفتر الأستاذ العام للموردين",
+		"suppliers":        suppliers,
+		"supplier_id":      supplierID,
+		"date_from":        dateFrom,
+		"date_to":          dateTo,
+		"summary":          ledger.Summary,
+		"ledger":           ledger.Ledger,
+		"supplier_ledgers": ledgerTables,
+		"chart_labels":     chartLabels,
+		"chart_debits":     chartDebits,
+		"chart_credits":    chartCredits,
 	})
 }
 

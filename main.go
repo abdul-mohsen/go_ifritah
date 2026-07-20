@@ -77,6 +77,9 @@ func main() {
 	router.HandleFunc("/bill/credit/pdf/{id}", protect("invoices", "view", handlers.HandleCreditBillPDF)).Methods("GET")
 	router.HandleFunc("/dashboard/invoices/import-csv", protect("invoices", "add", handlers.HandleImportBillsPage)).Methods("GET")
 	router.HandleFunc("/api/invoices/import-csv", protect("invoices", "add", handlers.HandleImportBillsUpload)).Methods("POST")
+	router.HandleFunc("/dashboard/bill-import", handlers.RequireBillImportPermission(handlers.HandleBillImportPage)).Methods("GET")
+	router.HandleFunc("/api/bill-import/template", handlers.RequireBillImportPermission(handlers.HandleDownloadBillImportTemplate)).Methods("GET")
+	router.HandleFunc("/api/bill-import/upload", handlers.RequireBillImportPermission(handlers.HandleImportBillsXLSX)).Methods("POST")
 	router.HandleFunc("/api/data-import/preview", adminOnly(handlers.HandleDataImportPreview)).Methods("POST")
 	router.HandleFunc("/api/data-import/execute", adminOnly(handlers.HandleDataImportExecute)).Methods("POST")
 	router.HandleFunc("/api/invoices", protect("invoices", "add", handlers.HandleCreateInvoice)).Methods("POST")
@@ -91,6 +94,7 @@ func main() {
 	// Purchase bill routes — RBAC protected
 	router.HandleFunc("/dashboard/purchase-bills", protect("purchase_bills", "view", handlers.HandlePurchaseBills)).Methods("GET")
 	router.HandleFunc("/dashboard/purchase-bills/add", protect("purchase_bills", "add", handlers.HandleAddPurchaseBill)).Methods("GET")
+	router.HandleFunc("/dashboard/purchase-bills/export-xlsx", protect("purchase_bills", "view", handlers.HandleExportPurchaseBillsXLSX)).Methods("GET")
 	router.HandleFunc("/dashboard/purchase-bills/edit/{id}", protect("purchase_bills", "edit", handlers.HandleEditPurchaseBill)).Methods("GET")
 	router.HandleFunc("/dashboard/purchase-bills/{id}", protect("purchase_bills", "view", handlers.HandleGetPurchaseBill)).Methods("GET")
 	router.HandleFunc("/api/purchase-bills/duplicate-check", protect("purchase_bills", "add", handlers.HandlePurchaseBillDuplicateCheck)).Methods("POST")
@@ -204,6 +208,7 @@ func main() {
 
 	// CSV Export routes — RBAC protected
 	router.HandleFunc("/dashboard/invoices/export-csv", protect("invoices", "view", handlers.HandleExportInvoicesCSV)).Methods("GET")
+	router.HandleFunc("/dashboard/invoices/export-xlsx", protect("invoices", "view", handlers.HandleExportSalesBillsXLSX)).Methods("GET")
 	router.HandleFunc("/dashboard/products/export-csv", protect("products", "view", handlers.HandleExportProductsCSV)).Methods("GET")
 	router.HandleFunc("/dashboard/clients/export-csv", protect("clients", "view", handlers.HandleExportClientsCSV)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/export-csv", protect("suppliers", "view", handlers.HandleExportSuppliersCSV)).Methods("GET")
@@ -234,6 +239,7 @@ func main() {
 	router.HandleFunc("/dashboard/suppliers/{id}/report/export-csv", protect("suppliers", "view", handlers.HandleExportSupplierReportCSV)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/report/export-excel", protect("suppliers", "view", handlers.HandleExportSupplierReportExcel)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/report/export-pdf", protect("suppliers", "view", handlers.HandleExportSupplierReportPDF)).Methods("GET")
+	router.HandleFunc("/dashboard/supplier-ledger", protect("suppliers", "view", handlers.HandleSupplierLedger)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/update", protect("suppliers", "edit", handlers.HandleUpdateSupplier)).Methods("POST")
 	router.HandleFunc("/dashboard/suppliers/{id}/delete", protect("suppliers", "delete", handlers.HandleDeleteSupplier)).Methods("POST")
 

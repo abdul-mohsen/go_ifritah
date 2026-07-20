@@ -51,16 +51,29 @@ func parseSupplierIDs(raw string) []int {
 // loadSupplierStatementEntries fetches the supplier + report for each ID.
 // Suppliers that can no longer be found (e.g. deleted after the checkbox
 // was ticked) are skipped rather than failing the whole statement.
+// loadSupplierStatementEntries resolves supplier metadata (cheap - backed
+// by the already-cached full supplier list, so this costs no extra network
+// round trips regardless of how many ids are requested) and fetches every
+// selected supplier's report in a single backend request via
+// helpers.FetchMultiSupplierReport, instead of one request per supplier.
 func loadSupplierStatementEntries(token string, ids []int, dateFrom, dateTo string) ([]supplierStatementEntry, error) {
+	reports, err := helpers.FetchMultiSupplierReport(token, ids, dateFrom, dateTo)
+	if err != nil {
+		return nil, err
+	}
+
 	entries := make([]supplierStatementEntry, 0, len(ids))
 	for _, id := range ids {
 		supplier, found := findSupplierByID(token, strconv.Itoa(id))
 		if !found {
 			continue
 		}
-		report, err := helpers.FetchSupplierReport(token, id, dateFrom, dateTo)
-		if err != nil {
-			return nil, err
+		report, ok := reports[id]
+		if !ok {
+			// Backend could not resolve this supplier's report (not found /
+			// wrong tenant) - skip it rather than failing the whole
+			// combined statement.
+			continue
 		}
 		applySupplierCreditUtilization(&report, supplier)
 		entries = append(entries, supplierStatementEntry{Supplier: supplier, Report: report})

@@ -10,8 +10,10 @@ import (
 )
 
 // twoSupplierStatementBackend returns a mock backend serving two suppliers
-// (77 and 88) plus their individual reports, for exercising the
-// multi-supplier ledger statement feature.
+// (77 and 88) plus their combined report via the single
+// /api/v2/supplier/report/multi request, for exercising the multi-supplier
+// ledger statement feature (mirrors the real backend's response shape:
+// {"suppliers": [ {"supplier": {...}, "summary": {...}, ...}, ... ]}).
 func twoSupplierStatementBackend(t *testing.T) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -21,24 +23,27 @@ func twoSupplierStatementBackend(t *testing.T) *httptest.Server {
 				{"id":77,"name":"Supplier A","vat_number":"300000000000003"},
 				{"id":88,"name":"Supplier B","vat_number":"300000000000004"}
 			]`))
-		case "/api/v2/supplier/77/report":
-			_, _ = w.Write([]byte(`{
-				"summary":{"bill_count":1,"total_spent":125,"total_before_vat":100,"total_vat":25,"total_payments":50,"closing_balance":75,"payment_count":1},
-				"bills":[{"id":11,"sequence_number":501,"supplier_sequence_number":"SUP-501","total":125,"total_before_vat":100,"total_vat":25,"discount":0,"state":1,"effective_date":"2026-04-15T00:00:00Z","item_count":2}],
-				"payments":[],
-				"top_items":[],
-				"aging":[],
-				"monthly_spending":[]
-			}`))
-		case "/api/v2/supplier/88/report":
-			_, _ = w.Write([]byte(`{
-				"summary":{"bill_count":1,"total_spent":200,"total_before_vat":170,"total_vat":30,"total_payments":0,"closing_balance":200,"payment_count":0},
-				"bills":[{"id":22,"sequence_number":502,"supplier_sequence_number":"SUP-502","total":200,"total_before_vat":170,"total_vat":30,"discount":0,"state":0,"effective_date":"2026-04-18T00:00:00Z","item_count":1}],
-				"payments":[],
-				"top_items":[],
-				"aging":[],
-				"monthly_spending":[]
-			}`))
+		case "/api/v2/supplier/report/multi":
+			_, _ = w.Write([]byte(`{"suppliers":[
+				{
+					"supplier": {"id":77,"name":"Supplier A"},
+					"summary":{"bill_count":1,"total_spent":125,"total_before_vat":100,"total_vat":25,"total_payments":50,"closing_balance":75,"payment_count":1},
+					"bills":[{"id":11,"sequence_number":501,"supplier_sequence_number":"SUP-501","total":125,"total_before_vat":100,"total_vat":25,"discount":0,"state":1,"effective_date":"2026-04-15T00:00:00Z","item_count":2}],
+					"payments":[],
+					"top_items":[],
+					"aging":[],
+					"monthly_spending":[]
+				},
+				{
+					"supplier": {"id":88,"name":"Supplier B"},
+					"summary":{"bill_count":1,"total_spent":200,"total_before_vat":170,"total_vat":30,"total_payments":0,"closing_balance":200,"payment_count":0},
+					"bills":[{"id":22,"sequence_number":502,"supplier_sequence_number":"SUP-502","total":200,"total_before_vat":170,"total_vat":30,"discount":0,"state":0,"effective_date":"2026-04-18T00:00:00Z","item_count":1}],
+					"payments":[],
+					"top_items":[],
+					"aging":[],
+					"monthly_spending":[]
+				}
+			]}`))
 		default:
 			t.Fatalf("unexpected backend path %s", r.URL.Path)
 		}

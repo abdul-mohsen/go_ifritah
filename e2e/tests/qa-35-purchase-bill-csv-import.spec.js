@@ -147,6 +147,12 @@ test.describe('Purchase-bill CSV import flow', () => {
 
     await page.waitForURL(/\/dashboard\/purchase-bills\/\d+$/);
 
+    // Imported rows never resolve to a real catalog product_id (the CSV
+    // import only types free-text names - it doesn't match against
+    // inventory), so the unified item form classifies all three as manual
+    // products, not catalog products. This mirrors the same
+    // product_id-driven catalog/manual split already covered for manual
+    // form entry by TestCreatePBManualItemsOnlyInManualProducts.
     const catalogSection = page
       .locator('.section-card')
       .filter({
@@ -155,14 +161,7 @@ test.describe('Purchase-bill CSV import flow', () => {
           .filter({ hasText: /المنتجات من الكتالوج|Catalog Products/ }),
       })
       .first();
-    await expect(catalogSection).toBeVisible();
-    await expect(catalogSection.locator('tbody tr')).toHaveCount(3);
-    await expect(catalogSection).toContainText('فلتر زيت E2E');
-    await expect(catalogSection).toContainText('بواجي E2E');
-    await expect(catalogSection).toContainText('سير مكينة E2E');
-    await expect(catalogSection).toContainText('33.50');
-    await expect(catalogSection).toContainText('12.00');
-    await expect(catalogSection).toContainText('5.00');
+    await expect(catalogSection).toContainText(/لا توجد منتجات من الكتالوج|No catalog products/);
 
     const manualSection = page
       .locator('.section-card')
@@ -170,6 +169,13 @@ test.describe('Purchase-bill CSV import flow', () => {
         has: page.locator('h4.section-card-title').filter({ hasText: /المنتجات اليدوية|Manual Products/ }),
       })
       .first();
-    await expect(manualSection).toContainText(/لا توجد منتجات يدوية|No manual products/);
+    await expect(manualSection).toBeVisible();
+    await expect(manualSection.locator('tbody tr')).toHaveCount(3);
+    await expect(manualSection).toContainText('فلتر زيت E2E');
+    await expect(manualSection).toContainText('بواجي E2E');
+    await expect(manualSection).toContainText('سير مكينة E2E');
+    await expect(manualSection).toContainText('33.50');
+    await expect(manualSection).toContainText('12.00');
+    await expect(manualSection).toContainText('5.00');
   });
 });

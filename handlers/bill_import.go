@@ -67,7 +67,7 @@ func HandleDownloadBillImportTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	importType := billImportType(r.URL.Query().Get("type"))
-	workbook, err := buildBillImportTemplate(importType, isArabic(token))
+	workbook, err := buildBillImportTemplate(importType, isArabic(token), templateOverridesFromQuery(r))
 	if err != nil {
 		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "Unable to create Excel template")
 		return
@@ -79,6 +79,36 @@ func HandleDownloadBillImportTemplate(w http.ResponseWriter, r *http.Request) {
 	if err := workbook.Write(w); err != nil {
 		log.Printf("[bill import] template write failed: %v", err)
 	}
+}
+
+// billImportTemplateOverrides lets callers swap the illustrative example
+// IDs (store/supplier/branch/customer) baked into the generated template
+// for real ones — e.g. so a downloaded-then-reuploaded template actually
+// succeeds for a specific account instead of only being a formatting
+// reference. All fields default to the built-in example values below when
+// left blank.
+type billImportTemplateOverrides struct {
+	StoreID    string
+	SupplierID string
+	BranchID   string
+	CustomerID string
+}
+
+func templateOverridesFromQuery(r *http.Request) billImportTemplateOverrides {
+	q := r.URL.Query()
+	return billImportTemplateOverrides{
+		StoreID:    strings.TrimSpace(q.Get("store_id")),
+		SupplierID: strings.TrimSpace(q.Get("supplier_id")),
+		BranchID:   strings.TrimSpace(q.Get("branch_id")),
+		CustomerID: strings.TrimSpace(q.Get("customer_id")),
+	}
+}
+
+func orDefault(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 // HandleImportBillsXLSX validates a two-sheet workbook and creates every
@@ -193,7 +223,7 @@ func billImportHeaders(importType string, arabic bool) ([]string, []string) {
 		[]string{colBillReferenceEN, "Product Name", "Quantity", "Unit Price", colLineTotalEN}
 }
 
-func buildBillImportTemplate(importType string, arabic bool) (*excelize.File, error) {
+func buildBillImportTemplate(importType string, arabic bool, overrides billImportTemplateOverrides) (*excelize.File, error) {
 	workbook := excelize.NewFile()
 	if err := workbook.SetSheetName("Sheet1", "Bills"); err != nil {
 		return nil, err
@@ -208,17 +238,21 @@ func buildBillImportTemplate(importType string, arabic bool) (*excelize.File, er
 	if err := writeStringRow(workbook, "Products", 1, productHeaders); err != nil {
 		return nil, err
 	}
+	storeID := orDefault(overrides.StoreID, "1")
 	if importType == billImportPurchase {
+		supplierID := orDefault(overrides.SupplierID, "1")
 		const examplePB1, examplePB2 = "PB-EXAMPLE-001", "PB-EXAMPLE-002"
-		_ = writeStringRow(workbook, "Bills", 2, []string{examplePB1, "1", "1", "10001", "2026-01-15", "10", "0"})
-		_ = writeStringRow(workbook, "Bills", 3, []string{examplePB2, "1", "2", "10002", "2026-01-16", "10", "5"})
+		_ = writeStringRow(workbook, "Bills", 2, []string{examplePB1, storeID, supplierID, "10001", "2026-01-15", "10", "0"})
+		_ = writeStringRow(workbook, "Bills", 3, []string{examplePB2, storeID, supplierID, "10002", "2026-01-16", "10", "5"})
 		_ = writeStringRow(workbook, "Products", 2, []string{examplePB1, "Oil Filter", "2", "25", "20", "A-01", "0", "50"})
 		_ = writeStringRow(workbook, "Products", 3, []string{examplePB1, "Air Filter", "1", "30", "24", "A-02", "0", "30"})
 		_ = writeStringRow(workbook, "Products", 4, []string{examplePB2, "Battery", "1", "200", "180", "B-01", "0", "200"})
 	} else {
+		branchID := orDefault(overrides.BranchID, "1")
+		customerID := overrides.CustomerID
 		const exampleSB1, exampleSB2 = "SB-EXAMPLE-001", "SB-EXAMPLE-002"
-		_ = writeStringRow(workbook, "Bills", 2, []string{exampleSB1, "1", "1", "", "Walk-in Customer", "0500000001", "2026-01-15", "0", "First example bill", "VIN-EXAMPLE-001"})
-		_ = writeStringRow(workbook, "Bills", 3, []string{exampleSB2, "1", "1", "", "Second Customer", "0500000002", "2026-01-16", "5", "Second example bill", "VIN-EXAMPLE-002"})
+		_ = writeStringRow(workbook, "Bills", 2, []string{exampleSB1, storeID, branchID, customerID, "Walk-in Customer", "0500000001", "2026-01-15", "0", "First example bill", "VIN-EXAMPLE-001"})
+		_ = writeStringRow(workbook, "Bills", 3, []string{exampleSB2, storeID, branchID, customerID, "Second Customer", "0500000002", "2026-01-16", "5", "Second example bill", "VIN-EXAMPLE-002"})
 		_ = writeStringRow(workbook, "Products", 2, []string{exampleSB1, "Brake Pad", "2", "75", "150"})
 		_ = writeStringRow(workbook, "Products", 3, []string{exampleSB1, "Engine Oil", "1", "40", "40"})
 		_ = writeStringRow(workbook, "Products", 4, []string{exampleSB2, "Wiper Blade", "2", "20", "40"})

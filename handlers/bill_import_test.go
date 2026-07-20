@@ -14,6 +14,75 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// TestBuildBillImportTemplateAppliesOverrides is a regression test for a
+// real e2e failure: the generated template's example Store ID/Supplier ID/
+// Branch ID are illustrative placeholders (they only need to look right,
+// not belong to any real account), so re-uploading the raw template as-is
+// gets rejected by the backend's store/supplier ownership checks for
+// whichever account downloaded it. HandleDownloadBillImportTemplate accepts
+// optional query overrides so a caller (or an e2e test) can request a
+// template pre-filled with IDs that actually belong to their account.
+func TestBuildBillImportTemplateAppliesOverrides(t *testing.T) {
+	t.Run("purchase: overrides store/supplier ids on every example bill row", func(t *testing.T) {
+		workbook, err := buildBillImportTemplate(billImportPurchase, false, billImportTemplateOverrides{
+			StoreID: "42", SupplierID: "7",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer workbook.Close()
+		for _, row := range []string{"2", "3"} {
+			if got, _ := workbook.GetCellValue("Bills", "B"+row); got != "42" {
+				t.Fatalf("Bills!B%s store id = %q, want 42", row, got)
+			}
+			if got, _ := workbook.GetCellValue("Bills", "C"+row); got != "7" {
+				t.Fatalf("Bills!C%s supplier id = %q, want 7", row, got)
+			}
+		}
+	})
+
+	t.Run("sales: overrides store/branch/customer ids on every example bill row", func(t *testing.T) {
+		workbook, err := buildBillImportTemplate(billImportSales, false, billImportTemplateOverrides{
+			StoreID: "42", BranchID: "3", CustomerID: "99",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer workbook.Close()
+		for _, row := range []string{"2", "3"} {
+			if got, _ := workbook.GetCellValue("Bills", "B"+row); got != "42" {
+				t.Fatalf("Bills!B%s store id = %q, want 42", row, got)
+			}
+			if got, _ := workbook.GetCellValue("Bills", "C"+row); got != "3" {
+				t.Fatalf("Bills!C%s branch id = %q, want 3", row, got)
+			}
+			if got, _ := workbook.GetCellValue("Bills", "D"+row); got != "99" {
+				t.Fatalf("Bills!D%s customer id = %q, want 99", row, got)
+			}
+		}
+	})
+
+	t.Run("blank overrides fall back to the illustrative defaults", func(t *testing.T) {
+		workbook, err := buildBillImportTemplate(billImportPurchase, false, billImportTemplateOverrides{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer workbook.Close()
+		if got, _ := workbook.GetCellValue("Bills", "B2"); got != "1" {
+			t.Fatalf("Bills!B2 store id = %q, want default 1", got)
+		}
+	})
+}
+
+func TestTemplateOverridesFromQuery(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/bill-import/template?type=sales&store_id=%205%20&branch_id=&customer_id=9", nil)
+	got := templateOverridesFromQuery(req)
+	want := billImportTemplateOverrides{StoreID: "5", BranchID: "", CustomerID: "9"}
+	if got != want {
+		t.Fatalf("templateOverridesFromQuery = %+v, want %+v", got, want)
+	}
+}
+
 func TestBillImportTemplatesHaveStableSheetsLocalizedHeadersAndMultipleBills(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
@@ -25,7 +94,7 @@ func TestBillImportTemplatesHaveStableSheetsLocalizedHeadersAndMultipleBills(t *
 		{"purchase arabic", billImportPurchase, true, "اسم المنتج"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			workbook, err := buildBillImportTemplate(tc.importType, tc.arabic)
+			workbook, err := buildBillImportTemplate(tc.importType, tc.arabic, billImportTemplateOverrides{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -99,7 +168,7 @@ func TestHandleImportBillsXLSXCreatesEachPurchaseBill(t *testing.T) {
 		config.SessionTokensMutex.Unlock()
 	})
 
-	workbook, err := buildBillImportTemplate(billImportPurchase, false)
+	workbook, err := buildBillImportTemplate(billImportPurchase, false, billImportTemplateOverrides{})
 	if err != nil {
 		t.Fatal(err)
 	}

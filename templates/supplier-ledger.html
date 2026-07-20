@@ -1,3 +1,38 @@
+{{/* Shared ledger table (header + rows) used by both the per-supplier and
+     "all suppliers" branches below — kept as one definition so the two
+     branches can't drift out of sync with each other. */}}
+{{ define "supplier-ledger-table" }}
+<table {{ if .TableID }}id="{{ .TableID }}" {{ end }}aria-label="{{ .Label }}">
+    <thead>
+        <tr>
+            <th>{{ L "tpl.report.date" }}</th>
+            <th>{{ L "tpl.report.entry_type" }}</th>
+            <th>{{ L "tpl.report.reference" }}</th>
+            <th>{{ L "tpl.report.description" }}</th>
+            <th>{{ L "tpl.ledger.debit" }}</th>
+            <th>{{ L "tpl.ledger.credit" }}</th>
+            <th>{{ L "tpl.ledger.balance" }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ if not .Entries }}
+        <tr><td colspan="7" class="text-center p-8 detail-label">{{ L "tpl.report.no_entries" }}</td></tr>
+        {{ end }}
+        {{ range .Entries }}
+        <tr>
+            <td>{{ .Date }}</td>
+            <td>{{ if eq .Type "payment" }}{{ L "tpl.report.type_payment" }}{{ else }}{{ L "tpl.report.type_bill" }}{{ end }}</td>
+            <td>{{ .Reference }}</td>
+            <td>{{ .Description }}</td>
+            <td>{{ if gt .Debit 0.0 }}{{ formatMoney .Debit }}{{ end }}</td>
+            <td>{{ if gt .Credit 0.0 }}{{ formatMoney .Credit }}{{ end }}</td>
+            <td class="font-bold">{{ formatMoney .Balance }}</td>
+        </tr>
+        {{ end }}
+    </tbody>
+</table>
+{{ end }}
+
 {{ define "content" }}
 {{ template "breadcrumb" dict "section_url" "/dashboard/suppliers" "section_label" (L "tpl.supplier.section") "current" (L "tpl.ledger.title") }}
 
@@ -67,35 +102,7 @@
             </div>
         </div>
         <div class="data-table-wrapper">
-            <table aria-label="{{ .Supplier.Name }} — {{ L "tpl.ledger.title" }}">
-                <thead>
-                    <tr>
-                        <th>{{ L "tpl.report.date" }}</th>
-                        <th>{{ L "tpl.report.entry_type" }}</th>
-                        <th>{{ L "tpl.report.reference" }}</th>
-                        <th>{{ L "tpl.report.description" }}</th>
-                        <th>{{ L "tpl.ledger.debit" }}</th>
-                        <th>{{ L "tpl.ledger.credit" }}</th>
-                        <th>{{ L "tpl.ledger.balance" }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{ if not .Entries }}
-                    <tr><td colspan="7" class="text-center p-8 detail-label">{{ L "tpl.report.no_entries" }}</td></tr>
-                    {{ end }}
-                    {{ range .Entries }}
-                    <tr>
-                        <td>{{ .Date }}</td>
-                        <td>{{ if eq .Type "payment" }}{{ L "tpl.report.type_payment" }}{{ else }}{{ L "tpl.report.type_bill" }}{{ end }}</td>
-                        <td>{{ .Reference }}</td>
-                        <td>{{ .Description }}</td>
-                        <td>{{ if gt .Debit 0.0 }}{{ formatMoney .Debit }}{{ end }}</td>
-                        <td>{{ if gt .Credit 0.0 }}{{ formatMoney .Credit }}{{ end }}</td>
-                        <td class="font-bold">{{ formatMoney .Balance }}</td>
-                    </tr>
-                    {{ end }}
-                </tbody>
-            </table>
+            {{ template "supplier-ledger-table" dict "Label" (printf "%s — %s" .Supplier.Name (L "tpl.ledger.title")) "Entries" .Entries }}
         </div>
     </section>
     {{ end }}
@@ -104,35 +111,7 @@
 <div class="section-card">
     <h3 class="section-card-title">{{ L "tpl.ledger.title" }}</h3>
     <div class="data-table-wrapper">
-        <table id="supplier-ledger-table" aria-label="{{ L "tpl.ledger.title" }}">
-            <thead>
-                <tr>
-                    <th>{{ L "tpl.report.date" }}</th>
-                    <th>{{ L "tpl.report.entry_type" }}</th>
-                    <th>{{ L "tpl.report.reference" }}</th>
-                    <th>{{ L "tpl.report.description" }}</th>
-                    <th>{{ L "tpl.ledger.debit" }}</th>
-                    <th>{{ L "tpl.ledger.credit" }}</th>
-                    <th>{{ L "tpl.ledger.balance" }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{ if not .ledger }}
-                <tr><td colspan="7" class="text-center p-8 detail-label">{{ L "tpl.report.no_entries" }}</td></tr>
-                {{ end }}
-                {{ range .ledger }}
-                <tr>
-                    <td>{{ .Date }}</td>
-                    <td>{{ if eq .Type "payment" }}{{ L "tpl.report.type_payment" }}{{ else }}{{ L "tpl.report.type_bill" }}{{ end }}</td>
-                    <td>{{ .Reference }}</td>
-                    <td>{{ .Description }}</td>
-                    <td>{{ if gt .Debit 0.0 }}{{ formatMoney .Debit }}{{ end }}</td>
-                    <td>{{ if gt .Credit 0.0 }}{{ formatMoney .Credit }}{{ end }}</td>
-                    <td class="font-bold">{{ formatMoney .Balance }}</td>
-                </tr>
-                {{ end }}
-            </tbody>
-        </table>
+        {{ template "supplier-ledger-table" dict "TableID" "supplier-ledger-table" "Label" (L "tpl.ledger.title") "Entries" .ledger }}
     </div>
 </div>
 {{ end }}

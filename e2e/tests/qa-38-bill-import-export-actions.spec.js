@@ -1,9 +1,33 @@
 const { test, expect } = require('@playwright/test');
-const { login } = require('../helpers/qa');
+const { login, appURL } = require('../helpers/qa');
+
+// The generated template's example Store ID/Supplier ID/Branch ID are just
+// illustrative placeholders - re-uploading the raw template unedited only
+// succeeds if those placeholders happen to be real ids for the account
+// that downloaded it. Fetch real ones from the account's own add-bill
+// forms and ask the template endpoint to bake them in instead (see
+// HandleDownloadBillImportTemplate's store_id/supplier_id/branch_id
+// overrides), so this test exercises the actual import logic rather than
+// depending on lucky placeholder values.
+async function realAccountIds(page, kind) {
+  if (kind === 'sales') {
+    await page.goto('/dashboard/invoices/add');
+    await page.waitForLoadState('domcontentloaded');
+    const storeId = await page.locator('[name="store_id"]').first().inputValue();
+    const branchId = await page.locator('[name="branch_id"]').first().inputValue();
+    return { store_id: storeId, branch_id: branchId };
+  }
+  await page.goto('/dashboard/purchase-bills/add');
+  await page.waitForLoadState('domcontentloaded');
+  const storeId = await page.locator('[name="store_id"]').first().inputValue();
+  const supplierId = await page.locator('[name="supplier_id"]').first().inputValue();
+  return { store_id: storeId, supplier_id: supplierId };
+}
 
 async function assertToolbarAndImport(page, kind) {
   const listURL = kind === 'sales' ? '/dashboard/invoices' : '/dashboard/purchase-bills';
   const expectedType = kind === 'sales' ? 'sales' : 'purchase';
+  const accountIds = await realAccountIds(page, kind);
   await page.goto(listURL);
 
   const actions = page.locator('.toolbar-actions [data-bill-import], .toolbar-actions [data-bill-export]');
@@ -24,7 +48,8 @@ async function assertToolbarAndImport(page, kind) {
   const templateURL = await page.locator('#bill-import-template').getAttribute('href');
   expect(templateURL).toContain(`type=${expectedType}`);
 
-  const templateResponse = await page.request.get(templateURL);
+  const templateWithRealIds = appURL(templateURL) + '&' + new URLSearchParams(accountIds).toString();
+  const templateResponse = await page.request.get(templateWithRealIds);
   expect(templateResponse.ok()).toBeTruthy();
   expect(templateResponse.headers()['content-type']).toContain(
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

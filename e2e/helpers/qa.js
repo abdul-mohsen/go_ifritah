@@ -91,7 +91,7 @@ async function setSetting(page, key, value, options = {}) {
   // The dev backend's settings GET is occasionally read-after-write stale
   // (caching layer between Go FE and the DB). Re-fetch with a cache-bust
   // and retry until the new value is visible (or we exhaust retries).
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 16; i++) {
     await page.goto(appURL(`${settingsUrl}?_=${Date.now()}`), { waitUntil: 'domcontentloaded', timeout: 30000 });
     const fresh = page.locator(`[name="${key}"]`).first();
     let actual;
@@ -102,7 +102,7 @@ async function setSetting(page, key, value, options = {}) {
     }
     const want = type === 'checkbox' ? (Boolean(value) ? 'true' : 'false') : String(value);
     if (actual === want) return;
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(1000);
   }
 
   throw new Error(`setting ${key} did not persist as ${value}`);

@@ -72,10 +72,15 @@ async function defaultStoreId(page) {
 
 // Backend decimal columns round-trip through the API as e.g. "275.00", not
 // the plain "275" a test writes, so compare numerically rather than by
-// exact string.
+// exact string. Polls rather than reading once: the value can be filled by
+// an in-flight async lookup (e.g. resolveImportedItemLookup's fetch) that
+// isn't otherwise gated by a preceding retrying assertion, so a one-shot
+// read can race ahead of it.
 async function expectNumericValue(locator, expected) {
-  const actual = await locator.inputValue();
-  expect(parseFloat(actual), `expected numeric value ${expected}, got "${actual}"`).toBe(expected);
+  await expect.poll(async () => {
+    const actual = await locator.inputValue();
+    return parseFloat(actual);
+  }, `expected numeric value ${expected}`).toBe(expected);
 }
 
 test.describe('Purchase-bill selling price visibility', () => {

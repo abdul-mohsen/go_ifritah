@@ -1,141 +1,254 @@
-# PR #56 — Handoff Notes
+# Handoff Notes — All Active PRs (2026-07-21)
 
-**Branch:** `feat/purchase-bill-selling-price`
-**PR:** https://github.com/abdul-mohsen/go_ifritah/pull/56
-**Status as of 2026-07-21:** Latest CI run had 5 failures. Two fixes were pushed in commit `87b98de` — CI has not re-run yet.
+Two repos are in play:
+- **go_ifritah** (Go frontend) — https://github.com/abdul-mohsen/go_ifritah
+- **ifritah-go** (backend) — https://github.com/abdul-mohsen/ifritah-go
+
+Worktrees are checked out under `C:\ssda\chatGPT\worktrees\`.
 
 ---
 
-## What this PR does
+## Quick Status Overview
 
-Adds a **Selling Price** field to the add/edit purchase-bill forms:
+| PR | Repo | Title | Branch | E2E | Other checks |
+|---|---|---|---|---|---|
+| [#56](https://github.com/abdul-mohsen/go_ifritah/pull/56) | frontend | Selling price on purchase bills | `feat/purchase-bill-selling-price` | **pending** (new fixes pushed) | all pass |
+| [#55](https://github.com/abdul-mohsen/go_ifritah/pull/55) | frontend | Unify bill import/export + supplier ledger | `feature/bill-import-export-ledger` | **fail** | all pass |
+| [#53](https://github.com/abdul-mohsen/go_ifritah/pull/53) | frontend | Fix qa-15 oversell flake | `fix/qa15-stock-enforcement-flake` | no e2e run | all pass |
+| [#49](https://github.com/abdul-mohsen/go_ifritah/pull/49) | frontend | Fix purchase-bill date timezone shift | `fix/purchase-bill-date-shift` | **pending** | pending |
+| [#48](https://github.com/abdul-mohsen/go_ifritah/pull/48) | frontend | SonarCloud fixes (cookies/log/SRI/a11y) | `fix/sonar-findings` | no e2e run | all pass |
+| [#47](https://github.com/abdul-mohsen/go_ifritah/pull/47) | frontend | CI: add golangci-lint validate workflow | `ci/add-validate-workflow` | **fail** | all pass |
+| [#61](https://github.com/abdul-mohsen/ifritah-go/pull/61) | backend | Add GET /api/v2/supplier/ledger | `feat/supplier-general-ledger` | n/a | — |
 
-- Pre-filled from the product catalog when an existing store product is selected
-- Admin/manager can edit it; other roles see it read-only
-- Role enforcement lives in the backend (ifritah-go PR #60); the frontend degrades gracefully without it
-- Adds an optional `product_id` column to the Excel/CSV import template so imported rows can fetch shelf/selling price for review
-- Rows imported without a `product_id` but whose name matches an existing catalog item get a non-blocking warning instead of silently duplicating the entry
+---
+
+## PR #56 — Selling price on purchase bills
+**Worktree:** `afrita-go-selling-price`
+**Branch:** `feat/purchase-bill-selling-price`
+**Backend dependency:** ifritah-go PR #60 (already **merged**)
+
+### What it does
+- Adds a `Selling Price` field per item row on add/edit purchase-bill forms
+- Pre-fills from the catalog when an existing store product is selected
+- Admin/manager can edit it; other roles see it read-only (enforced by backend)
+- Adds optional `product_id` column to the Excel/CSV import template so imported rows fetch shelf/selling price for review
+- Rows imported without a `product_id` but whose name matches a catalog item get a non-blocking warning (instead of silent duplicate)
 - Clarifies "Purchase Price vs Cost Price" wording with hint text
 
-**Depends on:** `ifritah-go` backend PR #60 for the admin/manager override enforcement. The feature works without it — the backend just ignores unauthorized overrides.
-
----
-
-## Key files changed in this PR
-
+### Key files
 | File | What changed |
 |---|---|
-| `templates/add-purchase-bill.html` | Added `products_selling_price` input per row; JS to pre-fill on product select; `canEditSellingPrice` window flag; import resolution JS |
-| `templates/edit-purchase-bill.html` | Same selling-price additions for the edit form |
-| `templates/components/purchase-bill-item-row.html` | **New.** Shared JS for store-product search extracted here to avoid SonarCloud duplication gate |
-| `handlers/purchase_bills.go` | Passes `pb_pdf_required` setting; state filter is now BE-driven; removed client-side state filter |
-| `handlers/purchase_bill_import.go` | CSV parser hardened (`FieldsPerRecord = -1`) for short/trimmed rows; new `resolveImportedItemLookup` endpoint |
-| `handlers/search.go` | `HandleProductsSearchJSON` returns `selling_price` (= `price`) in the JSON payload |
-| `handlers/products_crud.go` | Create payload now sends both `"part_name"` and `"name"` (fix for qa-39) |
-| `helpers/auth_tokens.go` | Per-session mutex on `RefreshTokenIfNeeded` to prevent concurrent-refresh race (fix for parallel test failures) |
-| `e2e/tests/qa-39-purchase-bill-selling-price-and-import-lookup.spec.js` | **New.** End-to-end tests for the two frontend behaviors |
-| `e2e/tests/qa-30-purchase-bill-stock-price-labels.spec.js` | Updated: stock rows now assert purchase + cost + selling price columns |
+| `templates/add-purchase-bill.html` | `products_selling_price` input; JS pre-fill on product select; `canEditSellingPrice` flag; import resolution JS |
+| `templates/edit-purchase-bill.html` | Same additions for the edit form |
+| `templates/components/purchase-bill-item-row.html` | **New.** Shared product-search JS (extracted to pass SonarCloud duplication gate) |
+| `handlers/purchase_bill_import.go` | CSV parser hardened for short rows; `resolveImportedItemLookup` endpoint |
+| `handlers/search.go` | `HandleProductsSearchJSON` now returns `selling_price` in JSON |
+| `handlers/products_crud.go` | Create payload sends both `"part_name"` and `"name"` (bug fix) |
+| `helpers/auth_tokens.go` | Per-session mutex on `RefreshTokenIfNeeded` (race condition fix) |
+| `e2e/tests/qa-39-...spec.js` | **New.** End-to-end coverage for both frontend behaviors |
+
+### CI fixes pushed in `87b98de` (CI re-run triggered, not yet complete)
+
+**Fix 1 — qa-39 product not found after creation:**
+`HandleCreateProduct` was sending `"name": partName` to `POST /api/v2/product`. The backend indexes by `part_name`. Product was created but invisible to text search. Fixed by sending both `"part_name"` and `"name"`.
+
+**Fix 2 — purchase-bills tests redirect to login:**
+With 4 parallel workers and 3 qa-39 tests each making 11+ API calls, multiple goroutines simultaneously hit `RefreshTokenIfNeeded` with the same single-use refresh token. First wins; rest get 401 and redirect to `/`. Fixed with a `sync.Map` of per-session `sync.Mutex` — only one goroutine refreshes per session at a time.
+
+### What still needs to happen
+1. Wait for CI to go green on the fixes pushed today
+2. Review `canEditSellingPrice` window flag role logic matches production backend roles
+3. Confirm SonarCloud gate passes (component extraction was specifically to fix duplication gate)
+4. Merge to `dev`
 
 ---
 
-## CI failures that were fixed (commit `87b98de`)
+## PR #55 — Unify bill import/export + supplier ledger
+**Worktree:** `afrita-go-bill-import-ledger`
+**Branch:** `feature/bill-import-export-ledger`
+**E2E status: FAILING**
 
-The last CI run before `87b98de` had **5 failures**:
+### What it does
+- Shared XLSX import flow for both sales invoices and purchase bills (gated by `RequireBillImportPermission`)
+- Matching XLSX export endpoints for both bill types
+- New `/dashboard/supplier-ledger` page showing multi-supplier ledger statement
+- e2e coverage: `qa-37`, `qa-38`
 
-### Failures 3–5 — `qa-39` tests: `createStoreProduct` not found after creation
+### E2E failure
+Last CI run failed E2E (19 min run). The worktree has commits that tried to fix e2e timeouts and a language assumption on bulk export/import tests (`e7734a0`). Need to check whether the failure is the same issue or something new — push a re-run trigger or look at the CI log.
 
-**Symptom:**
+### Worktree commit tip
 ```
-Error: store product "QA39-Sell-..." did not appear in search-json after creation
+e7734a0  fix: e2e timeouts and a language assumption on bulk export/import tests
+e7bd428  fix: bill-import e2e failure (0-of-2 imported) and Sonar duplication
+5b61496  fix: address SonarCloud findings and an accidental Arabic->English header swap
+96b5814  feat: unify bill import/export (sales+purchase) and add supplier ledger page
 ```
-The `createStoreProduct` helper in `qa-39` POSTs to `/dashboard/products/create` (succeeds), then polls `/api/products/search-json` 10 times over 5 seconds — the product never appears.
 
-**Root cause:**
-`HandleCreateProduct` was sending `"name": partName` to the backend's `POST /api/v2/product`. The backend's text search indexes products by the `part_name` field, not `name`. Product was created but invisible to search.
-
-**Fix (`handlers/products_crud.go`):**
-Send both `"part_name": partName` and `"name": partName` in the create payload.
+### What still needs to happen
+1. Diagnose and fix the E2E failure
+2. Verify SonarCloud passes (previous commit fixed duplication findings)
+3. Merge to `dev`
 
 ---
 
-### Failures 1–2 — `purchase-bills.spec.js` list/delimiter tests: redirect to login
+## PR #53 — Fix qa-15 oversell-dialog flake
+**Worktree:** `afrita-go-e2e-unified-items-fix`  
+**Branch:** `fix/qa15-stock-enforcement-flake`
+**CI status: all checks pass** (no e2e run — presumably not needed or was skipped)
 
-**Symptom:**
-```
-Error: expect(page).toHaveURL(expected)
-Expected pattern: /purchase-bills/
-Received string:  "http://localhost:8001/"
-```
-After `login(page)`, navigating to `/dashboard/purchase-bills` redirected to `/` (the login page) instead of loading the list.
+### What it does
+After PR #52 merged, `qa-15-stock-enforcement-behavior.spec.js` started intermittently failing with `must show a confirm/alert dialog. Got: []`. Root cause: `setSetting()` retries confirming the settings page reflects the new value but doesn't guarantee the *next* add-invoice render has caught up — a timing race, not an app bug.
 
-**Root cause:**
-`GetTokenOrRedirect` calls `RefreshTokenIfNeeded` on every request. With 4 parallel workers and 3 new qa-39 tests each making 11+ API calls, multiple goroutines simultaneously detected the session token near-expiry and all raced to `POST /api/v2/refresh` using the **same single-use** refresh token. The first caller got a new token; all others got a 401. On 401, `RefreshTokenIfNeeded` returned `false`, causing `GetTokenOrRedirect` to redirect to `/`.
+Fix: added `attemptOversellExpectingDialog()` that re-applies the setting and re-attempts the oversell up to 3 times before asserting. No assertions weakened.
 
-**Fix (`helpers/auth_tokens.go`):**
-Added a `sync.Map` of per-session `sync.Mutex` values. Only one goroutine per session calls the backend to refresh at a time. The others block, then re-check `ShouldRefreshToken` after the lock is released — the token is now fresh so they skip the refresh entirely.
+### What still needs to happen
+- Looks ready to merge. No E2E gate is blocking it. Confirm with author whether it needs a re-run or is approved.
 
 ---
 
-## What still needs to happen before merge
+## PR #49 — Fix purchase-bill date timezone shift
+**Worktree:** (maps to `fix/purchase-bill-date-shift` — no matching worktree directory found locally, may need to be checked out)
+**Branch:** `fix/purchase-bill-date-shift`
+**CI status: all checks pending** (checks just triggered)
 
-1. **CI must pass green** — push `87b98de` triggered a new CI run; wait for results. If it passes, the PR is ready to review/merge.
+### What it does
+Dates on purchase-bill list/detail/edit pages could shift back one calendar day. Root cause: `extractDateField` and inline date logic used naive `string[:10]` slicing instead of `helpers.ToDisplayDate`. For UTC-offset timestamps, slicing the raw string gives the wrong calendar date before 03:00 Riyadh time. Fix: route all purchase-bill dates through `helpers.ToDisplayDate` (same as `invoices.go` already did).
 
-2. **Backend PR #60 must be merged first** (or merged simultaneously) — the frontend sends `products_selling_price` in the purchase-bill payload. Without the backend PR, the field is accepted but silently dropped. The UI will still work, just without role enforcement.
+### Tests added
+- `TestExtractDateFieldReLocalizesUTCToRiyadh`
+- `TestEditPurchaseBillDatePreservesCalendarDay`
+- `TestPurchaseBillDetailDatePreservesCalendarDay`
 
-3. **Review the `canEditSellingPrice` window flag** — it's set in `add-purchase-bill.html` via a Go template expression. Confirm the role detection logic matches the backend's role list for the production environment.
+All three verified to fail before the fix and pass after.
 
-4. **SonarCloud gate** — the component extraction in `1e6ea0a` was specifically to fix a duplicated-lines gate. Confirm the gate passes after the CI run.
+### What still needs to happen
+1. Wait for CI to complete (checks just triggered)
+2. If green, ready to merge
 
 ---
 
-## Local setup to continue work
+## PR #48 — SonarCloud findings (cookies, log injection, SRI, a11y, lockfile)
+**Worktree:** (no matching worktree — `fix/sonar-findings` branch)
+**Branch:** `fix/sonar-findings`
+**CI status: all checks pass** (no e2e run)
 
+### What it does
+Fixes 39 SonarCloud bugs/vulnerabilities across 6 categories:
+- **Cookie Secure flag** — logout/refresh/CSRF cookies missing `Secure`/`SameSite`. Added `config.IsLocalhost()` helper; also fixed a latent bug where the old private helper read `os.Getenv("APP_DOMAIN")` directly instead of the resolved `config.AppDomain`
+- **Log injection** — request-derived values logged unsanitized. Added `helpers.SanitizeForLog`, applied across auth/middleware/products/orders/purchase-bills/zatca handlers
+- **Missing lockfile** — `package-lock.json` was in `.gitignore`. Removed exclusion and committed a fresh lockfile (0 vulnerabilities)
+- **Keyboard accessibility** — 5 click-only elements now have `role="button"`, `tabindex="0"`, and `onkeydown` (Enter/Space)
+- **Missing table headers** — 5 import-preview tables populated entirely by JS now have static `<thead>` placeholders
+- **Subresource Integrity** — 4 CDN `<script>` tags (htmx ×2, chart.js, qrious.js) now have SHA-384 `integrity` + `crossorigin="anonymous"`. Cairo font self-hosted (was Google Fonts) with 3 variable-font woff2 files + `fonts.css`
+
+### What still needs to happen
+- Looks ready to merge. No E2E gate blocking it. All other checks pass.
+
+---
+
+## PR #47 — CI: add golangci-lint validate workflow
+**Worktree:** (no matching worktree)
+**Branch:** `ci/add-validate-workflow`
+**E2E status: FAILING** (but this PR adds zero Go code)
+
+### What it does
+Adds `.github/workflows/validate.yml` running `golangci-lint-action@v6` (pinned to v1.64.8 — the repo's `.golangci.yml` is v1-format; v7+ requires v2 config) with `only-new-issues: true` so pre-existing debt doesn't block new work.
+
+### E2E failure
+The E2E failure is **pre-existing on `dev`** — this PR's branch was cut from a point where dev already had intermittent failures. The PR itself adds no application code. The E2E failure is unrelated to the lint workflow change.
+
+### What still needs to happen
+- E2E failure needs to be resolved on `dev` first, or this PR needs to be rebased onto a clean `dev` tip
+- Once E2E is clean, this is a trivial merge
+
+---
+
+## PR #61 (backend) — Add GET /api/v2/supplier/ledger
+**Worktree:** `ifritah-backend-supplier-ledger`
+**Branch:** `feat/supplier-general-ledger` (ifritah-go repo)
+**Depends on:** Frontend PR #55 (supplier ledger page) to be useful end-to-end
+
+### What it does
+Adds a new `GET /api/v2/supplier/ledger` backend endpoint that returns a supplier's general ledger (purchases, payments, balances). This is the backend half of the supplier ledger statement feature.
+
+### Worktree commit tip
+```
+2876b72  feat: add GET /api/v2/supplier/ledger (supplier general ledger)
+```
+
+### What still needs to happen
+1. Backend tests / CI review
+2. Coordinate merge with frontend PR #55
+
+---
+
+## Worktrees not tied to open PRs
+
+These local worktrees exist but their branches are **not open PRs** — they appear to be intermediate work or were superseded:
+
+| Worktree | Branch | Notes |
+|---|---|---|
+| `afrita-go-e2e-unified-items-fix` | `fix/e2e-unified-items-stale-selectors` | Upstream is `origin/dev` — work from before PR #52 merged, likely superseded |
+| `afrita-go-i18n-fix` | `fix/unify-localization` | At commit `04c434f` (same as `dev` at that point) — appears stale/abandoned |
+| `afrita-go-ledger-multi-supplier` | `feature/ledger-statement-multi-supplier` | No remote upstream. Likely superseded by what shipped in `dev` as commit `233d9d9`. Contains perf improvement (`b8995a8`) for multi-supplier report using combined endpoint |
+| `afrita-go-revert-e2e-concurrency` | `revert/e2e-shared-backend-concurrency` | A revert of the "serialize e2e runs" commit — this revert is already on `dev` as `e48562c` |
+| `ifritah-backend-multi-supplier-report` | `feat/multi-supplier-report` | Backend PR #59 already **merged**. Worktree is stale |
+| `ifritah-backend-purchase-bills` | `feat/purchase-bill-line-fields` | No remote upstream. May be a staging area for backend work |
+| `ifritah-backend-selling-price` | `feat/purchase-bill-selling-price` | Backend PR #60 already **merged**. Worktree is stale |
+
+The stale worktrees can be removed if not needed:
 ```bash
-# The worktree is already checked out at:
-cd C:\ssda\chatGPT\worktrees\afrita-go-selling-price
-
-# Run Go unit tests
-go test ./...
-
-# Build
-go build -o tmp/afrita.exe .
-
-# Run the server locally (needs .env with BACKEND_DOMAIN etc.)
-PORT=8000 BACKEND_DOMAIN=https://dev.ifritah.com GODEBUG=jstmpllitinterp=1 ./tmp/afrita.exe
-
-# Run the new e2e spec only (assumes server is running on :8000)
-cd e2e
-npx playwright test qa-39 --project=parallel
-```
-
-**Important env flag:** `GODEBUG=jstmpllitinterp=1`
-Go 1.21+ rejects `{{ L "..." }}` calls inside JS template literals (backticks) at execution time. This flag restores pre-1.21 behaviour. It is set in `e2e.yml` for CI and must be set locally when running the server against templates that use `L` inside backtick strings.
-
----
-
-## Branch/commit map
-
-```
-origin/main
-    └── ... (base)
-         ├── 233d9d9  feat: multi-supplier ledger export          (merged from main)
-         ├── 8769e73  fix(ci): serialize e2e runs                 (merged from main, then reverted)
-         ├── e48562c  Revert serialize e2e runs (#57)             (merged from main)
-         ├── 46fad3e  feat: surface selling price (core feature)
-         ├── d4e54f5  fix: e2e/CI failures for selling-price
-         ├── 1e6ea0a  refactor: dedupe item-row JS (SonarCloud)
-         └── 87b98de  fix: qa-39 + parallel token-refresh race    ← HEAD (latest push)
+git worktree remove C:\ssda\chatGPT\worktrees\afrita-go-i18n-fix
+git worktree remove C:\ssda\chatGPT\worktrees\afrita-go-revert-e2e-concurrency
+git worktree remove C:\ssda\chatGPT\worktrees\ifritah-backend-multi-supplier-report
+git worktree remove C:\ssda\chatGPT\worktrees\ifritah-backend-selling-price
 ```
 
 ---
 
-## Relevant test files
+## Merge order / dependency chain
 
-| Test | What it covers |
-|---|---|
-| `e2e/tests/qa-39-...spec.js` | Selling price pre-fill on product select; import with product_id fetches shelf+price; import without id warns on name match |
-| `e2e/tests/qa-30-...spec.js` | Purchase-bill stock row has purchase + cost + selling price columns |
-| `e2e/tests/purchase-bills.spec.js` | List page loads; no leaked template delimiters; add form loads; supplier combobox; duplicate check |
-| `handlers/purchase_bill_import_test.go` | CSV parser handles short rows (missing product_id column) |
-| `handlers/products_search_json_test.go` | Search JSON endpoint returns correct products for Arabic/English queries |
-| `helpers/auth_tokens_test.go` | `ShouldRefreshToken` window; token refresh round-trip |
+The PRs are not strictly ordered but here is the recommended sequence:
+
+```
+#48 (SonarCloud fixes)        → merge first, no dependencies, all checks pass
+#53 (qa-15 flake fix)         → merge second, all checks pass
+#47 (lint CI workflow)        → needs clean dev E2E first; trivial after
+#49 (date timezone fix)       → waiting for CI; no dependencies
+#56 (selling price)           → wait for CI re-run after today's fixes
+#61 backend (supplier ledger) → coordinate with #55
+#55 (bill import + ledger)    → needs E2E fixed; depends on #61 for full end-to-end
+```
+
+---
+
+## Shared infrastructure notes
+
+### `GODEBUG=jstmpllitinterp=1`
+Required whenever running the Go server with templates that call `{{ L "..." }}` inside JS backtick string literals. Go 1.21 made this an execution error. The flag restores pre-1.21 behaviour. It is set in `e2e.yml` for CI — **must also be set locally**.
+
+### Token refresh race (fixed in `87b98de`)
+`helpers.RefreshTokenIfNeeded` now uses a per-session `sync.Mutex` (stored in a `sync.Map`). Before this fix, any parallel test load that caused multiple goroutines to see the token near-expiry at the same moment would corrupt the session — each goroutine tried to refresh using the same single-use refresh token. This was the root cause of the intermittent auth-redirect failures in the parallel e2e project.
+
+### E2E auth model
+- All tests load `.auth/storageState.json` (created by `e2e/global-setup.js` at the start of the run)
+- The stored state contains the `session_id` cookie which maps to a server-side session in `config.SessionTokens`
+- The Go server is what holds the session in memory — not the browser. The cookie is just an ID.
+- If the server restarts between global-setup and the tests, all sessions are lost (unless token files on disk are loaded at startup via `AFRITA_TOKEN_DIR`)
+
+### Local worktree paths
+```
+C:\ssda\chatGPT\worktrees\
+  afrita-go-bill-import-ledger       ← PR #55
+  afrita-go-selling-price            ← PR #56 (this file lives here)
+  ifritah-backend-supplier-ledger    ← PR #61 (backend)
+  
+  afrita-go-e2e-unified-items-fix    ← stale
+  afrita-go-i18n-fix                 ← stale
+  afrita-go-ledger-multi-supplier    ← stale (may have useful perf commit)
+  afrita-go-revert-e2e-concurrency   ← stale
+  ifritah-backend-multi-supplier-report  ← stale (PR #59 merged)
+  ifritah-backend-purchase-bills     ← stale (no open PR)
+  ifritah-backend-selling-price      ← stale (PR #60 merged)
+```

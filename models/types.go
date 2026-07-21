@@ -663,31 +663,6 @@ type LedgerEntry struct {
 	LinkURL     string  `json:"link_url"`
 }
 
-// SupplierLedgerEntry is a general-ledger line with the owning supplier.
-type SupplierLedgerEntry struct {
-	LedgerEntry
-	SupplierID   int    `json:"supplier_id"`
-	SupplierName string `json:"supplier_name"`
-}
-
-// SupplierLedgerSummary contains the totals for the selected ledger scope.
-type SupplierLedgerSummary struct {
-	BillCount      int     `json:"bill_count"`
-	PaymentCount   int     `json:"payment_count"`
-	TotalDebit     float64 `json:"total_debit"`
-	TotalCredit    float64 `json:"total_credit"`
-	ClosingBalance float64 `json:"closing_balance"`
-}
-
-// SupplierLedgerBreakdown summarizes debit, credit, and balance per supplier.
-type SupplierLedgerBreakdown struct {
-	SupplierID   int     `json:"supplier_id"`
-	SupplierName string  `json:"supplier_name"`
-	Debit        float64 `json:"debit"`
-	Credit       float64 `json:"credit"`
-	Balance      float64 `json:"balance"`
-}
-
 // AgingBucket represents an aging category for overdue analysis
 type AgingBucket struct {
 	Label  string  `json:"label"`

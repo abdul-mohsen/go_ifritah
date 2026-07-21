@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { login } = require('../helpers/qa');
 
-test.describe('Purchase-bill export and supplier ledger', () => {
+test.describe('Purchase-bill export', () => {
   test('purchase bills can be exported as a two-sheet Excel workbook', async ({ page }) => {
     await login(page);
     await page.goto('/dashboard/purchase-bills');
@@ -39,21 +39,5 @@ test.describe('Purchase-bill export and supplier ledger', () => {
 
     const csv = (await response.text()).replace(/^\uFEFF/, '');
     expect(csv.split(/\r?\n/)[0]).toMatch(/^(Product Name,Quantity,Purchase Price,Cost Price,Shelf Number|اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف)$/);
-  });
-
-  test('supplier General Ledger supports one supplier or all suppliers and a date range', async ({ page }) => {
-    await login(page);
-    await page.goto('/dashboard/supplier-ledger');
-    await page.waitForLoadState('domcontentloaded');
-
-    await expect(page).toHaveURL(/\/dashboard\/supplier-ledger$/);
-    await expect(page.locator('select[name="supplier_id"]')).toBeVisible();
-    await expect(page.locator('select[name="supplier_id"] option[value="all"]')).toHaveCount(1);
-    await expect(page.locator('input[name="from"]')).toBeVisible();
-    await expect(page.locator('input[name="to"]')).toBeVisible();
-    await expect(page.locator('#supplier-ledger-tables')).toBeVisible();
-    await expect(page.locator('#supplier-ledger-tables [data-supplier-ledger-table]')).not.toHaveCount(0);
-
-    await expect(page.locator('#supplier-ledger-chart')).toBeVisible();
   });
 });

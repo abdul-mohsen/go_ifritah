@@ -545,41 +545,6 @@ type SupplierReportResult struct {
 	Monthly        []models.MonthlySpend
 }
 
-// SupplierLedgerResult is the tenant-scoped general ledger for one supplier
-// or all suppliers in a selected date range.
-type SupplierLedgerResult struct {
-	Summary   models.SupplierLedgerSummary     `json:"summary"`
-	Ledger    []models.SupplierLedgerEntry     `json:"ledger"`
-	Suppliers []models.SupplierLedgerBreakdown `json:"suppliers"`
-}
-
-// FetchSupplierLedger retrieves the backend's combined supplier general ledger.
-func FetchSupplierLedger(token, supplierID, dateFrom, dateTo string) (SupplierLedgerResult, error) {
-	var result SupplierLedgerResult
-	req, err := http.NewRequest(http.MethodGet, config.BackendDomain+"/api/v2/supplier/ledger", nil)
-	if err != nil {
-		return result, fmt.Errorf("build supplier ledger request: %w", err)
-	}
-	query := req.URL.Query()
-	query.Set("supplier_id", supplierID)
-	query.Set("from", dateFrom)
-	query.Set("to", dateTo)
-	req.URL.RawQuery = query.Encode()
-
-	resp, err := DoAuthedRequest(req, token)
-	if err != nil {
-		return result, fmt.Errorf("supplier ledger request: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return result, fmt.Errorf("supplier ledger status %d", resp.StatusCode)
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return result, fmt.Errorf("decode supplier ledger: %w", err)
-	}
-	return result, nil
-}
-
 // FetchSupplierReport calls the backend supplier report endpoint (كشف حساب).
 // GET /api/v2/supplier/:id/report?from=&to=
 // Falls back to the old N+1 approach if the new endpoint isn't available (404).

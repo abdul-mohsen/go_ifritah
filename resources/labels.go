@@ -149,15 +149,6 @@ var labels = map[string]Label{
 	"supplier.delete_error":   {Ar: "فشل في حذف المورد", En: "Failed to delete supplier"},
 	"supplier.delete_success": {Ar: "تم حذف المورد بنجاح", En: "Supplier deleted successfully"},
 	"supplier.export_error":   {Ar: "تعذر تحميل الموردين", En: "Failed to load suppliers"},
-	"nav.supplier_ledger":     {Ar: "دفتر الموردين", En: "Supplier Ledger"},
-	"tpl.ledger.title":        {Ar: "دفتر الأستاذ العام للموردين", En: "Supplier General Ledger"},
-	"tpl.ledger.all_suppliers": {Ar: "جميع الموردين", En: "All Suppliers"},
-	"tpl.ledger.supplier":     {Ar: "المورد", En: "Supplier"},
-	"tpl.ledger.debit":        {Ar: "مدين", En: "Debit"},
-	"tpl.ledger.credit":       {Ar: "دائن", En: "Credit"},
-	"tpl.ledger.balance":      {Ar: "الرصيد", En: "Balance"},
-	"tpl.ledger.breakdown":    {Ar: "ملخص الموردين", En: "Supplier Breakdown"},
-	"tpl.ledger.chart":        {Ar: "المدين والدائن حسب المورد", En: "Debit and Credit by Supplier"},
 
 	// ── Supplier Validation Labels ───────────────────────────────────
 	"supplier.label.name":              {Ar: "اسم المورد", En: "Supplier Name"},

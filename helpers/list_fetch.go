@@ -174,68 +174,73 @@ func FetchProductsList(token string, opts ListOpts) ([]models.Product, error) {
 	if err != nil {
 		return nil, err
 	}
-	products, err := decodeListResponse[models.Product](body)
-	if err != nil {
-		// Fallback: try the loose-shape decode (some BE versions return
-		// raw maps with article_id instead of id).
-		items, itemErr := decodeListResponse[map[string]interface{}](body)
-		if itemErr != nil {
-			return nil, err
+	// The backend returns numeric fields (price, cost_price, quantity) as JSON
+	// numbers, not strings, so direct struct unmarshaling leaves those fields
+	// as "". Always decode via the map path so CoerceFloat picks them up.
+	items, itemErr := decodeListResponse[map[string]interface{}](body)
+	if itemErr != nil {
+		// Last-resort: try the typed decode — it will have empty price fields
+		// but at least returns something usable for non-numeric-field consumers.
+		products, typedErr := decodeListResponse[models.Product](body)
+		if typedErr != nil {
+			return nil, itemErr
 		}
-		products = make([]models.Product, 0, len(items))
-		for _, item := range items {
-			id := 0
+		return products, nil
+	}
+	products := make([]models.Product, 0, len(items))
+	for _, item := range items {
+		id := 0
+		if v, ok := CoerceFloat(item["id"]); ok {
+			id = int(v)
+		}
+		// Fall back to article_id for older BE responses that use it instead of id.
+		if id == 0 {
 			if v, ok := CoerceFloat(item["article_id"]); ok {
 				id = int(v)
 			}
-			if id == 0 {
-				if v, ok := CoerceFloat(item["id"]); ok {
-					id = int(v)
-				}
-			}
-			qty := ""
-			if v, ok := item["quantity"].(string); ok {
-				qty = v
-			} else if v, ok := CoerceFloat(item["quantity"]); ok {
-				// %g switches to scientific for >=1e6, which is wrong for
-				// inventory quantities; FormatFloat with prec=-1 keeps decimal
-				// form and the shortest representation that round-trips.
-				qty = strconv.FormatFloat(v, 'f', -1, 64)
-			}
-			price := ""
-			if v, ok := item["price"].(string); ok {
-				price = v
-			} else if v, ok := CoerceFloat(item["price"]); ok {
-				price = strconv.FormatFloat(v, 'f', -1, 64)
-			}
-			partName := ""
-			if v, ok := item["part_name"].(string); ok {
+		}
+		qty := ""
+		if v, ok := item["quantity"].(string); ok {
+			qty = v
+		} else if v, ok := CoerceFloat(item["quantity"]); ok {
+			// %g switches to scientific for >=1e6, which is wrong for
+			// inventory quantities; FormatFloat with prec=-1 keeps decimal
+			// form and the shortest representation that round-trips.
+			qty = strconv.FormatFloat(v, 'f', -1, 64)
+		}
+		price := ""
+		if v, ok := item["price"].(string); ok {
+			price = v
+		} else if v, ok := CoerceFloat(item["price"]); ok {
+			price = strconv.FormatFloat(v, 'f', -1, 64)
+		}
+		partName := ""
+		if v, ok := item["part_name"].(string); ok {
+			partName = v
+		}
+		if partName == "" {
+			if v, ok := item["name"].(string); ok {
 				partName = v
 			}
-			if partName == "" {
-				if v, ok := item["name"].(string); ok {
-					partName = v
-				}
-			}
-			shelfNumber := ""
-			if v, ok := item["shelf_number"].(string); ok {
-				shelfNumber = v
-			}
-			costPrice := ""
-			if v, ok := item["cost_price"].(string); ok {
-				costPrice = v
-			} else if v, ok := CoerceFloat(item["cost_price"]); ok {
-				costPrice = strconv.FormatFloat(v, 'f', -1, 64)
-			}
-			storeID := 0
-			if v, ok := CoerceFloat(item["store_id"]); ok {
-				storeID = int(v)
-			}
-			products = append(products, models.Product{
-				ID: id, PartName: partName, Quantity: qty, Price: price,
-				CostPrice: costPrice, ShelfNumber: shelfNumber, StoreID: storeID,
-			})
 		}
+		shelfNumber := ""
+		if v, ok := item["shelf_number"].(string); ok {
+			shelfNumber = v
+		}
+		costPrice := ""
+		if v, ok := item["cost_price"].(string); ok {
+			costPrice = v
+		} else if v, ok := CoerceFloat(item["cost_price"]); ok {
+			costPrice = strconv.FormatFloat(v, 'f', -1, 64)
+		}
+		storeID := 0
+		if v, ok := CoerceFloat(item["store_id"]); ok {
+			storeID = int(v)
+		}
+		products = append(products, models.Product{
+			ID: id, PartName: partName, Quantity: qty, Price: price,
+			CostPrice: costPrice, ShelfNumber: shelfNumber, StoreID: storeID,
+		})
 	}
 	for i, p := range products {
 		if p.ID == 0 && p.PartID > 0 {

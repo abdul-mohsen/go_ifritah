@@ -66,7 +66,7 @@ function renderStoreProductDropdown(products, rowId) {
     var count = Math.min(products.length, 50);
     for (var i = 0; i < count; i++) {
         var p = products[i];
-        var name = p.name || '';
+        var name = (p.name || p.shelf_number || '').trim();
         if (!name) continue;
         html += '<div class="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer border-b" '
             + 'onclick="selectStoreProduct(\'' + rowId + '\', ' + p.id + ', \'' + escapeAttr(name) + '\', \'' + escapeAttr(p.cost_price || '') + '\', \'' + escapeAttr(p.shelf_number || '') + '\', \'' + escapeAttr(p.price || '') + '\')">'

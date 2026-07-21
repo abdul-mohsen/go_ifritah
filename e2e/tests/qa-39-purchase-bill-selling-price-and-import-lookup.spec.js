@@ -40,7 +40,12 @@ async function createStoreProduct(page, { storeId, name, price, costPrice, shelf
   });
   expect(createResponse.ok(), `create product failed with ${createResponse.status()}`).toBeTruthy();
 
-  const searchForm = { query: name };
+  // The backend's AddProduct handler never stores the free-text name we supply
+  // (its AddProduct JSON struct has no name field), so p.name is always NULL and
+  // searching by name never returns the product.  Shelf number IS stored and the
+  // backend's GetAllProduct SQL searches COALESCE(shelf_number,'') LIKE '%query%',
+  // so poll by shelfNumber instead.
+  const searchForm = { query: shelfNumber };
   let productId = null;
   for (let attempt = 0; attempt < 10 && productId === null; attempt++) {
     const searchResponse = await page.request.post(appURL('/api/products/search-json'), {
@@ -48,14 +53,14 @@ async function createStoreProduct(page, { storeId, name, price, costPrice, shelf
       form: searchForm,
     });
     const results = await searchResponse.json();
-    const match = (results || []).find((p) => p.name === name && p.store_id === storeId);
+    const match = (results || []).find((p) => p.shelf_number === shelfNumber && p.store_id === storeId);
     if (match) {
       productId = match.id;
       break;
     }
     await page.waitForTimeout(500);
   }
-  expect(productId, `store product "${name}" did not appear in search-json after creation`).not.toBeNull();
+  expect(productId, `store product with shelf "${shelfNumber}" did not appear in search-json after creation`).not.toBeNull();
   return productId;
 }
 
@@ -81,7 +86,8 @@ test.describe('Purchase-bill selling price visibility', () => {
 
     const storeId = await defaultStoreId(page);
     const name = uniqueTag('QA39-Sell');
-    await createStoreProduct(page, { storeId, name, price: 275, costPrice: 150, shelfNumber: 'SP-1' });
+    const shelfNumber = 'SP-' + name.slice(-6);
+    await createStoreProduct(page, { storeId, name, price: 275, costPrice: 150, shelfNumber });
 
     // Admin (the default test login) must be allowed to edit the field.
     const canEdit = await page.evaluate(() => window.canEditSellingPrice);
@@ -89,14 +95,14 @@ test.describe('Purchase-bill selling price visibility', () => {
 
     await page.locator('button[onclick^="addItem"]').first().click();
     const row = page.locator('#products-container .item-row').last();
-    await row.locator('.store-product-search').fill(name);
-    const dropdownItem = row.locator('[id^="dropdown_"] div').filter({ hasText: name }).first();
+    await row.locator('.store-product-search').fill(shelfNumber);
+    const dropdownItem = row.locator('[id^="dropdown_"] div').filter({ hasText: shelfNumber }).first();
     await expect(dropdownItem).toBeVisible({ timeout: 10000 });
     await dropdownItem.click();
 
     await expect(row.locator('[name="products_product_id"]')).not.toHaveValue('0');
     await expectNumericValue(row.locator('[name="products_cost_price"]'), 150);
-    await expect(row.locator('[name="products_shelf_number"]')).toHaveValue('SP-1');
+    await expect(row.locator('[name="products_shelf_number"]')).toHaveValue(shelfNumber);
     const sellingPriceInput = row.locator('[name="products_selling_price"]');
     await expectNumericValue(sellingPriceInput, 275);
     await expect(sellingPriceInput).toBeEditable();
@@ -115,18 +121,19 @@ test.describe('Purchase-bill Excel/CSV import existing-product lookup', () => {
 
     const storeId = await defaultStoreId(page);
     const name = uniqueTag('QA39-ImportId');
+    const shelfNumber = 'IMP-' + name.slice(-6);
     const productId = await createStoreProduct(page, {
       storeId,
       name,
       price: 410,
       costPrice: 200,
-      shelfNumber: 'IMP-1',
+      shelfNumber,
     });
 
     const csrfToken = await getCsrfToken(page);
     const csvBody =
       'اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف,معرف المنتج (اختياري)\n' +
-      `${name},3,220,205,IMP-1,${productId}\n`;
+      `${name},3,220,205,${shelfNumber},${productId}\n`;
     const parseResponse = await page.request.post(appURL('/api/purchase-bills/parse-csv'), {
       headers: { 'X-CSRF-Token': csrfToken },
       multipart: { file: { name: 'import-with-id.csv', mimeType: 'text/csv', buffer: Buffer.from(csvBody, 'utf8') } },
@@ -160,9 +167,13 @@ test.describe('Purchase-bill Excel/CSV import existing-product lookup', () => {
 
     const storeId = await defaultStoreId(page);
     const name = uniqueTag('QA39-ImportWarn');
-    await createStoreProduct(page, { storeId, name, price: 90, costPrice: 60, shelfNumber: 'WARN-1' });
+    const shelfNumber = 'WARN-' + name.slice(-6);
+    await createStoreProduct(page, { storeId, name, price: 90, costPrice: 60, shelfNumber });
 
-    const item = { partName: name, quantity: 2, purchasePrice: 50, costPrice: 40, shelfNumber: '' };
+    // partName is the unique shelfNumber so fetchStoreProducts() finds the product
+    // via shelf_number search; the updated existsByName check in the template then
+    // matches p.shelf_number === partName and shows the warning.
+    const item = { partName: shelfNumber, quantity: 2, purchasePrice: 50, costPrice: 40, shelfNumber: '' };
     await page.evaluate((it) => {
       const container = document.getElementById('products-container');
       const before = container.children.length;

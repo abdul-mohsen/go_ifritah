@@ -785,7 +785,10 @@
         if (!name) return;
         fetchStoreProducts(name).then(function (products) {
             var existsByName = (products || []).some(function (p) {
-                return p.store_id === storeID && (p.name || '').trim().toLowerCase() === name.toLowerCase();
+                return p.store_id === storeID && (
+                    (p.name || '').trim().toLowerCase() === name.toLowerCase() ||
+                    (p.shelf_number || '').trim().toLowerCase() === name.toLowerCase()
+                );
             });
             if (existsByName) showExistingItemWarning(row);
         });

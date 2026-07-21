@@ -12,8 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"afrita/config"
 )
 
 // ──────────────────────────────────────────────
@@ -369,7 +367,7 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 			Value:    csrfToken,
 			Path:     "/",
 			HttpOnly: false, // JavaScript/HTMX needs to read this
-			Secure:   !config.IsLocalhost(),
+			Secure:   true,
 			SameSite: http.SameSiteStrictMode,
 			MaxAge:   86400, // 24 hours
 		})

@@ -115,7 +115,7 @@ func TokenRefreshMiddleware(next http.Handler) http.Handler {
 				Path:     "/",
 				MaxAge:   -1,
 				HttpOnly: true,
-				Secure:   !config.IsLocalhost(),
+				Secure:   true,
 				SameSite: http.SameSiteStrictMode,
 			})
 

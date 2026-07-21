@@ -31,6 +31,12 @@
         }
     </style>
     <link href="/static/output.css" rel="stylesheet">
+    <!--
+        integrity= is a W3C Subresource Integrity (SRI) hash. The browser
+        verifies the downloaded script matches this SHA-384 digest before
+        executing it, blocking supply-chain attacks if the CDN is compromised.
+        crossorigin="anonymous" is required for SRI checks on cross-origin scripts.
+    -->
     <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous" defer></script>
     <script>
         // CSRF: Configure HTMX to send csrf_token cookie as X-CSRF-Token header

@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"afrita/config"
 )
 
 // DefaultErrorMessage is the generic Arabic error shown when no specific message is available.
@@ -83,7 +81,7 @@ func writeFlashRedirect(w http.ResponseWriter, redirectURL string, msg string, f
 		Path:     "/",
 		MaxAge:   10, // 10 seconds — read once then expire
 		HttpOnly: false,
-		Secure:   !config.IsLocalhost(),
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
 	w.Header().Set("HX-Redirect", redirectURL)

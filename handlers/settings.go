@@ -443,7 +443,7 @@ func writeFlashCookie(w http.ResponseWriter, payload string) {
 		Path:     "/",
 		MaxAge:   10,
 		HttpOnly: false,
-		Secure:   !config.IsLocalhost(),
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
 }

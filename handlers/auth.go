@@ -92,19 +92,19 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 		log.Printf("⚠️  Failed to persist token: %v", err)
 	}
 
-	// Set secure HttpOnly cookie; Secure=true when not localhost
-	isSecure := !config.IsLocalhost()
+	// Set secure HttpOnly cookie. The app runs behind a proxy that terminates
+	// TLS, so Secure=true is always correct regardless of the local domain name.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
 		Value:    sessionID,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   isSecure,
+		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   7 * 24 * 60 * 60, // 7 days — matches refresh token lifetime
 	})
 
-	log.Printf("✅ Secure token storage: HttpOnly=true, Secure=%v, SameSite=Strict for user: %s", isSecure, helpers.SanitizeForLog(username))
+	log.Printf("✅ Secure token storage: HttpOnly=true, Secure=true, SameSite=Strict for user: %s", helpers.SanitizeForLog(username))
 
 	w.Header().Set("HX-Redirect", "/dashboard")
 	w.WriteHeader(http.StatusOK)
@@ -151,7 +151,7 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   !config.IsLocalhost(),
+		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
 

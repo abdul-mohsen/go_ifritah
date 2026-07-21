@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -189,6 +190,8 @@ func HandleProductsSearchJSON(w http.ResponseWriter, r *http.Request) {
 		if name == "" {
 			name = p.Name
 		}
+		log.Printf("[search-json] id=%d name=%q shelf=%q price=%q cost_price=%q store_id=%d",
+			p.ID, name, p.ShelfNumber, p.Price, p.CostPrice, p.StoreID)
 		results = append(results, productResult{
 			ID:          p.ID,
 			Name:        name,

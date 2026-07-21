@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -457,9 +458,13 @@ func HandleSupplierLedger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ledger, err := helpers.FetchSupplierLedger(token, supplierID, dateFrom, dateTo)
+	backendErr := ""
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusBadGateway, nil, "تعذر تحميل دفتر الأستاذ العام للموردين")
-		return
+		// The backend ledger endpoint may not be deployed yet; degrade gracefully
+		// by rendering the page with empty ledger data and an error banner rather
+		// than returning a 502 that prevents the page from loading at all.
+		log.Printf("[supplier-ledger] ledger fetch failed: %v", err)
+		backendErr = "تعذر تحميل دفتر الأستاذ العام للموردين من الخادم حالياً"
 	}
 
 	ledgerTables := make([]supplierLedgerTable, 0)
@@ -517,6 +522,7 @@ func HandleSupplierLedger(w http.ResponseWriter, r *http.Request) {
 		"chart_labels":     chartLabels,
 		"chart_debits":     chartDebits,
 		"chart_credits":    chartCredits,
+		"error":            backendErr,
 	})
 }
 

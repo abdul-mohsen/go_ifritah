@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"afrita/config"
 	"afrita/helpers"
@@ -242,8 +243,15 @@ func buildBillImportTemplate(importType string, arabic bool, overrides billImpor
 	if importType == billImportPurchase {
 		supplierID := orDefault(overrides.SupplierID, "1")
 		const examplePB1, examplePB2 = "PB-EXAMPLE-001", "PB-EXAMPLE-002"
-		_ = writeStringRow(workbook, "Bills", 2, []string{examplePB1, storeID, supplierID, "10001", "2026-01-15", "10", "0"})
-		_ = writeStringRow(workbook, "Bills", 3, []string{examplePB2, storeID, supplierID, "10002", "2026-01-16", "10", "5"})
+		// Use a timestamp-derived base so each generated template has unique
+		// supplier_sequence_numbers. Re-importing the same template file in a
+		// CI environment that already ran once would otherwise fail with 409
+		// "Supplier bill number already exists for this supplier".
+		seqBase := time.Now().Unix() % 900000
+		seq1 := strconv.FormatInt(seqBase, 10)
+		seq2 := strconv.FormatInt(seqBase+1, 10)
+		_ = writeStringRow(workbook, "Bills", 2, []string{examplePB1, storeID, supplierID, seq1, "2026-01-15", "10", "0"})
+		_ = writeStringRow(workbook, "Bills", 3, []string{examplePB2, storeID, supplierID, seq2, "2026-01-16", "10", "5"})
 		_ = writeStringRow(workbook, "Products", 2, []string{examplePB1, "Oil Filter", "2", "25", "20", "A-01", "0", "50"})
 		_ = writeStringRow(workbook, "Products", 3, []string{examplePB1, "Air Filter", "1", "30", "24", "A-02", "0", "30"})
 		_ = writeStringRow(workbook, "Products", 4, []string{examplePB2, "Battery", "1", "200", "180", "B-01", "0", "200"})

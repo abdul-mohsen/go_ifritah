@@ -34,6 +34,7 @@
 {{ end }}
 
 {{ define "content" }}
+{{ template "error-alert" . }}
 {{ template "breadcrumb" dict "section_url" "/dashboard/suppliers" "section_label" (L "tpl.supplier.section") "current" (L "tpl.ledger.title") }}
 
 <div class="section-card mb-6">

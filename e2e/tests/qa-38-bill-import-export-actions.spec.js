@@ -11,7 +11,7 @@ const { login, appURL } = require('../helpers/qa');
 // depending on lucky placeholder values.
 async function realAccountIds(page, kind) {
   if (kind === 'sales') {
-    await page.goto('/dashboard/invoices/add');
+    await page.goto('/dashboard/invoices/add-invoice');
     await page.waitForLoadState('domcontentloaded');
     const storeField = page.locator('[name="store_id"]').first();
     await storeField.waitFor({ state: 'attached', timeout: 20000 });

@@ -1910,6 +1910,12 @@ var labels = map[string]Label{
 	"tpl.report.type_bill":      {Ar: "فاتورة", En: "Bill"},
 	"tpl.report.type_payment":   {Ar: "سند صرف", En: "Payment"},
 	"tpl.report.no_entries":     {Ar: "لا توجد حركات في هذه الفترة", En: "No entries in this period"},
+	// Multi-supplier ledger statement
+	"tpl.report.statement_title":           {Ar: "كشف حساب موردين", En: "Suppliers Ledger Statement"},
+	"tpl.report.statement_supplier_count":  {Ar: "عدد الموردين", En: "Suppliers"},
+	"tpl.supplier.select_for_statement":    {Ar: "تحديد لإنشاء كشف حساب", En: "Select for ledger statement"},
+	"tpl.supplier.generate_statement":      {Ar: "إنشاء كشف حساب", En: "Generate Ledger Statement"},
+	"tpl.supplier.statement_select_hint":   {Ar: "اختر مورداً واحداً أو أكثر", En: "Select one or more suppliers"},
 	// Aging analysis
 	"tpl.report.aging_analysis": {Ar: "تحليل أعمار الديون", En: "Aging Analysis"},
 	// Bills table

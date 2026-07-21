@@ -31,7 +31,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"purchase-bills", "add-purchase-bill", "purchase-bill-detail", "edit-purchase-bill",
 		"settings", "parts-search", "cars-search", "import-bills",
 		"cash-vouchers", "add-cash-voucher", "cash-voucher-detail", "edit-cash-voucher",
-		"stock-adjustments", "notifications", "supplier-report",
+		"stock-adjustments", "notifications", "supplier-report", "supplier-statement",
 		"zatca-monitor",
 		// Standalone pages
 		"login", "register", "forgot-password",
@@ -157,13 +157,13 @@ func TestAllTemplatesExecute(t *testing.T) {
 			"Name": "",
 		},
 		"address": map[string]interface{}{
-			"BuildingNumber":     "",
-			"StreetName":         "",
-			"District":           "",
-			"City":               "",
-			"PostalCode":         "",
-			"AdditionalNumber":   "",
-			"CountryCode":        "",
+			"BuildingNumber":   "",
+			"StreetName":       "",
+			"District":         "",
+			"City":             "",
+			"PostalCode":       "",
+			"AdditionalNumber": "",
+			"CountryCode":      "",
 		},
 
 		// Branch specific
@@ -259,14 +259,14 @@ func TestAllTemplatesExecute(t *testing.T) {
 			"payment_method": "cash",
 			"store_id":       0,
 		},
-		"voucher_number":  0,
-		"type_label":      "",
-		"amount":          "0.00",
-		"recipient_name":  "",
-		"recipient_type":  "",
-		"payment_method":  "",
-		"notes":           "",
-		"voucher_type":    "",
+		"voucher_number": 0,
+		"type_label":     "",
+		"amount":         "0.00",
+		"recipient_name": "",
+		"recipient_type": "",
+		"payment_method": "",
+		"notes":          "",
+		"voucher_type":   "",
 
 		// Credit note
 		"credit_note": map[string]interface{}{},
@@ -299,6 +299,16 @@ func TestAllTemplatesExecute(t *testing.T) {
 		"monthly_spending": []interface{}{},
 		"date_from":        "2025-01-01",
 		"date_to":          "2025-03-31",
+
+		// Multi-supplier ledger statement
+		"entries":   []interface{}{},
+		"ids_param": "",
+		"totals": map[string]interface{}{
+			"SupplierCount":  0,
+			"TotalSpent":     0.0,
+			"TotalPayments":  0.0,
+			"ClosingBalance": 0.0,
+		},
 
 		// Clients and Stores for modals
 		"Clients": []interface{}{},

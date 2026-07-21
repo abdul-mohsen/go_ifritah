@@ -600,6 +600,102 @@ func FetchSupplierReport(token string, supplierID int, dateFrom, dateTo string) 
 		return result, fmt.Errorf("decode response: %w", err)
 	}
 
+	result = parseSupplierReportJSON(raw)
+	APICache.Set(cacheKey, result, CacheTTLReports)
+	return result, nil
+}
+
+// FetchMultiSupplierReport fetches reports for several suppliers in a
+// single backend request (GET /api/v2/supplier/report/multi), instead of
+// looping FetchSupplierReport once per supplier - the latter would mean one
+// HTTP round trip per selected supplier on every combined-statement page
+// load, which does not scale with the number of suppliers selected.
+//
+// Returns a map keyed by supplier ID. Suppliers the backend could not
+// resolve (not found / wrong tenant) are simply absent from the map rather
+// than causing the whole call to fail.
+func FetchMultiSupplierReport(token string, supplierIDs []int, dateFrom, dateTo string) (map[int]SupplierReportResult, error) {
+	results := make(map[int]SupplierReportResult, len(supplierIDs))
+	if len(supplierIDs) == 0 {
+		return results, nil
+	}
+
+	idStrs := make([]string, 0, len(supplierIDs))
+	for _, id := range supplierIDs {
+		idStrs = append(idStrs, strconv.Itoa(id))
+	}
+
+	u := fmt.Sprintf("%s/api/v2/supplier/report/multi", config.BackendDomain)
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+	q := req.URL.Query()
+	q.Set("ids", strings.Join(idStrs, ","))
+	if dateFrom != "" {
+		q.Set("from", dateFrom)
+	}
+	if dateTo != "" {
+		q.Set("to", dateTo)
+	}
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := DoAuthedRequest(req, token)
+	if err != nil {
+		return nil, fmt.Errorf("multi-supplier report request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// If the combined endpoint isn't available yet on this backend, fall
+	// back to the per-supplier fetch so the multi-supplier statement page
+	// keeps working (just without the round-trip savings) until the
+	// backend catches up.
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusMethodNotAllowed || resp.StatusCode >= http.StatusInternalServerError {
+		log.Printf("⚠️ [SUPPLIER REPORT] Multi-supplier endpoint returned %d, falling back to per-supplier fetch", resp.StatusCode)
+		for _, id := range supplierIDs {
+			report, err := FetchSupplierReport(token, id, dateFrom, dateTo)
+			if err != nil {
+				continue
+			}
+			results[id] = report
+		}
+		return results, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("backend status %d", resp.StatusCode)
+	}
+
+	var raw struct {
+		Suppliers []map[string]interface{} `json:"suppliers"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	for _, entry := range raw.Suppliers {
+		supplierMap, ok := entry["supplier"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		id, ok := CoerceFloat(supplierMap["id"])
+		if !ok {
+			continue
+		}
+		results[int(id)] = parseSupplierReportJSON(entry)
+	}
+	return results, nil
+}
+
+// parseSupplierReportJSON converts one supplier-report JSON object (the
+// shape returned both by GET /api/v2/supplier/:id/report and by each entry
+// of GET /api/v2/supplier/report/multi's "suppliers" array) into a
+// SupplierReportResult. Shared by FetchSupplierReport and
+// FetchMultiSupplierReport so a single-supplier fetch and a combined fetch
+// of the same supplier can never parse the same backend response
+// differently.
+func parseSupplierReportJSON(raw map[string]interface{}) SupplierReportResult {
+	var result SupplierReportResult
 	now := time.Now()
 
 	// ── Parse summary ────────────────────────────────────────────────
@@ -876,8 +972,7 @@ func FetchSupplierReport(token string, supplierID int, dateFrom, dateTo string) 
 	// ── Build ledger (still client-side — merges bills + payments chronologically) ──
 	result.Ledger = buildSupplierLedger(result.Bills, supplierPayments)
 
-	APICache.Set(cacheKey, result, CacheTTLReports)
-	return result, nil
+	return result
 }
 
 // safeStringDate extracts a date string from a JSON value that may be

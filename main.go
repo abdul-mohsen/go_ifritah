@@ -221,6 +221,12 @@ func main() {
 	router.HandleFunc("/dashboard/suppliers", protect("suppliers", "view", handlers.HandleSuppliers)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/add", protect("suppliers", "add", handlers.HandleAddSupplier)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/create", protect("suppliers", "add", handlers.HandleCreateSupplier)).Methods("POST")
+	// Multi-supplier ledger statement — registered before /{id} so the
+	// literal "statement" path segment isn't captured as a supplier ID.
+	router.HandleFunc("/dashboard/suppliers/statement", protect("suppliers", "view", handlers.HandleSupplierStatement)).Methods("GET")
+	router.HandleFunc("/dashboard/suppliers/statement/export-csv", protect("suppliers", "view", handlers.HandleExportSupplierStatementCSV)).Methods("GET")
+	router.HandleFunc("/dashboard/suppliers/statement/export-excel", protect("suppliers", "view", handlers.HandleExportSupplierStatementExcel)).Methods("GET")
+	router.HandleFunc("/dashboard/suppliers/statement/export-pdf", protect("suppliers", "view", handlers.HandleExportSupplierStatementPDF)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}", protect("suppliers", "view", handlers.HandleSupplierDetail)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/edit", protect("suppliers", "edit", handlers.HandleEditSupplier)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/get", protect("suppliers", "view", handlers.HandleGetSupplier)).Methods("GET")

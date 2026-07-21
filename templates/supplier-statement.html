@@ -1,0 +1,114 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/suppliers" "section_label" (L "tpl.supplier.section") "current" (L "tpl.report.statement_title") }}
+
+<!-- Date Range + Export -->
+<div class="section-card mb-6">
+    <form id="dateForm" method="get" class="flex flex-wrap items-end gap-3">
+        <input type="hidden" name="ids" value="{{ .ids_param }}">
+        <div>
+            <label class="detail-label block mb-1" for="statement_date_from">{{ L "tpl.report.date_from" }}</label>
+            <input type="date" id="statement_date_from" name="from" value="{{ .date_from }}" class="form-input" style="min-width:160px">
+        </div>
+        <div>
+            <label class="detail-label block mb-1" for="statement_date_to">{{ L "tpl.report.date_to" }}</label>
+            <input type="date" id="statement_date_to" name="to" value="{{ .date_to }}" class="form-input" style="min-width:160px">
+        </div>
+        <button type="submit" class="btn btn-filled btn-sm">{{ L "tpl.report.apply_filter" }}</button>
+        <div class="mr-auto"></div>
+        <a href="/dashboard/suppliers/statement/export-csv?ids={{ .ids_param }}&from={{ .date_from }}&to={{ .date_to }}" class="btn btn-tonal btn-sm">
+            <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            CSV
+        </a>
+        <a href="/dashboard/suppliers/statement/export-excel?ids={{ .ids_param }}&from={{ .date_from }}&to={{ .date_to }}" class="btn btn-tonal btn-sm">
+            <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Excel
+        </a>
+        <a href="/dashboard/suppliers/statement/export-pdf?ids={{ .ids_param }}&from={{ .date_from }}&to={{ .date_to }}" target="_blank" class="btn btn-tonal btn-sm">
+            <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            PDF
+        </a>
+    </form>
+</div>
+
+<!-- Combined Summary -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.statement_supplier_count" }}</div>
+        <div class="text-xl font-bold" style="color:var(--md-sys-color-on-surface)">{{ .totals.SupplierCount }}</div>
+    </div>
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.total_spent" }}</div>
+        <div class="text-xl font-bold" style="color:var(--md-sys-color-primary)">{{ formatMoney .totals.TotalSpent }}</div>
+        <div class="detail-label text-xs">{{ L "tpl.currency_sar" }}</div>
+    </div>
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.total_payments" }}</div>
+        <div class="text-xl font-bold" style="color:var(--md-sys-color-tertiary)">{{ formatMoney .totals.TotalPayments }}</div>
+        <div class="detail-label text-xs">{{ L "tpl.currency_sar" }}</div>
+    </div>
+    <div class="section-card text-center">
+        <div class="detail-label text-xs mb-1">{{ L "tpl.report.closing_balance" }}</div>
+        <div class="text-xl font-bold" style="color:{{ if gt .totals.ClosingBalance 0.0 }}var(--md-sys-color-error){{ else }}var(--md-sys-color-primary){{ end }}">{{ formatMoney .totals.ClosingBalance }}</div>
+        <div class="detail-label text-xs">{{ L "tpl.currency_sar" }}</div>
+    </div>
+</div>
+
+<!-- Per-supplier ledger sections -->
+{{ if not .entries }}
+<div class="section-card text-center p-8 detail-label">{{ L "tpl.report.no_entries" }}</div>
+{{ end }}
+{{ range .entries }}
+<div class="section-card mb-6">
+    <div class="flex items-center justify-between mb-4">
+        <h4 class="section-card-title" style="margin-bottom:0">
+            <a href="/dashboard/suppliers/{{ .Supplier.ID }}/report?from={{ $.date_from }}&to={{ $.date_to }}" style="color:var(--md-sys-color-primary)">{{ .Supplier.Name }}</a>
+        </h4>
+        <span class="detail-label text-sm">{{ len .Report.Ledger }} {{ L "tpl.report.entries" }}</span>
+    </div>
+    <div class="data-table-wrapper">
+        <table aria-label="{{ .Supplier.Name }}">
+            <thead>
+                <tr>
+                    <th>{{ L "tpl.report.ssn" }}</th>
+                    <th>{{ L "tpl.report.date" }}</th>
+                    <th>{{ L "tpl.report.entry_type" }}</th>
+                    <th>{{ L "tpl.report.description" }}</th>
+                    <th style="color:var(--md-sys-color-error)">{{ L "tpl.report.debit" }}</th>
+                    <th style="color:var(--md-sys-color-primary)">{{ L "tpl.report.credit" }}</th>
+                    <th>{{ L "tpl.report.balance" }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ if not .Report.Ledger }}
+                <tr><td colspan="7" class="text-center p-4 detail-label">{{ L "tpl.report.no_entries" }}</td></tr>
+                {{ end }}
+                {{ range .Report.Ledger }}
+                <tr>
+                    <td class="text-sm font-medium" style="color:var(--md-sys-color-primary)">{{ .SupplierNo }}</td>
+                    <td class="text-sm">{{ .Date }}</td>
+                    <td>
+                        {{ if eq .Type "bill" }}<span class="badge badge-draft">{{ L "tpl.report.type_bill" }}</span>
+                        {{ else if eq .Type "payment" }}<span class="badge badge-issued">{{ L "tpl.report.type_payment" }}</span>{{ end }}
+                    </td>
+                    <td class="text-sm">{{ .Description }}</td>
+                    <td class="font-medium" style="color:var(--md-sys-color-error)">{{ if gt .Debit 0.0 }}{{ formatMoney .Debit }}{{ end }}</td>
+                    <td class="font-medium" style="color:var(--md-sys-color-primary)">{{ if gt .Credit 0.0 }}{{ formatMoney .Credit }}{{ end }}</td>
+                    <td class="font-bold">{{ formatMoney .Balance }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+            {{ if .Report.Ledger }}
+            <tfoot>
+                <tr style="background:var(--md-sys-color-surface-container);font-weight:bold">
+                    <td colspan="4" class="text-left">{{ L "tpl.report.totals" }}</td>
+                    <td style="color:var(--md-sys-color-error)">{{ formatMoney .Report.Summary.TotalSpent }}</td>
+                    <td style="color:var(--md-sys-color-primary)">{{ formatMoney .Report.Summary.TotalPayments }}</td>
+                    <td>{{ formatMoney .Report.Summary.ClosingBalance }}</td>
+                </tr>
+            </tfoot>
+            {{ end }}
+        </table>
+    </div>
+</div>
+{{ end }}
+{{ end }}

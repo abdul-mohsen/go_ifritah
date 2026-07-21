@@ -221,13 +221,19 @@ func FetchProductsList(token string, opts ListOpts) ([]models.Product, error) {
 			if v, ok := item["shelf_number"].(string); ok {
 				shelfNumber = v
 			}
+			costPrice := ""
+			if v, ok := item["cost_price"].(string); ok {
+				costPrice = v
+			} else if v, ok := CoerceFloat(item["cost_price"]); ok {
+				costPrice = strconv.FormatFloat(v, 'f', -1, 64)
+			}
 			storeID := 0
 			if v, ok := CoerceFloat(item["store_id"]); ok {
 				storeID = int(v)
 			}
 			products = append(products, models.Product{
 				ID: id, PartName: partName, Quantity: qty, Price: price,
-				ShelfNumber: shelfNumber, StoreID: storeID,
+				CostPrice: costPrice, ShelfNumber: shelfNumber, StoreID: storeID,
 			})
 		}
 	}

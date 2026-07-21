@@ -1661,6 +1661,8 @@ func FetchProducts(token string) ([]models.Product, error) {
 		costPrice := ""
 		if value, ok := item["cost_price"].(string); ok {
 			costPrice = value
+		} else if value, ok := CoerceFloat(item["cost_price"]); ok {
+			costPrice = fmt.Sprintf("%g", value)
 		}
 
 		shelfNumber := ""

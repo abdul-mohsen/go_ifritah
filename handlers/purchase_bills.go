@@ -204,7 +204,7 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonPayload, _ := json.Marshal(payload)
 
-	log.Printf("[CREATE PURCHASE BILL] Payload: %s", string(jsonPayload))
+	log.Printf("[CREATE PURCHASE BILL] Payload: %s", helpers.SanitizeForLog(string(jsonPayload)))
 
 	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/purchase_bill", bytes.NewBuffer(jsonPayload))
 	req.Header.Set("Content-Type", "application/json")

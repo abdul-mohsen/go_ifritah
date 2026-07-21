@@ -660,6 +660,7 @@ var labels = map[string]Label{
 	"layout.loading":       {Ar: "جاري التحميل...", En: "Loading..."},
 	"layout.collapse_menu": {Ar: "طي القائمة", En: "Collapse Menu"},
 	"layout.menu":          {Ar: "القائمة", En: "Menu"},
+	"layout.close_sidebar": {Ar: "إغلاق القائمة الجانبية", En: "Close sidebar"},
 	"layout.notifications": {Ar: "الإشعارات", En: "Notifications"},
 	"layout.dark_mode":     {Ar: "الوضع الداكن", En: "Dark Mode"},
 	"layout.all_rights":    {Ar: "جميع الحقوق محفوظة.", En: "All rights reserved."},

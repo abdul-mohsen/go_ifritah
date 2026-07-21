@@ -211,7 +211,7 @@ func HandleSaveZatcaConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bodyBytes, _ := json.Marshal(backendBody)
-	log.Printf("[ZATCA] PUT branch %d body: %s", branchID, string(bodyBytes))
+	log.Printf("[ZATCA] PUT branch %d body: %s", branchID, helpers.SanitizeForLog(string(bodyBytes)))
 
 	apiURL := config.BackendDomain + "/api/v2/branch/" + strconv.Itoa(branchID) + "/zatca"
 	backendReq, err := http.NewRequest("PUT", apiURL, bytes.NewBuffer(bodyBytes))

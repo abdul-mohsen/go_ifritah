@@ -367,7 +367,7 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 			Value:    csrfToken,
 			Path:     "/",
 			HttpOnly: false, // JavaScript/HTMX needs to read this
-			Secure:   false, // Set to true in production with HTTPS
+			Secure:   true,
 			SameSite: http.SameSiteStrictMode,
 			MaxAge:   86400, // 24 hours
 		})

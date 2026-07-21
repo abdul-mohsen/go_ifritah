@@ -307,8 +307,12 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 		"products": products,
 	}
 	jsonPayload, _ := json.Marshal(payloadMap)
-	log.Printf("[CREATE PRODUCT] OEM parts: %v", partNames)
-	log.Printf("[CREATE PRODUCT] Payload: %s", string(jsonPayload))
+	sanitizedPartNames := make([]string, len(partNames))
+	for i, p := range partNames {
+		sanitizedPartNames[i] = helpers.SanitizeForLog(p)
+	}
+	log.Printf("[CREATE PRODUCT] OEM parts: %v", sanitizedPartNames)
+	log.Printf("[CREATE PRODUCT] Payload: %s", helpers.SanitizeForLog(string(jsonPayload)))
 
 	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/product", bytes.NewBuffer(jsonPayload))
 	req.Header.Set("Content-Type", "application/json")

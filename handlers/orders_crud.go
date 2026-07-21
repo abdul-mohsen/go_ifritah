@@ -179,7 +179,7 @@ func HandleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		"products":        products,
 	}
 	jsonPayload, _ := json.Marshal(payload)
-	log.Printf("[CREATE ORDER] Payload: %s", string(jsonPayload))
+	log.Printf("[CREATE ORDER] Payload: %s", helpers.SanitizeForLog(string(jsonPayload)))
 
 	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/order", bytes.NewBuffer(jsonPayload))
 	req.Header.Set("Content-Type", "application/json")

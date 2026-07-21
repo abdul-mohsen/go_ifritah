@@ -7,8 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ .title }} - {{ L "layout.brand" }}</title>
     <link rel="icon" type="image/svg+xml" href="/static/images/afrita-logo.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="/static/css/fonts.css" rel="stylesheet">
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <link rel="dns-prefetch" href="https://unpkg.com">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -32,7 +31,13 @@
         }
     </style>
     <link href="/static/output.css" rel="stylesheet">
-    <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
+    <!--
+        integrity= is a W3C Subresource Integrity (SRI) hash. The browser
+        verifies the downloaded script matches this SHA-384 digest before
+        executing it, blocking supply-chain attacks if the CDN is compromised.
+        crossorigin="anonymous" is required for SRI checks on cross-origin scripts.
+    -->
+    <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous" defer></script>
     <script>
         // CSRF: Configure HTMX to send csrf_token cookie as X-CSRF-Token header
         document.addEventListener('htmx:configRequest', function (evt) {
@@ -66,7 +71,8 @@
 
     <div class="flex h-screen">
         <!-- Mobile Sidebar Overlay -->
-        <div id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+        <button type="button" id="sidebar-overlay" aria-label="{{ L "layout.close_sidebar" }}"
+            onclick="closeMobileSidebar()"></button>
         <!-- Sidebar / M3 Navigation Drawer -->
         <aside id="sidebar" class="flex flex-col overflow-hidden z-40"
             style="background: var(--md-sys-color-surface-container-lowest); border-left: 1px solid var(--md-sys-color-outline-variant)">

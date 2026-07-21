@@ -41,8 +41,6 @@ e2e/pw-*.json
 # Scripts (local only)
 scripts/
 
-# Package lock (use package.json only)
-package-lock.json
 
 # Uploaded files (user-generated content)
 uploads/

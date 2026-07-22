@@ -3,14 +3,23 @@ const { defineConfig } = require('@playwright/test');
 // Specs that mutate global server state (settings, ZATCA per-branch config)
 // MUST run sequentially. Everything else is independent of shared state and
 // can be parallelised safely.
+//
+// zatca-settings.spec.js and zatca-save-qa.spec.js used to belong here too,
+// but neither actually persists to the shared backend anymore: every test
+// that saves ZATCA config intercepts the PUT via page.route() (see
+// mockSaveSuccess/mockSaveFail in zatca-save-qa.spec.js and the equivalent
+// pattern in qa-27-zatca-connect-matrix.spec.js, which already runs in the
+// parallel project against the same endpoints without incident), and
+// zatca-settings.spec.js never clicks the save button at all — it only
+// asserts client-side DOM/validation behaviour. Verified no cross-worker
+// interference running both under --project=parallel --workers=4 against
+// the real dev backend before moving them here.
 const SERIAL_SPECS = [
   '**/qa-01-stock-enforcement.spec.js',
   '**/qa-03-settings.spec.js',
   '**/qa-14-concurrency.spec.js',
   '**/qa-15-stock-enforcement-behavior.spec.js',
   '**/qa-19-pb-pdf-required.spec.js',
-  '**/zatca-settings.spec.js',
-  '**/zatca-save-qa.spec.js',
 ];
 
 const resultsFile = process.env.PW_RESULTS_FILE || 'playwright-results.json';

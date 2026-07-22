@@ -217,8 +217,8 @@ function positionDropdown(rowId) {
 // A fixed-position dropdown doesn't move with its input, so it goes
 // stale the moment anything scrolls (the items table's own horizontal
 // scroll, the page, or a modal) or the viewport resizes. Closing it is
-// the standard low-risk behavior (matches native <select> and most
-// combobox widgets) - capture:true catches scroll events from the
+// the standard low-risk behavior (matches native select elements and
+// most combobox widgets) - capture:true catches scroll events from the
 // items table's own scroll container too, not just window scroll.
 document.addEventListener('scroll', function () {
     document.querySelectorAll('[id^="dropdown_"]:not(.hidden)').forEach(function (dd) {

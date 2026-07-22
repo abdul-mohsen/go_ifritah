@@ -15,6 +15,14 @@ const (
 	enCity = "City"
 )
 
+// Supported language codes. The app is Arabic-first: any lang value other
+// than LangEn (including "", LangAr, or an unrecognized code) resolves to
+// Arabic, so callers never need to validate the value before calling T.
+const (
+	LangAr = "ar"
+	LangEn = "en"
+)
+
 // labels is the master map of all user-facing strings.
 // Keys follow the pattern: "domain.context" (e.g. "auth.invalid_data").
 var labels = map[string]Label{
@@ -33,29 +41,33 @@ var labels = map[string]Label{
 	"auth.reset_password_error":             {Ar: "حدث خطأ في إعادة تعيين كلمة المرور", En: "An error occurred while resetting the password"},
 	"auth.email_required":                   {Ar: "البريد الإلكتروني مطلوب", En: "Email is required"},
 	"auth.reset_link_sent":                  {Ar: "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني", En: "A password reset link has been sent to your email"},
+	"auth.unauthorized_login":               {Ar: "غير مصرح - يرجى تسجيل الدخول", En: "Unauthorized - Please login"},
 
 	// ── Products ─────────────────────────────────────────────────────
-	"product.detail_title":    {Ar: "تفاصيل المنتج", En: "Product Details"},
-	"product.edit_title":      {Ar: "تعديل المنتج", En: "Edit Product"},
-	"product.add_title":       {Ar: "إضافة منتج", En: "Add Product"},
-	"product.list_title":      {Ar: "المنتجات", En: "Products"},
-	"product.select_store":    {Ar: "يرجى اختيار المخزن", En: "Please select a store"},
-	"product.fill_all_fields": {Ar: "يرجى اختيار القطعة وتعبئة الكمية والسعر لكل منتج", En: "Please select part and fill quantity and price for each product"},
-	"product.create_error":    {Ar: "فشل في إنشاء المنتج", En: "Failed to create product"},
-	"product.create_success":  {Ar: "تم إنشاء المنتج بنجاح", En: "Product created successfully"},
-	"product.update_error":    {Ar: "فشل في تحديث المنتج", En: "Failed to update product"},
-	"product.update_success":  {Ar: "تم تحديث المنتج بنجاح", En: "Product updated successfully"},
-	"product.delete_error":    {Ar: "فشل في حذف المنتج", En: "Failed to delete product"},
-	"product.delete_success":  {Ar: "تم حذف المنتج بنجاح", En: "Product deleted successfully"},
-	"product.export_error":    {Ar: "تعذر تحميل المنتجات", En: "Failed to load products"},
-	"product.in_stock":        {Ar: "متوفر", En: "In Stock"},
-	"product.out_of_stock":    {Ar: "منتهي", En: "Out of Stock"},
+	"product.detail_title":         {Ar: "تفاصيل المنتج", En: "Product Details"},
+	"product.edit_title":           {Ar: "تعديل المنتج", En: "Edit Product"},
+	"product.add_title":            {Ar: "إضافة منتج", En: "Add Product"},
+	"product.list_title":           {Ar: "المنتجات", En: "Products"},
+	"product.select_store":         {Ar: "يرجى اختيار المخزن", En: "Please select a store"},
+	"product.fill_all_fields":      {Ar: "يرجى اختيار القطعة وتعبئة الكمية والسعر لكل منتج", En: "Please select part and fill quantity and price for each product"},
+	"product.create_error":         {Ar: "فشل في إنشاء المنتج", En: "Failed to create product"},
+	"product.create_success":       {Ar: "تم إنشاء المنتج بنجاح", En: "Product created successfully"},
+	"product.update_error":         {Ar: "فشل في تحديث المنتج", En: "Failed to update product"},
+	"product.update_success":       {Ar: "تم تحديث المنتج بنجاح", En: "Product updated successfully"},
+	"product.delete_error":         {Ar: "فشل في حذف المنتج", En: "Failed to delete product"},
+	"product.delete_success":       {Ar: "تم حذف المنتج بنجاح", En: "Product deleted successfully"},
+	"product.export_error":         {Ar: "تعذر تحميل المنتجات", En: "Failed to load products"},
+	"product.load_error_currently": {Ar: "تعذر تحميل المنتجات من الخادم حالياً", En: "Failed to load products from the server right now"},
+	"product.in_stock":             {Ar: "متوفر", En: "In Stock"},
+	"product.out_of_stock":         {Ar: "منتهي", En: "Out of Stock"},
 
 	// ── Product Validation Labels ────────────────────────────────────
 	"product.label.price":        {Ar: "سعر البيع", En: "Selling Price"},
+	"product.label.part_price":   {Ar: "سعر القطعة", En: "Part Price"},
 	"product.label.quantity":     {Ar: "الكمية", En: "Quantity"},
-	"product.label.cost_price":   {Ar: "سعر التكلفة", En: "Cost Price"},
-	"product.label.shelf_number": {Ar: "رقم الرف", En: "Shelf Number"},
+	"product.label.cost_price":         {Ar: "سعر التكلفة", En: "Cost Price"},
+	"product.label.shelf_number":       {Ar: "رقم الرف", En: "Shelf Number"},
+	"product.label.product_id_optional": {Ar: "معرف المنتج (اختياري)", En: "Product ID (optional)"},
 
 	// ── Clients ──────────────────────────────────────────────────────
 	"client.detail_title":         {Ar: "تفاصيل العميل", En: "Client Details"},
@@ -72,6 +84,7 @@ var labels = map[string]Label{
 	"client.delete_error":         {Ar: "حدث خطأ في حذف العميل", En: "An error occurred while deleting the client"},
 	"client.delete_success":       {Ar: "تم حذف العميل بنجاح", En: "Client deleted successfully"},
 	"client.export_error":         {Ar: "تعذر تحميل العملاء", En: "Failed to load clients"},
+	"client.load_error_currently": {Ar: "تعذر تحميل العملاء من الخادم حالياً", En: "Failed to load clients from the server right now"},
 
 	// ── Client Validation Labels ─────────────────────────────────────
 	"client.label.name":         {Ar: "اسم العميل", En: "Client Name"},
@@ -96,6 +109,7 @@ var labels = map[string]Label{
 	"order.id_required":            {Ar: "معرف الطلب مطلوب", En: "Order ID is required"},
 	"order.delete_error":           {Ar: "حدث خطأ في حذف الطلب", En: "An error occurred while deleting the order"},
 	"order.delete_success":         {Ar: "تم حذف الطلب بنجاح", En: "Order deleted successfully"},
+	"order.load_error":             {Ar: "فشل في تحميل بيانات الطلب", En: "Failed to load order data"},
 
 	// ── Order Status ─────────────────────────────────────────────────
 	"status.pending":    {Ar: "قيد الانتظار", En: "Pending"},
@@ -115,6 +129,10 @@ var labels = map[string]Label{
 	"branch.update_success": {Ar: "تم تحديث الفرع بنجاح", En: "Branch updated successfully"},
 	"branch.delete_error":   {Ar: "فشل في حذف الفرع", En: "Failed to delete branch"},
 	"branch.delete_success": {Ar: "تم حذف الفرع بنجاح", En: "Branch deleted successfully"},
+	"branch.main_branch":    {Ar: "الفرع الرئيسي", En: "Main Branch"},
+	"branch.jeddah_branch":  {Ar: "فرع جدة", En: "Jeddah Branch"},
+	"branch.dammam_branch":  {Ar: "فرع الدمام", En: "Dammam Branch"},
+	"branch.madinah_branch": {Ar: "فرع المدينة", En: "Madinah Branch"},
 
 	// ── Branch Validation Labels ─────────────────────────────────────
 	"branch.label.name":     {Ar: "اسم الفرع", En: "Branch Name"},
@@ -132,23 +150,30 @@ var labels = map[string]Label{
 	"store.update_success": {Ar: "تم تحديث المتجر بنجاح", En: "Store updated successfully"},
 	"store.delete_error":   {Ar: "فشل في حذف المخزن", En: "Failed to delete store"},
 	"store.delete_success": {Ar: "تم حذف المتجر بنجاح", En: "Store deleted successfully"},
+	"store.fallback_name":  {Ar: "مخزن #", En: "Store #"},
 
 	// ── Store Validation Labels ──────────────────────────────────────
 	"store.label.name": {Ar: "اسم المخزن", En: "Store Name"},
 
 	// ── Suppliers ────────────────────────────────────────────────────
-	"supplier.list_title":     {Ar: "الموردين", En: "Suppliers"},
-	"supplier.add_title":      {Ar: "إضافة مورد", En: "Add Supplier"},
-	"supplier.detail_title":   {Ar: "تفاصيل المورد", En: "Supplier Details"},
-	"supplier.edit_title":     {Ar: "تعديل المورد", En: "Edit Supplier"},
-	"supplier.fallback_name":  {Ar: "مورد #", En: "Supplier #"},
-	"supplier.create_error":   {Ar: "فشل في إنشاء المورد", En: "Failed to create supplier"},
-	"supplier.create_success": {Ar: "تم إنشاء المورد بنجاح", En: "Supplier created successfully"},
-	"supplier.update_error":   {Ar: "فشل في تحديث المورد", En: "Failed to update supplier"},
-	"supplier.update_success": {Ar: "تم تحديث المورد بنجاح", En: "Supplier updated successfully"},
-	"supplier.delete_error":   {Ar: "فشل في حذف المورد", En: "Failed to delete supplier"},
-	"supplier.delete_success": {Ar: "تم حذف المورد بنجاح", En: "Supplier deleted successfully"},
-	"supplier.export_error":   {Ar: "تعذر تحميل الموردين", En: "Failed to load suppliers"},
+	"supplier.list_title":           {Ar: "الموردين", En: "Suppliers"},
+	"supplier.add_title":            {Ar: "إضافة مورد", En: "Add Supplier"},
+	"supplier.detail_title":         {Ar: "تفاصيل المورد", En: "Supplier Details"},
+	"supplier.edit_title":           {Ar: "تعديل المورد", En: "Edit Supplier"},
+	"supplier.fallback_name":        {Ar: "مورد #", En: "Supplier #"},
+	"supplier.create_error":         {Ar: "فشل في إنشاء المورد", En: "Failed to create supplier"},
+	"supplier.create_success":       {Ar: "تم إنشاء المورد بنجاح", En: "Supplier created successfully"},
+	"supplier.update_error":         {Ar: "فشل في تحديث المورد", En: "Failed to update supplier"},
+	"supplier.update_success":       {Ar: "تم تحديث المورد بنجاح", En: "Supplier updated successfully"},
+	"supplier.delete_error":         {Ar: "فشل في حذف المورد", En: "Failed to delete supplier"},
+	"supplier.delete_success":       {Ar: "تم حذف المورد بنجاح", En: "Supplier deleted successfully"},
+	"supplier.export_error":         {Ar: "تعذر تحميل الموردين", En: "Failed to load suppliers"},
+	"supplier.load_error_currently": {Ar: "تعذر تحميل الموردين من الخادم حالياً", En: "Failed to load suppliers from the server right now"},
+	"supplier.not_found":                 {Ar: "المورد غير موجود", En: "Supplier not found"},
+	"supplier.report_failed":             {Ar: "تعذر تحميل تقرير المورد", En: "Failed to load supplier report"},
+	"supplier.report_title":              {Ar: "كشف حساب — %s", En: "Statement — %s"},
+	"supplier.invalid_number":            {Ar: "رقم المورد غير صحيح", En: "Invalid supplier number"},
+	"supplier.statement_select_required": {Ar: "يرجى اختيار مورد واحد على الأقل", En: "Please select at least one supplier"},
 
 	// ── Supplier Validation Labels ───────────────────────────────────
 	"supplier.label.name":              {Ar: "اسم المورد", En: "Supplier Name"},
@@ -165,12 +190,13 @@ var labels = map[string]Label{
 	"supplier.label.bank_account":      {Ar: "الحساب البنكي", En: "Bank Account"},
 
 	// ── Supplier Validation Pattern Messages ─────────────────────────
-	"validation.email_format":      {Ar: "صيغة بريد إلكتروني غير صحيحة", En: "Invalid email format"},
-	"validation.saudi_phone":       {Ar: "رقم هاتف غير صالح", En: "Invalid phone number"},
-	"validation.building_number":   {Ar: "رقم المبنى يتكون من 4 أرقام", En: "Building number must be 4 digits"},
-	"validation.postal_code":       {Ar: "الرمز البريدي يتكون من 5 أرقام", En: "Postal code must be 5 digits"},
-	"validation.additional_number": {Ar: "الرقم الإضافي يتكون من 4 أرقام", En: "Additional number must be 4 digits"},
-	"validation.vat_number":        {Ar: "الرقم الضريبي يتكون من 15 رقم", En: "VAT number must be 15 digits"},
+	"validation.email_format":         {Ar: "صيغة بريد إلكتروني غير صحيحة", En: "Invalid email format"},
+	"validation.saudi_phone":          {Ar: "رقم هاتف غير صالح", En: "Invalid phone number"},
+	"validation.saudi_phone_detailed": {Ar: "رقم جوال سعودي يبدأ بـ 05 ويتكون من 10 أرقام", En: "Saudi mobile number must start with 05 and contain 10 digits"},
+	"validation.building_number":      {Ar: "رقم المبنى يتكون من 4 أرقام", En: "Building number must be 4 digits"},
+	"validation.postal_code":          {Ar: "الرمز البريدي يتكون من 5 أرقام", En: "Postal code must be 5 digits"},
+	"validation.additional_number":    {Ar: "الرقم الإضافي يتكون من 4 أرقام", En: "Additional number must be 4 digits"},
+	"validation.vat_number":           {Ar: "الرقم الضريبي يتكون من 15 رقم", En: "VAT number must be 15 digits"},
 
 	// ── Invoices ─────────────────────────────────────────────────────
 	"invoice.list_title":                 {Ar: "الفواتير", En: "Invoices"},
@@ -199,6 +225,11 @@ var labels = map[string]Label{
 	"invoice.delete_error":               {Ar: "فشل في حذف الفاتورة", En: "Failed to delete invoice"},
 	"invoice.delete_success":             {Ar: "تم حذف الفاتورة بنجاح", En: "Invoice deleted successfully"},
 	"invoice.export_error":               {Ar: "تعذر تحميل الفواتير", En: "Failed to load invoices"},
+	"invoice.load_error_currently":       {Ar: "تعذر تحميل الفواتير من الخادم حالياً", En: "Failed to load invoices from the server right now"},
+	"invoice.invalid_number":             {Ar: "رقم الفاتورة غير صالح", En: "Invalid invoice number"},
+	"invoice.whatsapp_send_error":        {Ar: "تعذر إرسال الفاتورة عبر واتساب", En: "Failed to send invoice via WhatsApp"},
+	"invoice.whatsapp_service_error":     {Ar: "تعذر الاتصال بخدمة واتساب", En: "Failed to connect to WhatsApp service"},
+	"invoice.whatsapp_send_success":      {Ar: "تم إرسال الفاتورة عبر واتساب", En: "Invoice sent via WhatsApp"},
 
 	// ── Company Invoice ──────────────────────────────────────────────
 	"company_invoice.item_name":      {Ar: "فاتورة شركة", En: "Company Invoice"},
@@ -220,26 +251,33 @@ var labels = map[string]Label{
 	"invoice_type.purchase": {Ar: "فاتورة مشتريات", En: "Purchase Bill"},
 
 	// ── Purchase Bills ───────────────────────────────────────────────
-	"purchase_bill.type_label":         {Ar: "فاتورة مشتريات", En: "Purchase Bill"},
-	"purchase_bill.list_title":         {Ar: "فواتير المشتريات", En: "Purchase Bills"},
-	"purchase_bill.add_title":          {Ar: "إضافة فاتورة مشتريات", En: "Add Purchase Bill"},
-	"purchase_bill.detail_title":       {Ar: "تفاصيل فاتورة المشتريات", En: "Purchase Bill Details"},
-	"purchase_bill.edit_title":         {Ar: "تعديل فاتورة المشتريات", En: "Edit Purchase Bill"},
-	"purchase_bill.import_title":       {Ar: "استيراد فواتير مشتريات", En: "Import Purchase Bills"},
-	"purchase_bill.form_read_error":    {Ar: "فشل في قراءة بيانات النموذج", En: "Failed to read form data"},
-	"purchase_bill.pdf_required":       {Ar: "يرجى رفع ملف فاتورة الشراء (PDF)", En: "Please upload a purchase bill file (PDF)"},
-	"purchase_bill.pdf_upload_error":   {Ar: "فشل في رفع ملف PDF", En: "Failed to upload PDF file"},
-	"purchase_bill.create_error":       {Ar: "فشل في إنشاء فاتورة الشراء", En: "Failed to create purchase bill"},
-	"purchase_bill.create_success":     {Ar: "تم إنشاء فاتورة الشراء بنجاح", En: "Purchase bill created successfully"},
-	"purchase_bill.data_read_error":    {Ar: "فشل في قراءة البيانات", En: "Failed to read data"},
-	"purchase_bill.no_bills_to_import": {Ar: "لا توجد فواتير للاستيراد", En: "No bills to import"},
-	"purchase_bill.no_items":           {Ar: "لا توجد قطع في الفاتورة", En: "No items in the bill"},
-	"purchase_bill.connection_error":   {Ar: "خطأ في الاتصال", En: "Connection error"},
-	"purchase_bill.error_code":         {Ar: "خطأ %d", En: "Error %d"},
-	"purchase_bill.update_error":       {Ar: "فشل في تحديث فاتورة الشراء", En: "Failed to update purchase bill"},
-	"purchase_bill.update_success":     {Ar: "تم تحديث فاتورة الشراء بنجاح", En: "Purchase bill updated successfully"},
-	"purchase_bill.delete_error":       {Ar: "فشل في حذف فاتورة الشراء", En: "Failed to delete purchase bill"},
-	"purchase_bill.delete_success":     {Ar: "تم حذف فاتورة الشراء بنجاح", En: "Purchase bill deleted successfully"},
+	"purchase_bill.type_label":           {Ar: "فاتورة مشتريات", En: "Purchase Bill"},
+	"purchase_bill.list_title":           {Ar: "فواتير المشتريات", En: "Purchase Bills"},
+	"purchase_bill.add_title":            {Ar: "إضافة فاتورة مشتريات", En: "Add Purchase Bill"},
+	"purchase_bill.detail_title":         {Ar: "تفاصيل فاتورة المشتريات", En: "Purchase Bill Details"},
+	"purchase_bill.edit_title":           {Ar: "تعديل فاتورة المشتريات", En: "Edit Purchase Bill"},
+	"purchase_bill.import_title":         {Ar: "استيراد فواتير مشتريات", En: "Import Purchase Bills"},
+	"purchase_bill.form_read_error":      {Ar: "فشل في قراءة بيانات النموذج", En: "Failed to read form data"},
+	"purchase_bill.pdf_required":         {Ar: "يرجى رفع ملف فاتورة الشراء (PDF)", En: "Please upload a purchase bill file (PDF)"},
+	"purchase_bill.pdf_upload_error":     {Ar: "فشل في رفع ملف PDF", En: "Failed to upload PDF file"},
+	"purchase_bill.create_error":         {Ar: "فشل في إنشاء فاتورة الشراء", En: "Failed to create purchase bill"},
+	"purchase_bill.create_success":       {Ar: "تم إنشاء فاتورة الشراء بنجاح", En: "Purchase bill created successfully"},
+	"purchase_bill.data_read_error":      {Ar: "فشل في قراءة البيانات", En: "Failed to read data"},
+	"purchase_bill.no_bills_to_import":   {Ar: "لا توجد فواتير للاستيراد", En: "No bills to import"},
+	"purchase_bill.no_items":             {Ar: "لا توجد قطع في الفاتورة", En: "No items in the bill"},
+	"purchase_bill.connection_error":     {Ar: "خطأ في الاتصال", En: "Connection error"},
+	"purchase_bill.error_code":           {Ar: "خطأ %d", En: "Error %d"},
+	"purchase_bill.update_error":         {Ar: "فشل في تحديث فاتورة الشراء", En: "Failed to update purchase bill"},
+	"purchase_bill.update_success":       {Ar: "تم تحديث فاتورة الشراء بنجاح", En: "Purchase bill updated successfully"},
+	"purchase_bill.delete_error":         {Ar: "فشل في حذف فاتورة الشراء", En: "Failed to delete purchase bill"},
+	"purchase_bill.delete_success":       {Ar: "تم حذف فاتورة الشراء بنجاح", En: "Purchase bill deleted successfully"},
+	"purchase_bill.load_error_currently": {Ar: "تعذر تحميل فواتير المشتريات من الخادم حالياً", En: "Failed to load purchase bills from the server right now"},
+	"purchase_bill.company_type_label":   {Ar: "فاتورة مشتريات (شركة)", En: "Company Purchase Bill"},
+	"purchase_bill.export_list_error":     {Ar: "تعذر تحميل فواتير المشتريات", En: "Unable to load purchase bills"},
+	"purchase_bill.export_products_error": {Ar: "تعذر تحميل منتجات فواتير المشتريات", En: "Unable to load purchase bill products"},
+	"export.workbook_build_error":         {Ar: "تعذر إنشاء ملف Excel", En: "Unable to create Excel workbook"},
+	"bill_import.template_error":          {Ar: "تعذر إنشاء قالب Excel", En: "Unable to create Excel template"},
+	"purchase_bill_import.example":       {Ar: "مثال", En: "Example"},
 
 	// ── Purchase Bill Status Labels ──────────────────────────────────
 	"purchase_bill_status.draft":     {Ar: "مسودة", En: "Draft"},
@@ -330,6 +368,19 @@ var labels = map[string]Label{
 	"notification.list_title":      {Ar: "الإشعارات", En: "Notifications"},
 	"notification.invalid_request": {Ar: "طلب غير صالح", En: "Invalid request"},
 	"notification.save_success":    {Ar: "تم حفظ إعدادات التنبيهات", En: "Notification settings saved"},
+	"notification.load_error":      {Ar: "فشل تحميل التنبيهات", En: "Failed to load notifications"},
+	"notification.not_found":       {Ar: "التنبيه غير موجود", En: "Notification not found"},
+
+	// ── Branch Store Address ────────────────────────────────────────
+	"branch_store.fetch_branch_error": {Ar: "فشل جلب بيانات الفرع", En: "Failed to load branch data"},
+	"branch_store.fetch_store_error":  {Ar: "فشل جلب بيانات المخزن", En: "Failed to load store data"},
+
+	// ── RBAC ────────────────────────────────────────────────────────
+	"rbac.manager_delete_forbidden":   {Ar: "المدراء لا يمكنهم حذف المستخدمين", En: "Managers cannot delete users"},
+	"rbac.manager_settings_forbidden": {Ar: "المدراء لا يمكنهم الوصول لإعدادات النظام", En: "Managers cannot access system settings"},
+	"rbac.action_forbidden":           {Ar: "ليس لديك صلاحية للقيام بهذا الإجراء", En: "You do not have permission to perform this action"},
+	"rbac.permissions_insufficient":   {Ar: "ليس لديك الصلاحيات الكافية", En: "You do not have sufficient permissions"},
+	"rbac.forbidden_title":            {Ar: "ممنوع", En: "Forbidden"},
 
 	// ── Search ───────────────────────────────────────────────────────
 	"search.parts_title": {Ar: "بحث القطع", En: "Parts Search"},
@@ -337,21 +388,25 @@ var labels = map[string]Label{
 	"search.error":       {Ar: "فشل في البحث", En: "Search failed"},
 
 	// ── CSV Import ───────────────────────────────────────────────────
-	"csv_import.title":            {Ar: "استيراد فواتير", En: "Import Invoices"},
-	"csv_import.file_read_error":  {Ar: "فشل في قراءة الملف", En: "Failed to read file"},
-	"csv_import.select_csv":       {Ar: "يرجى اختيار ملف CSV", En: "Please select a CSV file"},
-	"csv_import.select_store":     {Ar: "يرجى اختيار المخزن", En: "Please select a store"},
-	"csv_import.parse_error":      {Ar: "فشل في تحليل CSV", En: "Failed to parse CSV"},
-	"csv_import.empty_file":       {Ar: "الملف فارغ أو يحتوي على رأس فقط", En: "File is empty or contains only a header"},
-	"csv_import.missing_columns":  {Ar: "لم يتم العثور على أعمدة مطلوبة", En: "Required columns not found"},
-	"csv_import.no_valid_data":    {Ar: "لم يتم العثور على بيانات صالحة في الملف", En: "No valid data found in the file"},
-	"csv_import.connection_error": {Ar: "خطأ في الاتصال", En: "Connection error"},
-	"csv_import.default_item":     {Ar: "بند", En: "Item"},
-	"csv_import.data_read_error":  {Ar: "فشل في قراءة البيانات", En: "Failed to read data"},
-	"csv_import.no_bills":         {Ar: "لا توجد فواتير للاستيراد", En: "No invoices to import"},
-	"csv_import.no_items":         {Ar: "لا توجد قطع في الفاتورة", En: "No items in the invoice"},
-	"csv_import.error_code":       {Ar: "خطأ %d: %s", En: "Error %d: %s"},
-	"csv_import.columns_hint":     {Ar: "يجب أن يحتوي الملف على عمود اسم القطعة أو السعر على الأقل. الأعمدة المكتشفة: ", En: "File must contain at least a part name or price column. Detected columns: "},
+	"csv_import.title":              {Ar: "استيراد فواتير", En: "Import Invoices"},
+	"csv_import.file_read_error":    {Ar: "فشل في قراءة الملف", En: "Failed to read file"},
+	"csv_import.select_csv":         {Ar: "يرجى اختيار ملف CSV", En: "Please select a CSV file"},
+	"csv_import.select_store":       {Ar: "يرجى اختيار المخزن", En: "Please select a store"},
+	"csv_import.parse_error":        {Ar: "فشل في تحليل CSV", En: "Failed to parse CSV"},
+	"csv_import.empty_file":         {Ar: "الملف فارغ أو يحتوي على رأس فقط", En: "File is empty or contains only a header"},
+	"csv_import.missing_columns":    {Ar: "لم يتم العثور على أعمدة مطلوبة", En: "Required columns not found"},
+	"csv_import.no_valid_data":      {Ar: "لم يتم العثور على بيانات صالحة في الملف", En: "No valid data found in the file"},
+	"csv_import.connection_error":   {Ar: "خطأ في الاتصال", En: "Connection error"},
+	"csv_import.default_item":       {Ar: "بند", En: "Item"},
+	"csv_import.data_read_error":    {Ar: "فشل في قراءة البيانات", En: "Failed to read data"},
+	"csv_import.no_bills":           {Ar: "لا توجد فواتير للاستيراد", En: "No invoices to import"},
+	"csv_import.no_items":           {Ar: "لا توجد قطع في الفاتورة", En: "No items in the invoice"},
+	"csv_import.error_code":         {Ar: "خطأ %d: %s", En: "Error %d: %s"},
+	"csv_import.columns_hint":       {Ar: "يجب أن يحتوي الملف على عمود اسم القطعة أو السعر على الأقل. الأعمدة المكتشفة: ", En: "File must contain at least a part name or price column. Detected columns: "},
+	"data_import.select_file":       {Ar: "يرجى اختيار ملف", En: "Please select a file"},
+	"data_import.no_data":           {Ar: "لا توجد بيانات للاستيراد", En: "No data to import"},
+	"data_import.unknown_type":      {Ar: "نوع الاستيراد غير معروف", En: "Unknown import type"},
+	"data_import.no_valid_products": {Ar: "لا توجد منتجات صالحة للاستيراد", En: "No valid products to import"},
 
 	// ── CSV Export Headers ────────────────────────────────────────────
 	"csv_header.invoice_number":  {Ar: "رقم الفاتورة", En: "Invoice Number"},
@@ -372,6 +427,7 @@ var labels = map[string]Label{
 	"csv_header.phone":           {Ar: "الهاتف", En: "Phone"},
 	"csv_header.address":         {Ar: "العنوان", En: "Address"},
 	"csv_header.vat_number":      {Ar: "الرقم الضريبي", En: "VAT Number"},
+	"csv_header.supplier":        {Ar: "المورد", En: "Supplier"},
 
 	// ── PDF ──────────────────────────────────────────────────────────
 	"pdf.download_error":    {Ar: "تعذر تحميل ملف PDF، يرجى المحاولة لاحقاً", En: "Failed to download PDF, please try again later"},
@@ -430,10 +486,15 @@ var labels = map[string]Label{
 	"middleware.back_to_dashboard": {Ar: "العودة للوحة التحكم", En: "Back to Dashboard"},
 
 	// ── General ──────────────────────────────────────────────────────
-	"general.default_error": {Ar: "حدث خطأ، يرجى المحاولة مرة أخرى", En: "An error occurred, please try again"},
+	"general.default_error":            {Ar: "حدث خطأ، يرجى المحاولة مرة أخرى", En: "An error occurred, please try again"},
+	"general.unable_to_connect_server": {Ar: "تعذر الاتصال بالخادم", En: "Unable to connect to server"},
+	"general.invalid_request_format":   {Ar: "صيغة الطلب غير صالحة", En: "Invalid request format"},
+	"general.session_expired":          {Ar: "انتهت الجلسة", En: "Session expired"},
+	"general.session_expired_relogin":  {Ar: "انتهت الجلسة - يرجى تسجيل الدخول مرة أخرى", En: "Session expired - please login again"},
 
 	// ── General / Shared ─────────────────────────────────────────────
 	"general.server_connection_error": {Ar: "فشل في الاتصال بالخادم", En: "Failed to connect to server"},
+	"address.city_required":           {Ar: "المدينة مطلوبة", En: "City is required"},
 
 	// ── UI: Common Elements ──────────────────────────────────────────
 	"ui.currency":         {Ar: "ر.س", En: "SAR"},
@@ -449,6 +510,7 @@ var labels = map[string]Label{
 	"ui.invoice_unit":     {Ar: "فاتورة", En: "invoice"},
 	"ui.cancel":           {Ar: "إلغاء", En: "Cancel"},
 	"ui.saving":           {Ar: "جاري الحفظ", En: "Saving"},
+	"ui.list_separator":   {Ar: "، ", En: ", "},
 
 	// ── UI: Filters ──────────────────────────────────────────────────
 	"ui.filter.from_date":    {Ar: "من التاريخ", En: "From Date"},
@@ -694,6 +756,13 @@ var labels = map[string]Label{
 	"tpl.no_notes":       {Ar: "لا توجد ملاحظات", En: "No notes"},
 	"tpl.add_new_client": {Ar: "+ إضافة عميل جديد", En: "+ Add New Client"},
 
+	// ── Address / Detail Page Shared Labels ───────────────────────────
+	"tpl.address.short_address_placeholder": {Ar: "مثال: الرياض - حي العليا", En: "e.g. Riyadh - Al Olaya District"},
+	"tpl.address.current_address":           {Ar: "العنوان الحالي", En: "Current Address"},
+	"tpl.validation.cr_number_hint":         {Ar: "السجل التجاري يتكون من 10 أرقام", En: "Commercial registration number consists of 10 digits"},
+	"tpl.detail.created_at":                 {Ar: "تاريخ الإنشاء", En: "Created Date"},
+	"tpl.detail.updated_at":                 {Ar: "تاريخ التحديث", En: "Updated Date"},
+
 	// ── Invoice Template Labels ──────────────────────────────────────
 	"tpl.invoice.search_placeholder":   {Ar: "بحث برقم الفاتورة أو الحالة", En: "Search by invoice number or status"},
 	"tpl.invoice.status_draft":         {Ar: "مسودة", En: "Draft"},
@@ -927,6 +996,19 @@ var labels = map[string]Label{
 	"tpl.address.country":           {Ar: "البلد", En: "Country"},
 	"tpl.address.saudi_arabia":      {Ar: "المملكة العربية السعودية", En: "Saudi Arabia"},
 	"tpl.address.full_address":      {Ar: "العنوان الكامل", En: "Full Address"},
+	"region.riyadh":                 {Ar: "الرياض", En: "Riyadh"},
+	"region.makkah":                 {Ar: "مكة المكرمة", En: "Makkah"},
+	"region.madinah":                {Ar: "المدينة المنورة", En: "Madinah"},
+	"region.qassim":                 {Ar: "القصيم", En: "Qassim"},
+	"region.eastern":                {Ar: "المنطقة الشرقية", En: "Eastern Region"},
+	"region.asir":                   {Ar: "عسير", En: "Asir"},
+	"region.tabuk":                  {Ar: "تبوك", En: "Tabuk"},
+	"region.hail":                   {Ar: "حائل", En: "Hail"},
+	"region.northern_borders":       {Ar: "الحدود الشمالية", En: "Northern Borders"},
+	"region.jazan":                  {Ar: "جازان", En: "Jazan"},
+	"region.najran":                 {Ar: "نجران", En: "Najran"},
+	"region.bahah":                  {Ar: "الباحة", En: "Al Bahah"},
+	"region.jouf":                   {Ar: "الجوف", En: "Al Jouf"},
 
 	// Order template labels
 	"tpl.order.search_placeholder": {Ar: "بحث بالرقم أو العميل", En: "Search by number or client"},
@@ -1104,6 +1186,14 @@ var labels = map[string]Label{
 	"tpl.store.branch":             {Ar: "الفرع", En: "Branch"},
 	"tpl.store.no_branch":          {Ar: "بدون فرع", En: "No branch"},
 	"tpl.store.branch_help":        {Ar: "ربط هذا المخزن بفرع مطلوب لتفعيل ZATCA لذلك الفرع.", En: "Linking this store to a branch is required to enable ZATCA for that branch."},
+	"tpl.store.national":           {Ar: "العنوان الوطني", En: "National Address"},
+	"tpl.store.building_number":    {Ar: "رقم المبنى", En: "Building Number"},
+	"tpl.store.street_name":        {Ar: "اسم الشارع", En: "Street Name"},
+	"tpl.store.district":           {Ar: "الحي", En: "District"},
+	"tpl.store.city":               {Ar: arCity, En: enCity},
+	"tpl.store.postal_code":        {Ar: "الرمز البريدي", En: "Postal Code"},
+	"tpl.store.additional_number":  {Ar: "الرقم الإضافي", En: "Additional Number"},
+	"tpl.store.unit_number":        {Ar: "رقم الوحدة", En: "Unit Number"},
 
 	// Branch template labels
 	"tpl.branch.search_placeholder":   {Ar: "بحث بالاسم أو الموقع", En: "Search by name or location"},
@@ -1285,6 +1375,11 @@ var labels = map[string]Label{
 	"tpl.stock.note_placeholder":  {Ar: "تفاصيل إضافية (اختياري)", En: "Additional details (optional)"},
 	"tpl.stock.execute":           {Ar: "تنفيذ التسوية", En: "Execute Adjustment"},
 	"tpl.stock.qty_label":         {Ar: "الكمية:", En: "Quantity:"},
+	"stock.select_product":        {Ar: "يرجى اختيار المنتج", En: "Please select a product"},
+	"stock.invalid_quantity":      {Ar: "الكمية غير صالحة", En: "Invalid quantity"},
+	"stock.reason_required":       {Ar: "يرجى تحديد سبب التسوية", En: "Please select an adjustment reason"},
+	"stock.adjust_error_prefix":   {Ar: "فشل في تسوية المخزون: ", En: "Failed to adjust stock: "},
+	"stock.adjust_success":        {Ar: "تم تسوية المخزون بنجاح", En: "Stock adjusted successfully"},
 
 	// Notification labels
 	"tpl.notif.heading":          {Ar: "الإشعارات", En: "Notifications"},
@@ -1434,6 +1529,7 @@ var labels = map[string]Label{
 	"tpl.settings.ph_company_cr":                  {Ar: "رقم السجل التجاري", En: "Commercial register number"},
 	"tpl.settings.ph_company_desc":                {Ar: "وصف مختصر لنشاط الشركة", En: "Brief description of company activity"},
 	"tpl.settings.ph_org_name":                    {Ar: "شركة ذ.م.م", En: "Company LLC"},
+	"tpl.settings.ph_org_name_ar":                 {Ar: "شركة ذ.م.م", En: "Company LLC"},
 	"tpl.settings.ph_location":                    {Ar: "الرياض", En: "Riyadh"},
 	"tpl.settings.zatca_select_branch":            {Ar: "اختر الفرع", En: "Select Branch"},
 	"tpl.settings.zatca_company_heading":          {Ar: "بيانات الشركة (تنطبق على جميع الفروع)", En: "Company Info (applies to all branches)"},
@@ -1442,6 +1538,7 @@ var labels = map[string]Label{
 	"tpl.settings.help_company_name_ar":           {Ar: "الاسم القانوني بالعربية كما هو مسجل لدى زاتكا — مطلوب على كل فاتورة إلكترونية", En: "Legal Arabic name as registered with ZATCA — required on every e-invoice"},
 	"tpl.settings.zatca_save_company":             {Ar: "حفظ بيانات الشركة", En: "Save Company Info"},
 	"tpl.settings.zatca_company_name_ar_required": {Ar: "اسم الشركة بالعربية مطلوب", En: "Company name in Arabic is required"},
+	"tpl.settings.zatca_name_ar_warning_banner":   {Ar: "⚠ اسم الشركة بالعربية فارغ — مطلوب لربط ZATCA. الرجاء تعبئته وحفظه قبل بدء الربط.", En: "⚠ Company name in Arabic is empty — required to link ZATCA. Please fill it in and save before starting the linking process."},
 	"tpl.settings.zatca_company_both_required":    {Ar: "اسم الشركة بالإنجليزية والعربية كلاهما مطلوب", En: "Both English and Arabic company names are required"},
 	"tpl.settings.field_required":                 {Ar: "هذا الحقل مطلوب", En: "this field is required"},
 	"tpl.settings.saved":                          {Ar: "تم الحفظ", En: "Saved"},
@@ -1490,6 +1587,10 @@ var labels = map[string]Label{
 	"tpl.settings.help_city":                      {Ar: "تُحفظ في بيانات المخزن المرتبط بالفرع — مطلوبة لربط ZATCA", En: "Saved on the linked store record — required for ZATCA onboarding"},
 	"tpl.settings.ph_city":                        {Ar: "مثال: الرياض", En: "e.g. Riyadh"},
 	"tpl.settings.zatca_city_required":            {Ar: "المدينة مطلوبة لربط ZATCA", En: "City is required for ZATCA onboarding"},
+	"zatca.otp_required":                          {Ar: "OTP مطلوب", En: "OTP is required"},
+	"zatca.otp_six_digits":                        {Ar: "OTP يجب أن يكون 6 أرقام", En: "OTP must be 6 digits"},
+	"zatca.onboard_processing":                    {Ar: "تم إرسال الطلب — جاري ربط الفرع بنظام زاتكا، قد يستغرق ذلك دقيقة", En: "Request sent — linking the branch to ZATCA, this may take a minute"},
+	"zatca.server_http_error":                     {Ar: "خطأ من الخادم (HTTP %d)", En: "Server error (HTTP %d)"},
 	"tpl.settings.ph_street":                      {Ar: "مثال: شارع الملك فهد", En: "e.g. King Fahd Road"},
 	"tpl.settings.ph_building":                    {Ar: "مثال: 1234", En: "e.g. 1234"},
 	"tpl.settings.ph_district":                    {Ar: "مثال: العليا", En: "e.g. Al Olaya"},
@@ -1544,40 +1645,45 @@ var labels = map[string]Label{
 	"ui.done":                              {Ar: "تم", En: "Done"},
 
 	// ── ZATCA Monitor Page ───────────────────────────────────
-	"zatca_monitor.title":              {Ar: "مراقبة زاتكا", En: "ZATCA Monitor"},
-	"zatca_monitor.refresh":            {Ar: "تحديث", En: "Refresh"},
-	"zatca_monitor.total_submitted":    {Ar: "إجمالي المرسل", En: "Total Submitted"},
-	"zatca_monitor.accepted":           {Ar: "مقبول", En: "Accepted"},
-	"zatca_monitor.warnings":           {Ar: "مقبول مع تحذيرات", En: "Accepted with Warnings"},
-	"zatca_monitor.rejected":           {Ar: "مرفوض", En: "Rejected"},
-	"zatca_monitor.pending":            {Ar: "قيد الانتظار", En: "Pending"},
-	"zatca_monitor.branch_status":      {Ar: "حالة الفروع", En: "Branch Status"},
-	"zatca_monitor.branch":             {Ar: "الفرع", En: "Branch"},
-	"zatca_monitor.connection_status":  {Ar: "حالة الاتصال", En: "Connection Status"},
-	"zatca_monitor.cert_expiry":        {Ar: "انتهاء الشهادة", En: "Certificate Expiry"},
-	"zatca_monitor.today_count":        {Ar: "اليوم", En: "Today"},
-	"zatca_monitor.success_rate":       {Ar: "نسبة النجاح", En: "Success Rate"},
-	"zatca_monitor.last_submission":    {Ar: "آخر إرسال", En: "Last Submission"},
-	"zatca_monitor.recent_submissions": {Ar: "آخر الإرسالات", En: "Recent Submissions"},
-	"zatca_monitor.filter_all":         {Ar: "الكل", En: "All"},
-	"zatca_monitor.filter_accepted":    {Ar: "مقبول", En: "Accepted"},
-	"zatca_monitor.filter_warning":     {Ar: "تحذيرات", En: "Warnings"},
-	"zatca_monitor.filter_rejected":    {Ar: "مرفوض", En: "Rejected"},
-	"zatca_monitor.filter_pending":     {Ar: "قيد الانتظار", En: "Pending"},
-	"zatca_monitor.invoice_no":         {Ar: "رقم الفاتورة", En: "Invoice No."},
-	"zatca_monitor.invoice_type":       {Ar: "النوع", En: "Type"},
-	"zatca_monitor.submission_status":  {Ar: "حالة الإرسال", En: "Submission Status"},
-	"zatca_monitor.zatca_ref":          {Ar: "مرجع زاتكا", En: "ZATCA Ref"},
-	"zatca_monitor.submitted_at":       {Ar: "وقت الإرسال", En: "Submitted At"},
-	"zatca_monitor.actions":            {Ar: "إجراءات", En: "Actions"},
-	"zatca_monitor.status_accepted":    {Ar: "مقبول", En: "Accepted"},
-	"zatca_monitor.status_warning":     {Ar: "تحذير", En: "Warning"},
-	"zatca_monitor.status_rejected":    {Ar: "مرفوض", En: "Rejected"},
-	"zatca_monitor.status_pending":     {Ar: "قيد الإرسال", En: "Pending"},
-	"zatca_monitor.type_standard":      {Ar: "قياسية", En: "Standard"},
-	"zatca_monitor.type_simplified":    {Ar: "مبسطة", En: "Simplified"},
-	"zatca_monitor.retry":              {Ar: "إعادة إرسال", En: "Retry"},
-	"zatca_monitor.details":            {Ar: "التفاصيل", En: "Details"},
+	"zatca_monitor.title":                       {Ar: "مراقبة زاتكا", En: "ZATCA Monitor"},
+	"zatca_monitor.refresh":                     {Ar: "تحديث", En: "Refresh"},
+	"zatca_monitor.total_submitted":             {Ar: "إجمالي المرسل", En: "Total Submitted"},
+	"zatca_monitor.accepted":                    {Ar: "مقبول", En: "Accepted"},
+	"zatca_monitor.warnings":                    {Ar: "مقبول مع تحذيرات", En: "Accepted with Warnings"},
+	"zatca_monitor.rejected":                    {Ar: "مرفوض", En: "Rejected"},
+	"zatca_monitor.pending":                     {Ar: "قيد الانتظار", En: "Pending"},
+	"zatca_monitor.branch_status":               {Ar: "حالة الفروع", En: "Branch Status"},
+	"zatca_monitor.branch":                      {Ar: "الفرع", En: "Branch"},
+	"zatca_monitor.connection_status":           {Ar: "حالة الاتصال", En: "Connection Status"},
+	"zatca_monitor.cert_expiry":                 {Ar: "انتهاء الشهادة", En: "Certificate Expiry"},
+	"zatca_monitor.today_count":                 {Ar: "اليوم", En: "Today"},
+	"zatca_monitor.success_rate":                {Ar: "نسبة النجاح", En: "Success Rate"},
+	"zatca_monitor.last_submission":             {Ar: "آخر إرسال", En: "Last Submission"},
+	"zatca_monitor.recent_submissions":          {Ar: "آخر الإرسالات", En: "Recent Submissions"},
+	"zatca_monitor.filter_all":                  {Ar: "الكل", En: "All"},
+	"zatca_monitor.filter_accepted":             {Ar: "مقبول", En: "Accepted"},
+	"zatca_monitor.filter_warning":              {Ar: "تحذيرات", En: "Warnings"},
+	"zatca_monitor.filter_rejected":             {Ar: "مرفوض", En: "Rejected"},
+	"zatca_monitor.filter_pending":              {Ar: "قيد الانتظار", En: "Pending"},
+	"zatca_monitor.invoice_no":                  {Ar: "رقم الفاتورة", En: "Invoice No."},
+	"zatca_monitor.invoice_type":                {Ar: "النوع", En: "Type"},
+	"zatca_monitor.submission_status":           {Ar: "حالة الإرسال", En: "Submission Status"},
+	"zatca_monitor.zatca_ref":                   {Ar: "مرجع زاتكا", En: "ZATCA Ref"},
+	"zatca_monitor.submitted_at":                {Ar: "وقت الإرسال", En: "Submitted At"},
+	"zatca_monitor.actions":                     {Ar: "إجراءات", En: "Actions"},
+	"zatca_monitor.status_accepted":             {Ar: "مقبول", En: "Accepted"},
+	"zatca_monitor.status_warning":              {Ar: "تحذير", En: "Warning"},
+	"zatca_monitor.status_rejected":             {Ar: "مرفوض", En: "Rejected"},
+	"zatca_monitor.status_pending":              {Ar: "قيد الإرسال", En: "Pending"},
+	"zatca_monitor.type_standard":               {Ar: "قياسية", En: "Standard"},
+	"zatca_monitor.type_simplified":             {Ar: "مبسطة", En: "Simplified"},
+	"zatca_monitor.retry":                       {Ar: "إعادة إرسال", En: "Retry"},
+	"zatca_monitor.details":                     {Ar: "التفاصيل", En: "Details"},
+	"zatca_monitor.five_minutes_ago":            {Ar: "قبل 5 دقائق", En: "5 minutes ago"},
+	"zatca_monitor.twelve_minutes_ago":          {Ar: "قبل 12 دقيقة", En: "12 minutes ago"},
+	"zatca_monitor.thirty_minutes_ago":          {Ar: "قبل 30 دقيقة", En: "30 minutes ago"},
+	"zatca_monitor.warning_incomplete_address":  {Ar: "حقل العنوان غير مكتمل", En: "Address field is incomplete"},
+	"zatca_monitor.warning_duplicate_reference": {Ar: "الرقم المرجعي مكرر", En: "Reference number is duplicated"},
 
 	// ── Import Bills / Purchase Bills ────────────────────────
 	// Page titles & navigation
@@ -1659,6 +1765,7 @@ var labels = map[string]Label{
 	"tpl.import.pieces":           {Ar: "قطعة", En: "parts"},
 	"tpl.import.no_data":          {Ar: "لا توجد بيانات", En: "No data"},
 	"tpl.import.column_prefix":    {Ar: "عمود ", En: "Column "},
+	"tpl.import.more_rows_prefix": {Ar: "... و ", En: "... and "},
 	"tpl.import.more_rows_suffix": {Ar: " صفوف أخرى", En: " more rows"},
 	"tpl.import.skip_option":      {Ar: "— تخطي —", En: "— Skip —"},
 
@@ -1798,6 +1905,7 @@ var labels = map[string]Label{
 	"tpl.search.more_filters":       {Ar: "المزيد من الفلاتر", En: "More Filters"},
 	"tpl.search.refurbished":        {Ar: "مجدد", En: "Refurbished"},
 	"tpl.search.manufacturer":       {Ar: "الشركة المصنعة", En: "Manufacturer"},
+	"tpl.search.zero_results":       {Ar: "0 نتيجة", En: "0 results"},
 	"tpl.search.min_price":          {Ar: "أقل سعر", En: "Min Price"},
 	"tpl.search.max_price":          {Ar: "أعلى سعر", En: "Max Price"},
 	"tpl.search.apply_filters":      {Ar: "تطبيق الفلاتر", En: "Apply Filters"},
@@ -1974,21 +2082,22 @@ var labels = map[string]Label{
 	"tpl.report.view_report":          {Ar: "كشف حساب", En: "Statement"},
 }
 
-// L returns the Arabic text for the given label key.
+// T returns the label text for key in the requested language. Pass LangEn
+// ("en") for English; any other value (including LangAr/"ar", "", or an
+// unrecognized code) returns Arabic — the app's default. This is the single
+// unified accessor for all bilingual labels; use it from both Go handler
+// code and the "L" template function (bound per-request in config.BindLang)
+// instead of hardcoding language-specific strings.
 // Returns the key itself if not found (makes missing labels visible).
-func L(key string) string {
-	if lbl, ok := labels[key]; ok {
-		return lbl.Ar
+func T(lang, key string) string {
+	lbl, ok := labels[key]
+	if !ok {
+		return key
 	}
-	return key
-}
-
-// LEN returns the English text for the given label key.
-func LEN(key string) string {
-	if lbl, ok := labels[key]; ok {
+	if lang == LangEn {
 		return lbl.En
 	}
-	return key
+	return lbl.Ar
 }
 
 // GetLabel returns the full Label struct for a key.

@@ -17,8 +17,16 @@ import (
 )
 
 // templateFuncs provides custom functions available in all templates.
+// "L" defaults to Arabic (the app's default language); helpers.Render and
+// friends call BindLang to rebind it to the request's language before
+// executing a cloned template — see BindLang below.
 var templateFuncs = template.FuncMap{
-	"L":   resources.L,
+	"L": func(key string) string { return resources.T(resources.LangAr, key) },
+	// jsI18N returns the client-side label set (see resources.JSLabels) for
+	// embedding as `window.I18N` so static/js/*.js can read translated
+	// strings instead of hardcoding Arabic. Rebound per-language in BindLang,
+	// same pattern as "L".
+	"jsI18N": func() map[string]string { return resources.JSLabels(resources.LangAr) },
 	"add": func(a, b int) int { return a + b },
 	"sub": func(a, b int) int { return a - b },
 	"mul": func(a, b interface{}) float64 {
@@ -416,4 +424,21 @@ func LoadTemplates() {
 	DashboardTestTemplate = Templates["dashboard"]
 
 	log.Printf("✅ Loaded %d templates (cached at startup)", len(Templates))
+}
+
+// BindLang returns a clone of tmpl with the "L" template function rebound to
+// look up labels in the given language. Templates are parsed once at startup
+// and shared across concurrent requests (see LoadTemplates); mutating a
+// cached template's FuncMap directly would race between requests using
+// different languages. Clone() produces an independent copy that is safe to
+// rebind and execute per-request without touching the shared original.
+func BindLang(tmpl *template.Template, lang string) (*template.Template, error) {
+	cloned, err := tmpl.Clone()
+	if err != nil {
+		return nil, err
+	}
+	return cloned.Funcs(template.FuncMap{
+		"L":      func(key string) string { return resources.T(lang, key) },
+		"jsI18N": func() map[string]string { return resources.JSLabels(lang) },
+	}), nil
 }

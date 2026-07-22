@@ -11,12 +11,12 @@
                 </svg>
             </div>
             <div>
-                <h2 class="text-lg font-bold text-gray-800" data-i18n="search.parts_title">{{ L "tpl.search.parts_title" }}</h2>
-                <p class="text-xs text-gray-500" data-i18n="search.parts_subtitle">{{ L "tpl.search.parts_subtitle" }}</p>
+                <h2 class="text-lg font-bold text-gray-800">{{ L "tpl.search.parts_title" }}</h2>
+                <p class="text-xs text-gray-500">{{ L "tpl.search.parts_subtitle" }}</p>
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <span id="parts-result-count" class="text-xs text-gray-400 hidden">0 نتيجة</span>
+            <span id="parts-result-count" class="text-xs text-gray-400 hidden">{{ L "tpl.search.zero_results" }}</span>
             <div id="parts-spinner" class="htmx-indicator">
                 <svg class="animate-spin h-5 w-5 text-blue-500" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
@@ -39,7 +39,7 @@
                         hx-post="/api/parts/search" hx-trigger="keyup changed delay:400ms" hx-include="[id^='parts-']"
                         hx-target="#parts-results" hx-indicator="#parts-spinner"
                         placeholder="{{ L "tpl.search.parts_placeholder" }}"
-                        data-i18n-placeholder="search.parts_query_placeholder">
+                       >
                     <svg class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 text-gray-400" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -57,7 +57,7 @@
 
         <!-- Quick Filter Tags -->
         <div class="px-5 pb-3 flex flex-wrap items-center gap-2">
-            <span class="text-xs text-gray-500 ml-1" data-i18n="search.quick_filters">{{ L "tpl.search.quick_filters" }}</span>
+            <span class="text-xs text-gray-500 ml-1">{{ L "tpl.search.quick_filters" }}</span>
             <button type="button" onclick="setPartsCategory('')"
                 class="parts-cat-btn active text-xs px-3 py-1 rounded-full border transition" data-cat="">{{ L "tpl.search.all" }}</button>
             <button type="button" onclick="setPartsCategory('engine')"
@@ -92,7 +92,7 @@
                     stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
-                <span data-i18n="search.more_filters">{{ L "tpl.search.more_filters" }}</span>
+                <span>{{ L "tpl.search.more_filters" }}</span>
             </button>
         </div>
 
@@ -101,7 +101,7 @@
             <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div>
                     <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
-                        data-i18n="search.condition">{{ L "tpl.search.condition" }}</label>
+                       >{{ L "tpl.search.condition" }}</label>
                     <select id="parts-condition" name="condition" class="w-full text-xs">
                         <option value="">{{ L "tpl.search.all" }}</option>
                         <option value="new">{{ L "tpl.search.new" }}</option>
@@ -110,30 +110,30 @@
                     </select>
                 </div>
                 <div>
-                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1" data-i18n="search.make">{{ L "tpl.search.manufacturer" }}</label>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1">{{ L "tpl.search.manufacturer" }}</label>
                     <input type="text" id="parts-make" name="make" placeholder="Toyota" class="w-full text-xs">
                 </div>
                 <div>
                     <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
-                        data-i18n="search.model">{{ L "tpl.search.model" }}</label>
+                       >{{ L "tpl.search.model" }}</label>
                     <input type="text" id="parts-model" name="model" placeholder="Camry" class="w-full text-xs">
                 </div>
                 <div>
                     <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
-                        data-i18n="search.min_price">{{ L "tpl.search.min_price" }}</label>
+                       >{{ L "tpl.search.min_price" }}</label>
                     <input type="number" id="parts-min-price" name="min_price" min="0" step="0.01" placeholder="0"
                         class="w-full text-xs">
                 </div>
                 <div>
                     <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1"
-                        data-i18n="search.max_price">{{ L "tpl.search.max_price" }}</label>
+                       >{{ L "tpl.search.max_price" }}</label>
                     <input type="number" id="parts-max-price" name="max_price" min="0" step="0.01" placeholder="∞"
                         class="w-full text-xs">
                 </div>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3">
                 <div>
-                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1" data-i18n="search.year">{{ L "tpl.search.year" }}</label>
+                    <label class="text-[11px] font-semibold text-gray-500 uppercase mb-1">{{ L "tpl.search.year" }}</label>
                     <input type="number" id="parts-year" name="year" min="1900" max="2030" placeholder="2024"
                         class="w-full text-xs">
                 </div>
@@ -142,7 +142,7 @@
                 <button type="button" onclick="triggerPartsSearch()" class="btn btn-filled btn-xs font-semibold">{{ L "tpl.search.apply_filters" }}</button>
                 <button type="button" onclick="resetPartsSearch()"
                     class="text-gray-500 hover:text-gray-700 px-4 py-1.5 rounded-lg text-xs transition hover:bg-gray-100">
-                    <span data-i18n="search.reset">{{ L "tpl.search.reset" }}</span>
+                    <span>{{ L "tpl.search.reset" }}</span>
                 </button>
             </div>
         </div>
@@ -158,8 +158,8 @@
                             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
                 </div>
-                <p class="text-sm text-gray-500 font-medium" data-i18n="search.start_searching">{{ L "tpl.search.start_parts_search" }}</p>
-                <p class="text-xs text-gray-400 mt-1" data-i18n="search.search_tip">{{ L "tpl.search.parts_search_tip" }}</p>
+                <p class="text-sm text-gray-500 font-medium">{{ L "tpl.search.start_parts_search" }}</p>
+                <p class="text-xs text-gray-400 mt-1">{{ L "tpl.search.parts_search_tip" }}</p>
             </div>
         </div>
     </div>

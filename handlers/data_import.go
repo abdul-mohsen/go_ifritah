@@ -17,6 +17,7 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 )
 
 // ── Preview endpoint: parse CSV and return headers + sample rows ──
@@ -36,22 +37,23 @@ func HandleDataImportPreview(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		writeJSON(w, http.StatusBadRequest, importPreviewResponse{Error: "فشل في قراءة الملف: " + err.Error()})
+		writeJSON(w, http.StatusBadRequest, importPreviewResponse{Error: resources.T(lang, "csv_import.file_read_error") + ": " + err.Error()})
 		return
 	}
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, importPreviewResponse{Error: "يرجى اختيار ملف"})
+		writeJSON(w, http.StatusBadRequest, importPreviewResponse{Error: resources.T(lang, "data_import.select_file")})
 		return
 	}
 	defer file.Close()
 
 	rawBytes, err := io.ReadAll(file)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, importPreviewResponse{Error: "فشل في قراءة الملف"})
+		writeJSON(w, http.StatusBadRequest, importPreviewResponse{Error: resources.T(lang, "csv_import.file_read_error")})
 		return
 	}
 
@@ -68,12 +70,12 @@ func HandleDataImportPreview(w http.ResponseWriter, r *http.Request) {
 
 	records, err := reader.ReadAll()
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, importPreviewResponse{Error: "فشل في تحليل الملف: " + err.Error()})
+		writeJSON(w, http.StatusBadRequest, importPreviewResponse{Error: resources.T(lang, "csv_import.parse_error") + ": " + err.Error()})
 		return
 	}
 
 	if len(records) < 2 {
-		writeJSON(w, http.StatusBadRequest, importPreviewResponse{Error: "الملف فارغ أو يحتوي على رأس فقط"})
+		writeJSON(w, http.StatusBadRequest, importPreviewResponse{Error: resources.T(lang, "csv_import.empty_file")})
 		return
 	}
 
@@ -95,10 +97,10 @@ func HandleDataImportPreview(w http.ResponseWriter, r *http.Request) {
 
 // importRequest is the JSON body sent by the client after column mapping.
 type importRequest struct {
-	Type    string            `json:"type"`    // "bills", "purchase_bills", "products"
-	StoreID int               `json:"store_id"`
-	Mapping map[string]int    `json:"mapping"` // field_name → column_index
-	Rows    [][]string        `json:"rows"`    // all data rows (excluding header)
+	Type    string         `json:"type"` // "bills", "purchase_bills", "products"
+	StoreID int            `json:"store_id"`
+	Mapping map[string]int `json:"mapping"` // field_name → column_index
+	Rows    [][]string     `json:"rows"`    // all data rows (excluding header)
 }
 
 // HandleDataImportExecute processes the mapped rows and submits them to the backend.
@@ -107,38 +109,39 @@ func HandleDataImportExecute(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	var req importRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, importResult{Error: "بيانات غير صالحة: " + err.Error()})
+		writeJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "auth.invalid_data") + ": " + err.Error()})
 		return
 	}
 
 	if req.StoreID == 0 {
-		writeJSON(w, http.StatusBadRequest, importResult{Error: "يرجى اختيار المخزن"})
+		writeJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "csv_import.select_store")})
 		return
 	}
 
 	if len(req.Rows) == 0 {
-		writeJSON(w, http.StatusBadRequest, importResult{Error: "لا توجد بيانات للاستيراد"})
+		writeJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "data_import.no_data")})
 		return
 	}
 
 	switch req.Type {
 	case "bills":
-		importBills(w, token, req)
+		importBills(w, token, req, lang)
 	case "purchase_bills":
-		importPurchaseBills(w, token, req)
+		importPurchaseBills(w, token, req, lang)
 	case "products":
-		importProducts(w, token, req)
+		importProducts(w, token, req, lang)
 	default:
-		writeJSON(w, http.StatusBadRequest, importResult{Error: "نوع الاستيراد غير معروف: " + req.Type})
+		writeJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "data_import.unknown_type") + ": " + req.Type})
 	}
 }
 
 // ── Bill import ─────────────────────────────────────────────────
 
-func importBills(w http.ResponseWriter, token string, req importRequest) {
+func importBills(w http.ResponseWriter, token string, req importRequest, lang string) {
 	var results []billResult
 	successCount := 0
 	failCount := 0
@@ -199,7 +202,7 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 		for _, r := range rows {
 			name := r.partName
 			if name == "" {
-				name = "بند"
+				name = resources.T(lang, "csv_import.default_item")
 			}
 			items = append(items, models.BillManualItem{
 				PartName: name,
@@ -264,7 +267,7 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 				continue
 			}
 			bp := buildBillPayload(grp)
-			ok, errMsg := submitBill(token, bp, i+1)
+			ok, errMsg := submitBill(token, bp, i+1, lang)
 			results = append(results, billResult{Row: i + 1, OK: ok, Error: errMsg})
 			if ok {
 				successCount++
@@ -282,7 +285,7 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 			}
 			rowNum++
 			bp := buildBillPayload([]billRow{br})
-			ok, errMsg := submitBill(token, bp, rowNum)
+			ok, errMsg := submitBill(token, bp, rowNum, lang)
 			results = append(results, billResult{Row: rowNum, OK: ok, Error: errMsg})
 			if ok {
 				successCount++
@@ -301,7 +304,7 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 	})
 }
 
-func submitBill(token string, bp models.BillPayload, num int) (bool, string) {
+func submitBill(token string, bp models.BillPayload, num int, lang string) (bool, string) {
 	jsonPayload, _ := json.Marshal(bp)
 	log.Printf("[DATA IMPORT] Bill %d payload: %s", num, string(jsonPayload))
 
@@ -310,21 +313,21 @@ func submitBill(token string, bp models.BillPayload, num int) (bool, string) {
 
 	resp, err := helpers.DoAuthedRequest(apiReq, token)
 	if err != nil {
-		return false, "خطأ في الاتصال: " + err.Error()
+		return false, resources.T(lang, "csv_import.connection_error") + ": " + err.Error()
 	}
 	respBody, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
 		log.Printf("[DATA IMPORT] Bill %d failed: %d body=[%s]", num, resp.StatusCode, string(respBody))
-		return false, fmt.Sprintf("خطأ %d: %s", resp.StatusCode, truncate(string(respBody), 120))
+		return false, fmt.Sprintf(resources.T(lang, "csv_import.error_code"), resp.StatusCode, truncate(string(respBody), 120))
 	}
 	return true, ""
 }
 
 // ── Purchase bill import ────────────────────────────────────────
 
-func importPurchaseBills(w http.ResponseWriter, token string, req importRequest) {
+func importPurchaseBills(w http.ResponseWriter, token string, req importRequest, lang string) {
 	var results []billResult
 	successCount := 0
 	failCount := 0
@@ -353,7 +356,7 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 		supplierID, _ := strconv.Atoi(supplierIDStr)
 
 		if partName == "" {
-			partName = "بند"
+			partName = resources.T(lang, "csv_import.default_item")
 		}
 
 		manualItem := models.BillManualItem{
@@ -403,7 +406,7 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 
 		resp, err := helpers.DoAuthedRequest(apiReq, token)
 		if err != nil {
-			results = append(results, billResult{Row: i + 1, OK: false, Error: "خطأ في الاتصال: " + err.Error()})
+			results = append(results, billResult{Row: i + 1, OK: false, Error: resources.T(lang, "csv_import.connection_error") + ": " + err.Error()})
 			failCount++
 			continue
 		}
@@ -412,7 +415,7 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 
 		if resp.StatusCode >= 300 {
 			log.Printf("[DATA IMPORT] PurchaseBill %d failed: %d body=[%s]", i+1, resp.StatusCode, string(respBody))
-			results = append(results, billResult{Row: i + 1, OK: false, Error: fmt.Sprintf("خطأ %d: %s", resp.StatusCode, truncate(string(respBody), 120))})
+			results = append(results, billResult{Row: i + 1, OK: false, Error: fmt.Sprintf(resources.T(lang, "csv_import.error_code"), resp.StatusCode, truncate(string(respBody), 120))})
 			failCount++
 		} else {
 			results = append(results, billResult{Row: i + 1, OK: true})
@@ -431,7 +434,7 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 
 // ── Product import ──────────────────────────────────────────────
 
-func importProducts(w http.ResponseWriter, token string, req importRequest) {
+func importProducts(w http.ResponseWriter, token string, req importRequest, lang string) {
 	// Collect all products then submit as one batch
 	type prodRow struct {
 		price       int
@@ -471,7 +474,7 @@ func importProducts(w http.ResponseWriter, token string, req importRequest) {
 	}
 
 	if len(products) == 0 {
-		writeJSON(w, http.StatusBadRequest, importResult{Error: "لا توجد منتجات صالحة للاستيراد"})
+		writeJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "data_import.no_valid_products")})
 		return
 	}
 
@@ -490,7 +493,7 @@ func importProducts(w http.ResponseWriter, token string, req importRequest) {
 	if err != nil {
 		writeJSON(w, http.StatusOK, importResult{
 			Total: len(products), Failed: len(products),
-			Results: []billResult{{Row: 1, OK: false, Error: "خطأ في الاتصال: " + err.Error()}},
+			Results: []billResult{{Row: 1, OK: false, Error: resources.T(lang, "csv_import.connection_error") + ": " + err.Error()}},
 		})
 		return
 	}
@@ -501,7 +504,7 @@ func importProducts(w http.ResponseWriter, token string, req importRequest) {
 		log.Printf("[DATA IMPORT] Products batch failed: %d body=[%s]", resp.StatusCode, string(respBody))
 		writeJSON(w, http.StatusOK, importResult{
 			Total: len(products), Failed: len(products),
-			Results: []billResult{{Row: 1, OK: false, Error: fmt.Sprintf("خطأ %d: %s", resp.StatusCode, truncate(string(respBody), 120))}},
+			Results: []billResult{{Row: 1, OK: false, Error: fmt.Sprintf(resources.T(lang, "csv_import.error_code"), resp.StatusCode, truncate(string(respBody), 120))}},
 		})
 		return
 	}

@@ -33,42 +33,42 @@
   // query-string key the backend will receive; "icon" is decorative.
   var FIELD_MENUS = {
     '/dashboard/invoices': [
-      { param: 'sequence_number', label: 'رقم الفاتورة', icon: '#', kind: 'digits' },
-      { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
-      { param: 'vin', label: 'رقم الهيكل', icon: '🚗', kind: 'alnum' },
+      { param: 'sequence_number', label: t('field_invoice_number'), icon: '#', kind: 'digits' },
+      { param: 'phone', label: t('field_phone'), icon: '☎', kind: 'digits' },
+      { param: 'vin', label: t('field_vin'), icon: '🚗', kind: 'alnum' },
     ],
     '/dashboard/purchase-bills': [
-      { param: 'sequence_number', label: 'رقم الفاتورة', icon: '#', kind: 'digits' },
-      { param: 'supplier_sequence_number', label: 'رقم فاتورة المورد', icon: '№', kind: 'alnum' },
+      { param: 'sequence_number', label: t('field_invoice_number'), icon: '#', kind: 'digits' },
+      { param: 'supplier_sequence_number', label: t('field_supplier_invoice_number'), icon: '№', kind: 'alnum' },
     ],
     '/dashboard/products': [
-      { param: 'part_number', label: 'رقم القطعة', icon: '⛓', kind: 'alnum' },
-      { param: 'barcode', label: 'الباركود', icon: '|||', kind: 'alnum' },
+      { param: 'part_number', label: t('field_part_number'), icon: '⛓', kind: 'alnum' },
+      { param: 'barcode', label: t('field_barcode'), icon: '|||', kind: 'alnum' },
     ],
     '/dashboard/clients': [
-      { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
-      { param: 'vat_number', label: 'الرقم الضريبي', icon: '%', kind: 'alnum' },
-      { param: 'commercial_registration', label: 'السجل التجاري', icon: '📄', kind: 'alnum' },
+      { param: 'phone', label: t('field_phone'), icon: '☎', kind: 'digits' },
+      { param: 'vat_number', label: t('field_vat_number'), icon: '%', kind: 'alnum' },
+      { param: 'commercial_registration', label: t('field_commercial_registration'), icon: '📄', kind: 'alnum' },
     ],
     '/dashboard/suppliers': [
-      { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
-      { param: 'vat_number', label: 'الرقم الضريبي', icon: '%', kind: 'alnum' },
-      { param: 'commercial_registration', label: 'السجل التجاري', icon: '📄', kind: 'alnum' },
+      { param: 'phone', label: t('field_phone'), icon: '☎', kind: 'digits' },
+      { param: 'vat_number', label: t('field_vat_number'), icon: '%', kind: 'alnum' },
+      { param: 'commercial_registration', label: t('field_commercial_registration'), icon: '📄', kind: 'alnum' },
     ],
     '/dashboard/orders': [
-      { param: 'sequence_number', label: 'رقم الطلب', icon: '#', kind: 'digits' },
-      { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
-      { param: 'vin', label: 'رقم الهيكل', icon: '🚗', kind: 'alnum' },
+      { param: 'sequence_number', label: t('field_order_number'), icon: '#', kind: 'digits' },
+      { param: 'phone', label: t('field_phone'), icon: '☎', kind: 'digits' },
+      { param: 'vin', label: t('field_vin'), icon: '🚗', kind: 'alnum' },
     ],
     '/dashboard/cash-vouchers': [
-      { param: 'sequence_number', label: 'رقم السند', icon: '#', kind: 'digits' },
+      { param: 'sequence_number', label: t('field_voucher_number'), icon: '#', kind: 'digits' },
     ],
     '/dashboard/branches': [
-      { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
+      { param: 'phone', label: t('field_phone'), icon: '☎', kind: 'digits' },
     ],
     '/dashboard/users': [
-      { param: 'email', label: 'البريد الإلكتروني', icon: '@', kind: 'email' },
-      { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
+      { param: 'email', label: t('field_email'), icon: '@', kind: 'email' },
+      { param: 'phone', label: t('field_phone'), icon: '☎', kind: 'digits' },
     ],
   };
 
@@ -194,7 +194,7 @@
       class: 'smart-chip',
       'data-name': select.name,
       title: label,
-      'aria-label': label + ' — ' + (window.__L_remove || 'إزالة')
+      'aria-label': label + ' — ' + t('remove')
     });
     chip.appendChild(document.createTextNode(label));
     var x = el('span', { class: 'smart-chip-x', html: ICON_X });
@@ -254,7 +254,7 @@
     var menu = fieldMenuFor(form);
     if (!menu.length) return null;
     var pop = el('div', { class: 'smart-filter-pop', role: 'menu' });
-    var head = el('div', { class: 'smart-recent-head', text: 'بحث في حقل محدد' });
+    var head = el('div', { class: 'smart-recent-head', text: t('search_specific_field') });
     pop.appendChild(head);
     menu.forEach(function (f) {
       // Skip if a chip for this field already exists
@@ -271,7 +271,7 @@
       pop.appendChild(item);
     });
     if (!pop.querySelector('.smart-filter-pop-item')) {
-      var none = el('div', { class: 'smart-filter-pop-empty', text: 'كل الحقول مضافة' });
+      var none = el('div', { class: 'smart-filter-pop-empty', text: t('all_fields_added') });
       pop.appendChild(none);
     }
     return pop;
@@ -295,7 +295,7 @@
     // Inline mini-prompt — replace the search input contents with a
     // placeholder hint and listen for every keystroke (live update).
     var prevPh = input.placeholder;
-    input.placeholder = fieldDef.label + ' — اكتب القيمة (البحث مباشر)';
+    input.placeholder = fieldDef.label + ' — ' + t('type_value_hint');
     input.value = '';
     input.focus();
     function onKey(e) {
@@ -374,7 +374,7 @@
     var items = loadRecent();
     panel.innerHTML = '';
     if (!items.length) { panel.style.display = 'none'; return; }
-    var head = el('div', { class: 'smart-recent-head', text: 'عمليات بحث سابقة' });
+    var head = el('div', { class: 'smart-recent-head', text: t('recent_searches') });
     panel.appendChild(head);
     items.forEach(function (term) {
       var b = el('button', { type: 'button', class: 'smart-recent-item', text: term });
@@ -415,8 +415,8 @@
     var clearBtn = el('button', {
       type: 'button',
       class: 'smart-search-clear',
-      'aria-label': 'مسح',
-      title: 'مسح',
+      'aria-label': t('clear'),
+      title: t('clear'),
       html: ICON_X
     });
     clearBtn.style.display = input.value ? '' : 'none';
@@ -434,10 +434,10 @@
       filterBtn = el('button', {
         type: 'button',
         class: 'smart-filter-btn',
-        'aria-label': 'إضافة فلتر',
-        title: 'بحث في حقل محدد',
+        'aria-label': t('add_filter_aria'),
+        title: t('search_specific_field'),
       });
-      filterBtn.appendChild(document.createTextNode('+ فلتر'));
+      filterBtn.appendChild(document.createTextNode(t('add_filter_button')));
       // Place AFTER the wrap inside the form so it sits beside the input
       wrap.parentNode.insertBefore(filterBtn, wrap.nextSibling);
 
@@ -496,7 +496,7 @@
         var btn = el('button', { type: 'button', class: 'smart-search-hint-btn' });
         // First pick on Tab; second pick on Shift+Tab (only when there are 2)
         var shortcut = (picks.length === 1 || idx === 0) ? 'Tab' : 'Shift+Tab';
-        btn.appendChild(document.createTextNode(shortcut + ' — بحث بـ ' + pickField.label + ': ' + v));
+        btn.appendChild(document.createTextNode(shortcut + ' — ' + t('search_by_hint') + ' ' + pickField.label + ': ' + v));
         btn.dataset.pickIdx = String(idx);
         btn.addEventListener('mousedown', function (e) {
           e.preventDefault();
@@ -535,7 +535,7 @@
     function applyInstant() {
       var stats = instantFilterRows(form, input.value);
       if (input.value) {
-        counter.textContent = stats.matched + ' من ' + stats.total;
+        counter.textContent = stats.matched + ' ' + t('count_of') + ' ' + stats.total;
         counter.style.display = '';
       } else {
         counter.textContent = '';

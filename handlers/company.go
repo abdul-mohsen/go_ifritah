@@ -9,6 +9,7 @@ import (
 
 	"afrita/config"
 	"afrita/helpers"
+	"afrita/resources"
 )
 
 // Company info handlers — proxy to backend `/api/v2/company`.
@@ -69,15 +70,15 @@ func writeCompanyErr(w http.ResponseWriter, status int, msg string) {
 // dispatchCompany performs the authed backend request and copies its
 // response back to the caller. It maps transport errors to the same
 // 401/502 envelopes used by every branch of the proxy handlers.
-func dispatchCompany(w http.ResponseWriter, sessionID string, backendReq *http.Request) (*http.Response, bool) {
+func dispatchCompany(w http.ResponseWriter, sessionID, lang string, backendReq *http.Request) (*http.Response, bool) {
 	backendReq.Header.Set(headerContentType, mimeJSON)
 	resp, err := helpers.DoAuthedRequestWithRetry(backendReq, sessionID)
 	if err != nil {
 		log.Printf("[COMPANY] %s error: %v", backendReq.Method, err)
 		if helpers.IsUnauthorizedError(err) {
-			writeCompanyErr(w, http.StatusUnauthorized, "انتهت الجلسة")
+			writeCompanyErr(w, http.StatusUnauthorized, resources.T(lang, "general.session_expired"))
 		} else {
-			writeCompanyErr(w, http.StatusBadGateway, "فشل الاتصال بالخادم")
+			writeCompanyErr(w, http.StatusBadGateway, resources.T(lang, "general.server_connection_error"))
 		}
 		return nil, false
 	}
@@ -86,9 +87,10 @@ func dispatchCompany(w http.ResponseWriter, sessionID string, backendReq *http.R
 
 // HandleGetCompany proxies GET /api/v2/company to the backend.
 func HandleGetCompany(w http.ResponseWriter, r *http.Request) {
+	lang := helpers.GetLang(r)
 	sessionID := helpers.GetSessionIDFromRequest(r)
 	if sessionID == "" {
-		writeCompanyErr(w, http.StatusUnauthorized, "غير مصرح - يرجى تسجيل الدخول")
+		writeCompanyErr(w, http.StatusUnauthorized, resources.T(lang, "auth.unauthorized_login"))
 		return
 	}
 
@@ -98,7 +100,7 @@ func HandleGetCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, ok := dispatchCompany(w, sessionID, backendReq)
+	resp, ok := dispatchCompany(w, sessionID, lang, backendReq)
 	if !ok {
 		return
 	}
@@ -126,9 +128,10 @@ func HandleGetCompany(w http.ResponseWriter, r *http.Request) {
 
 // HandleUpdateCompany proxies PUT /api/v2/company to the backend.
 func HandleUpdateCompany(w http.ResponseWriter, r *http.Request) {
+	lang := helpers.GetLang(r)
 	sessionID := helpers.GetSessionIDFromRequest(r)
 	if sessionID == "" {
-		writeCompanyErr(w, http.StatusUnauthorized, "غير مصرح - يرجى تسجيل الدخول")
+		writeCompanyErr(w, http.StatusUnauthorized, resources.T(lang, "auth.unauthorized_login"))
 		return
 	}
 
@@ -144,7 +147,7 @@ func HandleUpdateCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, ok := dispatchCompany(w, sessionID, backendReq)
+	resp, ok := dispatchCompany(w, sessionID, lang, backendReq)
 	if !ok {
 		return
 	}

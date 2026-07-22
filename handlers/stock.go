@@ -3,6 +3,7 @@ package handlers
 import (
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -16,6 +17,7 @@ func HandleStockAdjustments(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	products, _ := helpers.FetchProducts(token)
 	if products == nil {
@@ -28,7 +30,7 @@ func HandleStockAdjustments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "stock-adjustments", map[string]interface{}{
-		"title":    "تسوية المخزون",
+		"title":    resources.T(lang, "nav.stock_adjustments"),
 		"products": products,
 		"stores":   stores,
 	})
@@ -40,6 +42,7 @@ func HandleCreateStockAdjustment(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	_ = r.ParseForm()
 
@@ -51,24 +54,24 @@ func HandleCreateStockAdjustment(w http.ResponseWriter, r *http.Request) {
 
 	productID, err := strconv.Atoi(productIDStr)
 	if err != nil || productID <= 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "يرجى اختيار المنتج")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "stock.select_product"))
 		return
 	}
 
 	quantity, err := strconv.Atoi(quantityStr)
 	if err != nil || quantity == 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "الكمية غير صالحة")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "stock.invalid_quantity"))
 		return
 	}
 
 	storeID, err := strconv.Atoi(storeIDStr)
 	if err != nil || storeID <= 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "يرجى اختيار المخزن")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "product.select_store"))
 		return
 	}
 
 	if reason == "" {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "يرجى تحديد سبب التسوية")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "stock.reason_required"))
 		return
 	}
 
@@ -81,13 +84,13 @@ func HandleCreateStockAdjustment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := helpers.SubmitStockAdjustment(token, adj); err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "فشل في تسوية المخزون: "+err.Error())
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "stock.adjust_error_prefix")+err.Error())
 		return
 	}
 
 	// Invalidate product cache since quantities changed
 	helpers.APICache.Delete("products")
-	helpers.WriteSuccessRedirect(w, "/dashboard/stock/adjustments", "تم تسوية المخزون بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/stock/adjustments", resources.T(lang, "stock.adjust_success"))
 }
 
 // HandleProductStockMovements returns stock movements for a product (HTMX partial).
@@ -106,7 +109,7 @@ func HandleProductStockMovements(w http.ResponseWriter, r *http.Request) {
 		movements = []models.StockMovement{}
 	}
 
-	helpers.RenderPartial(w, "stock-movements", map[string]interface{}{
+	helpers.RenderPartial(w, r, "stock-movements", map[string]interface{}{
 		"movements": movements,
 	})
 }
@@ -117,12 +120,13 @@ func HandleStockCheck(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	var items []models.StockCheckItem
 	if err := json.NewDecoder(r.Body).Decode(&items); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "بيانات غير صالحة"})
+		json.NewEncoder(w).Encode(map[string]string{"error": resources.T(lang, "auth.invalid_data")})
 		return
 	}
 

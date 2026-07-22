@@ -1,6 +1,6 @@
 {{ define "base.html" }}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ .lang }}" dir="{{ .dir }}">
 
 <head>
     <meta charset="UTF-8">
@@ -20,6 +20,16 @@
         // page reload (FOUC). The class is removed at the end of the body-bottom
         // restore script via two requestAnimationFrame calls (one full paint).
         document.documentElement.classList.add('preload-no-anim');
+        // Client-side label set (resources.JSLabels) for static/js/*.js AND any
+        // inline <script> in a page's "content" block. Set here, before <body>,
+        // so it is available even to scripts that run at parse time (e.g. a
+        // page building a status map on load) rather than only on user
+        // interaction — see static/js/script.js's "t(key)" helper.
+        window.I18N = {{ jsI18N | json }};
+        // Single shared accessor for window.I18N, defined once here (rather
+        // than duplicated per script) so both bundled JS files and inline
+        // page scripts can call t("key") consistently.
+        window.t = function (key) { return (window.I18N && window.I18N[key]) || key; };
     </script>
     <style>
         html.preload-no-anim *,
@@ -96,7 +106,7 @@
                         stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                         <path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v6H4zM14 15h6v6h-6z" />
                     </svg>
-                    <span class="sidebar-label" data-i18n="nav.dashboard">{{ L "nav.dashboard" }}</span>
+                    <span class="sidebar-label">{{ L "nav.dashboard" }}</span>
                 </a>
                 <!-- Section: الفواتير -->
                 <div class="sidebar-section mt-1.5" data-section="invoices">
@@ -116,35 +126,35 @@
                                 <path
                                     d="M7 2h7l4 4v14a1 1 0 01-1 1H7a1 1 0 01-1-1V3a1 1 0 011-1zm7 0v4h4M9 13h6m-6 3h4" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.invoices">{{ L "nav.invoices" }}</span>
+                            <span class="sidebar-label">{{ L "nav.invoices" }}</span>
                         </a>
                         <a href="/dashboard/purchase-bills" data-rbac="purchase_bills:view" class="nav-link">
                             <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
                                 fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                 <path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2zM9 7h6m-6 4h6" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.purchase_bills">{{ L "nav.purchase_bills" }}</span>
+                            <span class="sidebar-label">{{ L "nav.purchase_bills" }}</span>
                         </a>
                         <a href="/dashboard/cash-vouchers" data-rbac="cash_vouchers:view" class="nav-link">
                             <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
                                 fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.cash_vouchers">{{ L "nav.cash_vouchers" }}</span>
+                            <span class="sidebar-label">{{ L "nav.cash_vouchers" }}</span>
                         </a>
                         <a href="/dashboard/products" data-rbac="products:view" class="nav-link">
                             <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
                                 fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                 <path d="M12 3L3 8v8l9 5 9-5V8l-9-5zM3 8l9 5 9-5M12 13v8" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.products">{{ L "nav.products" }}</span>
+                            <span class="sidebar-label">{{ L "nav.products" }}</span>
                         </a>
                         <a href="/dashboard/stock/adjustments" data-rbac="products:edit" class="nav-link">
                             <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
                                 fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.stock_adjustments">{{ L "nav.stock_adjustments" }}</span>
+                            <span class="sidebar-label">{{ L "nav.stock_adjustments" }}</span>
                         </a>
                     </div>
                 </div>
@@ -165,7 +175,7 @@
                                 fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                 <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.parts_search">{{ L "nav.parts_search" }}</span>
+                            <span class="sidebar-label">{{ L "nav.parts_search" }}</span>
                         </a>
                         <a href="/dashboard/cars" data-rbac="products:view" class="nav-link">
                             <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
@@ -173,7 +183,7 @@
                                 <path
                                     d="M5 17a2 2 0 104 0 2 2 0 00-4 0zm10 0a2 2 0 104 0 2 2 0 00-4 0zM3 11l2-5h14l2 5M3 11h18v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4z" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.cars_search">{{ L "nav.cars_search" }}</span>
+                            <span class="sidebar-label">{{ L "nav.cars_search" }}</span>
                         </a>
                     </div>
                 </div>
@@ -195,7 +205,7 @@
                                 <path
                                     d="M13 16V4H3v12h10zm0 0h6v-4l-3-3h-3M7 16.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm9 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.suppliers">{{ L "nav.suppliers" }}</span>
+                            <span class="sidebar-label">{{ L "nav.suppliers" }}</span>
                         </a>
                         <a href="/dashboard/clients" data-rbac="clients:view" class="nav-link">
                             <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
@@ -203,7 +213,7 @@
                                 <path
                                     d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m8-10a4 4 0 100-8 4 4 0 000 8zm10 10v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.clients">{{ L "nav.clients" }}</span>
+                            <span class="sidebar-label">{{ L "nav.clients" }}</span>
                         </a>
                         <a href="/dashboard/orders" data-rbac="orders:view" class="nav-link">
                             <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
@@ -211,7 +221,7 @@
                                 <path
                                     d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9h4m-4 4h6" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.orders">{{ L "nav.orders" }}</span>
+                            <span class="sidebar-label">{{ L "nav.orders" }}</span>
                         </a>
                     </div>
                 </div>
@@ -233,7 +243,7 @@
                                 <path
                                     d="M3 3h18l-2 9H5L3 3zm5 14a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm8 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.stores">{{ L "nav.stores" }}</span>
+                            <span class="sidebar-label">{{ L "nav.stores" }}</span>
                         </a>
                         <a href="/dashboard/branches" data-rbac="branches:view" class="nav-link">
                             <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
@@ -241,7 +251,7 @@
                                 <path
                                     d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0h2M5 21H3m4-14h2m-2 4h2m4-4h2m-2 4h2m-5 8v-4h4v4" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.branches">{{ L "nav.branches" }}</span>
+                            <span class="sidebar-label">{{ L "nav.branches" }}</span>
                         </a>
                     </div>
                 </div>
@@ -263,7 +273,7 @@
                                 <path
                                     d="M12 6V4m0 16v-2m8-6h-2M6 12H4m14.83-4.83l-1.42 1.42M6.59 17.41l-1.42 1.42m11.66 0l-1.42-1.42M6.59 6.59L5.17 5.17M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
-                            <span class="sidebar-label" data-i18n="nav.settings">{{ L "nav.settings" }}</span>
+                            <span class="sidebar-label">{{ L "nav.settings" }}</span>
                         </a>
                     </div>
                 </div>
@@ -275,7 +285,7 @@
                             <path
                                 d="M17 16l4-4-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
-                        <span class="sidebar-label" data-i18n="nav.logout">{{ L "nav.logout" }}</span>
+                        <span class="sidebar-label">{{ L "nav.logout" }}</span>
                     </a>
                 </div>
             </nav>
@@ -286,14 +296,14 @@
                     class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-full text-xs transition"
                     style="color: var(--md-sys-color-on-surface-variant)">
                     <span id="dark-icon" class="text-sm shrink-0">🌙</span>
-                    <span id="dark-label" class="sidebar-label" data-i18n="settings.dark_mode">{{ L "layout.dark_mode" }}</span>
+                    <span id="dark-label" class="sidebar-label">{{ L "layout.dark_mode" }}</span>
                 </button>
-                <button id="lang-toggle" onclick="toggleLang()"
+                <a id="lang-toggle" href="{{ .lang_toggle_url }}"
                     class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-full text-xs transition"
-                    style="color: var(--md-sys-color-on-surface-variant)">
+                    style="color: var(--md-sys-color-on-surface-variant); text-decoration: none">
                     <span class="text-sm shrink-0">🌐</span>
-                    <span id="lang-label" class="sidebar-label">English</span>
-                </button>
+                    <span id="lang-label" class="sidebar-label">{{ if eq .lang "en" }}العربية{{ else }}English{{ end }}</span>
+                </a>
             </div>
         </aside>
 
@@ -527,7 +537,6 @@
         })();
     </script>
     <script src="/static/js/darkmode.js"></script>
-    <script src="/static/js/i18n.js"></script>
     <script src="/static/js/notifications.js" defer></script>
     <script src="/static/js/script.js" defer></script>
     <script src="/static/js/smart-search.js" defer></script>

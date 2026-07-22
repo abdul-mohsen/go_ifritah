@@ -11,7 +11,7 @@
 
     window.showToast = function (message, type) {
         type = type || 'error';
-        if (!message) message = 'حدث خطأ، يرجى المحاولة مرة أخرى';
+        if (!message) message = t('generic_error');
 
         let now = Date.now();
         if (message === lastToast.message && type === lastToast.type && now - lastToast.at < 750) return;
@@ -98,7 +98,7 @@
                 // Error response — close pre-opened window and show toast
                 if (win) { try { win.close(); } catch (e) { } }
                 return resp.text().then(function (text) {
-                    let msg = 'تعذر تحميل ملف PDF، يرجى المحاولة لاحقاً';
+                    let msg = t('pdf_load_failed');
                     try {
                         let json = JSON.parse(text);
                         if (json.message) msg = json.message;
@@ -108,7 +108,7 @@
             })
             .catch(function () {
                 if (win) { try { win.close(); } catch (e) { } }
-                window.showToast('تعذر الاتصال بالخادم، يرجى المحاولة لاحقاً', 'error');
+                window.showToast(t('server_unreachable'), 'error');
             });
     }
 
@@ -203,7 +203,7 @@ document.addEventListener("htmx:confirm", function (evt) {
     let verb = evt.detail.requestConfig ? evt.detail.requestConfig.verb : '';
     let path = evt.detail.path || '';
     if (verb === 'delete' || path.indexOf('/delete') !== -1) {
-        if (!confirm("هل أنت متأكد من الحذف؟")) {
+        if (!confirm(t('confirm_delete'))) {
             evt.preventDefault();
         }
     }
@@ -235,18 +235,18 @@ document.addEventListener("htmx:beforeSwap", function (evt) {
         // Provide meaningful fallback based on status code
         if (!msg) {
             let statusMessages = {
-                400: 'البيانات المرسلة غير صحيحة',
-                401: 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً',
-                403: 'ليس لديك صلاحية لتنفيذ هذا الإجراء',
-                404: 'العنصر المطلوب غير موجود',
-                409: 'يوجد تعارض في البيانات، يرجى المحاولة مجدداً',
-                422: 'البيانات المرسلة غير مكتملة',
-                429: 'طلبات كثيرة جداً، يرجى الانتظار قليلاً',
-                500: 'حدث خطأ في الخادم، يرجى المحاولة لاحقاً',
-                502: 'الخادم غير متاح حالياً',
-                503: 'الخدمة غير متاحة مؤقتاً، يرجى المحاولة لاحقاً'
+                400: t('http_400'),
+                401: t('http_401'),
+                403: t('http_403'),
+                404: t('http_404'),
+                409: t('http_409'),
+                422: t('http_422'),
+                429: t('http_429'),
+                500: t('http_500'),
+                502: t('http_502'),
+                503: t('http_503')
             };
-            msg = statusMessages[xhr.status] || 'حدث خطأ، يرجى المحاولة مرة أخرى';
+            msg = statusMessages[xhr.status] || t('generic_error');
         }
 
         window.showToast(msg, 'error');
@@ -261,13 +261,13 @@ document.addEventListener("htmx:beforeSwap", function (evt) {
 // Handle network errors (backend unreachable)
 document.addEventListener("htmx:responseError", function () {
     if (window.__hideLoading) window.__hideLoading();
-    window.showToast('تعذر الاتصال بالخادم، يرجى التحقق من الاتصال والمحاولة لاحقاً', 'error');
+    window.showToast(t('network_check_error'), 'error');
 });
 
 // Handle request send failures (timeout, connection refused)
 document.addEventListener("htmx:sendError", function () {
     if (window.__hideLoading) window.__hideLoading();
-    window.showToast('فشل إرسال الطلب، يرجى التحقق من اتصالك بالإنترنت', 'error');
+    window.showToast(t('request_failed'), 'error');
 });
 
 // Listen for HX-Trigger showToast events (sent by backend)
@@ -405,7 +405,7 @@ document.addEventListener("htmx:afterSwap", function (evt) {
         let verb = (evt.detail.requestConfig && evt.detail.requestConfig.verb) || '';
         if (xhr && xhr.status >= 200 && xhr.status < 300 &&
             (verb === 'delete' || path.indexOf('/delete') !== -1)) {
-            window.showToast('تم الحذف بنجاح', 'success');
+            window.showToast(t('delete_success'), 'success');
         }
     });
 })();

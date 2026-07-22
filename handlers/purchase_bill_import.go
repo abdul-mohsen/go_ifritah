@@ -13,6 +13,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"afrita/helpers"
+	"afrita/resources"
 )
 
 type ImportedItem struct {
@@ -30,18 +33,28 @@ type ImportedItem struct {
 	ProductID *int `json:"productId,omitempty"`
 }
 
-var purchaseBillImportTemplateHeader = []string{
-	"اسم القطعة", "الكمية", "سعر الشراء", "سعر التكلفة", "رقم الرف", "معرف المنتج (اختياري)",
-}
-
 const contentTypeHeader = "Content-Type"
+
+var purchaseBillImportTemplateHeader = purchaseBillImportTemplateHeaderForLang(resources.LangAr)
+
+func purchaseBillImportTemplateHeaderForLang(lang string) []string {
+	return []string{
+		resources.T(lang, "csv_header.part_name"),
+		resources.T(lang, "csv_header.quantity"),
+		resources.T(lang, "tpl.pb.purchase_price"),
+		resources.T(lang, "product.label.cost_price"),
+		resources.T(lang, "product.label.shelf_number"),
+		resources.T(lang, "product.label.product_id_optional"),
+	}
+}
 
 // HandleDownloadPurchaseBillTemplate generates the purchase-bill CSV import template.
 func HandleDownloadPurchaseBillTemplate(w http.ResponseWriter, r *http.Request) {
+	lang := helpers.GetLang(r)
 	w.Header().Set("Content-Disposition", "attachment; filename=purchase-bill-template.csv")
 	w.Header().Set(contentTypeHeader, "text/csv; charset=utf-8")
 
-	if _, err := w.Write(buildPurchaseBillImportCSVTemplate()); err != nil {
+	if _, err := w.Write(buildPurchaseBillImportCSVTemplate(lang)); err != nil {
 		http.Error(w, "failed to write template", http.StatusInternalServerError)
 		return
 	}
@@ -49,9 +62,10 @@ func HandleDownloadPurchaseBillTemplate(w http.ResponseWriter, r *http.Request) 
 
 // HandleDownloadPurchaseBillExcelTemplate keeps the Excel template endpoint working.
 func HandleDownloadPurchaseBillExcelTemplate(w http.ResponseWriter, r *http.Request) {
+	lang := helpers.GetLang(r)
 	workbook, err := buildPurchaseBillImportWorkbook([][]string{
-		purchaseBillImportTemplateHeader,
-		{"مثال", "10", "100.00", "90.00", "A1", ""},
+		purchaseBillImportTemplateHeaderForLang(lang),
+		{resources.T(lang, "purchase_bill_import.example"), "10", "100.00", "90.00", "A1", ""},
 	})
 	if err != nil {
 		http.Error(w, "failed to create template", http.StatusInternalServerError)
@@ -251,13 +265,13 @@ func writeImportError(w http.ResponseWriter, status int, message string) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
-func buildPurchaseBillImportCSVTemplate() []byte {
+func buildPurchaseBillImportCSVTemplate(lang string) []byte {
 	var buffer bytes.Buffer
 	buffer.Write([]byte{0xEF, 0xBB, 0xBF})
 	writer := csv.NewWriter(&buffer)
 	writer.UseCRLF = true
-	_ = writer.Write(purchaseBillImportTemplateHeader)
-	_ = writer.Write([]string{"مثال", "10", "100.00", "90.00", "A1", ""})
+	_ = writer.Write(purchaseBillImportTemplateHeaderForLang(lang))
+	_ = writer.Write([]string{resources.T(lang, "purchase_bill_import.example"), "10", "100.00", "90.00", "A1", ""})
 	writer.Flush()
 	return buffer.Bytes()
 }

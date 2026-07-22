@@ -66,13 +66,13 @@
         {{ end }}
         {{ if .supplier.CreatedAt }}
         <div class="detail-field">
-            <span class="detail-label">تاريخ الإنشاء</span>
+            <span class="detail-label">{{ L "tpl.detail.created_at" }}</span>
             <span class="detail-value">{{ .supplier.CreatedAt }}</span>
         </div>
         {{ end }}
         {{ if .supplier.UpdatedAt }}
         <div class="detail-field">
-            <span class="detail-label">تاريخ التحديث</span>
+            <span class="detail-label">{{ L "tpl.detail.updated_at" }}</span>
             <span class="detail-value">{{ .supplier.UpdatedAt }}</span>
         </div>
         {{ end }}

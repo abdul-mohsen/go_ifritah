@@ -5,26 +5,30 @@ import (
 	"net/http"
 
 	"afrita/config"
+	"afrita/helpers"
+	"afrita/resources"
 )
 
 // HandleNotFound serves a styled 404 error page.
 func HandleNotFound(w http.ResponseWriter, r *http.Request) {
-	renderErrorPage(w, http.StatusNotFound, "404", "الصفحة غير موجودة",
-		"عذراً، الصفحة التي تبحث عنها غير موجودة أو تم نقلها.")
+	lang := helpers.GetLang(r)
+	renderErrorPage(w, r, http.StatusNotFound, "404", resources.T(lang, "error.404_title"),
+		resources.T(lang, "error.404_message"))
 }
 
 // HandleMethodNotAllowed serves a styled 405 error page.
 func HandleMethodNotAllowed(w http.ResponseWriter, r *http.Request) {
-	renderErrorPage(w, http.StatusMethodNotAllowed, "405", "طريقة غير مسموحة",
-		"طريقة الطلب المستخدمة غير مسموحة لهذا المورد.")
+	lang := helpers.GetLang(r)
+	renderErrorPage(w, r, http.StatusMethodNotAllowed, "405", resources.T(lang, "error.405_title"),
+		resources.T(lang, "error.405_message"))
 }
 
 // RenderErrorPage renders a generic error page with custom code/title/message.
-func RenderErrorPage(w http.ResponseWriter, code string, statusCode int, title, message string) {
-	renderErrorPage(w, statusCode, code, title, message)
+func RenderErrorPage(w http.ResponseWriter, r *http.Request, code string, statusCode int, title, message string) {
+	renderErrorPage(w, r, statusCode, code, title, message)
 }
 
-func renderErrorPage(w http.ResponseWriter, statusCode int, code, title, message string) {
+func renderErrorPage(w http.ResponseWriter, r *http.Request, statusCode int, code, title, message string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(statusCode)
 
@@ -41,5 +45,6 @@ func renderErrorPage(w http.ResponseWriter, statusCode int, code, title, message
 		"message": message,
 		"version": config.AppVersion,
 	}
+	tmpl, data = helpers.BindLangData(tmpl, r, data)
 	_ = tmpl.ExecuteTemplate(w, "error-page", data)
 }

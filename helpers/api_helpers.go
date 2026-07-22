@@ -3,6 +3,7 @@ package helpers
 import (
 	"afrita/config"
 	"afrita/models"
+	"afrita/resources"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
@@ -2408,6 +2409,23 @@ func GetUserRole(r *http.Request) string {
 		return r
 	}
 	return "admin"
+}
+
+// LangCookieName is the cookie that stores the user's preferred UI language
+// ("ar" or "en"). Set by the GET /set-language route and read by GetLang;
+// this is the single source of truth for request language everywhere in the
+// app (Go handler code and the "L" template function alike).
+const LangCookieName = "afrita_lang"
+
+// GetLang returns the preferred UI language for the request. Defaults to
+// Arabic (resources.LangAr) when the LangCookieName cookie is absent or
+// holds any value other than resources.LangEn — the app is Arabic-first.
+func GetLang(r *http.Request) string {
+	cookie, err := r.Cookie(LangCookieName)
+	if err != nil || cookie.Value != resources.LangEn {
+		return resources.LangAr
+	}
+	return resources.LangEn
 }
 
 // DecodeJWTRole extracts the "role" claim from a JWT without verifying its

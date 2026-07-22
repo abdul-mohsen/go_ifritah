@@ -11,6 +11,7 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -21,6 +22,7 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	query := r.URL.Query().Get("q")
 	typed := helpers.TypedListFilters("clients", r.URL.Query())
@@ -39,7 +41,7 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("[clients] backend list fetch failed: %v", err)
 		clients = []models.Client{}
-		backendErr = "تعذر تحميل العملاء من الخادم حالياً"
+		backendErr = resources.T(lang, "client.load_error_currently")
 	}
 
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
@@ -55,7 +57,7 @@ func HandleClients(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "clients", map[string]interface{}{
-		"title":      "العملاء",
+		"title":      resources.T(lang, "client.list_title"),
 		"clients":    pagedClients,
 		"query":      query,
 		"pagination": pagination,
@@ -70,9 +72,10 @@ func HandleAddClient(w http.ResponseWriter, r *http.Request) {
 	if _, ok := helpers.GetTokenOrRedirect(w, r); !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 	helpers.Render(w, r, "add-client", map[string]interface{}{
-		"title":   "إضافة عميل",
-		"regions": saudiRegions,
+		"title":   resources.T(lang, "client.add_title"),
+		"regions": localizedSaudiRegions(lang),
 	})
 }
 
@@ -100,7 +103,8 @@ func composeClientAddress(r *http.Request) string {
 		parts = append(parts, v)
 	}
 	if len(parts) > 0 {
-		return strings.Join(parts, "، ")
+		lang := helpers.GetLang(r)
+		return strings.Join(parts, resources.T(lang, "ui.list_separator"))
 	}
 	return strings.TrimSpace(r.FormValue("address"))
 }
@@ -147,14 +151,15 @@ func HandleClientDetail(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	client, err := helpers.FetchClientByID(token, id)
 	if err != nil {
-		client = models.Client{ID: id, Name: "عميل #" + id}
+		client = models.Client{ID: id, Name: resources.T(lang, "client.fallback_name") + id}
 	}
 
 	helpers.Render(w, r, "client-detail", map[string]interface{}{
-		"title":  "تفاصيل العميل",
+		"title":  resources.T(lang, "client.detail_title"),
 		"client": client,
 	})
 }
@@ -168,6 +173,7 @@ func HandleEditClient(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	client, err := helpers.FetchClientByID(token, id)
 	if err != nil {
@@ -175,9 +181,9 @@ func HandleEditClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "edit-client", map[string]interface{}{
-		"title":   "تعديل العميل",
+		"title":   resources.T(lang, "client.edit_title"),
 		"client":  client,
-		"regions": saudiRegions,
+		"regions": localizedSaudiRegions(lang),
 	})
 }
 
@@ -188,23 +194,24 @@ func HandleCreateClient(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Server-side validation
 	errs := helpers.Validate([]helpers.FieldRule{
-		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: "اسم العميل"},
-		{Field: "company_name", Value: r.FormValue("company_name"), Required: true, MinLen: 2, MaxLen: 200, Label: "اسم الشركة"},
-		{Field: "email", Value: r.FormValue("email"), Required: true, MaxLen: 254, Email: true, Label: "البريد الإلكتروني"},
-		{Field: "phone", Value: r.FormValue("phone"), Required: true, Pattern: helpers.PatternSaudiPhone, Label: "الهاتف", PatternMsg: "رقم جوال سعودي يبدأ بـ 05 ويتكون من 10 أرقام"},
-		{Field: "vat_number", Value: r.FormValue("vat_number"), Required: true, Pattern: helpers.PatternVATNumber, Label: "الرقم الضريبي", PatternMsg: "الرقم الضريبي يتكون من 15 رقم"},
-		{Field: "bank_account", Value: r.FormValue("bank_account"), MaxLen: 30, Label: "الحساب البنكي"},
+		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: resources.T(lang, "client.label.name")},
+		{Field: "company_name", Value: r.FormValue("company_name"), Required: true, MinLen: 2, MaxLen: 200, Label: resources.T(lang, "client.label.company")},
+		{Field: "email", Value: r.FormValue("email"), Required: true, MaxLen: 254, Email: true, Label: resources.T(lang, "client.label.email")},
+		{Field: "phone", Value: r.FormValue("phone"), Required: true, Pattern: helpers.PatternSaudiPhone, Label: resources.T(lang, "client.label.phone"), PatternMsg: resources.T(lang, "validation.saudi_phone_detailed")},
+		{Field: "vat_number", Value: r.FormValue("vat_number"), Required: true, Pattern: helpers.PatternVATNumber, Label: resources.T(lang, "client.label.vat"), PatternMsg: resources.T(lang, "validation.vat_number")},
+		{Field: "bank_account", Value: r.FormValue("bank_account"), MaxLen: 30, Label: resources.T(lang, "supplier.label.bank_account")},
 	})
 	if errs != nil {
 		oldValues := helpers.OldValues([]string{"name", "number", "company_name", "email", "phone", "address", "short_address", "vat_number", "commercial_registration", "bank_account",
 			"building_number", "street_name", "district", "city", "region", "postal_code", "additional_number", "unit_number", "country",
 			"preferred_payment_method", "credit_limit", "payment_terms_days"}, r.FormValue)
 		data := helpers.RenderFormWithErrors(map[string]interface{}{
-			"title":   "إضافة عميل",
-			"regions": saudiRegions,
+			"title":   resources.T(lang, "client.add_title"),
+			"regions": localizedSaudiRegions(lang),
 		}, errs, oldValues)
 		helpers.Render(w, r, "add-client", data)
 		return
@@ -223,15 +230,15 @@ func HandleCreateClient(w http.ResponseWriter, r *http.Request) {
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		if resp.StatusCode == http.StatusBadRequest {
-			helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "هذا العميل موجود بالفعل أو البيانات غير صحيحة")
+			helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "client.duplicate_or_invalid"))
 			return
 		}
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "حدث خطأ في إنشاء العميل")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "client.create_error"))
 		return
 	}
 
 	helpers.APICache.Delete("clients")
-	helpers.WriteSuccessRedirect(w, "/dashboard/clients", "تم إنشاء العميل بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/clients", resources.T(lang, "client.create_success"))
 }
 
 // HandleUpdateClient updates an existing client
@@ -243,23 +250,24 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Server-side validation
 	errs := helpers.Validate([]helpers.FieldRule{
-		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: "اسم العميل"},
-		{Field: "company_name", Value: r.FormValue("company_name"), Required: true, MinLen: 2, MaxLen: 200, Label: "اسم الشركة"},
-		{Field: "phone", Value: r.FormValue("phone"), Required: true, Pattern: helpers.PatternSaudiPhone, Label: "رقم الهاتف", PatternMsg: "رقم جوال سعودي يبدأ بـ 05 ويتكون من 10 أرقام"},
-		{Field: "email", Value: r.FormValue("email"), Required: true, MaxLen: 254, Email: true, Label: "البريد الإلكتروني"},
-		{Field: "vat_number", Value: r.FormValue("vat_number"), Required: true, Pattern: helpers.PatternVATNumber, Label: "الرقم الضريبي", PatternMsg: "الرقم الضريبي يتكون من 15 رقم"},
-		{Field: "bank_account", Value: r.FormValue("bank_account"), MaxLen: 30, Label: "الحساب البنكي"},
+		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: resources.T(lang, "client.label.name")},
+		{Field: "company_name", Value: r.FormValue("company_name"), Required: true, MinLen: 2, MaxLen: 200, Label: resources.T(lang, "client.label.company")},
+		{Field: "phone", Value: r.FormValue("phone"), Required: true, Pattern: helpers.PatternSaudiPhone, Label: resources.T(lang, "client.label.phone_number"), PatternMsg: resources.T(lang, "validation.saudi_phone_detailed")},
+		{Field: "email", Value: r.FormValue("email"), Required: true, MaxLen: 254, Email: true, Label: resources.T(lang, "client.label.email")},
+		{Field: "vat_number", Value: r.FormValue("vat_number"), Required: true, Pattern: helpers.PatternVATNumber, Label: resources.T(lang, "client.label.vat"), PatternMsg: resources.T(lang, "validation.vat_number")},
+		{Field: "bank_account", Value: r.FormValue("bank_account"), MaxLen: 30, Label: resources.T(lang, "supplier.label.bank_account")},
 	})
 	if errs != nil {
 		oldValues := helpers.OldValues([]string{"name", "number", "company_name", "phone", "address", "short_address", "email", "vat_number", "commercial_registration", "bank_account",
 			"building_number", "street_name", "district", "city", "region", "postal_code", "additional_number", "unit_number", "country",
 			"preferred_payment_method", "credit_limit", "payment_terms_days"}, r.FormValue)
 		data := helpers.RenderFormWithErrors(map[string]interface{}{
-			"title":   "تعديل العميل",
-			"regions": saudiRegions,
+			"title":   resources.T(lang, "client.edit_title"),
+			"regions": localizedSaudiRegions(lang),
 			"client": models.Client{
 				ID: id,
 			},
@@ -280,12 +288,12 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "حدث خطأ في تحديث العميل")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "client.update_error"))
 		return
 	}
 
 	helpers.APICache.Delete("clients")
-	helpers.WriteSuccessRedirect(w, "/dashboard/clients", "تم تحديث العميل بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/clients", resources.T(lang, "client.update_success"))
 }
 
 // HandleDeleteClient deletes a client
@@ -296,6 +304,7 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	req, _ := http.NewRequest("DELETE", config.BackendDomain+"/api/v2/client/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
@@ -306,10 +315,10 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في حذف العميل")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "client.delete_error"))
 		return
 	}
 
 	helpers.APICache.Delete("clients")
-	helpers.WriteSuccessRedirect(w, "/dashboard/clients", "تم حذف العميل بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/clients", resources.T(lang, "client.delete_success"))
 }

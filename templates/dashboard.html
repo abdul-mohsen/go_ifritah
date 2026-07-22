@@ -8,7 +8,7 @@
     </svg>
     <div>
         <p class="font-semibold mb-1">{{ L "dashboard.warning_title" }}</p>
-        <p class="text-sm opacity-80">{{ L "dashboard.warning_sections" }} {{ range $i, $w := .dashboard_warnings }}{{ if $i }}، {{ end
+        <p class="text-sm opacity-80">{{ L "dashboard.warning_sections" }} {{ range $i, $w := .dashboard_warnings }}{{ if $i }}{{ L "ui.list_separator" }}{{ end
             }}{{ $w }}{{ end }}</p>
         <p class="text-sm opacity-60 mt-1">{{ L "dashboard.warning_retry" }}</p>
     </div>

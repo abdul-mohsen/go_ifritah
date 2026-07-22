@@ -16,6 +16,7 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 )
 
 // HandleImportBillsPage displays the CSV import form.
@@ -24,6 +25,7 @@ func HandleImportBillsPage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	stores, _ := helpers.FetchStores(token)
 	if stores == nil {
@@ -31,7 +33,7 @@ func HandleImportBillsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "import-bills", map[string]interface{}{
-		"title":  "استيراد فواتير من CSV",
+		"title":  resources.T(lang, "csv_import.title"),
 		"stores": stores,
 	})
 }
@@ -42,30 +44,31 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Parse multipart form (max 10 MB)
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "فشل في قراءة الملف: " + err.Error()})
+		writeImportJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "csv_import.file_read_error") + ": " + err.Error()})
 		return
 	}
 
 	file, _, err := r.FormFile("csv_file")
 	if err != nil {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "يرجى اختيار ملف CSV"})
+		writeImportJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "csv_import.select_csv")})
 		return
 	}
 	defer file.Close()
 
 	defaultStoreID := helpers.ParseIntValue(r.FormValue("store_id"))
 	if defaultStoreID == 0 {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "يرجى اختيار المخزن"})
+		writeImportJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "csv_import.select_store")})
 		return
 	}
 
 	// Read CSV with flexible detection
 	rawBytes, err := io.ReadAll(file)
 	if err != nil {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "فشل في قراءة الملف"})
+		writeImportJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "csv_import.file_read_error")})
 		return
 	}
 
@@ -84,12 +87,12 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 
 	records, err := reader.ReadAll()
 	if err != nil {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "فشل في تحليل CSV: " + err.Error()})
+		writeImportJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "csv_import.parse_error") + ": " + err.Error()})
 		return
 	}
 
 	if len(records) < 2 {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "الملف فارغ أو يحتوي على رأس فقط"})
+		writeImportJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "csv_import.empty_file")})
 		return
 	}
 
@@ -99,16 +102,16 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 
 	if colMap.partName < 0 && colMap.price < 0 {
 		writeImportJSON(w, http.StatusBadRequest, importResult{
-			Error: "لم يتم العثور على أعمدة مطلوبة. يجب أن يحتوي الملف على عمود اسم القطعة أو السعر على الأقل. الأعمدة المكتشفة: " + strings.Join(header, ", "),
+			Error: resources.T(lang, "csv_import.missing_columns") + ". " + resources.T(lang, "csv_import.columns_hint") + strings.Join(header, ", "),
 		})
 		return
 	}
 
 	// Parse rows into bill groups
-	bills := parseBillRows(records[1:], colMap, defaultStoreID)
+	bills := parseBillRows(records[1:], colMap, defaultStoreID, lang)
 
 	if len(bills) == 0 {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "لم يتم العثور على بيانات صالحة في الملف"})
+		writeImportJSON(w, http.StatusBadRequest, importResult{Error: resources.T(lang, "csv_import.no_valid_data")})
 		return
 	}
 
@@ -132,7 +135,7 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 			results = append(results, billResult{
 				Row:   i + 1,
 				OK:    false,
-				Error: "خطأ في الاتصال: " + err.Error(),
+				Error: resources.T(lang, "csv_import.connection_error") + ": " + err.Error(),
 			})
 			failCount++
 			continue
@@ -146,7 +149,7 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 			results = append(results, billResult{
 				Row:   i + 1,
 				OK:    false,
-				Error: fmt.Sprintf("خطأ %d: %s", resp.StatusCode, truncate(string(respBody), 120)),
+				Error: fmt.Sprintf(resources.T(lang, "csv_import.error_code"), resp.StatusCode, truncate(string(respBody), 120)),
 			})
 			failCount++
 		} else {
@@ -311,7 +314,7 @@ type parsedRow struct {
 // parseBillRows converts CSV records into BillPayload objects.
 // If a billGroup column exists, rows sharing the same group become one bill.
 // Otherwise each row is its own bill.
-func parseBillRows(records [][]string, cm columnMap, defaultStoreID int) []models.BillPayload {
+func parseBillRows(records [][]string, cm columnMap, defaultStoreID int, lang string) []models.BillPayload {
 	rows := make([]parsedRow, 0, len(records))
 
 	for _, rec := range records {
@@ -370,19 +373,19 @@ func parseBillRows(records [][]string, cm columnMap, defaultStoreID int) []model
 
 	// Group rows into bills
 	if cm.billGroup >= 0 {
-		return groupRowsIntoBills(rows)
+		return groupRowsIntoBills(rows, lang)
 	}
 
 	// No grouping column — each row is a separate bill
 	bills := make([]models.BillPayload, 0, len(rows))
 	for _, row := range rows {
-		bills = append(bills, rowToBill(row))
+		bills = append(bills, rowToBill(row, lang))
 	}
 	return bills
 }
 
 // groupRowsIntoBills groups rows by billGroup value.
-func groupRowsIntoBills(rows []parsedRow) []models.BillPayload {
+func groupRowsIntoBills(rows []parsedRow, lang string) []models.BillPayload {
 	groups := make(map[string][]parsedRow)
 	var order []string
 
@@ -411,7 +414,7 @@ func groupRowsIntoBills(rows []parsedRow) []models.BillPayload {
 		for _, row := range grp {
 			name := row.partName
 			if name == "" {
-				name = "بند"
+				name = resources.T(lang, "csv_import.default_item")
 			}
 			items = append(items, models.BillManualItem{
 				PartName: name,
@@ -449,10 +452,10 @@ func groupRowsIntoBills(rows []parsedRow) []models.BillPayload {
 }
 
 // rowToBill converts a single parsed row into a BillPayload.
-func rowToBill(row parsedRow) models.BillPayload {
+func rowToBill(row parsedRow, lang string) models.BillPayload {
 	name := row.partName
 	if name == "" {
-		name = "بند"
+		name = resources.T(lang, "csv_import.default_item")
 	}
 
 	discount := row.discount

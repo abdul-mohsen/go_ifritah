@@ -11,6 +11,7 @@ import (
 
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -38,6 +39,7 @@ func HandleNotifications(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
@@ -56,12 +58,12 @@ func HandleNotifications(w http.ResponseWriter, r *http.Request) {
 		// internal paths, or DB hints).
 		log.Printf("[notifications] backend fetch failed: %v", err)
 		helpers.Render(w, r, "notifications", map[string]interface{}{
-			"title":         "التنبيهات",
+			"title":         resources.T(lang, "notification.list_title"),
 			"notifications": []models.Notification{},
 			"unread":        []models.Notification{},
 			"read":          []models.Notification{},
 			"unread_count":  0,
-			"error":         "فشل تحميل التنبيهات",
+			"error":         resources.T(lang, "notification.load_error"),
 		})
 		return
 	}
@@ -76,7 +78,7 @@ func HandleNotifications(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "notifications", map[string]interface{}{
-		"title":         "التنبيهات",
+		"title":         resources.T(lang, "notification.list_title"),
 		"notifications": resp.Items,
 		"unread":        unread,
 		"read":          read,
@@ -203,12 +205,13 @@ func HandleNotificationConfig(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	var in notificationConfigInbound
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeNotifJSON(w, http.StatusBadRequest, map[string]any{
 			"success": false,
-			"message": "طلب غير صالح",
+			"message": resources.T(lang, "notification.invalid_request"),
 		})
 		return
 	}
@@ -255,7 +258,7 @@ func HandleNotificationConfig(w http.ResponseWriter, r *http.Request) {
 
 	writeNotifJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"message": "تم حفظ إعدادات التنبيهات",
+		"message": resources.T(lang, "notification.save_success"),
 		"config":  cfg,
 	})
 }
@@ -275,17 +278,19 @@ func writeNotifError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, helpers.ErrNotifUnauthorized):
 		helpers.HandleUnauthorized(w, r)
 	case errors.Is(err, helpers.ErrNotifNotFound):
+		lang := helpers.GetLang(r)
 		writeNotifJSON(w, http.StatusNotFound, map[string]any{
 			"success": false,
-			"error":   "التنبيه غير موجود",
+			"error":   resources.T(lang, "notification.not_found"),
 		})
 	default:
 		// Don't echo the raw upstream error to clients (info disclosure).
 		// Log it for ops, return a stable user-safe message.
 		log.Printf("[notifications] upstream error: %v", err)
+		lang := helpers.GetLang(r)
 		writeNotifJSON(w, http.StatusBadGateway, map[string]any{
 			"success": false,
-			"error":   "فشل الاتصال بالخادم",
+			"error":   resources.T(lang, "general.server_connection_error"),
 		})
 	}
 }

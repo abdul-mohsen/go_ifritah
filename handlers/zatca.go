@@ -12,6 +12,7 @@ import (
 
 	"afrita/config"
 	"afrita/helpers"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -125,11 +126,12 @@ func FetchZatcaConfigForBranch(sessionID string, branchID int) (*ZatcaBranchStat
 
 // HandleGetZatcaConfig returns ZATCA config for a branch (JSON API).
 func HandleGetZatcaConfig(w http.ResponseWriter, r *http.Request) {
+	lang := helpers.GetLang(r)
 	sessionID := helpers.GetSessionIDFromRequest(r)
 	if sessionID == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"detail": "غير مصرح - يرجى تسجيل الدخول"})
+		json.NewEncoder(w).Encode(map[string]string{"detail": resources.T(lang, "auth.unauthorized_login")})
 		return
 	}
 
@@ -157,11 +159,12 @@ func HandleGetZatcaConfig(w http.ResponseWriter, r *http.Request) {
 
 // HandleSaveZatcaConfig saves ZATCA config for a branch via the backend API.
 func HandleSaveZatcaConfig(w http.ResponseWriter, r *http.Request) {
+	lang := helpers.GetLang(r)
 	sessionID := helpers.GetSessionIDFromRequest(r)
 	if sessionID == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"detail": "غير مصرح - يرجى تسجيل الدخول"})
+		json.NewEncoder(w).Encode(map[string]string{"detail": resources.T(lang, "auth.unauthorized_login")})
 		return
 	}
 
@@ -229,11 +232,11 @@ func HandleSaveZatcaConfig(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if helpers.IsUnauthorizedError(err) {
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"detail": "انتهت الجلسة - يرجى تسجيل الدخول مرة أخرى"})
+			json.NewEncoder(w).Encode(map[string]string{"detail": resources.T(lang, "general.session_expired_relogin")})
 			return
 		}
 		w.WriteHeader(http.StatusBadGateway)
-		json.NewEncoder(w).Encode(map[string]string{"detail": "فشل الاتصال بالخادم: " + err.Error()})
+		json.NewEncoder(w).Encode(map[string]string{"detail": resources.T(lang, "general.server_connection_error") + ": " + err.Error()})
 		return
 	}
 	defer resp.Body.Close()
@@ -252,11 +255,12 @@ func HandleSaveZatcaConfig(w http.ResponseWriter, r *http.Request) {
 // Returns: {"detail":"success","zatca_status":1} on success,
 //          {"detail":"error reason"} on failure (400/500/502).
 func HandleZatcaOnboard(w http.ResponseWriter, r *http.Request) {
+	lang := helpers.GetLang(r)
 	sessionID := helpers.GetSessionIDFromRequest(r)
 	if sessionID == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"detail": "غير مصرح - يرجى تسجيل الدخول"})
+		json.NewEncoder(w).Encode(map[string]string{"detail": resources.T(lang, "auth.unauthorized_login")})
 		return
 	}
 
@@ -275,7 +279,7 @@ func HandleZatcaOnboard(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&otpReq); err != nil || otpReq.OTP == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"detail": "OTP مطلوب"})
+		json.NewEncoder(w).Encode(map[string]string{"detail": resources.T(lang, "zatca.otp_required")})
 		return
 	}
 
@@ -283,7 +287,7 @@ func HandleZatcaOnboard(w http.ResponseWriter, r *http.Request) {
 	if len(otp) != 6 || !isDigits(otp) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"detail": "OTP يجب أن يكون 6 أرقام"})
+		json.NewEncoder(w).Encode(map[string]string{"detail": resources.T(lang, "zatca.otp_six_digits")})
 		return
 	}
 
@@ -306,11 +310,11 @@ func HandleZatcaOnboard(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if helpers.IsUnauthorizedError(err) {
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"detail": "انتهت الجلسة - يرجى تسجيل الدخول مرة أخرى"})
+			json.NewEncoder(w).Encode(map[string]string{"detail": resources.T(lang, "general.session_expired_relogin")})
 			return
 		}
 		w.WriteHeader(http.StatusBadGateway)
-		json.NewEncoder(w).Encode(map[string]string{"detail": "فشل الاتصال بالخادم: " + err.Error()})
+		json.NewEncoder(w).Encode(map[string]string{"detail": resources.T(lang, "general.server_connection_error") + ": " + err.Error()})
 		return
 	}
 	defer resp.Body.Close()
@@ -333,7 +337,7 @@ func HandleZatcaOnboard(w http.ResponseWriter, r *http.Request) {
 	}
 	if resp.StatusCode == http.StatusOK {
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"detail":        "تم إرسال الطلب — جاري ربط الفرع بنظام زاتكا، قد يستغرق ذلك دقيقة",
+			"detail":        resources.T(lang, "zatca.onboard_processing"),
 			"processing":    true,
 			"zatca_status":  3, // remains not_active until worker confirms
 			"onboard_state": "csr",
@@ -341,7 +345,7 @@ func HandleZatcaOnboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(map[string]string{
-		"detail": fmt.Sprintf("خطأ من الخادم (HTTP %d)", resp.StatusCode),
+		"detail": fmt.Sprintf(resources.T(lang, "zatca.server_http_error"), resp.StatusCode),
 	})
 }
 

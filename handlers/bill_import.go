@@ -15,6 +15,7 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -50,27 +51,29 @@ type bulkImportResponse struct {
 
 // HandleBillImportPage renders the shared sales and purchase bill import page.
 func HandleBillImportPage(w http.ResponseWriter, r *http.Request) {
-	token, ok := helpers.GetTokenOrRedirect(w, r)
+	_, ok := helpers.GetTokenOrRedirect(w, r)
 	if !ok {
 		return
 	}
 	importType := billImportType(r.URL.Query().Get("type"))
+	lang := helpers.GetLang(r)
 	helpers.Render(w, r, "bill-import", map[string]interface{}{
-		"title":       billImportTitle(importType, isArabic(token)),
+		"title":       billImportTitle(importType, isArabic(lang)),
 		"import_type": importType,
-		"arabic":      isArabic(token),
+		"arabic":      isArabic(lang),
 	})
 }
 
 func HandleDownloadBillImportTemplate(w http.ResponseWriter, r *http.Request) {
-	token, ok := helpers.GetTokenOrRedirect(w, r)
+	_, ok := helpers.GetTokenOrRedirect(w, r)
 	if !ok {
 		return
 	}
 	importType := billImportType(r.URL.Query().Get("type"))
-	workbook, err := buildBillImportTemplate(importType, isArabic(token), templateOverridesFromQuery(r))
+	lang := helpers.GetLang(r)
+	workbook, err := buildBillImportTemplate(importType, isArabic(lang), templateOverridesFromQuery(r))
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "Unable to create Excel template")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "bill_import.template_error"))
 		return
 	}
 	defer workbook.Close()
@@ -177,8 +180,13 @@ func billImportType(value string) string {
 	return billImportSales
 }
 
-func isArabic(token string) bool {
-	return getSettings(token)["language"] != "en"
+// isArabic reports whether generated bill-import/export content (Excel
+// titles, sheet headers) should render in Arabic. It follows the same
+// per-request afrita_lang cookie as the rest of the app (helpers.GetLang)
+// rather than the account's backend "language" setting, so a downloaded
+// file always matches the language the page around it is rendered in.
+func isArabic(lang string) bool {
+	return lang != resources.LangEn
 }
 
 func billImportTitle(importType string, arabic bool) string {

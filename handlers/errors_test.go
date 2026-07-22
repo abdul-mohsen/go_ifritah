@@ -52,7 +52,8 @@ func TestRenderErrorPage_CustomCode(t *testing.T) {
 	config.Initialize()
 
 	rr := httptest.NewRecorder()
-	RenderErrorPage(rr, "503", http.StatusServiceUnavailable, "الخدمة غير متاحة", "جاري الصيانة")
+	req := httptest.NewRequest("GET", "/", nil)
+	RenderErrorPage(rr, req, "503", http.StatusServiceUnavailable, "الخدمة غير متاحة", "جاري الصيانة")
 
 	if rr.Code != http.StatusServiceUnavailable {
 		t.Errorf("RenderErrorPage should return 503, got %d", rr.Code)

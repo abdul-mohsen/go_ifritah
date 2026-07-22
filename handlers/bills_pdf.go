@@ -8,18 +8,19 @@ import (
 
 	"afrita/config"
 	"afrita/helpers"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
 
 // writePDFErrorJSON writes a JSON error response for PDF failures.
 // The frontend JS fetches the PDF via fetch() and checks for this JSON on error.
-func writePDFErrorJSON(w http.ResponseWriter, statusCode int) {
+func writePDFErrorJSON(w http.ResponseWriter, statusCode int, lang string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"error":   "pdf_unavailable",
-		"message": "تعذر تحميل ملف PDF، يرجى المحاولة لاحقاً",
+		"message": resources.T(lang, "pdf.download_error"),
 	})
 }
 
@@ -42,7 +43,7 @@ func HandleBillPDF(w http.ResponseWriter, r *http.Request) {
 			helpers.HandleUnauthorized(w, r)
 			return
 		}
-		writePDFErrorJSON(w, http.StatusBadGateway)
+		writePDFErrorJSON(w, http.StatusBadGateway, helpers.GetLang(r))
 		return
 	}
 	defer resp.Body.Close()
@@ -53,7 +54,7 @@ func HandleBillPDF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		writePDFErrorJSON(w, resp.StatusCode)
+		writePDFErrorJSON(w, resp.StatusCode, helpers.GetLang(r))
 		return
 	}
 
@@ -88,9 +89,10 @@ func HandleCreditBill(w http.ResponseWriter, r *http.Request) {
 
 	status, statusClass := helpers.InvoiceStatus(invoice)
 	invoiceType := helpers.InvoiceTypeLabel(invoice)
+	lang := helpers.GetLang(r)
 
 	helpers.Render(w, r, "credit-invoice-detail", map[string]interface{}{
-		"title":         "إشعار دائن",
+		"title":         resources.T(lang, "pdf.credit_note_title"),
 		"invoice":       invoice,
 		"total_display": fmt.Sprintf("%.2f", invoice.Total),
 		"status":        status,
@@ -117,7 +119,7 @@ func HandleCreditBillPDF(w http.ResponseWriter, r *http.Request) {
 			helpers.HandleUnauthorized(w, r)
 			return
 		}
-		writePDFErrorJSON(w, http.StatusBadGateway)
+		writePDFErrorJSON(w, http.StatusBadGateway, helpers.GetLang(r))
 		return
 	}
 	defer resp.Body.Close()
@@ -128,7 +130,7 @@ func HandleCreditBillPDF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		writePDFErrorJSON(w, resp.StatusCode)
+		writePDFErrorJSON(w, resp.StatusCode, helpers.GetLang(r))
 		return
 	}
 

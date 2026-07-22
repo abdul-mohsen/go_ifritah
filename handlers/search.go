@@ -10,6 +10,7 @@ import (
 
 	"afrita/config"
 	"afrita/helpers"
+	"afrita/resources"
 )
 
 // partsResultsTpl is the partial template name rendered by the parts
@@ -52,7 +53,7 @@ func HandleVerifyVIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.RenderPartial(w, "vin-result", data)
+	helpers.RenderPartial(w, r, "vin-result", data)
 }
 
 // HandlePartsSearch renders the parts search page.
@@ -60,8 +61,9 @@ func HandlePartsSearch(w http.ResponseWriter, r *http.Request) {
 	if _, ok := helpers.GetTokenOrRedirect(w, r); !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 	helpers.Render(w, r, "parts-search", map[string]interface{}{
-		"title": "بحث القطع",
+		"title": resources.T(lang, "search.parts_title"),
 	})
 }
 
@@ -93,7 +95,7 @@ func HandlePartsSearchResults(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Network error — render empty results so the live-search UX
 		// degrades gracefully instead of showing a 500 panel.
-		helpers.RenderPartial(w, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
+		helpers.RenderPartial(w, r, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
 		return
 	}
 	defer resp.Body.Close()
@@ -103,20 +105,20 @@ func HandlePartsSearchResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		helpers.RenderPartial(w, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
+		helpers.RenderPartial(w, r, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
 		return
 	}
 
 	var results []map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		helpers.RenderPartial(w, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
+		helpers.RenderPartial(w, r, partsResultsTpl, map[string]interface{}{"results": []interface{}{}})
 		return
 	}
 
 	data := map[string]interface{}{
 		"results": results,
 	}
-	helpers.RenderPartial(w, partsResultsTpl, data)
+	helpers.RenderPartial(w, r, partsResultsTpl, data)
 }
 
 // HandlePartsSearchJSON returns parts search results as JSON (for AJAX dropdowns).
@@ -211,8 +213,9 @@ func HandleCarsSearch(w http.ResponseWriter, r *http.Request) {
 	if _, ok := helpers.GetTokenOrRedirect(w, r); !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 	helpers.Render(w, r, "cars-search", map[string]interface{}{
-		"title": "بحث السيارات",
+		"title": resources.T(lang, "search.cars_title"),
 	})
 }
 
@@ -253,5 +256,5 @@ func HandleCarsSearchResults(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"results": results,
 	}
-	helpers.RenderPartial(w, "cars-results", data)
+	helpers.RenderPartial(w, r, "cars-results", data)
 }

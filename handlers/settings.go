@@ -19,6 +19,7 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 )
 
 // settingsDefaults holds the seed values used to initialise a per-token cache
@@ -338,6 +339,7 @@ func HandleSettingsPage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Load settings from backend on first access (or refresh)
 	loadSettingsFromBackend(token)
@@ -359,7 +361,7 @@ func HandleSettingsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "settings", map[string]interface{}{
-		"title":               "الإعدادات",
+		"title":               resources.T(lang, "settings.title"),
 		"Settings":            settings,
 		"Branches":            branches,
 		"Stores":              stores,
@@ -374,9 +376,10 @@ func HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	if err := r.ParseForm(); err != nil {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "بيانات غير صالحة")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "auth.invalid_data"))
 		return
 	}
 
@@ -421,7 +424,7 @@ func HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	// to the user instead of lying to them.
 	if err := saveSettingsToBackend(token, newSettings); err != nil {
 		log.Printf("[SETTINGS] save failed: %v", err)
-		writeFlashCookie(w, `{"message":"فشل حفظ الإعدادات","type":"error"}`)
+		writeFlashCookie(w, fmt.Sprintf(`{"message":%q,"type":"error"}`, resources.T(lang, "tpl.settings.zatca_save_failed")))
 		http.Redirect(w, r, "/dashboard/settings", http.StatusSeeOther)
 		return
 	}
@@ -429,7 +432,7 @@ func HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[SETTINGS] Settings saved successfully")
 
 	// Set flash cookie for success toast, then do a standard HTTP redirect
-	writeFlashCookie(w, `{"message":"تم حفظ الإعدادات بنجاح","type":"success"}`)
+	writeFlashCookie(w, fmt.Sprintf(`{"message":%q,"type":"success"}`, resources.T(lang, "settings.save_success")))
 	http.Redirect(w, r, "/dashboard/settings", http.StatusSeeOther)
 }
 

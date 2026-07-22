@@ -2,6 +2,11 @@ name: E2E (against dev backend)
 
 # Builds the Go frontend on the runner, starts it on :8001 wired to the
 # https://dev.ifritah.com backend, and runs the Playwright suite against it.
+#
+# `serial` (workers=1, real shared-state writes) and `parallel` (workers=4,
+# sharded across 8 independent jobs) run CONCURRENTLY as separate jobs, so
+# the fast parallel suite never waits behind the slow serial one. `report`
+# aggregates both into a single pass/fail signal + step summary.
 
 on:
   workflow_dispatch:
@@ -15,41 +20,41 @@ on:
   push:
     branches: [dev, main]
 
-permissions:
-  contents: read
-
 concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
-  e2e:
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
+env:
+  PORT: "8001"
+  BACKEND_URL: "https://dev.ifritah.com"
+  APP_DOMAIN: "localhost:8001"
+  # Playwright global-setup + per-test login helpers default to :8000.
+  # CI runs the binary on :8001, so point them at the right host.
+  PW_BASE_URL: "http://localhost:8001"
+  # The dev backend's admin user is `admin/admin`. Local dev uses
+  # `admin/admin123`. CI must match the dev backend.
+  PW_USER: "admin"
+  PW_PASS: "admin"
+  # Go 1.21 made action interpolation inside JS template literals (backticks)
+  # an html/template execute error. Several of our templates (add-invoice,
+  # add-purchase-bill, etc.) embed `{{ L "..." }}` calls inside JS template
+  # literal helpers. Restore the pre-1.21 behavior so the runtime renders
+  # those pages instead of returning a 23-byte error stub.
+  # See https://pkg.go.dev/html/template#hdr-Security_Model and
+  # https://github.com/golang/go/issues/59234 .
+  GODEBUG: "jstmpllitinterp=1"
 
+jobs:
+  serial:
+    name: e2e (serial)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
     env:
-      PORT: "8001"
-      BACKEND_URL: "https://dev.ifritah.com"
-      APP_DOMAIN: "localhost:8001"
-      # Playwright global-setup + per-test login helpers default to :8000.
-      # CI runs the binary on :8001, so point them at the right host.
-      PW_BASE_URL: "http://localhost:8001"
-      # The dev backend's admin user is `admin/admin`. Local dev uses
-      # `admin/admin123`. CI must match the dev backend.
-      PW_USER: "admin"
-      PW_PASS: "admin"
       # Token store has to be writable; keep it inside the workspace so the
       # cleanup step can wipe it.
       AFRITA_TOKEN_DIR: ${{ github.workspace }}/.afrita-tokens
-      # Go 1.21 made action interpolation inside JS template literals (backticks)
-      # an html/template execute error. Several of our templates (add-invoice,
-      # add-purchase-bill, etc.) embed `{{ L "..." }}` calls inside JS template
-      # literal helpers. Restore the pre-1.21 behavior so the runtime renders
-      # those pages instead of returning a 23-byte error stub.
-      # See https://pkg.go.dev/html/template#hdr-Security_Model and
-      # https://github.com/golang/go/issues/59234 .
-      GODEBUG: "jstmpllitinterp=1"
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,9 +69,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            e2e/package-lock.json
 
       - name: Install root npm deps (Tailwind)
-        run: npm ci || npm install
+        run: npm ci --ignore-scripts
 
       - name: Build CSS
         run: npm run build:css
@@ -99,56 +108,223 @@ jobs:
 
       - name: Install e2e dependencies
         working-directory: e2e
-        run: npm ci || npm install
+        run: npm ci --ignore-scripts
 
-      - name: Install Playwright browsers
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
+
+      - name: Install Playwright OS dependencies
+        # apt-level deps aren't part of the cached ~/.cache/ms-playwright
+        # path and can't survive across the ephemeral runner VM, so this
+        # must always run. It's fast since most libs ship on the runner
+        # image already; only the browser binary download below is slow.
         working-directory: e2e
-        run: npx playwright install --with-deps chromium
+        run: npx --no-install playwright install-deps chromium
 
-      - name: Run Playwright tests (serial group)
-        id: playwright_serial
-        timeout-minutes: 30
+      - name: Install Playwright browser binary
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: e2e
+        run: npx --no-install playwright install chromium
+
+      - name: Run Playwright tests (serial)
+        timeout-minutes: 20
         working-directory: e2e
         env:
           # Pass the user-supplied grep through an env var so it cannot be
           # interpolated as shell syntax (Sonar githubactions:S7630).
           GREP_FILTER: ${{ inputs.grep }}
           PW_RESULTS_FILE: playwright-results-serial.json
-          PW_WORKERS: "1"
         run: |
-          set +e
           if [ -n "$GREP_FILTER" ]; then
             npx playwright test --project=serial --workers=1 --grep "$GREP_FILTER"
           else
             npx playwright test --project=serial --workers=1
           fi
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
-      - name: Run Playwright tests (parallel group)
-        id: playwright_parallel
+      - name: Stop frontend server
         if: always()
-        timeout-minutes: 60
+        run: |
+          if [ -f server.pid ]; then
+            kill "$(cat server.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-server-log-serial
+          path: server.log
+          if-no-files-found: ignore
+
+      - name: Upload Playwright results (serial)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results-serial
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+            e2e/playwright-results-serial.json
+          if-no-files-found: ignore
+
+  parallel:
+    name: e2e (parallel shard ${{ matrix.shard }}/8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    env:
+      AFRITA_TOKEN_DIR: ${{ github.workspace }}/.afrita-tokens
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            e2e/package-lock.json
+
+      - name: Install root npm deps (Tailwind)
+        run: npm ci --ignore-scripts
+
+      - name: Build CSS
+        run: npm run build:css
+
+      - name: Build Go binary
+        run: go build -o afrita .
+
+      - name: Start frontend server
+        run: |
+          mkdir -p "$AFRITA_TOKEN_DIR"
+          nohup ./afrita > server.log 2>&1 &
+          echo $! > server.pid
+          for i in $(seq 1 60); do
+            if curl -sf "http://localhost:${PORT}/login" >/dev/null; then
+              echo "Frontend is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Frontend did not start within 60s"
+          cat server.log
+          exit 1
+
+      - name: Verify backend reachability from runner
+        run: |
+          curl -sS -o /dev/null -w "dev backend HTTP %{http_code}\n" "$BACKEND_URL" || true
+
+      - name: Install e2e dependencies
+        working-directory: e2e
+        run: npm ci --ignore-scripts
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
+
+      - name: Install Playwright OS dependencies
+        working-directory: e2e
+        run: npx --no-install playwright install-deps chromium
+
+      - name: Install Playwright browser binary
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: e2e
+        run: npx --no-install playwright install chromium
+
+      - name: Run Playwright tests (parallel shard ${{ matrix.shard }}/8)
+        timeout-minutes: 15
         working-directory: e2e
         env:
           GREP_FILTER: ${{ inputs.grep }}
-          PW_RESULTS_FILE: playwright-results-parallel.json
-          PW_WORKERS: "4"
+          PW_RESULTS_FILE: playwright-results-parallel-${{ matrix.shard }}.json
         run: |
-          set +e
           if [ -n "$GREP_FILTER" ]; then
-            npx playwright test --project=parallel --workers=4 --grep "$GREP_FILTER"
+            npx playwright test --project=parallel --workers=4 --shard=${{ matrix.shard }}/8 --grep "$GREP_FILTER"
           else
-            npx playwright test --project=parallel --workers=4
+            npx playwright test --project=parallel --workers=4 --shard=${{ matrix.shard }}/8
           fi
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Stop frontend server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill "$(cat server.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-server-log-parallel-${{ matrix.shard }}
+          path: server.log
+          if-no-files-found: ignore
+
+      - name: Upload Playwright results (parallel shard ${{ matrix.shard }})
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results-parallel-${{ matrix.shard }}
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+            e2e/playwright-results-parallel-${{ matrix.shard }}.json
+          if-no-files-found: ignore
+
+  report:
+    name: e2e summary
+    needs: [serial, parallel]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Download all Playwright result artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-results
+          pattern: "playwright-results-*"
 
       - name: Summarize Playwright results
-        if: always()
-        working-directory: e2e
         run: |
           node -e '
             const fs = require("fs");
-            const files = ["playwright-results-serial.json", "playwright-results-parallel.json"];
+            const path = require("path");
+            const root = "all-results";
+            const files = [];
+            const walk = (dir) => {
+              if (!fs.existsSync(dir)) return;
+              for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                const p = path.join(dir, entry.name);
+                if (entry.isDirectory()) walk(p);
+                else if (entry.name.endsWith(".json")) files.push(p);
+              }
+            };
+            walk(root);
             let passed = 0, failed = 0, skipped = 0, flaky = 0, total = 0;
             const failures = [];
             const visit = (suite) => {
@@ -165,11 +341,10 @@ jobs:
               }
             };
             for (const f of files) {
-              if (!fs.existsSync(f)) { console.log(`(missing ${f})`); continue; }
               const r = JSON.parse(fs.readFileSync(f, "utf8"));
               for (const s of r.suites || []) visit(s);
             }
-            const summary = `Playwright: ${passed}/${total} passed (failed=${failed}, skipped=${skipped}, flaky=${flaky})`;
+            const summary = `Playwright: ${passed}/${total} passed (failed=${failed}, skipped=${skipped}, flaky=${flaky}) across ${files.length} result file(s)`;
             console.log(summary);
             if (failures.length) {
               console.log("\nFailures:");
@@ -184,39 +359,12 @@ jobs:
               }
               fs.appendFileSync(out, md);
             }
+            if (failed > 0) process.exit(1);
           '
 
-      - name: Fail if any Playwright test failed
-        if: always() && (steps.playwright_serial.outputs.exit_code != '0' || steps.playwright_parallel.outputs.exit_code != '0')
+      - name: Fail if any e2e job failed
+        if: needs.serial.result != 'success' || needs.parallel.result != 'success'
         run: |
-          echo "Playwright serial   exit code: ${{ steps.playwright_serial.outputs.exit_code }}"
-          echo "Playwright parallel exit code: ${{ steps.playwright_parallel.outputs.exit_code }}"
+          echo "serial result:   ${{ needs.serial.result }}"
+          echo "parallel result: ${{ needs.parallel.result }}"
           exit 1
-
-      - name: Stop frontend server
-        if: always()
-        run: |
-          if [ -f server.pid ]; then
-            kill "$(cat server.pid)" 2>/dev/null || true
-          fi
-
-      - name: Upload server log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-server-log
-          path: server.log
-          if-no-files-found: ignore
-
-      - name: Upload Playwright test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-results
-          path: |
-            e2e/test-results
-            e2e/playwright-report
-            e2e/playwright-results.json
-            e2e/playwright-results-serial.json
-            e2e/playwright-results-parallel.json
-          if-no-files-found: ignore

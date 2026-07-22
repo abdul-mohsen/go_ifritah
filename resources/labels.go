@@ -682,6 +682,9 @@ var labels = map[string]Label{
 	"tpl.more":           {Ar: "المزيد", En: "More"},
 	"tpl.all_statuses":   {Ar: "كل الحالات", En: "All Statuses"},
 	"tpl.import_csv":     {Ar: "استيراد CSV", En: "Import CSV"},
+	"tpl.export_excel":   {Ar: "تصدير Excel", En: "Export Excel"},
+	"tpl.import_data":    {Ar: "استيراد", En: "Import"},
+	"tpl.export_data":    {Ar: "تصدير", En: "Export"},
 	"tpl.confirm_delete": {Ar: "هل أنت متأكد من الحذف؟", En: "Are you sure you want to delete?"},
 	"tpl.no_data":        {Ar: "لا توجد بيانات", En: "No data"},
 	"tpl.currency":       {Ar: "ر.س", En: "SAR"},
@@ -1061,6 +1064,7 @@ var labels = map[string]Label{
 	"tpl.pb.postpaid":                       {Ar: "آجل", En: "Post-paid"},
 	"tpl.pb.cash":                           {Ar: "نقدي", En: "Cash"},
 	"tpl.deliver_date":                      {Ar: "تاريخ التسليم", En: "Deliver Date"},
+	"tpl.pb.received_date":                  {Ar: "تاريخ الاستلام", En: "Received Date"},
 	"tpl.payment_method":                    {Ar: "طريقة الدفع", En: "Payment Method"},
 	"tpl.payment_method.cash":               {Ar: "نقدي", En: "Cash"},
 	"tpl.payment_method.credit":             {Ar: "آجل (دفع لاحق)", En: "Credit (Post-paid)"},
@@ -1623,7 +1627,7 @@ var labels = map[string]Label{
 	"tpl.import.import_another": {Ar: "استيراد ملف آخر", En: "Import Another File"},
 
 	// JS: field labels (shared between both)
-	"tpl.import.field.part_name":    {Ar: "اسم القطعة", En: "Part Name"},
+	"tpl.import.field.part_name": {Ar: "اسم المنتج", En: "Product Name"},
 	"tpl.import.field.quantity":     {Ar: "الكمية", En: "Quantity"},
 	"tpl.import.field.price":        {Ar: "السعر", En: "Price"},
 	"tpl.import.field.bill_ref":     {Ar: "مرجع الفاتورة", En: "Bill Reference"},

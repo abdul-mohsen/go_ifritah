@@ -56,6 +56,32 @@ func RequirePermission(resource string, action string) mux.MiddlewareFunc {
 	}
 }
 
+// RequireBillImportPermission selects the appropriate add permission from the
+// requested document type. A shared page must not grant access to the other
+// document type.
+func RequireBillImportPermission(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := getUserFromSession(r)
+		if user == nil {
+			if isAPIRequest(r) {
+				http.Error(w, `{"error":"Unauthorized - Please login"}`, http.StatusUnauthorized)
+			} else {
+				http.Redirect(w, r, "/", http.StatusFound)
+			}
+			return
+		}
+		resource := "invoices"
+		if strings.EqualFold(r.URL.Query().Get("type"), "purchase") {
+			resource = "purchase_bills"
+		}
+		if user.Role != models.RoleAdmin && user.Role != models.RoleManager && !checkPermission(user.Permissions, resource, "add") {
+			respondWithForbidden(w, r, "ليس لديك صلاحية للقيام بهذا الإجراء")
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+}
+
 // RequireRole enforces specific roles.
 func RequireRole(roles ...models.Role) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {

@@ -338,6 +338,7 @@ func LoadTemplates() {
 		"supplier-report":       filepath.Join(BaseDir, "templates/supplier-report.html"),
 		"supplier-statement":    filepath.Join(BaseDir, "templates/supplier-statement.html"),
 		"purchase-bills":        filepath.Join(BaseDir, "templates/purchase-bills.html"),
+		"bill-import":           filepath.Join(BaseDir, "templates/bill-import.html"),
 		"add-purchase-bill":     filepath.Join(BaseDir, "templates/add-purchase-bill.html"),
 		"purchase-bill-detail":  filepath.Join(BaseDir, "templates/purchase-bill-detail.html"),
 		"edit-purchase-bill":    filepath.Join(BaseDir, "templates/edit-purchase-bill.html"),

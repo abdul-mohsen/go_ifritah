@@ -274,20 +274,7 @@
         var costPrice = product ? (product.cost_price || (inventoryProduct ? inventoryProduct.cost_price : '')) : '';
         var shelfNumber = product ? (product.shelf_number || (inventoryProduct ? inventoryProduct.shelf_number : '')) : '';
         var sellingPrice = product ? (product.selling_price || (inventoryProduct ? inventoryProduct.price : '')) : '';
-        return buildItemRowMarkup({
-            rowId: rowId,
-            productId: prodId,
-            trackStock: trackStock,
-            name: partName,
-            quantity: qty,
-            purchasePrice: price,
-            costPrice: costPrice,
-            shelfNumber: shelfNumber,
-            sellingPrice: sellingPrice,
-            sellingPriceAttrs: canEditSellingPrice ? '' : 'disabled',
-            sellingPricePlaceholder: canEditSellingPrice ? escapeAttr(purchaseBillLabels.sellingPriceAutoHint) : '',
-            includeExistingItemWarning: false
-        });
+        return buildItemRowMarkup({ rowId: rowId, productId: prodId, trackStock: trackStock, name: partName, quantity: qty, purchasePrice: price, costPrice: costPrice, shelfNumber: shelfNumber, sellingPrice: sellingPrice, includeExistingItemWarning: false });
     }
 
     {{ template "pb-store-product-search-js" . }}

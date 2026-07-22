@@ -407,20 +407,7 @@
         var costPrice = product ? (product.costPrice !== undefined ? product.costPrice : (product.cost_price || '')) : '';
         var shelfNumber = product ? (product.shelfNumber || product.shelf_number || '') : '';
         var sellingPrice = product ? (product.sellingPrice || '') : '';
-        return buildItemRowMarkup({
-            rowId: rowId,
-            productId: productId,
-            trackStock: trackStock,
-            name: name,
-            quantity: quantity,
-            purchasePrice: purchasePrice,
-            costPrice: costPrice,
-            shelfNumber: shelfNumber,
-            sellingPrice: sellingPrice,
-            sellingPriceAttrs: canEditSellingPrice ? '' : 'disabled',
-            sellingPricePlaceholder: canEditSellingPrice ? escapeAttr(purchaseBillLabels.sellingPriceAutoHint) : '',
-            includeExistingItemWarning: true
-        });
+        return buildItemRowMarkup({ rowId: rowId, productId: productId, trackStock: trackStock, name: name, quantity: quantity, purchasePrice: purchasePrice, costPrice: costPrice, shelfNumber: shelfNumber, sellingPrice: sellingPrice, includeExistingItemWarning: true });
     }
 
     function hideExistingItemWarning(row) {

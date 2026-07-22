@@ -6,6 +6,8 @@
 
      Callers must define, before including this partial:
        - purchaseBillLabels.{inventoryItem,manualItem} (for setInventoryState)
+       - canEditSellingPrice (bool) and purchaseBillLabels.sellingPriceAutoHint
+         (for buildItemRowMarkup's selling-price disabled/placeholder state)
        - a #dropdown_<rowId> container per row (rendered by each page's own
          itemRow builder)
      Optional (only used if defined — checked defensively so this partial
@@ -22,6 +24,11 @@
 // pages (source of a real SonarCloud new-code duplication finding).
 function buildItemRowMarkup(opts) {
     var stateText = opts.trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem;
+    // canEditSellingPrice/purchaseBillLabels are page-level globals both
+    // callers already have in scope - computed here (not passed in) so
+    // each page's itemRow() has one less thing to duplicate.
+    var sellingPriceAttrs = canEditSellingPrice ? '' : 'disabled';
+    var sellingPricePlaceholder = canEditSellingPrice ? escapeAttr(purchaseBillLabels.sellingPriceAutoHint) : '';
     var warningSpan = opts.includeExistingItemWarning
         ? '<span class="existing-item-warning text-xs text-amber-700 hidden"></span>'
         : '';
@@ -42,7 +49,7 @@ function buildItemRowMarkup(opts) {
             <input type="text" name="products_price" value="${opts.purchasePrice}" class="pbi-purchase-price" aria-label="${escapeAttr(purchaseBillLabels.purchasePrice)}" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}" oninput="recalculateTotal()">
             <input type="text" name="products_cost_price" value="${opts.costPrice}" class="pbi-cost-price" placeholder="0" aria-label="${escapeAttr(purchaseBillLabels.costPrice)}" title="${escapeAttr(purchaseBillLabels.costPriceHint)}">
             <input type="text" name="products_shelf_number" value="${escapeAttr(opts.shelfNumber)}" class="pbi-shelf" placeholder="" aria-label="${escapeAttr(purchaseBillLabels.shelfNumber)}">
-            <input type="text" name="products_selling_price" value="${escapeAttr(opts.sellingPrice)}" class="pbi-selling-price" aria-label="${escapeAttr(purchaseBillLabels.sellingPrice)}" title="${escapeAttr(purchaseBillLabels.sellingPriceHint)}" placeholder="${opts.sellingPricePlaceholder}" ${opts.sellingPriceAttrs}>
+            <input type="text" name="products_selling_price" value="${escapeAttr(opts.sellingPrice)}" class="pbi-selling-price" aria-label="${escapeAttr(purchaseBillLabels.sellingPrice)}" title="${escapeAttr(purchaseBillLabels.sellingPriceHint)}" placeholder="${sellingPricePlaceholder}" ${sellingPriceAttrs}>
             <button type="button" class="pbi-remove pbi-remove-btn" onclick="removeRow(this)" aria-label="${escapeAttr(purchaseBillLabels.deleteLabel)}" title="${escapeAttr(purchaseBillLabels.deleteLabel)}">
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6l8 8M14 6l-8 8"/></svg>
             </button>

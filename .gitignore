@@ -33,7 +33,6 @@ e2e/.auth/
 e2e/*.log
 e2e/*.err
 e2e/*.txt
-e2e/package-lock.json
 e2e/probe-*.js
 # Per-developer test-run artifacts (pw-*.json, pw-local-*.json …) — never commit
 e2e/pw-*.json

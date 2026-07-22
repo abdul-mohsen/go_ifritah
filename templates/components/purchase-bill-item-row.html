@@ -1,10 +1,10 @@
-{{/* Shared JS for the purchase-bill item-row "search existing store
-     product" flow, used identically by add-purchase-bill.html and
-     edit-purchase-bill.html. Extracted to stop the two pages' near-
-     identical item-row scripts from drifting out of sync (and from
-     tripping SonarCloud's duplicated-lines gate on every future touch).
+{{/* Shared markup + JS for the purchase-bill item-row list, used
+     identically by add-purchase-bill.html and edit-purchase-bill.html.
+     Extracted to stop the two pages' near-identical item-row markup/
+     scripts from drifting out of sync (and from tripping SonarCloud's
+     duplicated-lines gate on every future touch).
 
-     Callers must define, before including this partial:
+     Callers must define, before including "pb-item-row-markup-js":
        - purchaseBillLabels.{inventoryItem,manualItem} (for setInventoryState)
        - canEditSellingPrice (bool) and purchaseBillLabels.sellingPriceAutoHint
          (for buildItemRowMarkup's selling-price disabled/placeholder state)
@@ -15,6 +15,23 @@
        - hideExistingItemWarning(row) — add-purchase-bill.html only,
          clears the "this item may already exist" banner once a real
          product is chosen from the dropdown. */}}
+{{ define "pb-items-table" }}
+<div class="pb-items-scroll">
+    <div class="pb-items-rows">
+        <div class="pb-items-header">
+            <span class="pbi-state"></span>
+            <span class="pbi-name">{{ L "tpl.pb.item_label" }}</span>
+            <span class="pbi-qty">{{ L "tpl.pb.quantity" }}</span>
+            <span class="pbi-purchase-price">{{ L "tpl.pb.purchase_price" }}</span>
+            <span class="pbi-cost-price">{{ L "tpl.product.cost_price" }}</span>
+            <span class="pbi-shelf">{{ L "tpl.product.shelf_number" }}</span>
+            <span class="pbi-selling-price">{{ L "tpl.product.selling_price" }}</span>
+            <span class="pbi-remove"></span>
+        </div>
+        <div id="products-container"></div>
+    </div>
+</div>
+{{ end }}
 {{ define "pb-item-row-markup-js" }}
 // Builds the actual compact one-line item-row markup. Both pages keep
 // their own itemRow(product) wrapper, since field derivation legitimately

@@ -90,21 +90,7 @@
 
         <div class="mt-6">
             <h4 class="section-card-title">{{ L "tpl.pb.items" }}</h4>
-            <div class="pb-items-scroll">
-                <div class="pb-items-rows">
-                    <div class="pb-items-header">
-                        <span class="pbi-state"></span>
-                        <span class="pbi-name">{{ L "tpl.pb.item_label" }}</span>
-                        <span class="pbi-qty">{{ L "tpl.pb.quantity" }}</span>
-                        <span class="pbi-purchase-price">{{ L "tpl.pb.purchase_price" }}</span>
-                        <span class="pbi-cost-price">{{ L "tpl.product.cost_price" }}</span>
-                        <span class="pbi-shelf">{{ L "tpl.product.shelf_number" }}</span>
-                        <span class="pbi-selling-price">{{ L "tpl.product.selling_price" }}</span>
-                        <span class="pbi-remove"></span>
-                    </div>
-                    <div id="products-container"></div>
-                </div>
-            </div>
+            {{ template "pb-items-table" . }}
             <button type="button" onclick="addItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.pb.add_item" }}</button>
         </div>
 

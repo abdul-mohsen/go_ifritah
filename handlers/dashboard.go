@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"html/template"
 	"log"
 	"net/http"
@@ -904,10 +905,10 @@ func HandleDashboardCompare(w http.ResponseWriter, r *http.Request) {
 		alignClass = "text-left"
 	}
 
-	aStart := r.URL.Query().Get("a_start")
-	aEnd := r.URL.Query().Get("a_end")
-	bStart := r.URL.Query().Get("b_start")
-	bEnd := r.URL.Query().Get("b_end")
+	aStart := html.EscapeString(r.URL.Query().Get("a_start"))
+	aEnd := html.EscapeString(r.URL.Query().Get("a_end"))
+	bStart := html.EscapeString(r.URL.Query().Get("b_start"))
+	bEnd := html.EscapeString(r.URL.Query().Get("b_end"))
 
 	if aStart == "" || aEnd == "" || bStart == "" || bEnd == "" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

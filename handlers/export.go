@@ -5,12 +5,22 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
 	"afrita/helpers"
 	"afrita/models"
 
 	"github.com/xuri/excelize/v2"
 )
+
+// exportDetailFetchConcurrency bounds how many bill-detail requests the XLSX
+// exporters fire at the backend in parallel. Bills used to be fetched one at
+// a time, so exporting N bills took N sequential round-trips - fine for a
+// handful of bills, but the shared dev backend now holds enough e2e-seeded
+// data that a fully sequential fetch can exceed test/client timeouts. Fetching
+// with bounded parallelism keeps backend load reasonable while cutting wall
+// time roughly by this factor.
+const exportDetailFetchConcurrency = 8
 
 // HandleExportInvoicesCSV exports all invoices as a CSV file
 func HandleExportInvoicesCSV(w http.ResponseWriter, r *http.Request) {
@@ -186,15 +196,17 @@ func HandleExportPurchaseBillsXLSX(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	details, err := fetchPurchaseBillDetailsConcurrently(token, bills)
+	if err != nil {
+		log.Printf("[purchase-bills export] detail fetch failed: %v", err)
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل منتجات فواتير المشتريات")
+		return
+	}
+
 	productRows := make([]purchaseBillExportProduct, 0)
 	exportBills := make([]purchaseBillExportBill, 0, len(bills))
-	for _, bill := range bills {
-		detail, products, manualProducts, extra, err := helpers.FetchPurchaseBillDetail(token, fmt.Sprintf("%d", bill.ID))
-		if err != nil {
-			log.Printf("[purchase-bills export] detail fetch failed for bill %d: %v", bill.ID, err)
-			helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل منتجات فواتير المشتريات")
-			return
-		}
+	for index, bill := range bills {
+		detail, products, manualProducts, extra := details[index].detail, details[index].products, details[index].manualProducts, details[index].extra
 		reference := fmt.Sprintf("PB-%d", bill.ID)
 		exportBills = append(exportBills, purchaseBillExportBill{
 			Reference: reference, StoreID: exportExtraInt(extra, "store_id"), SupplierID: exportExtraInt(extra, "supplier_id"),
@@ -217,6 +229,45 @@ func HandleExportPurchaseBillsXLSX(w http.ResponseWriter, r *http.Request) {
 	if err := workbook.Write(w); err != nil {
 		log.Printf("[purchase-bills export] workbook write failed: %v", err)
 	}
+}
+
+// purchaseBillDetailResult holds one FetchPurchaseBillDetail outcome, keyed by
+// the bill's position in the caller's slice so parallel fetches can write to
+// their own slot without a shared-map data race.
+type purchaseBillDetailResult struct {
+	detail         models.Invoice
+	products       []models.BillItem
+	manualProducts []models.BillItem
+	extra          map[string]interface{}
+	err            error
+}
+
+// fetchPurchaseBillDetailsConcurrently fetches each bill's detail with bounded
+// parallelism (see exportDetailFetchConcurrency) instead of one at a time, so
+// exporting many bills doesn't multiply backend round-trip latency linearly.
+// Results preserve the input order regardless of completion order.
+func fetchPurchaseBillDetailsConcurrently(token string, bills []models.Invoice) ([]purchaseBillDetailResult, error) {
+	results := make([]purchaseBillDetailResult, len(bills))
+	sem := make(chan struct{}, exportDetailFetchConcurrency)
+	var wg sync.WaitGroup
+	for index, bill := range bills {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(index, billID int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			detail, products, manualProducts, extra, err := helpers.FetchPurchaseBillDetail(token, fmt.Sprintf("%d", billID))
+			results[index] = purchaseBillDetailResult{detail: detail, products: products, manualProducts: manualProducts, extra: extra, err: err}
+		}(index, bill.ID)
+	}
+	wg.Wait()
+
+	for index, result := range results {
+		if result.err != nil {
+			return nil, fmt.Errorf("load purchase bill %d: %w", bills[index].ID, result.err)
+		}
+	}
+	return results, nil
 }
 
 func appendPurchaseBillExportProducts(rows []purchaseBillExportProduct, reference string, items []models.BillItem) []purchaseBillExportProduct {
@@ -383,12 +434,13 @@ func buildSalesBillExportWorkbook(token string, invoices []models.Invoice, arabi
 	if err := workbook.SetRowStyle("Products", 1, 1, headerStyle); err != nil {
 		return nil, err
 	}
+	details, err := fetchSalesBillDetailsConcurrently(token, invoices)
+	if err != nil {
+		return nil, err
+	}
 	productRow := 2
 	for index, invoice := range invoices {
-		detail, products, manualProducts, extra, err := helpers.FetchBillDetail(token, fmt.Sprintf("%d", invoice.ID))
-		if err != nil {
-			return nil, fmt.Errorf("load sales bill %d: %w", invoice.ID, err)
-		}
+		detail, products, manualProducts, extra := details[index].detail, details[index].products, details[index].manualProducts, details[index].extra
 		reference := fmt.Sprintf("SB-%d", invoice.ID)
 		customerID := exportExtraInt(extra, "client_id")
 		customerName := exportExtraString(extra, "user_name")
@@ -416,6 +468,42 @@ func buildSalesBillExportWorkbook(token string, invoices []models.Invoice, arabi
 		}
 	}
 	return workbook, nil
+}
+
+// salesBillDetailResult holds one FetchBillDetail outcome, keyed by the
+// invoice's position in the caller's slice (see purchaseBillDetailResult).
+type salesBillDetailResult struct {
+	detail         models.Invoice
+	products       []models.BillItem
+	manualProducts []models.BillItem
+	extra          map[string]interface{}
+	err            error
+}
+
+// fetchSalesBillDetailsConcurrently mirrors fetchPurchaseBillDetailsConcurrently
+// for sales invoices.
+func fetchSalesBillDetailsConcurrently(token string, invoices []models.Invoice) ([]salesBillDetailResult, error) {
+	results := make([]salesBillDetailResult, len(invoices))
+	sem := make(chan struct{}, exportDetailFetchConcurrency)
+	var wg sync.WaitGroup
+	for index, invoice := range invoices {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(index, invoiceID int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			detail, products, manualProducts, extra, err := helpers.FetchBillDetail(token, fmt.Sprintf("%d", invoiceID))
+			results[index] = salesBillDetailResult{detail: detail, products: products, manualProducts: manualProducts, extra: extra, err: err}
+		}(index, invoice.ID)
+	}
+	wg.Wait()
+
+	for index, result := range results {
+		if result.err != nil {
+			return nil, fmt.Errorf("load sales bill %d: %w", invoices[index].ID, result.err)
+		}
+	}
+	return results, nil
 }
 
 func exportExtraString(values map[string]interface{}, key string) string {

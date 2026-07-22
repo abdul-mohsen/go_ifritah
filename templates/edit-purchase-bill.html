@@ -184,7 +184,7 @@
 
 <script>
     var canEditSellingPrice = {{ if or (eq .user_role "admin") (eq .user_role "manager") }}true{{ else }}false{{ end }};
-    var purchaseBillLabels = {{ dict "itemLabel" (L "tpl.pb.item_label") "itemPlaceholder" (L "tpl.pb.item_placeholder") "manualItem" (L "tpl.pb.manual_item") "inventoryItem" (L "tpl.pb.inventory_item") "quantity" (L "tpl.pb.quantity") "costPrice" (L "tpl.product.cost_price") "costPriceHint" (L "tpl.pb.cost_price_hint") "shelfNumber" (L "tpl.product.shelf_number") "removeLabel" (L "tpl.pb.remove") "purchasePrice" (L "tpl.pb.purchase_price") "purchasePriceHint" (L "tpl.pb.purchase_price_hint") "sellingPrice" (L "tpl.product.selling_price") "sellingPriceHint" (L "tpl.pb.selling_price_hint") "sellingPriceAutoHint" (L "tpl.pb.selling_price_auto_hint") | json }};
+    var purchaseBillLabels = {{ dict "itemLabel" (L "tpl.pb.item_label") "itemPlaceholder" (L "tpl.pb.item_placeholder") "manualItem" (L "tpl.pb.manual_item") "inventoryItem" (L "tpl.pb.inventory_item") "quantity" (L "tpl.pb.quantity") "costPrice" (L "tpl.product.cost_price") "costPriceHint" (L "tpl.pb.cost_price_hint") "shelfNumber" (L "tpl.product.shelf_number") "deleteLabel" (L "tpl.delete") "purchasePrice" (L "tpl.pb.purchase_price") "purchasePriceHint" (L "tpl.pb.purchase_price_hint") "sellingPrice" (L "tpl.product.selling_price") "sellingPriceHint" (L "tpl.pb.selling_price_hint") "sellingPriceAutoHint" (L "tpl.pb.selling_price_auto_hint") | json }};
 
     // Supplier payment data for payment method defaults and credit checks
     var suppliersData = {
@@ -261,6 +261,8 @@
     var allStoreProducts = {{ .all_products | json }};
     var searchTimers = {};
 
+    {{ template "pb-item-row-markup-js" . }}
+
     function itemRow(product) {
         var rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         var prodId = product ? (product.product_id || product.id || 0) : 0;
@@ -272,31 +274,20 @@
         var costPrice = product ? (product.cost_price || (inventoryProduct ? inventoryProduct.cost_price : '')) : '';
         var shelfNumber = product ? (product.shelf_number || (inventoryProduct ? inventoryProduct.shelf_number : '')) : '';
         var sellingPrice = product ? (product.selling_price || (inventoryProduct ? inventoryProduct.price : '')) : '';
-        var sellingPriceAttrs = canEditSellingPrice ? '' : 'disabled';
-        var sellingPricePlaceholder = canEditSellingPrice ? escapeAttr(purchaseBillLabels.sellingPriceAutoHint) : '';
-        return `
-            <div class="item-row item-row-compact" data-row-id="${rowId}">
-                <span class="item-state pbi-state text-xs ${trackStock ? 'text-green-700' : 'text-gray-500'}" title="${escapeAttr(trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem)}">${escapeHtml(trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem)}</span>
-                <div class="pbi-name">
-                    <input type="text" class="store-product-search" placeholder="${escapeAttr(purchaseBillLabels.itemPlaceholder)}" autocomplete="off"
-                           aria-label="${escapeAttr(purchaseBillLabels.itemLabel)}"
-                           value="${escapeAttr(partName)}"
-                           oninput="onStoreItemInput(this, '${rowId}')" onfocus="showDropdown('${rowId}')">
-                    <input type="hidden" name="products_product_id" value="${prodId}">
-                    <input type="hidden" name="products_part_name" value="${escapeAttr(partName)}">
-                    <input type="hidden" name="products_track_stock" value="${trackStock}">
-                    <div id="dropdown_${rowId}" class="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
-                </div>
-                <input type="number" name="products_quantity" min="1" value="${qty}" class="pbi-qty" aria-label="${escapeAttr(purchaseBillLabels.quantity)}" oninput="recalculateTotal()">
-                <input type="text" name="products_price" value="${price}" class="pbi-purchase-price" aria-label="${escapeAttr(purchaseBillLabels.purchasePrice)}" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}" oninput="recalculateTotal()">
-                <input type="text" name="products_cost_price" class="pbi-cost-price" placeholder="0" value="${costPrice}" aria-label="${escapeAttr(purchaseBillLabels.costPrice)}" title="${escapeAttr(purchaseBillLabels.costPriceHint)}">
-                <input type="text" name="products_shelf_number" class="pbi-shelf" placeholder="" value="${shelfNumber}" aria-label="${escapeAttr(purchaseBillLabels.shelfNumber)}">
-                <input type="text" name="products_selling_price" class="pbi-selling-price" placeholder="${sellingPricePlaceholder}" value="${escapeAttr(sellingPrice)}" aria-label="${escapeAttr(purchaseBillLabels.sellingPrice)}" title="${escapeAttr(purchaseBillLabels.sellingPriceHint)}" ${sellingPriceAttrs}>
-                <button type="button" class="pbi-remove pbi-remove-btn" onclick="removeRow(this)" aria-label="${escapeAttr(purchaseBillLabels.removeLabel)}" title="${escapeAttr(purchaseBillLabels.removeLabel)}">
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6l8 8M14 6l-8 8"/></svg>
-                </button>
-            </div>
-        `;
+        return buildItemRowMarkup({
+            rowId: rowId,
+            productId: prodId,
+            trackStock: trackStock,
+            name: partName,
+            quantity: qty,
+            purchasePrice: price,
+            costPrice: costPrice,
+            shelfNumber: shelfNumber,
+            sellingPrice: sellingPrice,
+            sellingPriceAttrs: canEditSellingPrice ? '' : 'disabled',
+            sellingPricePlaceholder: canEditSellingPrice ? escapeAttr(purchaseBillLabels.sellingPriceAutoHint) : '',
+            includeExistingItemWarning: false
+        });
     }
 
     {{ template "pb-store-product-search-js" . }}

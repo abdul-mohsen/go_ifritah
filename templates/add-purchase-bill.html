@@ -395,6 +395,8 @@
 
     var searchTimers = {};
 
+    {{ template "pb-item-row-markup-js" . }}
+
     function itemRow(product) {
         var rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         var productId = product ? (product.id || product.product_id || product.productId || 0) : 0;
@@ -405,31 +407,20 @@
         var costPrice = product ? (product.costPrice !== undefined ? product.costPrice : (product.cost_price || '')) : '';
         var shelfNumber = product ? (product.shelfNumber || product.shelf_number || '') : '';
         var sellingPrice = product ? (product.sellingPrice || '') : '';
-        var sellingPriceAttrs = canEditSellingPrice ? '' : 'disabled';
-        var sellingPricePlaceholder = canEditSellingPrice ? escapeAttr(purchaseBillLabels.sellingPriceAutoHint) : '';
-        return `
-            <div class="item-row item-row-compact" data-row-id="${rowId}">
-                <span class="item-state pbi-state text-xs ${trackStock ? 'text-green-700' : 'text-gray-500'}" title="${escapeAttr(trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem)}">${escapeHtml(trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem)}</span>
-                <div class="pbi-name">
-                    <input type="text" class="store-product-search" placeholder="${escapeAttr(purchaseBillLabels.itemPlaceholder)}" autocomplete="off"
-                           aria-label="${escapeAttr(purchaseBillLabels.itemLabel)}"
-                           value="${escapeAttr(name)}" oninput="onStoreItemInput(this, '${rowId}')" onfocus="showDropdown('${rowId}')">
-                    <input type="hidden" name="products_product_id" value="${productId}">
-                    <input type="hidden" name="products_part_name" value="${escapeAttr(name)}">
-                    <input type="hidden" name="products_track_stock" value="${trackStock}">
-                    <div id="dropdown_${rowId}" class="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
-                    <span class="existing-item-warning text-xs text-amber-700 hidden"></span>
-                </div>
-                <input type="number" name="products_quantity" min="1" value="${quantity}" class="pbi-qty" aria-label="${escapeAttr(purchaseBillLabels.quantity)}" oninput="recalculateTotal()">
-                <input type="text" name="products_price" value="${purchasePrice}" class="pbi-purchase-price" aria-label="${escapeAttr(purchaseBillLabels.purchasePrice)}" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}" oninput="recalculateTotal()">
-                <input type="text" name="products_cost_price" value="${costPrice}" class="pbi-cost-price" placeholder="0" aria-label="${escapeAttr(purchaseBillLabels.costPrice)}" title="${escapeAttr(purchaseBillLabels.costPriceHint)}">
-                <input type="text" name="products_shelf_number" value="${escapeAttr(shelfNumber)}" class="pbi-shelf" placeholder="" aria-label="${escapeAttr(purchaseBillLabels.shelfNumber)}">
-                <input type="text" name="products_selling_price" value="${escapeAttr(sellingPrice)}" class="pbi-selling-price" aria-label="${escapeAttr(purchaseBillLabels.sellingPrice)}" title="${escapeAttr(purchaseBillLabels.sellingPriceHint)}" placeholder="${sellingPricePlaceholder}" ${sellingPriceAttrs}>
-                <button type="button" class="pbi-remove pbi-remove-btn" onclick="removeRow(this)" aria-label="${escapeAttr(purchaseBillLabels.deleteLabel)}" title="${escapeAttr(purchaseBillLabels.deleteLabel)}">
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6l8 8M14 6l-8 8"/></svg>
-                </button>
-            </div>
-        `;
+        return buildItemRowMarkup({
+            rowId: rowId,
+            productId: productId,
+            trackStock: trackStock,
+            name: name,
+            quantity: quantity,
+            purchasePrice: purchasePrice,
+            costPrice: costPrice,
+            shelfNumber: shelfNumber,
+            sellingPrice: sellingPrice,
+            sellingPriceAttrs: canEditSellingPrice ? '' : 'disabled',
+            sellingPricePlaceholder: canEditSellingPrice ? escapeAttr(purchaseBillLabels.sellingPriceAutoHint) : '',
+            includeExistingItemWarning: true
+        });
     }
 
     function hideExistingItemWarning(row) {

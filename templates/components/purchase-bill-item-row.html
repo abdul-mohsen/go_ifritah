@@ -55,7 +55,14 @@ function buildItemRowMarkup(opts) {
     // callers already have in scope - computed here (not passed in) so
     // each page's itemRow() has one less thing to duplicate.
     var sellingPriceAttrs = canEditSellingPrice ? '' : 'disabled';
-    var sellingPricePlaceholder = canEditSellingPrice ? escapeAttr(purchaseBillLabels.sellingPriceAutoHint) : '';
+    // Was inverted (showed the long auto-calc sentence as placeholder
+    // when the field was EDITABLE, and nothing when it was disabled) -
+    // the auto-calc hint only makes sense while the field is disabled.
+    // Also swapped the long sentence for a short word here (it doesn't
+    // fit a 6.5rem column); the full sentence still surfaces as the
+    // tooltip below.
+    var sellingPricePlaceholder = canEditSellingPrice ? '' : escapeAttr(purchaseBillLabels.sellingPriceAutoPlaceholder);
+    var sellingPriceTitle = canEditSellingPrice ? purchaseBillLabels.sellingPriceHint : purchaseBillLabels.sellingPriceAutoHint;
     var warningSpan = opts.includeExistingItemWarning
         ? '<span class="existing-item-warning text-xs text-amber-700 hidden"></span>'
         : '';
@@ -70,7 +77,7 @@ function buildItemRowMarkup(opts) {
                     <input type="hidden" name="products_product_id" value="${opts.productId}">
                     <input type="hidden" name="products_part_name" value="${escapeAttr(opts.name)}">
                     <input type="hidden" name="products_track_stock" value="${opts.trackStock}">
-                    <div id="dropdown_${opts.rowId}" class="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
+                    <div id="dropdown_${opts.rowId}" class="pbi-dropdown hidden"></div>
                     ${warningSpan}
                 </div>
             </td>
@@ -78,7 +85,7 @@ function buildItemRowMarkup(opts) {
             <td class="pbi-cell-price"><input type="text" name="products_price" value="${opts.purchasePrice}" dir="ltr" inputmode="decimal" aria-label="${escapeAttr(purchaseBillLabels.purchasePrice)}" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}" oninput="recalculateTotal()"></td>
             <td class="pbi-cell-price"><input type="text" name="products_cost_price" value="${opts.costPrice}" dir="ltr" inputmode="decimal" placeholder="0" aria-label="${escapeAttr(purchaseBillLabels.costPrice)}" title="${escapeAttr(purchaseBillLabels.costPriceHint)}"></td>
             <td class="pbi-cell-shelf"><input type="text" name="products_shelf_number" value="${escapeAttr(opts.shelfNumber)}" dir="auto" placeholder="" aria-label="${escapeAttr(purchaseBillLabels.shelfNumber)}"></td>
-            <td class="pbi-cell-price"><input type="text" name="products_selling_price" value="${escapeAttr(opts.sellingPrice)}" dir="ltr" inputmode="decimal" aria-label="${escapeAttr(purchaseBillLabels.sellingPrice)}" title="${escapeAttr(purchaseBillLabels.sellingPriceHint)}" placeholder="${sellingPricePlaceholder}" ${sellingPriceAttrs}></td>
+            <td class="pbi-cell-price"><input type="text" name="products_selling_price" value="${escapeAttr(opts.sellingPrice)}" dir="ltr" inputmode="decimal" aria-label="${escapeAttr(purchaseBillLabels.sellingPrice)}" title="${escapeAttr(sellingPriceTitle)}" placeholder="${sellingPricePlaceholder}" ${sellingPriceAttrs}></td>
             <td class="pbi-cell-action">
                 <button type="button" class="pbi-remove-btn" onclick="removeRow(this)" aria-label="${escapeAttr(purchaseBillLabels.deleteLabel)}" title="${escapeAttr(purchaseBillLabels.deleteLabel)}">
                     <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h12M8 6V4.5A1.5 1.5 0 019.5 3h1A1.5 1.5 0 0112 4.5V6m-6 0v10a1 1 0 001 1h6a1 1 0 001-1V6M8.5 9.5v5M11.5 9.5v5"/></svg>
@@ -127,6 +134,7 @@ function getCsrfCookie() {
 
 function renderStoreProductDropdown(products, rowId) {
     var dd = document.getElementById('dropdown_' + rowId);
+    positionDropdown(rowId);
     var storeSelect = document.querySelector('[name="store_id"]');
     var storeID = parseInt(storeSelect ? storeSelect.value : '', 10);
     products = (products || []).filter(function (product) {
@@ -179,13 +187,49 @@ function setInventoryState(row, trackStock) {
 
 function showDropdown(rowId) {
     var dd = document.getElementById('dropdown_' + rowId);
-    if (dd.innerHTML.trim()) dd.classList.remove('hidden');
+    if (dd.innerHTML.trim()) {
+        positionDropdown(rowId);
+        dd.classList.remove('hidden');
+    }
 }
 
 function hideDropdown(rowId) {
     var dd = document.getElementById('dropdown_' + rowId);
     if (dd) dd.classList.add('hidden');
 }
+
+// .pbi-dropdown is position:fixed (see style.css) so it escapes the
+// items table's own overflow-x:auto scrolling (which, per the CSS
+// overflow spec, forces overflow-y:auto too and would otherwise clip
+// any dropdown taller than the table wrapper's own box). Fixed
+// positioning needs the input's real screen coordinates recomputed
+// each time it's shown.
+function positionDropdown(rowId) {
+    var dd = document.getElementById('dropdown_' + rowId);
+    var input = document.querySelector('[data-row-id="' + rowId + '"] .store-product-search');
+    if (!dd || !input) return;
+    var rect = input.getBoundingClientRect();
+    dd.style.top = rect.bottom + 'px';
+    dd.style.left = rect.left + 'px';
+    dd.style.width = rect.width + 'px';
+}
+
+// A fixed-position dropdown doesn't move with its input, so it goes
+// stale the moment anything scrolls (the items table's own horizontal
+// scroll, the page, or a modal) or the viewport resizes. Closing it is
+// the standard low-risk behavior (matches native <select> and most
+// combobox widgets) - capture:true catches scroll events from the
+// items table's own scroll container too, not just window scroll.
+document.addEventListener('scroll', function () {
+    document.querySelectorAll('[id^="dropdown_"]:not(.hidden)').forEach(function (dd) {
+        dd.classList.add('hidden');
+    });
+}, true);
+window.addEventListener('resize', function () {
+    document.querySelectorAll('[id^="dropdown_"]:not(.hidden)').forEach(function (dd) {
+        dd.classList.add('hidden');
+    });
+});
 
 function escapeHtml(s) {
     var d = document.createElement('div');

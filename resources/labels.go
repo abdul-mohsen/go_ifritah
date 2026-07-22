@@ -1048,6 +1048,7 @@ var labels = map[string]Label{
 	"tpl.pb.cost_price_hint":                {Ar: "يحدّث تكلفة القطعة في المخزون", En: "Updates the item's cost basis in inventory"},
 	"tpl.pb.selling_price_hint":             {Ar: "سعر البيع الحالي في المخزون، يمكن تعديله", En: "Current catalog selling price — you may adjust it"},
 	"tpl.pb.selling_price_auto_hint":        {Ar: "اتركه فارغاً ليُحسب تلقائياً من نسبة الهامش الافتراضية", En: "Leave blank to auto-calculate from the default markup %"},
+	"tpl.pb.selling_price_auto_placeholder": {Ar: "تلقائي", En: "Auto"},
 	"tpl.pb.existing_item_name_warning":     {Ar: "⚠ يوجد عنصر بهذا الاسم في المخزون بالفعل", En: "⚠ An item with this name already exists in your inventory"},
 	"tpl.pb.enter_part_name":                {Ar: "أدخل اسم القطعة", En: "Enter part name"},
 	"tpl.pb.remove":                         {Ar: "إزالة", En: "Remove"},

@@ -2009,6 +2009,24 @@ aside nav a.nav-link svg {
     min-width: 0;
 }
 
+/* position:fixed (not absolute) and positioned via JS from the input's
+   real getBoundingClientRect() - .pb-items-wrapper scrolls horizontally
+   (overflow-x:auto), which forces its computed overflow-y to auto too
+   (CSS Overflow spec: one non-visible axis forces the other to auto),
+   so an absolutely-positioned dropdown nested inside it gets clipped
+   the moment it extends past the wrapper's own box. Fixed positioning
+   escapes that ancestor entirely. */
+.pbi-dropdown {
+    position: fixed;
+    z-index: 100;
+    background: var(--md-sys-color-surface-container-lowest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-sm);
+    box-shadow: var(--md-sys-elevation-2);
+    max-height: 12rem;
+    overflow-y: auto;
+}
+
 .pbi-state-badge {
     padding: 0.125rem 0.5rem;
     font-size: 0.6875rem;

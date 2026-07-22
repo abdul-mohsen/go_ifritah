@@ -12,6 +12,7 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -22,6 +23,7 @@ func HandleBranches(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	query := r.URL.Query().Get("q")
 	typed := helpers.TypedListFilters("branches", r.URL.Query())
@@ -50,7 +52,7 @@ func HandleBranches(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "branches", map[string]interface{}{
-		"title":      "الفروع",
+		"title":      resources.T(lang, "branch.list_title"),
 		"branches":   pagedBranches,
 		"query":      query,
 		"pagination": pagination,
@@ -64,8 +66,9 @@ func HandleAddBranch(w http.ResponseWriter, r *http.Request) {
 	if _, ok := helpers.GetTokenOrRedirect(w, r); !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 	helpers.Render(w, r, "add-branch", map[string]interface{}{
-		"title": "إضافة فرع",
+		"title": resources.T(lang, "branch.add_title"),
 	})
 }
 
@@ -95,17 +98,18 @@ func HandleBranchDetail(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	branch, found := findBranchByID(token, id)
 	if !found {
-		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, "الفرع غير موجود")
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, resources.T(lang, "branch.not_found"))
 		return
 	}
 
 	linkedStore, hasStore := helpers.FetchBranchLinkedStore(token, branch.ID)
 
 	helpers.Render(w, r, "branch-detail", map[string]interface{}{
-		"title":        "تفاصيل الفرع",
+		"title":        resources.T(lang, "branch.detail_title"),
 		"branch":       branch,
 		"linked_store": linkedStore,
 		"has_store":    hasStore,
@@ -120,20 +124,21 @@ func HandleEditBranch(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	branch, found := findBranchByID(token, id)
 	if !found {
-		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, "الفرع غير موجود")
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, resources.T(lang, "branch.not_found"))
 		return
 	}
 
 	linkedStore, hasStore := helpers.FetchBranchLinkedStore(token, branch.ID)
 
 	helpers.Render(w, r, "edit-branch", map[string]interface{}{
-		"title":         "تعديل الفرع",
-		"branch":        branch,
-		"linked_store":  linkedStore,
-		"has_store":     hasStore,
+		"title":        resources.T(lang, "branch.edit_title"),
+		"branch":       branch,
+		"linked_store": linkedStore,
+		"has_store":    hasStore,
 	})
 }
 
@@ -144,17 +149,18 @@ func HandleCreateBranch(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Server-side validation
 	errs := helpers.Validate([]helpers.FieldRule{
-		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: "اسم الفرع"},
-		{Field: "location", Value: r.FormValue("location"), Required: true, MinLen: 2, MaxLen: 200, Label: "الموقع"},
-		{Field: "phone", Value: r.FormValue("phone"), Pattern: helpers.PatternSaudiPhone, Label: "الهاتف", PatternMsg: "رقم جوال سعودي يبدأ بـ 05 ويتكون من 10 أرقام"},
+		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: resources.T(lang, "branch.label.name")},
+		{Field: "location", Value: r.FormValue("location"), Required: true, MinLen: 2, MaxLen: 200, Label: resources.T(lang, "branch.label.location")},
+		{Field: "phone", Value: r.FormValue("phone"), Pattern: helpers.PatternSaudiPhone, Label: resources.T(lang, "client.label.phone"), PatternMsg: resources.T(lang, "validation.saudi_phone_detailed")},
 	})
 	if errs != nil {
 		oldValues := helpers.OldValues([]string{"name", "location", "phone"}, r.FormValue)
 		data := helpers.RenderFormWithErrors(map[string]interface{}{
-			"title": "إضافة فرع",
+			"title": resources.T(lang, "branch.add_title"),
 		}, errs, oldValues)
 		helpers.Render(w, r, "add-branch", data)
 		return
@@ -181,12 +187,12 @@ func HandleCreateBranch(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[CREATE BRANCH] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في إنشاء الفرع")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "branch.create_error"))
 		return
 	}
 
 	helpers.APICache.Delete("branches")
-	helpers.WriteSuccessRedirect(w, "/dashboard/branches", "تم إنشاء الفرع بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/branches", resources.T(lang, "branch.create_success"))
 }
 
 // HandleUpdateBranch updates an existing branch
@@ -198,16 +204,17 @@ func HandleUpdateBranch(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Server-side validation
 	errs := helpers.Validate([]helpers.FieldRule{
-		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: "اسم الفرع"},
-		{Field: "phone", Value: r.FormValue("phone"), Pattern: helpers.PatternSaudiPhone, Label: "الهاتف", PatternMsg: "رقم جوال سعودي يبدأ بـ 05 ويتكون من 10 أرقام"},
+		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: resources.T(lang, "branch.label.name")},
+		{Field: "phone", Value: r.FormValue("phone"), Pattern: helpers.PatternSaudiPhone, Label: resources.T(lang, "client.label.phone"), PatternMsg: resources.T(lang, "validation.saudi_phone_detailed")},
 	})
 	if errs != nil {
 		oldValues := helpers.OldValues([]string{"name", "location", "phone"}, r.FormValue)
 		data := helpers.RenderFormWithErrors(map[string]interface{}{
-			"title": "تعديل الفرع",
+			"title": resources.T(lang, "branch.edit_title"),
 			"branch": models.Branch{
 				ID:      helpers.ParseIntValue(id),
 				Name:    r.FormValue("name"),
@@ -242,12 +249,12 @@ func HandleUpdateBranch(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[UPDATE BRANCH] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في تحديث الفرع")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "branch.update_error"))
 		return
 	}
 
 	helpers.APICache.Delete("branches")
-	helpers.WriteSuccessRedirect(w, "/dashboard/branches", "تم تحديث الفرع بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/branches", resources.T(lang, "branch.update_success"))
 }
 
 // HandleDeleteBranch deletes a branch
@@ -258,6 +265,7 @@ func HandleDeleteBranch(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	req, _ := http.NewRequest("DELETE", config.BackendDomain+"/api/v2/branch/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
@@ -270,10 +278,10 @@ func HandleDeleteBranch(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[DELETE BRANCH] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في حذف الفرع")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "branch.delete_error"))
 		return
 	}
 
 	helpers.APICache.Delete("branches")
-	helpers.WriteSuccessRedirect(w, "/dashboard/branches", "تم حذف الفرع بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/branches", resources.T(lang, "branch.delete_success"))
 }

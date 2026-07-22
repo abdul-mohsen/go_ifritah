@@ -65,8 +65,9 @@ var labels = map[string]Label{
 	"product.label.price":        {Ar: "سعر البيع", En: "Selling Price"},
 	"product.label.part_price":   {Ar: "سعر القطعة", En: "Part Price"},
 	"product.label.quantity":     {Ar: "الكمية", En: "Quantity"},
-	"product.label.cost_price":   {Ar: "سعر التكلفة", En: "Cost Price"},
-	"product.label.shelf_number": {Ar: "رقم الرف", En: "Shelf Number"},
+	"product.label.cost_price":         {Ar: "سعر التكلفة", En: "Cost Price"},
+	"product.label.shelf_number":       {Ar: "رقم الرف", En: "Shelf Number"},
+	"product.label.product_id_optional": {Ar: "معرف المنتج (اختياري)", En: "Product ID (optional)"},
 
 	// ── Clients ──────────────────────────────────────────────────────
 	"client.detail_title":         {Ar: "تفاصيل العميل", En: "Client Details"},
@@ -168,10 +169,11 @@ var labels = map[string]Label{
 	"supplier.delete_success":       {Ar: "تم حذف المورد بنجاح", En: "Supplier deleted successfully"},
 	"supplier.export_error":         {Ar: "تعذر تحميل الموردين", En: "Failed to load suppliers"},
 	"supplier.load_error_currently": {Ar: "تعذر تحميل الموردين من الخادم حالياً", En: "Failed to load suppliers from the server right now"},
-	"supplier.not_found":            {Ar: "المورد غير موجود", En: "Supplier not found"},
-	"supplier.report_failed":        {Ar: "تعذر تحميل تقرير المورد", En: "Failed to load supplier report"},
-	"supplier.report_title":         {Ar: "كشف حساب — %s", En: "Statement — %s"},
-	"supplier.invalid_number":       {Ar: "رقم المورد غير صحيح", En: "Invalid supplier number"},
+	"supplier.not_found":                 {Ar: "المورد غير موجود", En: "Supplier not found"},
+	"supplier.report_failed":             {Ar: "تعذر تحميل تقرير المورد", En: "Failed to load supplier report"},
+	"supplier.report_title":              {Ar: "كشف حساب — %s", En: "Statement — %s"},
+	"supplier.invalid_number":            {Ar: "رقم المورد غير صحيح", En: "Invalid supplier number"},
+	"supplier.statement_select_required": {Ar: "يرجى اختيار مورد واحد على الأقل", En: "Please select at least one supplier"},
 
 	// ── Supplier Validation Labels ───────────────────────────────────
 	"supplier.label.name":              {Ar: "اسم المورد", En: "Supplier Name"},
@@ -271,6 +273,10 @@ var labels = map[string]Label{
 	"purchase_bill.delete_success":       {Ar: "تم حذف فاتورة الشراء بنجاح", En: "Purchase bill deleted successfully"},
 	"purchase_bill.load_error_currently": {Ar: "تعذر تحميل فواتير المشتريات من الخادم حالياً", En: "Failed to load purchase bills from the server right now"},
 	"purchase_bill.company_type_label":   {Ar: "فاتورة مشتريات (شركة)", En: "Company Purchase Bill"},
+	"purchase_bill.export_list_error":     {Ar: "تعذر تحميل فواتير المشتريات", En: "Unable to load purchase bills"},
+	"purchase_bill.export_products_error": {Ar: "تعذر تحميل منتجات فواتير المشتريات", En: "Unable to load purchase bill products"},
+	"export.workbook_build_error":         {Ar: "تعذر إنشاء ملف Excel", En: "Unable to create Excel workbook"},
+	"bill_import.template_error":          {Ar: "تعذر إنشاء قالب Excel", En: "Unable to create Excel template"},
 	"purchase_bill_import.example":       {Ar: "مثال", En: "Example"},
 
 	// ── Purchase Bill Status Labels ──────────────────────────────────
@@ -421,6 +427,7 @@ var labels = map[string]Label{
 	"csv_header.phone":           {Ar: "الهاتف", En: "Phone"},
 	"csv_header.address":         {Ar: "العنوان", En: "Address"},
 	"csv_header.vat_number":      {Ar: "الرقم الضريبي", En: "VAT Number"},
+	"csv_header.supplier":        {Ar: "المورد", En: "Supplier"},
 
 	// ── PDF ──────────────────────────────────────────────────────────
 	"pdf.download_error":    {Ar: "تعذر تحميل ملف PDF، يرجى المحاولة لاحقاً", En: "Failed to download PDF, please try again later"},

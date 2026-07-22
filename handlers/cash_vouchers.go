@@ -22,6 +22,7 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	query := r.URL.Query().Get("q")
 	voucherType := r.URL.Query().Get("type")
@@ -46,9 +47,9 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 	for _, cv := range vouchers {
 		// Search/filter/sort are backend-driven — render whatever the BE returns.
 		statusKey, statusClass := helpers.CashVoucherStatusByState(cv.State)
-		statusLabel := resources.L(statusKey)
+		statusLabel := resources.T(lang, statusKey)
 
-		typeLabel := resources.L("cash_voucher_type." + cv.VoucherType)
+		typeLabel := resources.T(lang, "cash_voucher_type."+cv.VoucherType)
 
 		dateStr := cv.EffectiveDate
 		if len(dateStr) >= 10 {
@@ -88,7 +89,7 @@ func HandleCashVouchers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "cash-vouchers", map[string]interface{}{
-		"title":        resources.L("cash_voucher.list_title"),
+		"title":        resources.T(lang, "cash_voucher.list_title"),
 		"vouchers":     pagedVouchers,
 		"pagination":   pagination,
 		"prev_page":    prevPage,
@@ -114,7 +115,7 @@ func HandleAddCashVoucher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "add-cash-voucher", map[string]interface{}{
-		"title":            resources.L("cash_voucher.add_title"),
+		"title":            resources.T(helpers.GetLang(r), "cash_voucher.add_title"),
 		"stores":           stores,
 		"suppliers":        suppliers,
 		"default_store_id": defaultStoreID,
@@ -129,10 +130,11 @@ func HandleCreateCashVoucher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := helpers.BuildCashVoucherPayload(r)
+	lang := helpers.GetLang(r)
 
 	amountVal, _ := strconv.ParseFloat(payload.Amount, 64)
 	if amountVal <= 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.L("cash_voucher.amount_required"))
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "cash_voucher.amount_required"))
 		return
 	}
 
@@ -151,12 +153,12 @@ func HandleCreateCashVoucher(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[CREATE CASH VOUCHER] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, resources.L("cash_voucher.create_error"))
+		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, resources.T(lang, "cash_voucher.create_error"))
 		return
 	}
 
 	helpers.APICache.DeletePrefix("cash_vouchers")
-	helpers.WriteSuccessRedirect(w, "/dashboard/cash-vouchers", resources.L("cash_voucher.create_success"))
+	helpers.WriteSuccessRedirect(w, "/dashboard/cash-vouchers", resources.T(lang, "cash_voucher.create_success"))
 }
 
 // HandleGetCashVoucher shows details for a cash voucher.
@@ -168,11 +170,12 @@ func HandleGetCashVoucher(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	raw, err := helpers.FetchCashVoucherDetail(token, id)
 	if err != nil {
 		log.Printf("[CASH VOUCHER DETAIL] Fetch error for ID %s: %v", id, err)
-		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, resources.L("cash_voucher.not_found"))
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, resources.T(lang, "cash_voucher.not_found"))
 		return
 	}
 
@@ -193,28 +196,28 @@ func HandleGetCashVoucher(w http.ResponseWriter, r *http.Request) {
 	// State info
 	state := int(helpers.SafeFloat(raw["state"]))
 	statusKey, statusClass := helpers.CashVoucherStatusByState(state)
-	statusLabel := resources.L(statusKey)
+	statusLabel := resources.T(lang, statusKey)
 
 	// Voucher type label
 	voucherType := ""
 	if v, ok := raw["voucher_type"].(string); ok {
 		voucherType = v
 	}
-	typeLabel := resources.L("cash_voucher_type." + voucherType)
+	typeLabel := resources.T(lang, "cash_voucher_type."+voucherType)
 
 	// Payment method label
 	paymentMethod := ""
 	if v, ok := raw["payment_method"].(string); ok {
 		paymentMethod = v
 	}
-	methodLabel := resources.L("cash_voucher_method." + paymentMethod)
+	methodLabel := resources.T(lang, "cash_voucher_method."+paymentMethod)
 
 	// Recipient type label
 	recipientType := ""
 	if v, ok := raw["recipient_type"].(string); ok {
 		recipientType = v
 	}
-	recipientTypeLabel := resources.L("cash_voucher_recipient." + recipientType)
+	recipientTypeLabel := resources.T(lang, "cash_voucher_recipient."+recipientType)
 
 	// Format date
 	dateStr := ""
@@ -226,7 +229,7 @@ func HandleGetCashVoucher(w http.ResponseWriter, r *http.Request) {
 	amount := helpers.SafeFloat(raw["amount"])
 
 	helpers.Render(w, r, "cash-voucher-detail", map[string]interface{}{
-		"title":                resources.L("cash_voucher.detail_title"),
+		"title":                resources.T(lang, "cash_voucher.detail_title"),
 		"voucher":              raw,
 		"id":                   id,
 		"voucher_number":       int(helpers.SafeFloat(raw["voucher_number"])),
@@ -263,17 +266,18 @@ func HandleEditCashVoucher(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	raw, err := helpers.FetchCashVoucherDetail(token, id)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, resources.L("cash_voucher.not_found"))
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, resources.T(lang, "cash_voucher.not_found"))
 		return
 	}
 
 	// Only draft vouchers can be edited
 	state := int(helpers.SafeFloat(raw["state"]))
 	if state != 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.L("cash_voucher.update_error"))
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "cash_voucher.update_error"))
 		return
 	}
 
@@ -287,7 +291,7 @@ func HandleEditCashVoucher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "edit-cash-voucher", map[string]interface{}{
-		"title":     resources.L("cash_voucher.edit_title"),
+		"title":     resources.T(lang, "cash_voucher.edit_title"),
 		"voucher":   raw,
 		"id":        id,
 		"date":      dateStr,
@@ -308,10 +312,11 @@ func HandleUpdateCashVoucher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := helpers.BuildCashVoucherPayload(r)
+	lang := helpers.GetLang(r)
 
 	amountVal, _ := strconv.ParseFloat(payload.Amount, 64)
 	if amountVal <= 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.L("cash_voucher.amount_required"))
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "cash_voucher.amount_required"))
 		return
 	}
 
@@ -330,12 +335,12 @@ func HandleUpdateCashVoucher(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[UPDATE CASH VOUCHER] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, resources.L("cash_voucher.update_error"))
+		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, resources.T(lang, "cash_voucher.update_error"))
 		return
 	}
 
 	helpers.APICache.DeletePrefix("cash_vouchers")
-	helpers.WriteSuccessRedirect(w, "/dashboard/cash-vouchers/"+id, resources.L("cash_voucher.update_success"))
+	helpers.WriteSuccessRedirect(w, "/dashboard/cash-vouchers/"+id, resources.T(lang, "cash_voucher.update_success"))
 }
 
 // HandleDeleteCashVoucher deletes a draft cash voucher.
@@ -347,6 +352,7 @@ func HandleDeleteCashVoucher(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	req, _ := http.NewRequest("DELETE", config.BackendDomain+"/api/v2/cash_voucher/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
@@ -359,12 +365,12 @@ func HandleDeleteCashVoucher(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[DELETE CASH VOUCHER] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, resources.L("cash_voucher.delete_error"))
+		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, resources.T(lang, "cash_voucher.delete_error"))
 		return
 	}
 
 	helpers.APICache.DeletePrefix("cash_vouchers")
-	helpers.WriteSuccessRedirect(w, "/dashboard/cash-vouchers", resources.L("cash_voucher.delete_success"))
+	helpers.WriteSuccessRedirect(w, "/dashboard/cash-vouchers", resources.T(lang, "cash_voucher.delete_success"))
 }
 
 // HandleApproveCashVoucher approves a draft cash voucher.
@@ -376,15 +382,16 @@ func HandleApproveCashVoucher(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	if err := helpers.ApproveCashVoucher(token, id); err != nil {
 		log.Printf("[APPROVE CASH VOUCHER] Error: %v", err)
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.L("cash_voucher.approve_error"))
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "cash_voucher.approve_error"))
 		return
 	}
 
 	helpers.APICache.DeletePrefix("cash_vouchers")
-	helpers.WriteSuccessRedirect(w, "/dashboard/cash-vouchers/"+id, resources.L("cash_voucher.approve_success"))
+	helpers.WriteSuccessRedirect(w, "/dashboard/cash-vouchers/"+id, resources.T(lang, "cash_voucher.approve_success"))
 }
 
 // HandlePostCashVoucher posts an approved cash voucher (irreversible).
@@ -396,13 +403,14 @@ func HandlePostCashVoucher(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	if err := helpers.PostCashVoucher(token, id); err != nil {
 		log.Printf("[POST CASH VOUCHER] Error: %v", err)
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.L("cash_voucher.post_error"))
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "cash_voucher.post_error"))
 		return
 	}
 
 	helpers.APICache.DeletePrefix("cash_vouchers")
-	helpers.WriteSuccessRedirect(w, "/dashboard/cash-vouchers/"+id, resources.L("cash_voucher.post_success"))
+	helpers.WriteSuccessRedirect(w, "/dashboard/cash-vouchers/"+id, resources.T(lang, "cash_voucher.post_success"))
 }

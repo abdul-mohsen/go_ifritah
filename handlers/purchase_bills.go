@@ -14,6 +14,7 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -32,6 +33,7 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	query := r.URL.Query().Get("q")
 	stateFilter := r.URL.Query().Get("state")
@@ -52,7 +54,7 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("[purchase-bills] backend list fetch failed: %v", err)
 		bills = nil
-		backendErr = "تعذر تحميل فواتير المشتريات من الخادم حالياً"
+		backendErr = resources.T(lang, "purchase_bill.load_error_currently")
 	}
 
 	displayBills := make([]map[string]interface{}, 0)
@@ -93,7 +95,7 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "purchase-bills", map[string]interface{}{
-		"title":      "فواتير المشتريات",
+		"title":      resources.T(lang, "purchase_bill.list_title"),
 		"bills":      pagedBills,
 		"pagination": pagination,
 		"prev_page":  prevPage,
@@ -110,12 +112,13 @@ func HandleAddPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	stores, _ := helpers.FetchStores(token)
 	suppliers, _ := helpers.FetchSuppliers(token)
 
 	helpers.Render(w, r, "add-purchase-bill", map[string]interface{}{
-		"title":           "إضافة فاتورة مشتريات",
+		"title":           resources.T(lang, "purchase_bill.add_title"),
 		"stores":          stores,
 		"suppliers":       suppliers,
 		"pb_pdf_required": GetSettingValue(token, "pb_pdf_required"),
@@ -187,6 +190,7 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Prevent duplicate submissions: only one in-flight create per user session
 	if _, loaded := purchaseBillCreateLock.LoadOrStore(token, true); loaded {
@@ -218,12 +222,12 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[CREATE PURCHASE BILL] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, "فشل في إنشاء فاتورة الشراء")
+		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, resources.T(lang, "purchase_bill.create_error"))
 		return
 	}
 
 	helpers.APICache.Delete("purchase_bills")
-	helpers.WriteSuccessRedirect(w, "/dashboard/purchase-bills", "تم إنشاء فاتورة الشراء بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/purchase-bills", resources.T(lang, "purchase_bill.create_success"))
 }
 
 // HandleGetPurchaseBill shows details for a purchase bill.
@@ -235,6 +239,7 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Fetch and parse the purchase bill into structured data
 	invoice, products, manualProducts, extra, err := helpers.FetchPurchaseBillDetail(token, id)
@@ -336,9 +341,9 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Bill type label
-	typeLabel := "فاتورة مشتريات"
+	typeLabel := resources.T(lang, "purchase_bill.type_label")
 	if invoice.Type {
-		typeLabel = "فاتورة مشتريات (شركة)"
+		typeLabel = resources.T(lang, "purchase_bill.company_type_label")
 	}
 
 	// Extract pdf_link if it has a valid file extension
@@ -353,7 +358,7 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "purchase-bill-detail", map[string]interface{}{
-		"title":                    "تفاصيل فاتورة المشتريات",
+		"title":                    resources.T(lang, "purchase_bill.detail_title"),
 		"bill":                     invoice,
 		"bill_id":                  id,
 		"catalog_products":         products,
@@ -389,6 +394,7 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	req, _ := http.NewRequest("GET", config.BackendDomain+"/api/v2/purchase_bill/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
@@ -449,7 +455,7 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	subtotal := firstFloat(bill, "total_amount", "total")
 
 	helpers.Render(w, r, "edit-purchase-bill", map[string]interface{}{
-		"title":                    "تعديل فاتورة المشتريات",
+		"title":                    resources.T(lang, "purchase_bill.edit_title"),
 		"bill":                     bill,
 		"bill_id":                  id,
 		"stores":                   stores,
@@ -479,6 +485,7 @@ func HandleUpdatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	payload := helpers.BuildPurchaseBillPayload(r)
 	body, _ := json.Marshal(payload)
@@ -497,12 +504,12 @@ func HandleUpdatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[UPDATE PURCHASE BILL] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, "فشل في تحديث فاتورة الشراء")
+		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, resources.T(lang, "purchase_bill.update_error"))
 		return
 	}
 
 	helpers.APICache.Delete("purchase_bills")
-	helpers.WriteSuccessRedirect(w, "/dashboard/purchase-bills", "تم تحديث فاتورة الشراء بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/purchase-bills", resources.T(lang, "purchase_bill.update_success"))
 }
 
 // HandleDeletePurchaseBill deletes a purchase bill.
@@ -514,6 +521,7 @@ func HandleDeletePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	req, _ := http.NewRequest("DELETE", config.BackendDomain+"/api/v2/purchase_bill/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
@@ -524,7 +532,7 @@ func HandleDeletePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	helpers.APICache.Delete("purchase_bills")
-	helpers.WriteSuccessRedirect(w, "/dashboard/purchase-bills", "تم حذف فاتورة الشراء بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/purchase-bills", resources.T(lang, "purchase_bill.delete_success"))
 }
 
 // extractDateField pulls a raw date/time string out of a backend date field

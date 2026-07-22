@@ -23,7 +23,9 @@ func HandleSetLanguage(w http.ResponseWriter, r *http.Request) {
 		Value:    lang,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   !isLocalhost(),
+		// The app runs behind a TLS-terminating proxy, so Secure=true is
+		// always correct (matches every other cookie set across the app).
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   365 * 24 * 60 * 60, // 1 year
 	})

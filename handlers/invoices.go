@@ -14,6 +14,7 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -29,6 +30,7 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Read pagination and filter parameters
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
@@ -58,14 +60,14 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 		// a generic 500 stub when the upstream bill list is hiccuping.
 		log.Printf("[invoices] backend list fetch failed: %v", err)
 		helpers.Render(w, r, "invoices", map[string]interface{}{
-			"title":      "الفواتير",
+			"title":      resources.T(lang, "invoice.list_title"),
 			"invoices":   []map[string]interface{}{},
 			"pagination": helpers.Pagination{Page: 0, PerPage: 10, Total: 0, TotalPages: 0},
 			"prev_page":  -1,
 			"next_page":  -1,
 			"query":      query,
 			"state":      stateFilter,
-			"error":      "تعذر تحميل الفواتير من الخادم حالياً",
+			"error":      resources.T(lang, "invoice.load_error_currently"),
 		})
 		return
 	}
@@ -79,7 +81,7 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 		status = helpers.TranslateInvoiceStatus(status)
 		invoiceType := helpers.InvoiceTypeLabel(inv)
 		if inv.State == 0 {
-			invoiceType = fmt.Sprintf("%s (مسودة)", invoiceType)
+			invoiceType = fmt.Sprintf("%s %s", invoiceType, resources.T(lang, "invoice.draft_suffix"))
 		}
 
 		displayInvoices = append(displayInvoices, map[string]interface{}{
@@ -118,7 +120,7 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]interface{}{
-		"title":      "الفواتير",
+		"title":      resources.T(lang, "invoice.list_title"),
 		"invoices":   pagedInvoices,
 		"pagination": pagination,
 		"prev_page":  prevPage,
@@ -143,6 +145,7 @@ func HandleAddInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	stores, _ := helpers.FetchStores(token)
 	branches, _ := helpers.FetchBranches(token)
@@ -151,7 +154,7 @@ func HandleAddInvoice(w http.ResponseWriter, r *http.Request) {
 	isCompany := r.URL.Query().Get("type") == "company"
 
 	data := map[string]interface{}{
-		"title":      "إضافة فاتورة",
+		"title":      resources.T(lang, "invoice.add_title"),
 		"stores":     stores,
 		"branches":   branches,
 		"today":      today,
@@ -172,6 +175,7 @@ func HandleCreateDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	stores, err := helpers.FetchStores(token)
 	if err != nil {
@@ -183,7 +187,7 @@ func HandleCreateDraftInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(stores) == 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u062a\u0627\u062c\u0631 \u0644\u0625\u0646\u0634\u0627\u0621 \u0641\u0627\u062a\u0648\u0631\u0629")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "invoice.no_stores"))
 		return
 	}
 
@@ -219,12 +223,12 @@ func HandleCreateDraftInvoice(w http.ResponseWriter, r *http.Request) {
 
 	if resp.StatusCode >= 300 {
 		log.Printf("Draft invoice creation failed: status %d", resp.StatusCode)
-		helpers.WriteErrorResponse(w, resp.StatusCode, resp, "فشل في إنشاء مسودة الفاتورة")
+		helpers.WriteErrorResponse(w, resp.StatusCode, resp, resources.T(lang, "invoice.draft_create_error"))
 		return
 	}
 
 	helpers.APICache.Delete("invoices_all")
-	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم إنشاء مسودة الفاتورة بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", resources.T(lang, "invoice.draft_create_success"))
 }
 
 // HandleAddCreditNote displays the add credit note form
@@ -233,11 +237,12 @@ func HandleAddCreditNote(w http.ResponseWriter, r *http.Request) {
 	if _, ok := helpers.GetTokenOrRedirect(w, r); !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	vars := mux.Vars(r)
 	id := vars["id"]
 	data := map[string]interface{}{
-		"title": "إضافة إشعار دائن",
+		"title": resources.T(lang, "invoice.add_credit_note_title"),
 		"id":    id,
 	}
 	helpers.Render(w, r, "add-credit-note", data)
@@ -249,6 +254,7 @@ func HandleCreateInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	payload := helpers.BuildBillPayload(r)
 	jsonPayload, _ := json.Marshal(payload)
@@ -267,12 +273,12 @@ func HandleCreateInvoice(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[CREATE INVOICE] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, "فشل في إنشاء الفاتورة")
+		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, resources.T(lang, "invoice.create_error"))
 		return
 	}
 
 	helpers.APICache.Delete("invoices_all")
-	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم إنشاء الفاتورة بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", resources.T(lang, "invoice.create_success"))
 }
 
 // HandleCreateCreditNote creates a new credit note
@@ -281,9 +287,10 @@ func HandleCreateCreditNote(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	if err := r.ParseForm(); err != nil {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0646\u0645\u0648\u0630\u062c \u063a\u064a\u0631 \u0635\u0627\u0644\u062d\u0629")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "invoice.invalid_form"))
 		return
 	}
 
@@ -310,7 +317,7 @@ func HandleCreateCreditNote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.APICache.Delete("invoices_all")
-	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم إنشاء إشعار الدائن بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", resources.T(lang, "invoice.credit_note_create_success"))
 }
 
 // HandleGetInvoice displays invoice detail page
@@ -323,6 +330,7 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 	loadSettingsFromBackend(token)
 
 	// Fetch the full raw bill data from backend
@@ -342,7 +350,7 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 	status, statusClass := helpers.InvoiceStatus(invoice)
 	invoiceType := helpers.InvoiceTypeLabel(invoice)
 	if invoice.State == 0 {
-		invoiceType = fmt.Sprintf("%s (مسودة)", invoiceType)
+		invoiceType = fmt.Sprintf("%s %s", invoiceType, resources.T(lang, "invoice.draft_suffix"))
 	}
 
 	// Format dates
@@ -378,7 +386,7 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]interface{}{
-		"title":            "تفاصيل الفاتورة",
+		"title":            resources.T(lang, "invoice.detail_title"),
 		"invoice":          invoice,
 		"invoice_id":       id,
 		"total_display":    fmt.Sprintf("%.2f", invoice.Total),
@@ -415,23 +423,24 @@ func HandleSendInvoiceWhatsApp(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	id := mux.Vars(r)["id"]
 	if strings.TrimSpace(id) == "" {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "رقم الفاتورة غير صالح")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "invoice.invalid_number"))
 		return
 	}
 
 	req, err := http.NewRequest(http.MethodPost, config.BackendDomain+"/api/v2/bill/"+id+"/whatsapp", nil)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر إرسال الفاتورة عبر واتساب")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "invoice.whatsapp_send_error"))
 		return
 	}
 
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
 		log.Printf("[WHATSAPP] send failed: %v", err)
-		helpers.WriteErrorResponse(w, http.StatusBadGateway, nil, "تعذر الاتصال بخدمة واتساب")
+		helpers.WriteErrorResponse(w, http.StatusBadGateway, nil, resources.T(lang, "invoice.whatsapp_service_error"))
 		return
 	}
 	defer resp.Body.Close()
@@ -442,13 +451,13 @@ func HandleSendInvoiceWhatsApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if resp.StatusCode >= 300 {
-		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, body, "تعذر إرسال الفاتورة عبر واتساب")
+		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, body, resources.T(lang, "invoice.whatsapp_send_error"))
 		return
 	}
 
 	msg := helpers.ExtractMessageFromBytes(body)
 	if msg == "" || strings.EqualFold(msg, "sent") {
-		msg = "تم إرسال الفاتورة عبر واتساب"
+		msg = resources.T(lang, "invoice.whatsapp_send_success")
 	}
 	helpers.WriteSuccessToast(w, msg)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -466,6 +475,7 @@ func HandleInvoicePreview(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	invoice, _, _, _, err := helpers.FetchBillDetail(token, id)
 	if err != nil {
@@ -480,18 +490,18 @@ func HandleInvoicePreview(w http.ResponseWriter, r *http.Request) {
 	status, statusClass := helpers.InvoiceStatus(invoice)
 	invoiceType := helpers.InvoiceTypeLabel(invoice)
 	if invoice.State == 0 {
-		invoiceType = fmt.Sprintf("%s (مسودة)", invoiceType)
+		invoiceType = fmt.Sprintf("%s %s", invoiceType, resources.T(lang, "invoice.draft_suffix"))
 	}
 
 	data := map[string]interface{}{
-		"title":         "معاينة الفاتورة",
+		"title":         resources.T(lang, "invoice.preview_title"),
 		"invoice":       invoice,
 		"total_display": fmt.Sprintf("%.2f", invoice.Total),
 		"status":        status,
 		"status_class":  statusClass,
 		"type":          invoiceType,
 	}
-	helpers.RenderStandalone(w, "invoice-preview", data)
+	helpers.RenderStandalone(w, r, "invoice-preview", data)
 }
 
 // HandleInvoicePrint redirects to the backend PDF for printing.
@@ -511,6 +521,7 @@ func HandleEditInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	inv, products, manualProducts, extra, err := helpers.FetchBillDetail(token, id)
 	if err != nil {
@@ -580,7 +591,7 @@ func HandleEditInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]interface{}{
-		"title":               "تعديل الفاتورة",
+		"title":               resources.T(lang, "invoice.edit_title"),
 		"id":                  id,
 		"invoice":             bill,
 		"stores":              stores,
@@ -639,6 +650,7 @@ func HandleUpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	payload := helpers.BuildBillPayload(r)
 	jsonPayload, _ := json.Marshal(payload)
@@ -653,12 +665,12 @@ func HandleUpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في تحديث الفاتورة")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "invoice.update_error"))
 		return
 	}
 
 	helpers.APICache.Delete("invoices_all")
-	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم تحديث الفاتورة بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", resources.T(lang, "invoice.update_success"))
 }
 
 // HandleSubmitDraftInvoice converts a draft bill into a real bill by PUTing to /api/v2/bill/{id}.
@@ -671,6 +683,7 @@ func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Fetch current bill data to build the payload
 	inv, products, manualProducts, extra, err := helpers.FetchBillDetail(token, id)
@@ -684,7 +697,7 @@ func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if inv.State != 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "هذه الفاتورة ليست مسودة")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "invoice.not_draft"))
 		return
 	}
 
@@ -720,12 +733,12 @@ func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[SUBMIT DRAFT] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, "فشل في تقديم المسودة")
+		helpers.WriteErrorResponseFromBytes(w, resp.StatusCode, respBody, resources.T(lang, "invoice.submit_draft_error"))
 		return
 	}
 
 	helpers.APICache.Delete("invoices_all")
-	helpers.WriteSuccessRedirect(w, "/bill/"+id, "تم تقديم المسودة كفاتورة بنجاح")
+	helpers.WriteSuccessRedirect(w, "/bill/"+id, resources.T(lang, "invoice.submit_draft_success"))
 }
 
 // HandleDeleteInvoice deletes an invoice
@@ -737,6 +750,7 @@ func HandleDeleteInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	req, _ := http.NewRequest("DELETE", config.BackendDomain+"/api/v2/bill/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
@@ -747,7 +761,7 @@ func HandleDeleteInvoice(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	helpers.APICache.Delete("invoices_all")
-	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم حذف الفاتورة بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", resources.T(lang, "invoice.delete_success"))
 }
 
 // HandleCreateCompanyInvoice creates an invoice for a company client
@@ -757,6 +771,7 @@ func HandleCreateCompanyInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Build the invoice payload with client_id
 	payload := map[string]interface{}{
@@ -778,7 +793,7 @@ func HandleCreateCompanyInvoice(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	helpers.APICache.Delete("invoices_all")
-	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم إنشاء فاتورة الشركة بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", resources.T(lang, "company_invoice.create_success"))
 }
 
 // buildSubmitProductItems converts persisted bill product rows into the

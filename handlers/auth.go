@@ -13,18 +13,20 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 )
 
 // HandleLogin renders the login page
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
-	helpers.RenderStandalone(w, "login", map[string]interface{}{"title": "Login"})
+	helpers.RenderStandalone(w, r, "login", map[string]interface{}{"title": "Login"})
 }
 
 // HandleLoginPost processes login form submission
 func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
+	lang := helpers.GetLang(r)
 	err := r.ParseForm()
 	if err != nil {
-		writeLoginError(w, r, http.StatusBadRequest, "بيانات غير صالحة")
+		writeLoginError(w, r, http.StatusBadRequest, resources.T(lang, "auth.invalid_data"))
 		return
 	}
 
@@ -32,7 +34,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	if username == "" || password == "" {
-		writeLoginError(w, r, http.StatusBadRequest, "يرجى إدخال اسم المستخدم وكلمة المرور")
+		writeLoginError(w, r, http.StatusBadRequest, resources.T(lang, "auth.enter_username_password"))
 		return
 	}
 
@@ -48,7 +50,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		log.Printf("❌ Backend connection error: %v", err)
-		writeLoginError(w, r, http.StatusInternalServerError, "خطأ في الاتصال بالخادم")
+		writeLoginError(w, r, http.StatusInternalServerError, resources.T(lang, "auth.server_connection_error"))
 		return
 	}
 	defer resp.Body.Close()
@@ -62,7 +64,7 @@ func HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode != http.StatusOK || backendResp.AccessToken == "" {
 		errMsg := backendResp.Error
 		if errMsg == "" {
-			errMsg = "اسم المستخدم أو كلمة المرور غير صحيحة"
+			errMsg = resources.T(lang, "auth.invalid_credentials")
 		}
 		writeLoginError(w, r, http.StatusUnauthorized, errMsg)
 		return
@@ -198,12 +200,13 @@ func HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 
 // HandleRegister renders the register page
 func HandleRegister(w http.ResponseWriter, r *http.Request) {
-	helpers.RenderStandalone(w, "register", nil)
+	helpers.RenderStandalone(w, r, "register", nil)
 }
 
 // HandleRegisterPost forwards registration to backend POST /api/v2/register.
 func HandleRegisterPost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	lang := helpers.GetLang(r)
 
 	var req struct {
 		FullName string `json:"full_name"`
@@ -214,12 +217,12 @@ func HandleRegisterPost(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "طلب غير صالح"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": resources.T(lang, "auth.invalid_request")})
 		return
 	}
 	if req.Username == "" || req.Email == "" || req.Password == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "اسم المستخدم والبريد وكلمة المرور مطلوبة"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": resources.T(lang, "auth.username_email_password_required")})
 		return
 	}
 
@@ -227,7 +230,7 @@ func HandleRegisterPost(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Post(config.BackendDomain+"/api/v2/register", "application/json", bytes.NewReader(body))
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "تعذر الاتصال بالخادم"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": resources.T(lang, "general.unable_to_connect_server")})
 		return
 	}
 	defer resp.Body.Close()
@@ -241,24 +244,25 @@ func HandleRegisterPost(w http.ResponseWriter, r *http.Request) {
 
 // HandleForgotPassword renders the forgot password page
 func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
-	helpers.RenderStandalone(w, "forgot-password", nil)
+	helpers.RenderStandalone(w, r, "forgot-password", nil)
 }
 
 // HandleForgotPasswordPost forwards to backend POST /api/v2/forgot-password.
 func HandleForgotPasswordPost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	lang := helpers.GetLang(r)
 
 	var req struct {
 		Email string `json:"email"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "طلب غير صالح"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": resources.T(lang, "auth.invalid_request")})
 		return
 	}
 	if req.Email == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "البريد الإلكتروني مطلوب"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": resources.T(lang, "auth.email_required")})
 		return
 	}
 
@@ -266,7 +270,7 @@ func HandleForgotPasswordPost(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Post(config.BackendDomain+"/api/v2/forgot-password", "application/json", bytes.NewReader(body))
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "تعذر الاتصال بالخادم"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": resources.T(lang, "general.unable_to_connect_server")})
 		return
 	}
 	defer resp.Body.Close()

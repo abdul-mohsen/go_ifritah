@@ -9,6 +9,7 @@ import (
 
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 )
 
 // supplierStatementEntry pairs one supplier with its fetched report, used
@@ -98,21 +99,22 @@ func loadSupplierStatementForDownload(w http.ResponseWriter, r *http.Request) ([
 	if !ok {
 		return nil, "", "", false
 	}
+	lang := helpers.GetLang(r)
 
 	ids := parseSupplierIDs(r.URL.Query().Get("ids"))
 	if len(ids) == 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "يرجى اختيار مورد واحد على الأقل")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "supplier.statement_select_required"))
 		return nil, "", "", false
 	}
 
 	dateFrom, dateTo := supplierReportDateRange(r)
 	entries, err := loadSupplierStatementEntries(token, ids, dateFrom, dateTo)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, msgSupplierReportFailed)
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "supplier.report_failed"))
 		return nil, "", "", false
 	}
 	if len(entries) == 0 {
-		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, msgSupplierNotFound)
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, resources.T(lang, "supplier.not_found"))
 		return nil, "", "", false
 	}
 
@@ -127,9 +129,10 @@ func HandleSupplierStatement(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	helpers.Render(w, r, "supplier-statement", map[string]interface{}{
-		"title":     "كشف حساب موردين",
+		"title":     resources.T(lang, "tpl.report.statement_title"),
 		"entries":   entries,
 		"totals":    aggregateSupplierStatementTotals(entries),
 		"date_from": dateFrom,
@@ -147,6 +150,7 @@ func HandleExportSupplierStatementCSV(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	filename := fmt.Sprintf("supplier_statement_%s_%s.csv", dateFrom, dateTo)
 	w.Header().Set(headerContentType, "text/csv; charset=utf-8")
@@ -156,14 +160,24 @@ func HandleExportSupplierStatementCSV(w http.ResponseWriter, r *http.Request) {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	_ = writer.Write([]string{"المورد", "رقم الفاتورة", "التاريخ", "النوع", "المرجع", "الوصف", "مدين", "دائن", "الرصيد"})
+	_ = writer.Write([]string{
+		resources.T(lang, "csv_header.supplier"),
+		resources.T(lang, "csv_header.invoice_number"),
+		resources.T(lang, "csv_header.date"),
+		resources.T(lang, "csv_header.type"),
+		resources.T(lang, "tpl.report.reference"),
+		resources.T(lang, "tpl.report.description"),
+		resources.T(lang, "tpl.report.debit"),
+		resources.T(lang, "tpl.report.credit"),
+		resources.T(lang, "tpl.report.balance"),
+	})
 	for _, entry := range entries {
 		for _, ledgerEntry := range entry.Report.Ledger {
 			_ = writer.Write([]string{
 				entry.Supplier.Name,
 				ledgerBillNo(ledgerEntry),
 				ledgerEntry.Date,
-				ledgerTypeName(ledgerEntry),
+				ledgerTypeName(lang, ledgerEntry),
 				ledgerEntry.Reference,
 				ledgerEntry.Description,
 				fmt.Sprintf("%.2f", ledgerEntry.Debit),

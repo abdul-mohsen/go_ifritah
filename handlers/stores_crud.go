@@ -9,6 +9,7 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -19,6 +20,7 @@ func HandleStores(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	query := r.URL.Query().Get("q")
 
@@ -44,7 +46,7 @@ func HandleStores(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "stores", map[string]interface{}{
-		"title":      "المخازن",
+		"title":      resources.T(lang, "store.list_title"),
 		"stores":     pagedStores,
 		"query":      query,
 		"pagination": pagination,
@@ -59,6 +61,7 @@ func HandleAddStore(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 	branches, _ := helpers.FetchBranches(token)
 	// Optional ?branch_id=N preselect — used by the ZATCA "add store" deep-link.
 	selectedBranch := 0
@@ -66,7 +69,7 @@ func HandleAddStore(w http.ResponseWriter, r *http.Request) {
 		selectedBranch, _ = strconv.Atoi(b)
 	}
 	helpers.Render(w, r, "add-store", map[string]interface{}{
-		"title":           "إضافة مخزن",
+		"title":           resources.T(lang, "store.add_title"),
 		"branches":        branches,
 		"selected_branch": selectedBranch,
 	})
@@ -99,14 +102,15 @@ func HandleStoreDetail(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	store, found := findStoreByID(token, id)
 	if !found {
-		store = models.Store{ID: helpers.ParseIntValue(id), Name: "مخزن #" + id}
+		store = models.Store{ID: helpers.ParseIntValue(id), Name: resources.T(lang, "store.fallback_name") + id}
 	}
 
 	helpers.Render(w, r, "store-detail", map[string]interface{}{
-		"title": "تفاصيل المخزن",
+		"title": resources.T(lang, "store.detail_title"),
 		"store": store,
 	})
 }
@@ -120,6 +124,7 @@ func HandleEditStore(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	idInt, _ := strconv.Atoi(id)
 	store, err := helpers.FetchStoreByID(token, idInt)
@@ -138,7 +143,7 @@ func HandleEditStore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "edit-store", map[string]interface{}{
-		"title":           "تعديل المخزن",
+		"title":           resources.T(lang, "store.edit_title"),
 		"store":           store,
 		"branches":        branches,
 		"selected_branch": selectedBranch,
@@ -152,15 +157,16 @@ func HandleCreateStore(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Server-side validation
 	errs := helpers.Validate([]helpers.FieldRule{
-		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: "اسم المخزن"},
+		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: resources.T(lang, "store.label.name")},
 	})
 	if errs != nil {
 		oldValues := helpers.OldValues([]string{"name"}, r.FormValue)
 		data := helpers.RenderFormWithErrors(map[string]interface{}{
-			"title": "إضافة مخزن",
+			"title": resources.T(lang, "store.add_title"),
 		}, errs, oldValues)
 		helpers.Render(w, r, "add-store", data)
 		return
@@ -178,7 +184,7 @@ func HandleCreateStore(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	helpers.APICache.Delete("stores")
-	helpers.WriteSuccessRedirect(w, "/dashboard/stores", "تم إنشاء المتجر بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/stores", resources.T(lang, "store.create_success"))
 }
 
 // HandleUpdateStore updates an existing store
@@ -190,15 +196,16 @@ func HandleUpdateStore(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Server-side validation
 	errs := helpers.Validate([]helpers.FieldRule{
-		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: "اسم المخزن"},
+		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: resources.T(lang, "store.label.name")},
 	})
 	if errs != nil {
 		oldValues := helpers.OldValues([]string{"name"}, r.FormValue)
 		data := helpers.RenderFormWithErrors(map[string]interface{}{
-			"title": "تعديل المخزن",
+			"title": resources.T(lang, "store.edit_title"),
 			"store": models.Store{ID: helpers.ParseIntValue(id)},
 		}, errs, oldValues)
 		helpers.Render(w, r, "edit-store", data)
@@ -217,12 +224,12 @@ func HandleUpdateStore(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في تحديث المتجر")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "store.update_error"))
 		return
 	}
 
 	helpers.APICache.Delete("stores")
-	helpers.WriteSuccessRedirect(w, "/dashboard/stores", "تم تحديث المتجر بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/stores", resources.T(lang, "store.update_success"))
 }
 
 // HandleDeleteStore deletes a store
@@ -233,6 +240,7 @@ func HandleDeleteStore(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	req, _ := http.NewRequest("DELETE", config.BackendDomain+"/api/v2/store/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
@@ -243,7 +251,7 @@ func HandleDeleteStore(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	helpers.APICache.Delete("stores")
-	helpers.WriteSuccessRedirect(w, "/dashboard/stores", "تم حذف المتجر بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/stores", resources.T(lang, "store.delete_success"))
 }
 
 // buildStorePayload extracts store fields from the form, including the full

@@ -49,6 +49,7 @@ import (
 
 	"afrita/config"
 	"afrita/helpers"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -123,9 +124,10 @@ func fetchDetailJSON(sessionID, url, opLabel string) (map[string]interface{}, in
 // first linked store. If the branch has no store yet, returns an empty
 // payload (HTTP 200) so the UI can show blank inputs.
 func HandleGetBranchStoreAddress(w http.ResponseWriter, r *http.Request) {
+	lang := helpers.GetLang(r)
 	sessionID := helpers.GetSessionIDFromRequest(r)
 	if sessionID == "" {
-		writeBranchStoreErr(w, http.StatusUnauthorized, "غير مصرح - يرجى تسجيل الدخول")
+		writeBranchStoreErr(w, http.StatusUnauthorized, resources.T(lang, "auth.unauthorized_login"))
 		return
 	}
 	branchID := mux.Vars(r)["id"]
@@ -140,7 +142,7 @@ func HandleGetBranchStoreAddress(w http.ResponseWriter, r *http.Request) {
 		if sc == 0 {
 			sc = http.StatusBadGateway
 		}
-		writeBranchStoreErr(w, sc, "فشل جلب بيانات الفرع")
+		writeBranchStoreErr(w, sc, resources.T(lang, "branch_store.fetch_branch_error"))
 		return
 	}
 
@@ -159,7 +161,7 @@ func HandleGetBranchStoreAddress(w http.ResponseWriter, r *http.Request) {
 		if sc2 == 0 {
 			sc2 = http.StatusBadGateway
 		}
-		writeBranchStoreErr(w, sc2, "فشل جلب بيانات المخزن")
+		writeBranchStoreErr(w, sc2, resources.T(lang, "branch_store.fetch_store_error"))
 		return
 	}
 
@@ -181,9 +183,10 @@ func HandleGetBranchStoreAddress(w http.ResponseWriter, r *http.Request) {
 // HandleUpdateBranchStoreAddress writes the address to the first linked
 // store, creating one if necessary. City is required.
 func HandleUpdateBranchStoreAddress(w http.ResponseWriter, r *http.Request) {
+	lang := helpers.GetLang(r)
 	sessionID := helpers.GetSessionIDFromRequest(r)
 	if sessionID == "" {
-		writeBranchStoreErr(w, http.StatusUnauthorized, "غير مصرح - يرجى تسجيل الدخول")
+		writeBranchStoreErr(w, http.StatusUnauthorized, resources.T(lang, "auth.unauthorized_login"))
 		return
 	}
 	branchID := mux.Vars(r)["id"]
@@ -194,7 +197,7 @@ func HandleUpdateBranchStoreAddress(w http.ResponseWriter, r *http.Request) {
 
 	var body branchStoreAddressBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeBranchStoreErr(w, http.StatusBadRequest, "صيغة الطلب غير صالحة")
+		writeBranchStoreErr(w, http.StatusBadRequest, resources.T(lang, "general.invalid_request_format"))
 		return
 	}
 	body.StreetName = strings.TrimSpace(body.StreetName)
@@ -207,7 +210,7 @@ func HandleUpdateBranchStoreAddress(w http.ResponseWriter, r *http.Request) {
 		body.Country = "SA"
 	}
 	if body.City == "" {
-		writeBranchStoreErr(w, http.StatusBadRequest, "المدينة مطلوبة")
+		writeBranchStoreErr(w, http.StatusBadRequest, resources.T(lang, "address.city_required"))
 		return
 	}
 
@@ -217,7 +220,7 @@ func HandleUpdateBranchStoreAddress(w http.ResponseWriter, r *http.Request) {
 		if sc == 0 {
 			sc = http.StatusBadGateway
 		}
-		writeBranchStoreErr(w, sc, "فشل جلب بيانات الفرع")
+		writeBranchStoreErr(w, sc, resources.T(lang, "branch_store.fetch_branch_error"))
 		return
 	}
 
@@ -240,7 +243,7 @@ func HandleUpdateBranchStoreAddress(w http.ResponseWriter, r *http.Request) {
 			"postal_code":     body.PostalCode,
 			"country":         body.Country,
 		}
-		if err := proxyJSON(sessionID, "PUT",
+		if err := proxyJSON(sessionID, lang, "PUT",
 			fmt.Sprintf("%s/api/v2/store/%d", config.BackendDomain, storeID),
 			payload, w); err != nil {
 			log.Printf("[BRANCH-STORE-ADDR] PUT store: %v", err)
@@ -263,7 +266,7 @@ func HandleUpdateBranchStoreAddress(w http.ResponseWriter, r *http.Request) {
 		"postal_code":     body.PostalCode,
 		"country":         body.Country,
 	}
-	if err := proxyJSON(sessionID, "POST",
+	if err := proxyJSON(sessionID, lang, "POST",
 		config.BackendDomain+"/api/v2/store", payload, w); err != nil {
 		log.Printf("[BRANCH-STORE-ADDR] POST store: %v", err)
 	}
@@ -305,7 +308,7 @@ func writeBranchStoreErr(w http.ResponseWriter, status int, msg string) {
 	writeBranchStoreJSON(w, status, map[string]string{"detail": msg})
 }
 
-func proxyJSON(sessionID, method, url string, payload map[string]interface{}, w http.ResponseWriter) error {
+func proxyJSON(sessionID, lang, method, url string, payload map[string]interface{}, w http.ResponseWriter) error {
 	buf, _ := json.Marshal(payload)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(buf))
 	if err != nil {
@@ -316,10 +319,10 @@ func proxyJSON(sessionID, method, url string, payload map[string]interface{}, w 
 	resp, err := helpers.DoAuthedRequestWithRetry(req, sessionID)
 	if err != nil {
 		if helpers.IsUnauthorizedError(err) {
-			writeBranchStoreErr(w, http.StatusUnauthorized, "انتهت الجلسة")
+			writeBranchStoreErr(w, http.StatusUnauthorized, resources.T(lang, "general.session_expired"))
 			return err
 		}
-		writeBranchStoreErr(w, http.StatusBadGateway, "فشل الاتصال بالخادم")
+		writeBranchStoreErr(w, http.StatusBadGateway, resources.T(lang, "general.server_connection_error"))
 		return err
 	}
 	defer resp.Body.Close()

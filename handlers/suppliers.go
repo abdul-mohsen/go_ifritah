@@ -15,25 +15,27 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
 
-// saudiRegions is the list of Saudi Arabia administrative regions.
-var saudiRegions = []string{
-	"الرياض",
-	"مكة المكرمة",
-	"المدينة المنورة",
-	"القصيم",
-	"المنطقة الشرقية",
-	"عسير",
-	"تبوك",
-	"حائل",
-	"الحدود الشمالية",
-	"جازان",
-	"نجران",
-	"الباحة",
-	"الجوف",
+func localizedSaudiRegions(lang string) []string {
+	return []string{
+		resources.T(lang, "region.riyadh"),
+		resources.T(lang, "region.makkah"),
+		resources.T(lang, "region.madinah"),
+		resources.T(lang, "region.qassim"),
+		resources.T(lang, "region.eastern"),
+		resources.T(lang, "region.asir"),
+		resources.T(lang, "region.tabuk"),
+		resources.T(lang, "region.hail"),
+		resources.T(lang, "region.northern_borders"),
+		resources.T(lang, "region.jazan"),
+		resources.T(lang, "region.najran"),
+		resources.T(lang, "region.bahah"),
+		resources.T(lang, "region.jouf"),
+	}
 }
 
 // composeSupplierAddress builds a flat address string from the breakdown form fields.
@@ -71,7 +73,8 @@ func composeSupplierAddress(r *http.Request) string {
 		parts = append(parts, v)
 	}
 	if len(parts) > 0 {
-		return strings.Join(parts, "، ")
+		lang := helpers.GetLang(r)
+		return strings.Join(parts, resources.T(lang, "ui.list_separator"))
 	}
 	// Fallback: use the plain address field if no breakdown was provided
 	return strings.TrimSpace(r.FormValue("address"))
@@ -133,6 +136,7 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	query := r.URL.Query().Get("q")
 	typed := helpers.TypedListFilters("suppliers", r.URL.Query())
@@ -147,13 +151,13 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 		// Soft-fail: render an empty list with a banner instead of a 500 stub.
 		// Keeps the page usable when the upstream supplier list is unavailable.
 		helpers.Render(w, r, "suppliers", map[string]interface{}{
-			"title":      "الموردين",
+			"title":      resources.T(lang, "supplier.list_title"),
 			"suppliers":  []models.Supplier{},
 			"pagination": helpers.Pagination{Page: 0, PerPage: 10, Total: 0, TotalPages: 0},
 			"prev_page":  -1,
 			"next_page":  -1,
 			"query":      query,
-			"error":      "تعذر تحميل الموردين من الخادم حالياً",
+			"error":      resources.T(lang, "supplier.load_error_currently"),
 		})
 		return
 	}
@@ -171,7 +175,7 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "suppliers", map[string]interface{}{
-		"title":      "الموردين",
+		"title":      resources.T(lang, "supplier.list_title"),
 		"suppliers":  pagedSuppliers,
 		"pagination": pagination,
 		"prev_page":  prevPage,
@@ -185,9 +189,10 @@ func HandleAddSupplier(w http.ResponseWriter, r *http.Request) {
 	if _, ok := helpers.GetTokenOrRedirect(w, r); !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 	helpers.Render(w, r, "add-supplier", map[string]interface{}{
-		"title":   "إضافة مورد",
-		"regions": saudiRegions,
+		"title":   resources.T(lang, "supplier.add_title"),
+		"regions": localizedSaudiRegions(lang),
 	})
 }
 
@@ -199,22 +204,23 @@ func HandleCreateSupplier(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Server-side validation
 	errs := helpers.Validate([]helpers.FieldRule{
-		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: "اسم المورد"},
-		{Field: "phone_number", Value: r.FormValue("phone_number"), Pattern: helpers.PatternSaudiPhone, Label: "الهاتف", PatternMsg: "رقم جوال سعودي يبدأ بـ 05 ويتكون من 10 أرقام"},
-		{Field: "number", Value: r.FormValue("number"), MaxLen: 50, Label: "رقم المورد"},
-		{Field: "vat_number", Value: r.FormValue("vat_number"), Pattern: helpers.PatternVATNumber, Label: "الرقم الضريبي", PatternMsg: "الرقم الضريبي يتكون من 15 رقم"},
-		{Field: "bank_account", Value: r.FormValue("bank_account"), MaxLen: 30, Label: "الحساب البنكي"},
+		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: resources.T(lang, "supplier.label.name")},
+		{Field: "phone_number", Value: r.FormValue("phone_number"), Pattern: helpers.PatternSaudiPhone, Label: resources.T(lang, "supplier.label.phone"), PatternMsg: resources.T(lang, "validation.saudi_phone_detailed")},
+		{Field: "number", Value: r.FormValue("number"), MaxLen: 50, Label: resources.T(lang, "supplier.label.supplier_number")},
+		{Field: "vat_number", Value: r.FormValue("vat_number"), Pattern: helpers.PatternVATNumber, Label: resources.T(lang, "supplier.label.vat"), PatternMsg: resources.T(lang, "validation.vat_number")},
+		{Field: "bank_account", Value: r.FormValue("bank_account"), MaxLen: 30, Label: resources.T(lang, "supplier.label.bank_account")},
 	})
 	if errs != nil {
 		oldValues := helpers.OldValues([]string{"name", "phone_number", "number", "vat_number", "commercial_registration", "bank_account",
 			"email", "short_address", "building_number", "street_name", "district", "city", "region", "postal_code",
 			"additional_number", "unit_number", "country", "preferred_payment_method", "credit_limit", "payment_terms_days"}, r.FormValue)
 		data := helpers.RenderFormWithErrors(map[string]interface{}{
-			"title":   "إضافة مورد",
-			"regions": saudiRegions,
+			"title":   resources.T(lang, "supplier.add_title"),
+			"regions": localizedSaudiRegions(lang),
 		}, errs, oldValues)
 		helpers.Render(w, r, "add-supplier", data)
 		return
@@ -232,12 +238,12 @@ func HandleCreateSupplier(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في إنشاء المورد")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "supplier.create_error"))
 		return
 	}
 
 	helpers.APICache.Delete("suppliers")
-	helpers.WriteSuccessRedirect(w, "/dashboard/suppliers", "تم إنشاء المورد بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/suppliers", resources.T(lang, "supplier.create_success"))
 }
 
 // HandleSupplierDetail displays supplier details
@@ -249,14 +255,15 @@ func HandleSupplierDetail(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	supplier, found := findSupplierByID(token, id)
 	if !found {
-		supplier = models.Supplier{ID: helpers.ParseIntValue(id), Name: "مورد #" + id}
+		supplier = models.Supplier{ID: helpers.ParseIntValue(id), Name: resources.T(lang, "supplier.fallback_name") + id}
 	}
 
 	helpers.Render(w, r, "supplier-detail", map[string]interface{}{
-		"title":    "تفاصيل المورد",
+		"title":    resources.T(lang, "supplier.detail_title"),
 		"supplier": supplier,
 	})
 }
@@ -270,6 +277,7 @@ func HandleEditSupplier(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	supplier, found := findSupplierByID(token, id)
 	if !found {
@@ -277,9 +285,9 @@ func HandleEditSupplier(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "edit-supplier", map[string]interface{}{
-		"title":    "تعديل المورد",
+		"title":    resources.T(lang, "supplier.edit_title"),
 		"supplier": supplier,
-		"regions":  saudiRegions,
+		"regions":  localizedSaudiRegions(lang),
 	})
 }
 
@@ -314,25 +322,26 @@ func HandleUpdateSupplier(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Server-side validation
 	errs := helpers.Validate([]helpers.FieldRule{
-		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: "اسم المورد"},
-		{Field: "phone_number", Value: r.FormValue("phone_number"), Pattern: helpers.PatternSaudiPhone, Label: "الهاتف", PatternMsg: "رقم جوال سعودي يبدأ بـ 05 ويتكون من 10 أرقام"},
-		{Field: "number", Value: r.FormValue("number"), MaxLen: 50, Label: "رقم المورد"},
-		{Field: "vat_number", Value: r.FormValue("vat_number"), Pattern: helpers.PatternVATNumber, Label: "الرقم الضريبي", PatternMsg: "الرقم الضريبي يتكون من 15 رقم"},
-		{Field: "bank_account", Value: r.FormValue("bank_account"), MaxLen: 30, Label: "الحساب البنكي"},
+		{Field: "name", Value: r.FormValue("name"), Required: true, MinLen: 2, MaxLen: 100, Label: resources.T(lang, "supplier.label.name")},
+		{Field: "phone_number", Value: r.FormValue("phone_number"), Pattern: helpers.PatternSaudiPhone, Label: resources.T(lang, "supplier.label.phone"), PatternMsg: resources.T(lang, "validation.saudi_phone_detailed")},
+		{Field: "number", Value: r.FormValue("number"), MaxLen: 50, Label: resources.T(lang, "supplier.label.supplier_number")},
+		{Field: "vat_number", Value: r.FormValue("vat_number"), Pattern: helpers.PatternVATNumber, Label: resources.T(lang, "supplier.label.vat"), PatternMsg: resources.T(lang, "validation.vat_number")},
+		{Field: "bank_account", Value: r.FormValue("bank_account"), MaxLen: 30, Label: resources.T(lang, "supplier.label.bank_account")},
 	})
 	if errs != nil {
 		oldValues := helpers.OldValues([]string{"name", "phone_number", "number", "vat_number", "commercial_registration", "bank_account",
 			"email", "short_address", "building_number", "street_name", "district", "city", "region", "postal_code",
 			"additional_number", "unit_number", "country", "preferred_payment_method", "credit_limit", "payment_terms_days"}, r.FormValue)
 		data := helpers.RenderFormWithErrors(map[string]interface{}{
-			"title": "تعديل المورد",
+			"title": resources.T(lang, "supplier.edit_title"),
 			"supplier": models.Supplier{
 				ID: helpers.ParseIntValue(id),
 			},
-			"regions": saudiRegions,
+			"regions": localizedSaudiRegions(lang),
 		}, errs, oldValues)
 		helpers.Render(w, r, "edit-supplier", data)
 		return
@@ -350,13 +359,13 @@ func HandleUpdateSupplier(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في تحديث المورد")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "supplier.update_error"))
 		return
 	}
 
 	// Clear cache so re-fetch hits backend
 	helpers.APICache.Delete("suppliers")
-	helpers.WriteSuccessRedirect(w, "/dashboard/suppliers", "تم تحديث المورد بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/suppliers", resources.T(lang, "supplier.update_success"))
 }
 
 // HandleDeleteSupplier deletes a supplier
@@ -368,6 +377,7 @@ func HandleDeleteSupplier(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	req, _ := http.NewRequest("DELETE", config.BackendDomain+"/api/v2/supplier/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
@@ -378,7 +388,7 @@ func HandleDeleteSupplier(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	helpers.APICache.Delete("suppliers")
-	helpers.WriteSuccessRedirect(w, "/dashboard/suppliers", "تم حذف المورد بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/suppliers", resources.T(lang, "supplier.delete_success"))
 }
 
 // HandleSupplierReport displays the supplier report page with purchase bill analytics.
@@ -391,10 +401,11 @@ func HandleSupplierReport(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	supplier, found := findSupplierByID(token, id)
 	if !found {
-		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, msgSupplierNotFound)
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, resources.T(lang, "supplier.not_found"))
 		return
 	}
 
@@ -404,7 +415,7 @@ func HandleSupplierReport(w http.ResponseWriter, r *http.Request) {
 	supplierID, _ := strconv.Atoi(id)
 	report, err := helpers.FetchSupplierReport(token, supplierID, dateFrom, dateTo)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, msgSupplierReportFailed)
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "supplier.report_failed"))
 		return
 	}
 
@@ -417,7 +428,7 @@ func HandleSupplierReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "supplier-report", map[string]interface{}{
-		"title":            fmt.Sprintf("كشف حساب — %s", supplier.Name),
+		"title":            fmt.Sprintf(resources.T(lang, "supplier.report_title"), supplier.Name),
 		"supplier":         supplier,
 		"summary":          report.Summary,
 		"bills":            report.Bills,
@@ -441,10 +452,11 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	_, found := findSupplierByID(token, id)
 	if !found {
-		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, msgSupplierNotFound)
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, resources.T(lang, "supplier.not_found"))
 		return
 	}
 
@@ -454,7 +466,7 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 
 	report, err := helpers.FetchSupplierReport(token, supplierID, dateFrom, dateTo)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, msgSupplierReportFailed)
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "supplier.report_failed"))
 		return
 	}
 
@@ -466,12 +478,21 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	_ = writer.Write([]string{"رقم الفاتورة", "التاريخ", "النوع", "المرجع", "الوصف", "مدين", "دائن", "الرصيد"})
+	_ = writer.Write([]string{
+		resources.T(lang, "csv_header.invoice_number"),
+		resources.T(lang, "csv_header.date"),
+		resources.T(lang, "csv_header.type"),
+		resources.T(lang, "tpl.report.reference"),
+		resources.T(lang, "tpl.report.description"),
+		resources.T(lang, "tpl.report.debit"),
+		resources.T(lang, "tpl.report.credit"),
+		resources.T(lang, "tpl.report.balance"),
+	})
 	for _, entry := range report.Ledger {
 		_ = writer.Write([]string{
 			ledgerBillNo(entry),
 			entry.Date,
-			ledgerTypeName(entry),
+			ledgerTypeName(lang, entry),
 			entry.Reference,
 			entry.Description,
 			fmt.Sprintf("%.2f", entry.Debit),
@@ -482,11 +503,11 @@ func HandleExportSupplierReportCSV(w http.ResponseWriter, r *http.Request) {
 }
 
 // ledgerTypeName returns the Arabic display label for a supplier ledger entry.
-func ledgerTypeName(entry models.LedgerEntry) string {
+func ledgerTypeName(lang string, entry models.LedgerEntry) string {
 	if entry.Type == "payment" {
-		return "سند صرف"
+		return resources.T(lang, "tpl.report.type_payment")
 	}
-	return "فاتورة"
+	return resources.T(lang, "purchase_bill.type_label")
 }
 
 // ledgerBillNo picks the most informative identifier for a ledger row,
@@ -541,23 +562,24 @@ func loadSupplierReportForDownload(w http.ResponseWriter, r *http.Request) (mode
 	if !ok {
 		return models.Supplier{}, helpers.SupplierReportResult{}, "", "", false
 	}
+	lang := helpers.GetLang(r)
 
 	supplier, found := findSupplierByID(token, id)
 	if !found {
-		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, msgSupplierNotFound)
+		helpers.WriteErrorResponse(w, http.StatusNotFound, nil, resources.T(lang, "supplier.not_found"))
 		return models.Supplier{}, helpers.SupplierReportResult{}, "", "", false
 	}
 
 	supplierID, err := strconv.Atoi(id)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "رقم المورد غير صحيح")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, resources.T(lang, "supplier.invalid_number"))
 		return models.Supplier{}, helpers.SupplierReportResult{}, "", "", false
 	}
 
 	dateFrom, dateTo := supplierReportDateRange(r)
 	report, err := helpers.FetchSupplierReport(token, supplierID, dateFrom, dateTo)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, msgSupplierReportFailed)
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "supplier.report_failed"))
 		return models.Supplier{}, helpers.SupplierReportResult{}, "", "", false
 	}
 	applySupplierCreditUtilization(&report, supplier)

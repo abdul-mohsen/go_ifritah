@@ -13,10 +13,40 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 )
 
 // statPlaceholder is used when a stat cannot be loaded due to an API error.
 const statPlaceholder = "\u2014"
+
+var dashboardAgingKeys = []string{
+	"aging.0_30_current",
+	"aging.31_60_overdue",
+	"aging.61_90_very_overdue",
+	"aging.90_plus_critical",
+}
+
+func dashboardInvoiceStatus(lang string, state int) string {
+	switch state {
+	case 0:
+		return resources.T(lang, "invoice_status.draft")
+	case 1:
+		return resources.T(lang, "status.processing")
+	case 2:
+		return resources.T(lang, "invoice_status.processed")
+	case 3:
+		return resources.T(lang, "invoice_status.issued")
+	default:
+		return ""
+	}
+}
+
+func dashboardAgingLabel(lang string, idx int, fallback string) string {
+	if idx >= 0 && idx < len(dashboardAgingKeys) {
+		return resources.T(lang, dashboardAgingKeys[idx])
+	}
+	return fallback
+}
 
 // HandleDashboardTest renders the dashboard with mock data for testing.
 func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
@@ -250,7 +280,8 @@ func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Template error: dashboard test template not available", http.StatusInternalServerError)
 		return
 	}
-	if err := config.DashboardTestTemplate.ExecuteTemplate(w, "base.html", data); err != nil {
+	tmpl, data := helpers.BindLangData(config.DashboardTestTemplate, r, data)
+	if err := tmpl.ExecuteTemplate(w, "base.html", data); err != nil {
 		log.Printf("Template execution error: %v", err)
 	}
 }
@@ -264,6 +295,7 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	stateFilter := r.URL.Query().Get("state")
 	startDate := r.URL.Query().Get("start_date")
@@ -298,11 +330,11 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	var dashboardWarnings []string
 	if summaryErr != nil {
 		log.Printf("dashboard summary error: %v", summaryErr)
-		dashboardWarnings = append(dashboardWarnings, "ملخص لوحة التحكم")
+		dashboardWarnings = append(dashboardWarnings, resources.T(lang, "dashboard.title"))
 	}
 	if analyticsErr != nil {
 		log.Printf("dashboard analytics error: %v", analyticsErr)
-		dashboardWarnings = append(dashboardWarnings, "التحليلات")
+		dashboardWarnings = append(dashboardWarnings, resources.T(lang, "dashboard.analytics"))
 	}
 
 	// Defensive: if both failed, render an empty shell so the page still loads.
@@ -413,12 +445,16 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	recentInvoices := make([]map[string]interface{}, 0, len(summary.RecentInvoices))
 	for _, inv := range summary.RecentInvoices {
+		status := dashboardInvoiceStatus(lang, inv.State)
+		if status == "" {
+			status = inv.StateLabel
+		}
 		recentInvoices = append(recentInvoices, map[string]interface{}{
 			"id":              inv.ID,
 			"sequence_number": inv.SequenceNumber,
 			"total":           inv.Total,
 			"date":            helpers.ToDisplayDate(inv.Date),
-			"status":          helpers.TranslateInvoiceStatus(inv.StateLabel),
+			"status":          status,
 			"status_class":    statusClassFor(inv.State),
 		})
 	}
@@ -467,9 +503,9 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	// ── AR / AP aging ─────────────────────────────────────────────
 	mapBuckets := func(in []helpers.DashboardAPIAgingBucket) []map[string]interface{} {
 		out := make([]map[string]interface{}, 0, len(in))
-		for _, b := range in {
+		for i, b := range in {
 			out = append(out, map[string]interface{}{
-				"Label": b.Label,
+				"Label": dashboardAgingLabel(lang, i, b.Label),
 				"Count": b.Count,
 				"Total": parseF(b.Total),
 			})
@@ -567,12 +603,15 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		topProdLabels = append(topProdLabels, p.ArticleNumber)
 		topProdValues = append(topProdValues, parseF(p.Quantity))
 	}
-	clientDistLabels := []string{"نشط", "غير نشط"}
+	clientDistLabels := []string{
+		resources.T(lang, "dashboard.active_clients"),
+		resources.T(lang, "dashboard.inactive_clients"),
+	}
 	clientDistValues := []int64{summary.ClientDistribution.Active, summary.ClientDistribution.Inactive}
 
 	// ── Build base data map ──────────────────────────────────────
 	data := map[string]interface{}{
-		"title":              "لوحة التحكم",
+		"title":              resources.T(lang, "dashboard.title"),
 		"dashboard_warnings": dashboardWarnings,
 		"stats":              stats,
 		"kpi_trends":         kpiTrends,
@@ -847,7 +886,8 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Template error: dashboard template not available", http.StatusInternalServerError)
 		return
 	}
-	if err := config.DashboardTemplate.ExecuteTemplate(w, "base.html", data); err != nil {
+	tmpl, data := helpers.BindLangData(config.DashboardTemplate, r, data)
+	if err := tmpl.ExecuteTemplate(w, "base.html", data); err != nil {
 		log.Printf("Template execution error: %v", err)
 	}
 }
@@ -858,6 +898,11 @@ func HandleDashboardCompare(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
+	alignClass := "text-right"
+	if lang == resources.LangEn {
+		alignClass = "text-left"
+	}
 
 	aStart := r.URL.Query().Get("a_start")
 	aEnd := r.URL.Query().Get("a_end")
@@ -866,7 +911,7 @@ func HandleDashboardCompare(w http.ResponseWriter, r *http.Request) {
 
 	if aStart == "" || aEnd == "" || bStart == "" || bEnd == "" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, `<div class="text-center text-gray-400 text-sm py-4">يرجى تحديد فترتين للمقارنة</div>`)
+		fmt.Fprintf(w, `<div class="text-center text-gray-400 text-sm py-4">%s</div>`, resources.T(lang, "compare.select_periods"))
 		return
 	}
 
@@ -878,7 +923,7 @@ func HandleDashboardCompare(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("dashboard compare error: %v", err)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, `<div class="text-center text-red-500 text-sm py-4">تعذر تحميل بيانات المقارنة</div>`)
+		fmt.Fprintf(w, `<div class="text-center text-red-500 text-sm py-4">%s</div>`, resources.T(lang, "compare.load_error"))
 		return
 	}
 
@@ -891,29 +936,29 @@ func HandleDashboardCompare(w http.ResponseWriter, r *http.Request) {
 		B     string
 	}
 	rows := []row{
-		{"عدد الفواتير", fmt.Sprintf("%d", a.Invoices), fmt.Sprintf("%d", b.Invoices)},
-		{"الإيرادات", a.Revenue, b.Revenue},
-		{"المشتريات", a.Purchases, b.Purchases},
-		{"الربح", a.Profit, b.Profit},
-		{"متوسط الفاتورة", a.AvgInvoice, b.AvgInvoice},
-		{"المعلقات", a.Pending, b.Pending},
-		{"هامش الربح %", a.Margin + "%", b.Margin + "%"},
-		{"فواتير صادرة", fmt.Sprintf("%d", a.Issued), fmt.Sprintf("%d", b.Issued)},
-		{"مسودات", fmt.Sprintf("%d", a.Draft), fmt.Sprintf("%d", b.Draft)},
+		{resources.T(lang, "compare.invoice_count"), fmt.Sprintf("%d", a.Invoices), fmt.Sprintf("%d", b.Invoices)},
+		{resources.T(lang, "compare.revenue"), a.Revenue, b.Revenue},
+		{resources.T(lang, "compare.purchases"), a.Purchases, b.Purchases},
+		{resources.T(lang, "compare.profit"), a.Profit, b.Profit},
+		{resources.T(lang, "compare.avg_invoice"), a.AvgInvoice, b.AvgInvoice},
+		{resources.T(lang, "compare.pending"), a.Pending, b.Pending},
+		{resources.T(lang, "compare.margin_pct"), a.Margin + "%", b.Margin + "%"},
+		{resources.T(lang, "compare.issued_invoices"), fmt.Sprintf("%d", a.Issued), fmt.Sprintf("%d", b.Issued)},
+		{resources.T(lang, "compare.drafts"), fmt.Sprintf("%d", a.Draft), fmt.Sprintf("%d", b.Draft)},
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, `<table class="w-full text-sm border-collapse"><thead><tr class="bg-gray-50 dark:bg-gray-700">`)
-	fmt.Fprintf(w, `<th class="p-2 text-right font-semibold text-gray-600 dark:text-gray-300 border-b dark:border-gray-600">المؤشر</th>`)
-	fmt.Fprintf(w, `<th class="p-2 text-center font-semibold text-blue-600 border-b dark:border-gray-600">الفترة أ<br><span class="text-xs font-normal text-gray-400">%s → %s</span></th>`, aStart, aEnd)
-	fmt.Fprintf(w, `<th class="p-2 text-center font-semibold text-purple-600 border-b dark:border-gray-600">الفترة ب<br><span class="text-xs font-normal text-gray-400">%s → %s</span></th>`, bStart, bEnd)
+	fmt.Fprintf(w, `<th class="p-2 %s font-semibold text-gray-600 dark:text-gray-300 border-b dark:border-gray-600">%s</th>`, alignClass, resources.T(lang, "compare.indicator"))
+	fmt.Fprintf(w, `<th class="p-2 text-center font-semibold text-blue-600 border-b dark:border-gray-600">%s<br><span class="text-xs font-normal text-gray-400">%s → %s</span></th>`, resources.T(lang, "compare.period_a"), aStart, aEnd)
+	fmt.Fprintf(w, `<th class="p-2 text-center font-semibold text-purple-600 border-b dark:border-gray-600">%s<br><span class="text-xs font-normal text-gray-400">%s → %s</span></th>`, resources.T(lang, "compare.period_b"), bStart, bEnd)
 	fmt.Fprint(w, `</tr></thead><tbody>`)
 	for i, rw := range rows {
 		bg := ""
 		if i%2 == 0 {
 			bg = ` class="bg-gray-50/50 dark:bg-gray-800/30"`
 		}
-		fmt.Fprintf(w, `<tr%s><td class="p-2 text-right text-gray-700 dark:text-gray-300 border-b dark:border-gray-700">%s</td>`, bg, rw.Label)
+		fmt.Fprintf(w, `<tr%s><td class="p-2 %s text-gray-700 dark:text-gray-300 border-b dark:border-gray-700">%s</td>`, bg, alignClass, rw.Label)
 		fmt.Fprintf(w, `<td class="p-2 text-center font-mono border-b dark:border-gray-700">%s</td>`, rw.A)
 		fmt.Fprintf(w, `<td class="p-2 text-center font-mono border-b dark:border-gray-700">%s</td></tr>`, rw.B)
 	}
@@ -925,6 +970,15 @@ func HandleDashboardExportPDF(w http.ResponseWriter, r *http.Request) {
 	token, ok := helpers.GetTokenOrRedirect(w, r)
 	if !ok {
 		return
+	}
+	lang := helpers.GetLang(r)
+	dir := "rtl"
+	textAlign := "right"
+	printButtonSide := "left"
+	if lang == resources.LangEn {
+		dir = "ltr"
+		textAlign = "left"
+		printButtonSide = "right"
 	}
 
 	// ── Fetch all data in parallel (same as HandleDashboard) ───
@@ -1061,24 +1115,30 @@ func HandleDashboardExportPDF(w http.ResponseWriter, r *http.Request) {
 	clientConcentration := helpers.ComputeConcentrationRisk(clientValues, 3)
 
 	vatQuarterly := helpers.ComputeVATQuarterly(invoices, purchaseBills)
+	for i := range agingBuckets {
+		agingBuckets[i].Label = dashboardAgingLabel(lang, i, agingBuckets[i].Label)
+	}
+	for i := range apAgingBuckets {
+		apAgingBuckets[i].Label = dashboardAgingLabel(lang, i, apAgingBuckets[i].Label)
+	}
 
 	// ── Render print-friendly HTML ─────────────────────────────
 	nowStr := time.Now().Format("2006-01-02 15:04")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	fmt.Fprintf(w, `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="%s" dir="%s">
 <head>
 <meta charset="UTF-8">
-<title>تقرير لوحة التحكم — %s</title>
+<title>%s — %s</title>
 <style>
   @media print { @page { size: A4 landscape; margin: 10mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display:none; } }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: 'Segoe UI', Tahoma, sans-serif; direction: rtl; color: #1e293b; padding: 20px; font-size: 12px; background: #fff; }
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; direction: %s; color: #1e293b; padding: 20px; font-size: 12px; background: #fff; }
   h1 { font-size: 20px; margin-bottom: 4px; }
   .sub { color: #64748b; font-size: 11px; margin-bottom: 16px; }
   table { width: 100%%; border-collapse: collapse; margin-bottom: 16px; }
-  th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: right; }
+  th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: %s; }
   th { background: #f1f5f9; font-weight: 600; font-size: 11px; }
   td { font-size: 12px; }
   .section { margin-bottom: 18px; }
@@ -1087,72 +1147,93 @@ func HandleDashboardExportPDF(w http.ResponseWriter, r *http.Request) {
   .badge { display:inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
   .bg-green { background: #dcfce7; color: #166534; } .bg-yellow { background: #fef9c3; color: #854d0e; }
   .bg-orange { background: #ffedd5; color: #9a3412; } .bg-red { background: #fee2e2; color: #991b1b; }
-  .print-btn { position: fixed; bottom: 20px; left: 20px; background: #3b82f6; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+  .print-btn { position: fixed; bottom: 20px; %s: 20px; background: #3b82f6; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
   .print-btn:hover { background: #2563eb; }
 </style>
 </head>
 <body>
-<h1>📊 تقرير لوحة التحكم</h1>
-<p class="sub">تاريخ التقرير: %s &nbsp;|&nbsp; إصدار: %s</p>
+<h1>📊 %s</h1>
+<p class="sub">%s: %s &nbsp;|&nbsp; %s: %s</p>
 
 <div class="section">
-  <div class="section-title">المؤشرات الأساسية</div>
+  <div class="section-title">%s</div>
   <table>
     <tr>
-      <th>المؤشر</th><th>القيمة</th><th>المؤشر</th><th>القيمة</th>
+      <th>%s</th><th>%s</th><th>%s</th><th>%s</th>
     </tr>
     <tr>
-      <td>إجمالي الفواتير</td><td><b>%d</b></td>
-      <td>إجمالي الإيرادات</td><td><b>%.2f</b></td>
+      <td>%s</td><td><b>%d</b></td>
+      <td>%s</td><td><b>%.2f</b></td>
     </tr>
     <tr>
-      <td>إجمالي المشتريات</td><td><b>%.2f</b></td>
-      <td>صافي الربح</td><td><b>%.2f</b></td>
+      <td>%s</td><td><b>%.2f</b></td>
+      <td>%s</td><td><b>%.2f</b></td>
     </tr>
     <tr>
-      <td>متوسط الفاتورة</td><td><b>%.2f</b></td>
-      <td>المبالغ المعلقة</td><td><b>%.2f</b></td>
+      <td>%s</td><td><b>%.2f</b></td>
+      <td>%s</td><td><b>%.2f</b></td>
     </tr>
     <tr>
-      <td>المنتجات</td><td>%d</td>
-      <td>العملاء</td><td>%d</td>
+      <td>%s</td><td>%d</td>
+      <td>%s</td><td>%d</td>
     </tr>
     <tr>
-      <td>الموردين</td><td>%d</td>
-      <td>الطلبات المعلقة</td><td>%d</td>
+      <td>%s</td><td>%d</td>
+      <td>%s</td><td>%d</td>
     </tr>
     <tr>
-      <td>منتجات منخفضة المخزون</td><td>%d</td>
-      <td>هامش الربح</td><td><b>%.1f%%</b></td>
+      <td>%s</td><td>%d</td>
+      <td>%s</td><td><b>%.1f%%</b></td>
     </tr>
     <tr>
-      <td>معدل دوران المخزون</td><td><b>%.2f</b></td>
+      <td>%s</td><td><b>%.2f</b></td>
       <td>&nbsp;</td><td>&nbsp;</td>
     </tr>
   </table>
 </div>
 
 <div class="section">
-  <div class="section-title">حالة الفواتير</div>
+  <div class="section-title">%s</div>
   <table>
-    <tr><th>مسودة</th><th>قيد المعالجة</th><th>تمت المعالجة</th><th>صادرة</th></tr>
+    <tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr>
     <tr><td>%d</td><td>%d</td><td>%d</td><td>%d</td></tr>
   </table>
 </div>
 `,
-		nowStr, nowStr, config.AppVersion,
-		len(invoices), totalRevenue,
-		totalPurchases, grossProfit,
-		avgInvoice, pendingAmount,
-		len(products), len(clients),
-		len(suppliers), pendingOrders,
-		lowStockCount, profitMargin,
-		turnoverRatio,
+		lang, dir,
+		resources.T(lang, "report.dashboard_title"), nowStr,
+		dir, textAlign, printButtonSide,
+		resources.T(lang, "report.dashboard_title"),
+		resources.T(lang, "report.date_version"), nowStr, resources.T(lang, "report.version"), config.AppVersion,
+		resources.T(lang, "report.key_indicators"),
+		resources.T(lang, "report.indicator"), resources.T(lang, "report.value"),
+		resources.T(lang, "report.indicator"), resources.T(lang, "report.value"),
+		resources.T(lang, "report.total_invoices"), len(invoices),
+		resources.T(lang, "report.total_revenue"), totalRevenue,
+		resources.T(lang, "report.total_purchases"), totalPurchases,
+		resources.T(lang, "report.net_profit"), grossProfit,
+		resources.T(lang, "report.avg_invoice"), avgInvoice,
+		resources.T(lang, "report.pending_amount"), pendingAmount,
+		resources.T(lang, "report.products"), len(products),
+		resources.T(lang, "report.clients"), len(clients),
+		resources.T(lang, "report.suppliers"), len(suppliers),
+		resources.T(lang, "dashboard.kpi.pending_orders"), pendingOrders,
+		resources.T(lang, "report.low_stock"), lowStockCount,
+		resources.T(lang, "report.profit_margin"), profitMargin,
+		resources.T(lang, "report.inventory_turnover"), turnoverRatio,
+		resources.T(lang, "report.invoice_status"),
+		resources.T(lang, "report.draft"), resources.T(lang, "report.processing"),
+		resources.T(lang, "report.processed"), resources.T(lang, "report.issued"),
 		statusCounts[0], statusCounts[1], statusCounts[2], statusCounts[3],
 	)
 
 	// ── Aging analysis ─────────────────────────────────────────
-	fmt.Fprintf(w, `<div class="grid2"><div class="section"><div class="section-title">تحليل أعمار المستحقات</div><table><tr><th>الفئة</th><th>العدد</th><th>المبلغ</th></tr>`)
+	fmt.Fprintf(w, `<div class="grid2"><div class="section"><div class="section-title">%s</div><table><tr><th>%s</th><th>%s</th><th>%s</th></tr>`,
+		resources.T(lang, "report.aging_analysis"),
+		resources.T(lang, "report.category"),
+		resources.T(lang, "report.count"),
+		resources.T(lang, "report.amount"),
+	)
 	for _, b := range agingBuckets {
 		cls := ""
 		switch {
@@ -1170,7 +1251,12 @@ func HandleDashboardExportPDF(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `</table></div>`)
 
 	// ── Top clients ────────────────────────────────────────────
-	fmt.Fprintf(w, `<div class="section"><div class="section-title">أفضل العملاء</div><table><tr><th>#</th><th>العميل</th><th>الطلبات</th><th>الإجمالي</th><th>القيمة الدائمة</th></tr>`)
+	fmt.Fprintf(w, `<div class="section"><div class="section-title">%s</div><table><tr><th>#</th><th>%s</th><th>%s</th><th>%s</th><th>CLV</th></tr>`,
+		resources.T(lang, "report.top_clients"),
+		resources.T(lang, "report.client"),
+		resources.T(lang, "nav.orders"),
+		resources.T(lang, "report.total"),
+	)
 	for _, tc := range topClients {
 		fmt.Fprintf(w, `<tr><td>%v</td><td>%v</td><td>%v</td><td>%v</td><td>%v</td></tr>`,
 			tc["order"], tc["name"], tc["count"], tc["total"], tc["clv"])
@@ -1180,27 +1266,41 @@ func HandleDashboardExportPDF(w http.ResponseWriter, r *http.Request) {
 	// ── VAT Section ────────────────────────────────────────────
 	fmt.Fprintf(w, `
 <div class="section">
-  <div class="section-title">ضريبة القيمة المضافة — هيئة الزكاة (ZATCA)</div>
+  <div class="section-title">%s</div>
   <table>
-    <tr><th>المؤشر</th><th>القيمة</th><th>المؤشر</th><th>القيمة</th></tr>
+    <tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr>
     <tr>
-      <td>ضريبة المخرجات (مبيعات)</td><td><b>%.2f</b></td>
-      <td>ضريبة المدخلات (مشتريات)</td><td><b>%.2f</b></td>
+      <td>%s</td><td><b>%.2f</b></td>
+      <td>%s</td><td><b>%.2f</b></td>
     </tr>
     <tr>
-      <td>صافي الضريبة المستحقة</td><td><b style="color:#1e40af">%.2f</b></td>
-      <td>معدل الضريبة الفعلي</td><td><b>%.2f%%</b></td>
+      <td>%s</td><td><b style="color:#1e40af">%.2f</b></td>
+      <td>%s</td><td><b>%.2f%%</b></td>
     </tr>
   </table>
-</div>`, outputVAT, inputVAT, netVATPayable, effectiveVATRate)
+</div>`,
+		resources.T(lang, "report.vat_title"),
+		resources.T(lang, "report.indicator"), resources.T(lang, "report.value"),
+		resources.T(lang, "report.indicator"), resources.T(lang, "report.value"),
+		resources.T(lang, "report.output_vat"), outputVAT,
+		resources.T(lang, "report.input_vat"), inputVAT,
+		resources.T(lang, "report.net_vat"), netVATPayable,
+		resources.T(lang, "dashboard.kpi.effective_vat"), effectiveVATRate,
+	)
 
 	// ── VAT Quarterly Table ────────────────────────────────────
 	if len(vatQuarterly) > 0 {
 		fmt.Fprintf(w, `
 <div class="section">
-  <div class="section-title">الضريبة الربع سنوية</div>
+  <div class="section-title">%s</div>
   <table>
-    <tr><th>الربع</th><th>ضريبة المخرجات</th><th>ضريبة المدخلات</th><th>صافي الضريبة</th></tr>`)
+    <tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr>`,
+			resources.T(lang, "dashboard.section.vat_quarterly"),
+			resources.T(lang, "dashboard.vat.quarter"),
+			resources.T(lang, "dashboard.vat.output_vat"),
+			resources.T(lang, "dashboard.vat.input_vat"),
+			resources.T(lang, "dashboard.vat.net_vat"),
+		)
 		for _, q := range vatQuarterly {
 			fmt.Fprintf(w, `<tr><td>%s</td><td style="color:#166534">%.2f</td><td style="color:#991b1b">%.2f</td><td><b style="color:#1e40af">%.2f</b></td></tr>`,
 				q.Quarter, q.OutputVAT, q.InputVAT, q.NetVAT)
@@ -1211,59 +1311,86 @@ func HandleDashboardExportPDF(w http.ResponseWriter, r *http.Request) {
 	// ── Advanced Profitability ─────────────────────────────────
 	fmt.Fprintf(w, `
 <div class="section">
-  <div class="section-title">مؤشرات الربحية المتقدمة</div>
+  <div class="section-title">%s</div>
   <table>
-    <tr><th>المؤشر</th><th>القيمة</th><th>المؤشر</th><th>القيمة</th></tr>
+    <tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr>
     <tr>
-      <td>متوسط قيمة الفاتورة</td><td><b>%.2f</b></td>
-      <td>الإيراد لكل عميل</td><td><b>%.2f</b></td>
+      <td>%s</td><td><b>%.2f</b></td>
+      <td>%s</td><td><b>%.2f</b></td>
     </tr>
     <tr>
-      <td>نسبة المشتريات إلى المبيعات</td><td><b>%.1f%%</b></td>
-      <td>نسبة الخصومات</td><td><b>%.2f%%</b></td>
+      <td>%s</td><td><b>%.1f%%</b></td>
+      <td>%s</td><td><b>%.2f%%</b></td>
     </tr>
     <tr>
-      <td>نسبة المسودات إلى الصادرة</td><td><b>%.1f%%</b></td>
+      <td>%s</td><td><b>%.1f%%</b></td>
       <td>&nbsp;</td><td>&nbsp;</td>
     </tr>
   </table>
-</div>`, avgInvoiceValue, revenuePerClient, purchaseToSalesRatio, discountRate, draftToIssuedRate)
+</div>`,
+		resources.T(lang, "dashboard.section.advanced_profitability"),
+		resources.T(lang, "report.indicator"), resources.T(lang, "report.value"),
+		resources.T(lang, "report.indicator"), resources.T(lang, "report.value"),
+		resources.T(lang, "dashboard.kpi.avg_invoice"), avgInvoiceValue,
+		resources.T(lang, "dashboard.kpi.revenue_per_client"), revenuePerClient,
+		resources.T(lang, "dashboard.kpi.purchase_to_sales"), purchaseToSalesRatio,
+		resources.T(lang, "dashboard.kpi.discount_rate"), discountRate,
+		resources.T(lang, "dashboard.kpi.draft_to_issued"), draftToIssuedRate,
+	)
 
 	// ── Receivables & Payables ─────────────────────────────────
 	fmt.Fprintf(w, `
 <div class="section">
-  <div class="section-title">مؤشرات الذمم والتحصيل</div>
+  <div class="section-title">%s</div>
   <table>
-    <tr><th>المؤشر</th><th>القيمة</th><th>المؤشر</th><th>القيمة</th></tr>
+    <tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr>
     <tr>
-      <td>إجمالي المستحقات (AR)</td><td><b>%.2f</b> (%d فاتورة)</td>
-      <td>إجمالي المطلوبات (AP)</td><td><b>%.2f</b> (%d فاتورة)</td>
+      <td>%s</td><td><b>%.2f</b> (%d %s)</td>
+      <td>%s</td><td><b>%.2f</b> (%d %s)</td>
     </tr>
     <tr>
-      <td>صافي المركز النقدي</td><td><b style="color:#1e40af">%.2f</b></td>
-      <td>أيام تحصيل المبيعات (DSO)</td><td><b>%.1f</b> يوم</td>
+      <td>%s</td><td><b style="color:#1e40af">%.2f</b></td>
+      <td>%s</td><td><b>%.1f</b> %s</td>
     </tr>
     <tr>
-      <td>أيام سداد المشتريات (DPO)</td><td><b>%.1f</b> يوم</td>
-      <td>دورة التحويل النقدي (CCC)</td><td><b>%.1f</b> يوم</td>
+      <td>%s</td><td><b>%.1f</b> %s</td>
+      <td>%s</td><td><b>%.1f</b> %s</td>
     </tr>
     <tr>
-      <td>معدل دوران المستحقات</td><td><b>%.2f</b>x</td>
-      <td>متوسط فترة التحصيل</td><td><b>%.1f</b> يوم</td>
+      <td>%s</td><td><b>%.2f</b>x</td>
+      <td>%s</td><td><b>%.1f</b> %s</td>
     </tr>
     <tr>
-      <td>معدل دوران المطلوبات</td><td><b>%.2f</b>x</td>
-      <td>متوسط فترة السداد</td><td><b>%.1f</b> يوم</td>
+      <td>%s</td><td><b>%.2f</b>x</td>
+      <td>%s</td><td><b>%.1f</b> %s</td>
     </tr>
   </table>
-</div>`, arTotal, arCount, apTotal, apCount, netCashPosition, dso, dpo, cashConversionCycle,
-		recvTurnover, avgCollectionPeriod, apTurnoverVal, avgPaymentPeriod)
+</div>`,
+		resources.T(lang, "dashboard.section.receivables_payables"),
+		resources.T(lang, "report.indicator"), resources.T(lang, "report.value"),
+		resources.T(lang, "report.indicator"), resources.T(lang, "report.value"),
+		resources.T(lang, "dashboard.kpi.ar_total"), arTotal, arCount, resources.T(lang, "report.invoices"),
+		resources.T(lang, "dashboard.kpi.ap_total"), apTotal, apCount, resources.T(lang, "report.invoices"),
+		resources.T(lang, "dashboard.kpi.net_cash_position"), netCashPosition,
+		resources.T(lang, "dashboard.kpi.dso"), dso, resources.T(lang, "ui.day"),
+		resources.T(lang, "dashboard.kpi.dpo"), dpo, resources.T(lang, "ui.day"),
+		resources.T(lang, "dashboard.kpi.ccc"), cashConversionCycle, resources.T(lang, "ui.day"),
+		resources.T(lang, "dashboard.kpi.recv_turnover"), recvTurnover,
+		resources.T(lang, "dashboard.kpi.avg_collection"), avgCollectionPeriod, resources.T(lang, "ui.day"),
+		resources.T(lang, "dashboard.kpi.ap_turnover"), apTurnoverVal,
+		resources.T(lang, "dashboard.kpi.avg_payment"), avgPaymentPeriod, resources.T(lang, "ui.day"),
+	)
 
 	// ── AP Aging ───────────────────────────────────────────────
 	fmt.Fprintf(w, `
 <div class="section">
-  <div class="section-title">تحليل أعمار المطلوبات (AP)</div>
-  <table><tr><th>الفئة</th><th>العدد</th><th>المبلغ</th></tr>`)
+  <div class="section-title">%s</div>
+  <table><tr><th>%s</th><th>%s</th><th>%s</th></tr>`,
+		resources.T(lang, "dashboard.section.ap_aging"),
+		resources.T(lang, "report.category"),
+		resources.T(lang, "report.count"),
+		resources.T(lang, "report.amount"),
+	)
 	for _, b := range apAgingBuckets {
 		cls := ""
 		switch {
@@ -1283,40 +1410,54 @@ func HandleDashboardExportPDF(w http.ResponseWriter, r *http.Request) {
 	// ── Advanced Inventory ─────────────────────────────────────
 	fmt.Fprintf(w, `
 <div class="section">
-  <div class="section-title">مؤشرات المخزون المتقدمة</div>
+  <div class="section-title">%s</div>
   <table>
-    <tr><th>المؤشر</th><th>القيمة</th><th>المؤشر</th><th>القيمة</th></tr>
+    <tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr>
     <tr>
-      <td>قيمة المخزون</td><td><b>%.2f</b></td>
-      <td>نفاد المخزون</td><td><b>%d</b> (%.1f%%)</td>
+      <td>%s</td><td><b>%.2f</b></td>
+      <td>%s</td><td><b>%d</b> (%.1f%%)</td>
     </tr>
     <tr>
-      <td>نسبة المخزون إلى المبيعات</td><td><b>%.1f</b>x</td>
-      <td>أيام المخزون (DIO)</td><td><b>%.1f</b> يوم</td>
+      <td>%s</td><td><b>%.1f</b>x</td>
+      <td>%s</td><td><b>%.1f</b> %s</td>
     </tr>
   </table>
-</div>`, inventoryValue, outOfStockCount, outOfStockRate, inventoryToSalesRatio, dio)
+</div>`,
+		resources.T(lang, "dashboard.section.advanced_inventory"),
+		resources.T(lang, "report.indicator"), resources.T(lang, "report.value"),
+		resources.T(lang, "report.indicator"), resources.T(lang, "report.value"),
+		resources.T(lang, "dashboard.kpi.inventory_value"), inventoryValue,
+		resources.T(lang, "dashboard.kpi.out_of_stock"), outOfStockCount, outOfStockRate,
+		resources.T(lang, "dashboard.kpi.inv_to_sales"), inventoryToSalesRatio,
+		resources.T(lang, "dashboard.kpi.dio"), dio, resources.T(lang, "ui.day"),
+	)
 
 	// ── Concentration Risk ─────────────────────────────────────
 	fmt.Fprintf(w, `
 <div class="section">
-  <div class="section-title">مؤشرات المخاطر</div>
+  <div class="section-title">%s</div>
   <table>
-    <tr><th>المؤشر</th><th>القيمة</th></tr>
-    <tr><td>تركز العملاء (أعلى 3)</td><td><b>%.1f%%</b></td></tr>
+    <tr><th>%s</th><th>%s</th></tr>
+    <tr><td>%s</td><td><b>%.1f%%</b></td></tr>
   </table>
-</div>`, clientConcentration)
+</div>`,
+		resources.T(lang, "dashboard.kpi.client_concentration"),
+		resources.T(lang, "report.indicator"),
+		resources.T(lang, "report.value"),
+		resources.T(lang, "dashboard.kpi.client_concentration"),
+		clientConcentration,
+	)
 
 	// ── Footer & print trigger ─────────────────────────────────
 	fmt.Fprintf(w, `
-<button class="print-btn no-print" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+<button class="print-btn no-print" onclick="window.print()">🖨️ %s</button>
 <script>
   // Auto-open print dialog after page loads
   window.addEventListener('load', function() {
     setTimeout(function() { window.print(); }, 500);
   });
 </script>
-</body></html>`)
+</body></html>`, resources.T(lang, "report.print_save_pdf"))
 }
 
 func mustJSON(v interface{}) string {

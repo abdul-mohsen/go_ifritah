@@ -13,6 +13,7 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -33,6 +34,7 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	stockFilter := r.URL.Query().Get("stock")
 	query := r.URL.Query().Get("q")
@@ -54,7 +56,7 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("[products] backend list fetch failed: %v", err)
 		products = []models.Product{}
-		backendErr = "تعذر تحميل المنتجات من الخادم حالياً"
+		backendErr = resources.T(lang, "product.load_error_currently")
 	}
 	helpers.EnrichProductPartNames(products, token)
 
@@ -71,7 +73,7 @@ func HandleProducts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "products", map[string]interface{}{
-		"title":      "المنتجات",
+		"title":      resources.T(lang, "product.list_title"),
 		"products":   pagedProducts,
 		"stock":      stockFilter,
 		"query":      query,
@@ -88,6 +90,7 @@ func HandleAddProduct(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	stores, err := helpers.FetchStores(token)
 	if err != nil {
@@ -95,7 +98,7 @@ func HandleAddProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "add-product", map[string]interface{}{
-		"title":  "إضافة منتج",
+		"title":  resources.T(lang, "product.add_title"),
 		"stores": stores,
 	})
 }
@@ -109,6 +112,7 @@ func HandleProductDetail(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	var product models.Product
 	found := false
@@ -163,7 +167,7 @@ func HandleProductDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "product-detail", map[string]interface{}{
-		"title":      "تفاصيل المنتج",
+		"title":      resources.T(lang, "product.detail_title"),
 		"product":    product,
 		"store_name": storeName,
 	})
@@ -178,6 +182,7 @@ func HandleEditProduct(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	stores, _ := helpers.FetchStores(token)
 	if stores == nil {
@@ -208,7 +213,7 @@ func HandleEditProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "edit-product", map[string]interface{}{
-		"title":   "تعديل المنتج",
+		"title":   resources.T(lang, "product.edit_title"),
 		"id":      id,
 		"product": product,
 		"stores":  stores,
@@ -223,6 +228,7 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	storeIDStr := r.FormValue("store_id")
 	quantities := r.Form["quantity[]"]
@@ -238,9 +244,9 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 			stores = []models.Store{}
 		}
 		data := helpers.RenderFormWithErrors(map[string]interface{}{
-			"title":  "إضافة منتج",
+			"title":  resources.T(lang, "product.add_title"),
 			"stores": stores,
-		}, map[string]string{"store_id": "يرجى اختيار المخزن"}, nil)
+		}, map[string]string{"store_id": resources.T(lang, "product.select_store")}, nil)
 		helpers.Render(w, r, "add-product", data)
 		return
 	}
@@ -257,9 +263,9 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 				stores = []models.Store{}
 			}
 			data := helpers.RenderFormWithErrors(map[string]interface{}{
-				"title":  "إضافة منتج",
+				"title":  resources.T(lang, "product.add_title"),
 				"stores": stores,
-			}, map[string]string{"products": "يرجى اختيار القطعة وتعبئة الكمية والسعر لكل منتج"}, nil)
+			}, map[string]string{"products": resources.T(lang, "product.fill_all_fields")}, nil)
 			helpers.Render(w, r, "add-product", data)
 			return
 		}
@@ -327,12 +333,12 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[CREATE PRODUCT] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في إنشاء المنتج")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "product.create_error"))
 		return
 	}
 
 	helpers.APICache.Delete("products")
-	helpers.WriteSuccessRedirect(w, "/dashboard/products", "تم إنشاء المنتج بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/products", resources.T(lang, "product.create_success"))
 }
 
 // HandleUpdateProduct updates an existing product
@@ -344,11 +350,12 @@ func HandleUpdateProduct(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	// Server-side validation
 	errs := helpers.Validate([]helpers.FieldRule{
-		{Field: "price", Value: r.FormValue("price"), Required: true, Label: "سعر القطعة"},
-		{Field: "store_id", Value: r.FormValue("store_id"), Required: true, Label: "المخزن"},
+		{Field: "price", Value: r.FormValue("price"), Required: true, Label: resources.T(lang, "product.label.part_price")},
+		{Field: "store_id", Value: r.FormValue("store_id"), Required: true, Label: resources.T(lang, "tpl.product.store_label")},
 	})
 	if errs != nil {
 		stores, _ := helpers.FetchStores(token)
@@ -357,7 +364,7 @@ func HandleUpdateProduct(w http.ResponseWriter, r *http.Request) {
 		}
 		oldValues := helpers.OldValues([]string{"price", "store_id"}, r.FormValue)
 		data := helpers.RenderFormWithErrors(map[string]interface{}{
-			"title":   "تعديل المنتج",
+			"title":   resources.T(lang, "product.edit_title"),
 			"id":      id,
 			"product": models.Product{ID: helpers.ParseIntValue(id)},
 			"stores":  stores,
@@ -400,12 +407,12 @@ func HandleUpdateProduct(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في تحديث المنتج")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "product.update_error"))
 		return
 	}
 
 	helpers.APICache.Delete("products")
-	helpers.WriteSuccessRedirect(w, "/dashboard/products", "تم تحديث المنتج بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/products", resources.T(lang, "product.update_success"))
 }
 
 // HandleDeleteProduct deletes a product
@@ -416,6 +423,7 @@ func HandleDeleteProduct(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	req, _ := http.NewRequest("DELETE", config.BackendDomain+"/api/v2/product/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
@@ -426,10 +434,10 @@ func HandleDeleteProduct(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في حذف المنتج")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "product.delete_error"))
 		return
 	}
 
 	helpers.APICache.Delete("products")
-	helpers.WriteSuccessRedirect(w, "/dashboard/products", "تم حذف المنتج بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/products", resources.T(lang, "product.delete_success"))
 }

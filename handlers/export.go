@@ -9,6 +9,7 @@ import (
 
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -28,10 +29,11 @@ func HandleExportInvoicesCSV(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	invoices, err := helpers.FetchAllInvoicesUnpaginated(token)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل الفواتير")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "invoice.export_error"))
 		return
 	}
 
@@ -44,7 +46,15 @@ func HandleExportInvoicesCSV(w http.ResponseWriter, r *http.Request) {
 	defer writer.Flush()
 
 	// Header row
-	_ = writer.Write([]string{"رقم الفاتورة", "التاريخ", "الإجمالي", "ض.ق.م", "الخصم", "الحالة", "النوع"})
+	_ = writer.Write([]string{
+		resources.T(lang, "csv_header.invoice_number"),
+		resources.T(lang, "csv_header.date"),
+		resources.T(lang, "csv_header.total"),
+		resources.T(lang, "csv_header.vat"),
+		resources.T(lang, "csv_header.discount"),
+		resources.T(lang, "csv_header.status"),
+		resources.T(lang, "csv_header.type"),
+	})
 
 	for _, inv := range invoices {
 		status, _ := helpers.InvoiceStatus(inv)
@@ -69,10 +79,11 @@ func HandleExportProductsCSV(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	products, err := helpers.FetchProducts(token)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل المنتجات")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "product.export_error"))
 		return
 	}
 
@@ -83,12 +94,18 @@ func HandleExportProductsCSV(w http.ResponseWriter, r *http.Request) {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	_ = writer.Write([]string{"المعرف", "اسم القطعة", "السعر", "الكمية", "الحالة"})
+	_ = writer.Write([]string{
+		resources.T(lang, "csv_header.id"),
+		resources.T(lang, "csv_header.part_name"),
+		resources.T(lang, "csv_header.price"),
+		resources.T(lang, "csv_header.quantity"),
+		resources.T(lang, "csv_header.status"),
+	})
 
 	for _, p := range products {
-		stockStatus := "متوفر"
+		stockStatus := resources.T(lang, "product.in_stock")
 		if helpers.ParseIntValue(p.Quantity) <= 0 {
-			stockStatus = "منتهي"
+			stockStatus = resources.T(lang, "product.out_of_stock")
 		}
 		_ = writer.Write([]string{
 			fmt.Sprintf("%d", p.ID),
@@ -106,10 +123,11 @@ func HandleExportClientsCSV(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	clients, err := helpers.FetchClients(token)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل العملاء")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "client.export_error"))
 		return
 	}
 
@@ -120,7 +138,12 @@ func HandleExportClientsCSV(w http.ResponseWriter, r *http.Request) {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	_ = writer.Write([]string{"المعرف", "الاسم", "البريد الإلكتروني", "الهاتف"})
+	_ = writer.Write([]string{
+		resources.T(lang, "csv_header.id"),
+		resources.T(lang, "csv_header.name"),
+		resources.T(lang, "csv_header.email"),
+		resources.T(lang, "csv_header.phone"),
+	})
 
 	for _, c := range clients {
 		_ = writer.Write([]string{c.ID, c.Name, c.Email, c.Phone})
@@ -133,10 +156,11 @@ func HandleExportSuppliersCSV(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	suppliers, err := helpers.FetchSuppliers(token)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل الموردين")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "supplier.export_error"))
 		return
 	}
 
@@ -147,7 +171,13 @@ func HandleExportSuppliersCSV(w http.ResponseWriter, r *http.Request) {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	_ = writer.Write([]string{"المعرف", "الاسم", "الهاتف", "العنوان", "الرقم الضريبي"})
+	_ = writer.Write([]string{
+		resources.T(lang, "csv_header.id"),
+		resources.T(lang, "csv_header.name"),
+		resources.T(lang, "csv_header.phone"),
+		resources.T(lang, "csv_header.address"),
+		resources.T(lang, "csv_header.vat_number"),
+	})
 
 	for _, s := range suppliers {
 		_ = writer.Write([]string{
@@ -188,18 +218,19 @@ func HandleExportPurchaseBillsXLSX(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	bills, err := helpers.FetchPurchaseBillsAll(token, 1, "", "")
 	if err != nil {
 		log.Printf("[purchase-bills export] backend list fetch failed: %v", err)
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل فواتير المشتريات")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "purchase_bill.export_list_error"))
 		return
 	}
 
 	details, err := fetchPurchaseBillDetailsConcurrently(token, bills)
 	if err != nil {
 		log.Printf("[purchase-bills export] detail fetch failed: %v", err)
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحميل منتجات فواتير المشتريات")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "purchase_bill.export_products_error"))
 		return
 	}
 
@@ -217,10 +248,10 @@ func HandleExportPurchaseBillsXLSX(w http.ResponseWriter, r *http.Request) {
 		productRows = appendPurchaseBillExportProducts(productRows, reference, manualProducts)
 	}
 
-	workbook, err := buildPurchaseBillExportWorkbook(exportBills, productRows, isArabic(token))
+	workbook, err := buildPurchaseBillExportWorkbook(exportBills, productRows, isArabic(lang))
 	if err != nil {
 		log.Printf("[purchase-bills export] workbook build failed: %v", err)
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر إنشاء ملف Excel")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "export.workbook_build_error"))
 		return
 	}
 
@@ -390,15 +421,16 @@ func HandleExportSalesBillsXLSX(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 	invoices, err := helpers.FetchAllInvoicesUnpaginated(token)
 	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "Unable to load sales bills")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "invoice.export_error"))
 		return
 	}
-	workbook, err := buildSalesBillExportWorkbook(token, invoices, isArabic(token))
+	workbook, err := buildSalesBillExportWorkbook(token, invoices, isArabic(lang))
 	if err != nil {
 		log.Printf("[sales-bills export] workbook build failed: %v", err)
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "Unable to create Excel workbook")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "export.workbook_build_error"))
 		return
 	}
 	defer workbook.Close()

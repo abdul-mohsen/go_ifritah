@@ -10,6 +10,7 @@ import (
 
 	"afrita/config"
 	"afrita/helpers"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -70,6 +71,7 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	query := r.URL.Query().Get("q")
 
@@ -87,13 +89,13 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 		if status, ok := orders[i]["status"].(string); ok {
 			switch status {
 			case "pending":
-				orders[i]["status"] = "قيد الانتظار"
+				orders[i]["status"] = resources.T(lang, "status.pending")
 			case "completed":
-				orders[i]["status"] = "مكتمل"
+				orders[i]["status"] = resources.T(lang, "status.completed")
 			case "canceled":
-				orders[i]["status"] = "ملغي"
+				orders[i]["status"] = resources.T(lang, "status.cancelled")
 			case "processing":
-				orders[i]["status"] = "قيد المعالجة"
+				orders[i]["status"] = resources.T(lang, "status.processing")
 			}
 		}
 	}
@@ -111,7 +113,7 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "orders", map[string]interface{}{
-		"title":      "الطلبات",
+		"title":      resources.T(lang, "order.list_title"),
 		"orders":     pagedOrders,
 		"query":      query,
 		"pagination": pagination,
@@ -125,8 +127,9 @@ func HandleAddOrder(w http.ResponseWriter, r *http.Request) {
 	if _, ok := helpers.GetTokenOrRedirect(w, r); !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 	helpers.Render(w, r, "add-order", map[string]interface{}{
-		"title": "إضافة طلب",
+		"title": resources.T(lang, "order.add_title"),
 	})
 }
 
@@ -137,6 +140,7 @@ func HandleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	storeID := helpers.ParseIntValue(r.FormValue("store_id"))
 	if storeID == 0 {
@@ -193,12 +197,12 @@ func HandleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[CREATE ORDER] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في إنشاء الطلب")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "order.create_error"))
 		return
 	}
 
 	helpers.APICache.Delete("orders")
-	helpers.WriteSuccessRedirect(w, "/dashboard/orders", "تم إنشاء الطلب بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/orders", resources.T(lang, "order.create_success"))
 }
 
 // HandleDeleteOrder deletes an order
@@ -209,6 +213,7 @@ func HandleDeleteOrder(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	req, _ := http.NewRequest("DELETE", config.BackendDomain+"/api/v2/order/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
@@ -219,7 +224,7 @@ func HandleDeleteOrder(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	helpers.APICache.Delete("orders")
-	helpers.WriteSuccessRedirect(w, "/dashboard/orders", "تم حذف الطلب بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/orders", resources.T(lang, "order.delete_success"))
 }
 
 // HandleOrderDetail displays order details
@@ -230,11 +235,12 @@ func HandleOrderDetail(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	raw, err := helpers.FetchOrderDetail(token, id)
 	if err != nil {
 		log.Printf("[ORDER DETAIL] fetch error: %v", err)
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "فشل في تحميل بيانات الطلب")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "order.load_error"))
 		return
 	}
 
@@ -272,19 +278,19 @@ func HandleOrderDetail(w http.ResponseWriter, r *http.Request) {
 	statusAr := ""
 	switch order["Status"] {
 	case "pending":
-		statusAr = "قيد الانتظار"
+		statusAr = resources.T(lang, "status.pending")
 	case "completed":
-		statusAr = "مكتمل"
+		statusAr = resources.T(lang, "status.completed")
 	case "canceled":
-		statusAr = "ملغي"
+		statusAr = resources.T(lang, "status.cancelled")
 	case "processing":
-		statusAr = "قيد المعالجة"
+		statusAr = resources.T(lang, "status.processing")
 	default:
 		statusAr = coerceString(order["Status"])
 	}
 
 	helpers.Render(w, r, "order-detail", map[string]interface{}{
-		"title":     "تفاصيل الطلب",
+		"title":     resources.T(lang, "order.detail_title"),
 		"order":     order,
 		"status_ar": statusAr,
 	})
@@ -298,11 +304,12 @@ func HandleEditOrder(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	raw, err := helpers.FetchOrderDetail(token, id)
 	if err != nil {
 		log.Printf("[EDIT ORDER] fetch error: %v", err)
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "فشل في تحميل بيانات الطلب")
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, resources.T(lang, "order.load_error"))
 		return
 	}
 
@@ -317,7 +324,7 @@ func HandleEditOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "edit-order", map[string]interface{}{
-		"title": "تعديل الطلب",
+		"title": resources.T(lang, "order.edit_title"),
 		"order": order,
 	})
 }
@@ -331,6 +338,7 @@ func HandleUpdateOrder(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	lang := helpers.GetLang(r)
 
 	payload := map[string]interface{}{
 		"sequence_number": r.FormValue("number"),
@@ -355,10 +363,10 @@ func HandleUpdateOrder(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[UPDATE ORDER] Backend error: %d body=[%s]", resp.StatusCode, string(respBody))
-		helpers.WriteErrorResponse(w, resp.StatusCode, nil, "فشل في تحديث الطلب")
+		helpers.WriteErrorResponse(w, resp.StatusCode, nil, resources.T(lang, "order.update_error"))
 		return
 	}
 
 	helpers.APICache.Delete("orders")
-	helpers.WriteSuccessRedirect(w, "/dashboard/orders", "تم تحديث الطلب بنجاح")
+	helpers.WriteSuccessRedirect(w, "/dashboard/orders", resources.T(lang, "order.update_success"))
 }

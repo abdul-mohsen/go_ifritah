@@ -3,13 +3,16 @@ package handlers
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"html"
 	"net/http"
 	"strings"
 	"time"
 
 	"afrita/config"
+	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -35,11 +38,11 @@ func RequirePermission(resource string, action string) mux.MiddlewareFunc {
 
 			if user.Role == models.RoleManager {
 				if resource == "users" && action == "delete" {
-					respondWithForbidden(w, r, "المدراء لا يمكنهم حذف المستخدمين")
+					respondWithForbidden(w, r, resources.T(helpers.GetLang(r), "rbac.manager_delete_forbidden"))
 					return
 				}
 				if resource == "settings" {
-					respondWithForbidden(w, r, "المدراء لا يمكنهم الوصول لإعدادات النظام")
+					respondWithForbidden(w, r, resources.T(helpers.GetLang(r), "rbac.manager_settings_forbidden"))
 					return
 				}
 				next.ServeHTTP(w, r)
@@ -47,7 +50,7 @@ func RequirePermission(resource string, action string) mux.MiddlewareFunc {
 			}
 
 			if !checkPermission(user.Permissions, resource, action) {
-				respondWithForbidden(w, r, "ليس لديك صلاحية للقيام بهذا الإجراء")
+				respondWithForbidden(w, r, resources.T(helpers.GetLang(r), "rbac.action_forbidden"))
 				return
 			}
 
@@ -103,7 +106,7 @@ func RequireRole(roles ...models.Role) mux.MiddlewareFunc {
 				}
 			}
 
-			respondWithForbidden(w, r, "ليس لديك الصلاحيات الكافية")
+			respondWithForbidden(w, r, resources.T(helpers.GetLang(r), "rbac.permissions_insufficient"))
 		})
 	}
 }
@@ -248,18 +251,24 @@ func respondWithForbidden(w http.ResponseWriter, r *http.Request, message string
 		return
 	}
 
+	lang := helpers.GetLang(r)
+	dir := "rtl"
+	if lang == resources.LangEn {
+		dir = "ltr"
+	}
+
 	w.WriteHeader(http.StatusForbidden)
-	_, _ = w.Write([]byte(`
+	_, _ = w.Write([]byte(fmt.Sprintf(`
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="%s" dir="%s">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>403 - ممنوع</title>
+    <title>403 - %s</title>
     <style>
         body {
             font-family: 'Cairo', sans-serif;
-            background: linear-gradient(135deg, #1d3666 0%, #2a4a8f 100%);
+            background: linear-gradient(135deg, #1d3666 0%%, #2a4a8f 100%%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -312,13 +321,13 @@ func respondWithForbidden(w http.ResponseWriter, r *http.Request, message string
 <body>
     <div class="error-container">
         <h1 class="error-code">403</h1>
-        <h2 class="error-title">ممنوع</h2>
-        <p class="error-message">` + html.EscapeString(message) + `</p>
-        <a class="back-button" href="/dashboard">العودة للوحة التحكم</a>
+        <h2 class="error-title">%s</h2>
+        <p class="error-message">%s</p>
+        <a class="back-button" href="/dashboard">%s</a>
     </div>
 </body>
 </html>
-`))
+`, lang, dir, resources.T(lang, "rbac.forbidden_title"), resources.T(lang, "rbac.forbidden_title"), html.EscapeString(message), resources.T(lang, "middleware.back_to_dashboard"))))
 }
 
 // GetAllResources returns the list of valid permission resources.

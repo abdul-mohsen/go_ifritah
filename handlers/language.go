@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"net/url"
+	"strings"
 
 	"afrita/helpers"
 	"afrita/resources"
@@ -33,16 +34,30 @@ func HandleSetLanguage(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, safeRedirectTarget(r.URL.Query().Get("redirect")), http.StatusSeeOther)
 }
 
-// safeRedirectTarget returns target if it is a same-site relative path,
-// otherwise "/dashboard". Guards HandleSetLanguage's redirect query param
-// against open-redirect (e.g. redirect=https://evil.example).
+// safeRedirectTarget guards HandleSetLanguage's redirect query param
+// against open-redirect (e.g. redirect=https://evil.example, a
+// protocol-relative //evil.example, or a backslash variant browsers
+// normalize to one). Rather than returning the attacker-influenced string
+// as-is after a check, it rebuilds a brand new URL from only the parsed
+// Path/RawQuery fields, so no unvalidated byte from target ever reaches
+// the redirect sink. Falls back to "/dashboard" for anything empty,
+// unparsable, absolute, host-carrying, or not rooted at a single "/".
 func safeRedirectTarget(target string) string {
+	const fallback = "/dashboard"
 	if target == "" {
-		return "/dashboard"
+		return fallback
 	}
 	u, err := url.Parse(target)
-	if err != nil || u.IsAbs() || u.Host != "" || len(u.Path) == 0 || u.Path[0] != '/' {
-		return "/dashboard"
+	if err != nil ||
+		u.IsAbs() ||
+		u.Host != "" ||
+		u.Opaque != "" ||
+		u.Path == "" ||
+		u.Path[0] != '/' ||
+		strings.HasPrefix(u.Path, "//") ||
+		strings.ContainsAny(u.Path, "\\") {
+		return fallback
 	}
-	return target
+	safe := url.URL{Path: u.Path, RawQuery: u.RawQuery}
+	return safe.String()
 }

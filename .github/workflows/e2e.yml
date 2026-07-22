@@ -4,7 +4,7 @@ name: E2E (against dev backend)
 # https://dev.ifritah.com backend, and runs the Playwright suite against it.
 #
 # `serial` (workers=1, real shared-state writes) and `parallel` (workers=4,
-# sharded across 6 independent jobs) run CONCURRENTLY as separate jobs, so
+# sharded across 8 independent jobs) run CONCURRENTLY as separate jobs, so
 # the fast parallel suite never waits behind the slow serial one. `report`
 # aggregates both into a single pass/fail signal + step summary.
 
@@ -166,13 +166,13 @@ jobs:
           if-no-files-found: ignore
 
   parallel:
-    name: e2e (parallel shard ${{ matrix.shard }}/6)
+    name: e2e (parallel shard ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     env:
       AFRITA_TOKEN_DIR: ${{ github.workspace }}/.afrita-tokens
     steps:
@@ -237,7 +237,7 @@ jobs:
         working-directory: e2e
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright tests (parallel shard ${{ matrix.shard }}/6)
+      - name: Run Playwright tests (parallel shard ${{ matrix.shard }}/8)
         timeout-minutes: 15
         working-directory: e2e
         env:
@@ -245,9 +245,9 @@ jobs:
           PW_RESULTS_FILE: playwright-results-parallel-${{ matrix.shard }}.json
         run: |
           if [ -n "$GREP_FILTER" ]; then
-            npx playwright test --project=parallel --workers=4 --shard=${{ matrix.shard }}/6 --grep "$GREP_FILTER"
+            npx playwright test --project=parallel --workers=4 --shard=${{ matrix.shard }}/8 --grep "$GREP_FILTER"
           else
-            npx playwright test --project=parallel --workers=4 --shard=${{ matrix.shard }}/6
+            npx playwright test --project=parallel --workers=4 --shard=${{ matrix.shard }}/8
           fi
 
       - name: Stop frontend server

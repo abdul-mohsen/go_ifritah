@@ -60,11 +60,11 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 		status, statusClass := helpers.InvoiceStatus(inv)
 		status = helpers.TranslateInvoiceStatus(status)
 		invoiceType := helpers.InvoiceTypeLabel(inv)
-		// Format date: strip time portion from ISO timestamp
-		dateStr := inv.EffectiveDate.Time
-		if len(dateStr) >= 10 {
-			dateStr = dateStr[:10]
-		}
+		// Format date: re-localize to Riyadh before display. The backend may
+		// return this as a UTC-offset timestamp; naively slicing the first 10
+		// characters (as this used to do) silently shifts the calendar date
+		// by a day for any wall-clock time before 03:00 Riyadh time.
+		dateStr := helpers.ToDisplayDate(inv.EffectiveDate.Time)
 		supplierSeq := ""
 		if inv.SupplierSequenceNumber > 0 {
 			supplierSeq = fmt.Sprintf("%d", inv.SupplierSequenceNumber)
@@ -284,12 +284,12 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	status, statusClass := helpers.InvoiceStatus(invoice)
 	status = helpers.TranslateInvoiceStatus(status)
 
-	// Format effective date
+	// Format effective date. Re-localize to Riyadh rather than slicing the
+	// raw string - the backend may return a UTC-offset timestamp, and a naive
+	// [:10] slice silently shifts the calendar date by a day.
 	effectiveDate := ""
 	if invoice.EffectiveDate.Valid && invoice.EffectiveDate.Time != "" {
-		if len(invoice.EffectiveDate.Time) >= 10 {
-			effectiveDate = invoice.EffectiveDate.Time[:10]
-		}
+		effectiveDate = helpers.ToDisplayDate(invoice.EffectiveDate.Time)
 	}
 
 	// Supplier sequence number
@@ -302,8 +302,8 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 
 	// Deliver date
 	deliverDate := ""
-	if v, ok := extra["deliver_date"].(string); ok && len(v) >= 10 {
-		deliverDate = v[:10]
+	if v, ok := extra["deliver_date"].(string); ok {
+		deliverDate = helpers.ToDisplayDate(v)
 	}
 
 	// Note
@@ -331,8 +331,8 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 
 	// Format payment due date
 	paymentDueDate := ""
-	if v, ok := extra["payment_due_date"].(string); ok && len(v) >= 10 {
-		paymentDueDate = v[:10]
+	if v, ok := extra["payment_due_date"].(string); ok {
+		paymentDueDate = helpers.ToDisplayDate(v)
 	}
 
 	// Bill type label
@@ -527,17 +527,21 @@ func HandleDeletePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteSuccessRedirect(w, "/dashboard/purchase-bills", "تم حذف فاتورة الشراء بنجاح")
 }
 
-// extractDateField pulls a YYYY-MM-DD string out of a backend date field
-// that may be either a {Time, Valid} object, a plain ISO string, or absent.
+// extractDateField pulls a raw date/time string out of a backend date field
+// that may be either a {Time, Valid} object, a plain ISO string, or absent,
+// then re-localizes it to Asia/Riyadh via helpers.ToDisplayDate. Do not
+// naively slice the raw string - the backend may return a UTC-offset
+// timestamp, and slicing the first 10 characters silently shifts the
+// calendar date by a day for any wall-clock time before 03:00 Riyadh time.
 func extractDateField(raw interface{}) string {
 	if m, ok := raw.(map[string]interface{}); ok {
-		if t, ok := m["Time"].(string); ok && len(t) >= 10 {
-			return t[:10]
+		if t, ok := m["Time"].(string); ok {
+			return helpers.ToDisplayDate(t)
 		}
 		return ""
 	}
-	if s, ok := raw.(string); ok && len(s) >= 10 {
-		return s[:10]
+	if s, ok := raw.(string); ok {
+		return helpers.ToDisplayDate(s)
 	}
 	return ""
 }

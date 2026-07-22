@@ -75,7 +75,7 @@ jobs:
             e2e/package-lock.json
 
       - name: Install root npm deps (Tailwind)
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Build CSS
         run: npm run build:css
@@ -108,7 +108,7 @@ jobs:
 
       - name: Install e2e dependencies
         working-directory: e2e
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Cache Playwright browsers
         id: playwright-cache
@@ -203,7 +203,7 @@ jobs:
             e2e/package-lock.json
 
       - name: Install root npm deps (Tailwind)
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Build CSS
         run: npm run build:css
@@ -233,7 +233,7 @@ jobs:
 
       - name: Install e2e dependencies
         working-directory: e2e
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Cache Playwright browsers
         id: playwright-cache

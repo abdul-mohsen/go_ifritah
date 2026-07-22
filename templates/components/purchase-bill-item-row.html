@@ -16,20 +16,30 @@
          clears the "this item may already exist" banner once a real
          product is chosen from the dropdown. */}}
 {{ define "pb-items-table" }}
-<div class="pb-items-scroll">
-    <div class="pb-items-rows">
-        <div class="pb-items-header">
-            <span class="pbi-state"></span>
-            <span class="pbi-name">{{ L "tpl.pb.item_label" }}</span>
-            <span class="pbi-qty">{{ L "tpl.pb.quantity" }}</span>
-            <span class="pbi-purchase-price">{{ L "tpl.pb.purchase_price" }}</span>
-            <span class="pbi-cost-price">{{ L "tpl.product.cost_price" }}</span>
-            <span class="pbi-shelf">{{ L "tpl.product.shelf_number" }}</span>
-            <span class="pbi-selling-price">{{ L "tpl.product.selling_price" }}</span>
-            <span class="pbi-remove"></span>
-        </div>
-        <div id="products-container"></div>
-    </div>
+<div class="data-table-wrapper pb-items-wrapper">
+    <table class="pb-items-table-el">
+        <colgroup>
+            <col class="col-pbi-name">
+            <col class="col-pbi-qty">
+            <col class="col-pbi-price">
+            <col class="col-pbi-price">
+            <col class="col-pbi-shelf">
+            <col class="col-pbi-price">
+            <col class="col-pbi-action">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>{{ L "tpl.pb.item_label" }}</th>
+                <th>{{ L "tpl.pb.quantity" }}</th>
+                <th>{{ L "tpl.pb.purchase_price" }}</th>
+                <th>{{ L "tpl.product.cost_price" }}</th>
+                <th>{{ L "tpl.product.shelf_number" }}</th>
+                <th>{{ L "tpl.product.selling_price" }}</th>
+                <th><span class="sr-only">{{ L "tpl.delete" }}</span></th>
+            </tr>
+        </thead>
+        <tbody id="products-container"></tbody>
+    </table>
 </div>
 {{ end }}
 {{ define "pb-item-row-markup-js" }}
@@ -50,27 +60,31 @@ function buildItemRowMarkup(opts) {
         ? '<span class="existing-item-warning text-xs text-amber-700 hidden"></span>'
         : '';
     return `
-        <div class="item-row item-row-compact" data-row-id="${opts.rowId}">
-            <span class="item-state pbi-state text-xs ${opts.trackStock ? 'text-green-700' : 'text-gray-500'}" title="${escapeAttr(stateText)}">${escapeHtml(stateText)}</span>
-            <div class="pbi-name">
-                <input type="text" class="store-product-search" placeholder="${escapeAttr(purchaseBillLabels.itemPlaceholder)}" autocomplete="off"
-                       aria-label="${escapeAttr(purchaseBillLabels.itemLabel)}"
-                       value="${escapeAttr(opts.name)}" oninput="onStoreItemInput(this, '${opts.rowId}')" onfocus="showDropdown('${opts.rowId}')">
-                <input type="hidden" name="products_product_id" value="${opts.productId}">
-                <input type="hidden" name="products_part_name" value="${escapeAttr(opts.name)}">
-                <input type="hidden" name="products_track_stock" value="${opts.trackStock}">
-                <div id="dropdown_${opts.rowId}" class="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
-                ${warningSpan}
-            </div>
-            <input type="number" name="products_quantity" min="1" value="${opts.quantity}" class="pbi-qty" aria-label="${escapeAttr(purchaseBillLabels.quantity)}" oninput="recalculateTotal()">
-            <input type="text" name="products_price" value="${opts.purchasePrice}" class="pbi-purchase-price" aria-label="${escapeAttr(purchaseBillLabels.purchasePrice)}" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}" oninput="recalculateTotal()">
-            <input type="text" name="products_cost_price" value="${opts.costPrice}" class="pbi-cost-price" placeholder="0" aria-label="${escapeAttr(purchaseBillLabels.costPrice)}" title="${escapeAttr(purchaseBillLabels.costPriceHint)}">
-            <input type="text" name="products_shelf_number" value="${escapeAttr(opts.shelfNumber)}" class="pbi-shelf" placeholder="" aria-label="${escapeAttr(purchaseBillLabels.shelfNumber)}">
-            <input type="text" name="products_selling_price" value="${escapeAttr(opts.sellingPrice)}" class="pbi-selling-price" aria-label="${escapeAttr(purchaseBillLabels.sellingPrice)}" title="${escapeAttr(purchaseBillLabels.sellingPriceHint)}" placeholder="${sellingPricePlaceholder}" ${sellingPriceAttrs}>
-            <button type="button" class="pbi-remove pbi-remove-btn" onclick="removeRow(this)" aria-label="${escapeAttr(purchaseBillLabels.deleteLabel)}" title="${escapeAttr(purchaseBillLabels.deleteLabel)}">
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6l8 8M14 6l-8 8"/></svg>
-            </button>
-        </div>
+        <tr class="item-row" data-row-id="${opts.rowId}">
+            <td class="pbi-cell-name">
+                <div class="pbi-name-wrap">
+                    <input type="text" class="store-product-search" placeholder="${escapeAttr(purchaseBillLabels.itemPlaceholder)}" autocomplete="off" dir="auto"
+                           aria-label="${escapeAttr(purchaseBillLabels.itemLabel)}"
+                           value="${escapeAttr(opts.name)}" oninput="onStoreItemInput(this, '${opts.rowId}')" onfocus="showDropdown('${opts.rowId}')">
+                    <span class="item-state badge pbi-state-badge ${opts.trackStock ? 'is-stock' : 'is-manual'}">${escapeHtml(stateText)}</span>
+                    <input type="hidden" name="products_product_id" value="${opts.productId}">
+                    <input type="hidden" name="products_part_name" value="${escapeAttr(opts.name)}">
+                    <input type="hidden" name="products_track_stock" value="${opts.trackStock}">
+                    <div id="dropdown_${opts.rowId}" class="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
+                    ${warningSpan}
+                </div>
+            </td>
+            <td class="pbi-cell-qty"><input type="number" name="products_quantity" min="1" value="${opts.quantity}" dir="ltr" aria-label="${escapeAttr(purchaseBillLabels.quantity)}" oninput="recalculateTotal()"></td>
+            <td class="pbi-cell-price"><input type="text" name="products_price" value="${opts.purchasePrice}" dir="ltr" inputmode="decimal" aria-label="${escapeAttr(purchaseBillLabels.purchasePrice)}" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}" oninput="recalculateTotal()"></td>
+            <td class="pbi-cell-price"><input type="text" name="products_cost_price" value="${opts.costPrice}" dir="ltr" inputmode="decimal" placeholder="0" aria-label="${escapeAttr(purchaseBillLabels.costPrice)}" title="${escapeAttr(purchaseBillLabels.costPriceHint)}"></td>
+            <td class="pbi-cell-shelf"><input type="text" name="products_shelf_number" value="${escapeAttr(opts.shelfNumber)}" dir="auto" placeholder="" aria-label="${escapeAttr(purchaseBillLabels.shelfNumber)}"></td>
+            <td class="pbi-cell-price"><input type="text" name="products_selling_price" value="${escapeAttr(opts.sellingPrice)}" dir="ltr" inputmode="decimal" aria-label="${escapeAttr(purchaseBillLabels.sellingPrice)}" title="${escapeAttr(purchaseBillLabels.sellingPriceHint)}" placeholder="${sellingPricePlaceholder}" ${sellingPriceAttrs}></td>
+            <td class="pbi-cell-action">
+                <button type="button" class="pbi-remove-btn" onclick="removeRow(this)" aria-label="${escapeAttr(purchaseBillLabels.deleteLabel)}" title="${escapeAttr(purchaseBillLabels.deleteLabel)}">
+                    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h12M8 6V4.5A1.5 1.5 0 019.5 3h1A1.5 1.5 0 0112 4.5V6m-6 0v10a1 1 0 001 1h6a1 1 0 001-1V6M8.5 9.5v5M11.5 9.5v5"/></svg>
+                </button>
+            </td>
+        </tr>
     `;
 }
 {{ end }}
@@ -159,8 +173,8 @@ function setInventoryState(row, trackStock) {
     row.querySelector('[name="products_track_stock"]').value = String(trackStock);
     var state = row.querySelector('.item-state');
     state.textContent = trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem;
-    state.classList.toggle('text-green-700', trackStock);
-    state.classList.toggle('text-gray-500', !trackStock);
+    state.classList.toggle('is-stock', trackStock);
+    state.classList.toggle('is-manual', !trackStock);
 }
 
 function showDropdown(rowId) {

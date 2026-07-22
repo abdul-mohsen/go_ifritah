@@ -1,0 +1,125 @@
+{{/* Shared JS for the purchase-bill item-row "search existing store
+     product" flow, used identically by add-purchase-bill.html and
+     edit-purchase-bill.html. Extracted to stop the two pages' near-
+     identical item-row scripts from drifting out of sync (and from
+     tripping SonarCloud's duplicated-lines gate on every future touch).
+
+     Callers must define, before including this partial:
+       - purchaseBillLabels.{inventoryItem,manualItem} (for setInventoryState)
+       - a #dropdown_<rowId> container per row (rendered by each page's own
+         itemRow builder)
+     Optional (only used if defined — checked defensively so this partial
+     works whether or not a given page has them):
+       - hideExistingItemWarning(row) — add-purchase-bill.html only,
+         clears the "this item may already exist" banner once a real
+         product is chosen from the dropdown. */}}
+{{ define "pb-store-product-search-js" }}
+function onStoreItemInput(input, rowId) {
+    var row = document.querySelector('[data-row-id="' + rowId + '"]');
+    row.querySelector('[name="products_product_id"]').value = '0';
+    row.querySelector('[name="products_part_name"]').value = input.value.trim();
+    setInventoryState(row, false);
+    if (typeof hideExistingItemWarning === 'function') hideExistingItemWarning(row);
+    searchStoreProducts(input, rowId);
+}
+
+function searchStoreProducts(input, rowId) {
+    var query = input.value.trim();
+    if (searchTimers[rowId]) clearTimeout(searchTimers[rowId]);
+    if (query.length < 1) {
+        hideDropdown(rowId);
+        return;
+    }
+    searchTimers[rowId] = setTimeout(function () {
+        var csrfToken = getCsrfCookie();
+        var formData = new FormData();
+        formData.append('query', query);
+        fetch('/api/products/search-json', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrfToken },
+            body: formData
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (products) { renderStoreProductDropdown(products, rowId); })
+            .catch(function () { hideDropdown(rowId); });
+    }, 300);
+}
+
+function getCsrfCookie() {
+    var match = document.cookie.match(/csrf_token=([^;]+)/);
+    return match ? match[1] : '';
+}
+
+function renderStoreProductDropdown(products, rowId) {
+    var dd = document.getElementById('dropdown_' + rowId);
+    var storeSelect = document.querySelector('[name="store_id"]');
+    var storeID = parseInt(storeSelect ? storeSelect.value : '', 10);
+    products = (products || []).filter(function (product) {
+        return product.store_id === storeID;
+    });
+    if (!products.length) {
+        dd.innerHTML = '<div class="px-3 py-2 text-sm text-gray-500">{{ L "tpl.product.no_results" }}</div>';
+        dd.classList.remove('hidden');
+        return;
+    }
+    var html = '';
+    var count = Math.min(products.length, 50);
+    for (var i = 0; i < count; i++) {
+        var p = products[i];
+        var name = (p.name || p.shelf_number || '').trim();
+        if (!name) continue;
+        html += '<div class="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer border-b" '
+            + 'onclick="selectStoreProduct(\'' + rowId + '\', ' + p.id + ', \'' + escapeAttr(name) + '\', \'' + escapeAttr(p.cost_price || '') + '\', \'' + escapeAttr(p.shelf_number || '') + '\', \'' + escapeAttr(p.price || '') + '\')">'
+            + escapeHtml(name)
+            + '</div>';
+    }
+    if (!html) {
+        html = '<div class="px-3 py-2 text-sm text-gray-500">{{ L "tpl.product.no_results" }}</div>';
+    }
+    dd.innerHTML = html;
+    dd.classList.remove('hidden');
+}
+
+function selectStoreProduct(rowId, productId, name, costPrice, shelfNumber, price) {
+    var row = document.querySelector('[data-row-id="' + rowId + '"]');
+    row.querySelector('.store-product-search').value = name;
+    row.querySelector('[name="products_product_id"]').value = productId;
+    row.querySelector('[name="products_part_name"]').value = name;
+    row.querySelector('[name="products_cost_price"]').value = costPrice;
+    row.querySelector('[name="products_shelf_number"]').value = shelfNumber;
+    var sellingPriceInput = row.querySelector('[name="products_selling_price"]');
+    if (sellingPriceInput) sellingPriceInput.value = price || '';
+    setInventoryState(row, true);
+    if (typeof hideExistingItemWarning === 'function') hideExistingItemWarning(row);
+    hideDropdown(rowId);
+}
+
+function setInventoryState(row, trackStock) {
+    row.querySelector('[name="products_track_stock"]').value = String(trackStock);
+    var state = row.querySelector('.item-state');
+    state.textContent = trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem;
+    state.classList.toggle('text-green-700', trackStock);
+    state.classList.toggle('text-gray-500', !trackStock);
+}
+
+function showDropdown(rowId) {
+    var dd = document.getElementById('dropdown_' + rowId);
+    if (dd.innerHTML.trim()) dd.classList.remove('hidden');
+}
+
+function hideDropdown(rowId) {
+    var dd = document.getElementById('dropdown_' + rowId);
+    if (dd) dd.classList.add('hidden');
+}
+
+function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function escapeAttr(s) {
+    if (!s) return '';
+    return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+{{ end }}

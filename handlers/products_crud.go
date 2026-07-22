@@ -298,6 +298,7 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 			"price":        price,
 			"cost_price":   costPrice,
 			"shelf_number": shelfNum,
+			"part_name":    partName,
 			"name":         partName,
 		})
 	}

@@ -473,6 +473,11 @@ type BillProductItem struct {
 	ShelfNumber string `json:"shelf_number,omitempty"`
 	TrackStock  bool   `json:"track_stock,omitempty"`
 	Discount    string `json:"discount,omitempty"`
+	// SellingPrice is an optional catalog selling-price override. The
+	// backend only honors it for admin/manager submissions (enforced
+	// server-side); it's a *string so an empty/omitted value round-trips
+	// as "no override" rather than "set the price to 0".
+	SellingPrice *string `json:"selling_price,omitempty"`
 }
 
 // BillManualItem represents a manual (text-based) product in a bill payload.

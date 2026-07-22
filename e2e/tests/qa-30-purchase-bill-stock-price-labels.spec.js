@@ -1,5 +1,6 @@
 // Purchase-bill store rows charge the supplier's purchase price and maintain
-// the inventory cost price. A selling price is not part of a purchase bill.
+// the inventory cost price. They also surface the catalog's current selling
+// price for review (editable for admin/manager, read-only otherwise).
 
 const { test, expect } = require('@playwright/test');
 const { login } = require('../helpers/qa');
@@ -12,11 +13,11 @@ async function assertStockRowPriceLabels(page) {
   const labels = (await row.locator('label').allTextContents()).map((t) => t.trim()).join(' | ');
   expect(labels, 'stock row must show cost price').toMatch(/سعر التكلفة|Cost Price/);
   expect(labels, 'stock row must show purchase price').toMatch(/سعر الشراء|Purchase Price/);
-  expect(labels, 'stock row must not show selling price').not.toMatch(/سعر البيع|Selling Price/);
+  expect(labels, 'stock row must show selling price for review').toMatch(/سعر البيع|Selling Price/);
 }
 
 test.describe('Purchase-bill store item price columns', () => {
-  test('add page labels store item prices as purchase price + cost price', async ({ page }) => {
+  test('add page labels store item prices as purchase price + cost price + selling price', async ({ page }) => {
     await login(page);
     await page.goto('/dashboard/purchase-bills/add');
     await page.waitForLoadState('domcontentloaded');
@@ -24,7 +25,7 @@ test.describe('Purchase-bill store item price columns', () => {
     await assertStockRowPriceLabels(page);
   });
 
-  test('edit page labels store item prices as purchase price + cost price', async ({ page }) => {
+  test('edit page labels store item prices as purchase price + cost price + selling price', async ({ page }) => {
     await login(page);
     await page.goto('/dashboard/purchase-bills');
     await page.waitForLoadState('domcontentloaded');

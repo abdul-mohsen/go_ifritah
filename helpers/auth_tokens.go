@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"afrita/config"
@@ -16,6 +17,12 @@ import (
 )
 
 const defaultAccessTokenTTL = 15 * time.Minute
+
+// sessionRefreshMu prevents concurrent token refreshes for the same session.
+// A per-session sync.Mutex ensures that when the token is near expiry and
+// multiple goroutines race to refresh it, only one actually calls the backend.
+// The rest wait and then re-read the (now-refreshed) token from SessionTokens.
+var sessionRefreshMu sync.Map
 
 // SaveTokenToFile persists token data to a JSON file
 func SaveTokenToFile(sessionID string, token *models.Token) error {
@@ -236,14 +243,40 @@ func ShouldRefreshToken(sessionID string) bool {
 	return time.Now().Add(2 * time.Minute).After(expiryTime)
 }
 
-// RefreshTokenIfNeeded attempts to refresh the token if it's near expiry
+// RefreshTokenIfNeeded attempts to refresh the token if it's near expiry.
+// A per-session mutex ensures that when multiple goroutines race to refresh
+// the same session token, only one actually calls the backend; the rest wait
+// and then pick up the freshly-stored token without re-refreshing.
 func RefreshTokenIfNeeded(w http.ResponseWriter, r *http.Request, sessionID string) bool {
-	config.SessionTokensMutex.RLock()
-	refreshToken, hasRefresh := config.SessionRefreshTokens[sessionID]
-	config.SessionTokensMutex.RUnlock()
+	// Fast path: check without holding any lock.
+	if !ShouldRefreshToken(sessionID) {
+		return true
+	}
 
-	if !hasRefresh || refreshToken == "" || !ShouldRefreshToken(sessionID) {
-		return true // Token is still valid
+	config.SessionTokensMutex.RLock()
+	_, hasRefresh := config.SessionRefreshTokens[sessionID]
+	config.SessionTokensMutex.RUnlock()
+	if !hasRefresh {
+		return true
+	}
+
+	// Acquire a per-session mutex so only one goroutine refreshes at a time.
+	mu, _ := sessionRefreshMu.LoadOrStore(sessionID, &sync.Mutex{})
+	m := mu.(*sync.Mutex)
+	m.Lock()
+	defer m.Unlock()
+
+	// Re-check after acquiring the lock — a sibling goroutine may have
+	// already refreshed the token while we were waiting.
+	if !ShouldRefreshToken(sessionID) {
+		return true
+	}
+
+	config.SessionTokensMutex.RLock()
+	refreshToken, hasRefresh2 := config.SessionRefreshTokens[sessionID]
+	config.SessionTokensMutex.RUnlock()
+	if !hasRefresh2 || refreshToken == "" {
+		return true
 	}
 
 	log.Printf("🔄 Token near expiry for session %s, attempting refresh...", sessionID)

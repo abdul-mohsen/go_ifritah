@@ -16,7 +16,7 @@
             <div class="address-readonly p-3 rounded" style="background:var(--md-sys-color-surface-container);border:1px solid var(--border-color)">
                 <div class="text-sm" style="color:var(--md-sys-color-on-surface)">
                     {{ with .linked_store }}
-                    {{ if .BuildingNumber }}{{ .BuildingNumber }} {{ end }}{{ .StreetName }}{{ if .District }}، {{ .District }}{{ end }}{{ if .City }}، {{ .City }}{{ end }}{{ if .PostalCode }} — {{ .PostalCode }}{{ end }}
+                    {{ if .BuildingNumber }}{{ .BuildingNumber }} {{ end }}{{ .StreetName }}{{ if .District }}{{ L "ui.list_separator" }}{{ .District }}{{ end }}{{ if .City }}{{ L "ui.list_separator" }}{{ .City }}{{ end }}{{ if .PostalCode }} — {{ .PostalCode }}{{ end }}
                     {{ end }}
                 </div>
                 <div class="text-xs mt-1" style="color:var(--md-sys-color-on-surface-variant)">

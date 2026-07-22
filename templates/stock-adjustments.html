@@ -20,7 +20,7 @@
                 </select>
             </div>
             <div>
-                <label class="form-label">المخزن <span class="required-mark">*</span></label>
+                <label class="form-label">{{ L "tpl.product.store_label" }} <span class="required-mark">*</span></label>
                 <select name="store_id" class="w-full" required>
                     {{ range .stores }}
                     <option value="{{ .ID }}">{{ .Name }}</option>

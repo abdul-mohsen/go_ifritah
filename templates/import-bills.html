@@ -550,7 +550,7 @@
             }
             html += '</tr>';
         }
-        if (data.length > rows) html += '<tr><td colspan="' + headers.length + '" style="text-align:center;color:var(--md-sys-color-on-surface-variant);font-style:italic">... و ' + (data.length - rows) + '{{ L "tpl.import.more_rows_suffix" }}</td></tr>';
+        if (data.length > rows) html += '<tr><td colspan="' + headers.length + '" style="text-align:center;color:var(--md-sys-color-on-surface-variant);font-style:italic">{{ L "tpl.import.more_rows_prefix" }}' + (data.length - rows) + '{{ L "tpl.import.more_rows_suffix" }}</td></tr>';
         html += '</tbody>';
         table.innerHTML = html;
     }

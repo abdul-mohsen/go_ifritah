@@ -18,7 +18,7 @@
             <span class="detail-label">{{ L "tpl.branch.location" }}</span>
             {{ if .has_store }}
                 {{ with .linked_store }}
-                <p class="detail-value">{{ if .BuildingNumber }}{{ .BuildingNumber }} {{ end }}{{ .StreetName }}{{ if .District }}، {{ .District }}{{ end }}{{ if .City }}، {{ .City }}{{ end }}{{ if .PostalCode }} — {{ .PostalCode }}{{ end }}</p>
+                <p class="detail-value">{{ if .BuildingNumber }}{{ .BuildingNumber }} {{ end }}{{ .StreetName }}{{ if .District }}{{ L "ui.list_separator" }}{{ .District }}{{ end }}{{ if .City }}{{ L "ui.list_separator" }}{{ .City }}{{ end }}{{ if .PostalCode }} — {{ .PostalCode }}{{ end }}</p>
                 <a href="/dashboard/stores/{{ .ID }}/edit" class="action-link text-xs" style="color:var(--md-sys-color-primary)">{{ L "tpl.branch.edit_store_address" }}</a>
                 {{ end }}
             {{ else }}

@@ -512,7 +512,7 @@
                 </div>
                 <div id="zatca-company-name-ar-warning" class="hidden mb-3 p-3 rounded-lg flex items-start gap-2" style="background: #fef3c7; color: #92400e; border: 1px solid #fcd34d">
                     <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z"/></svg>
-                    <span class="text-sm">⚠ اسم الشركة بالعربية فارغ — مطلوب لربط ZATCA. الرجاء تعبئته وحفظه قبل بدء الربط.</span>
+                    <span class="text-sm">{{ L "tpl.settings.zatca_name_ar_warning_banner" }}</span>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                     <div>
@@ -1088,11 +1088,11 @@
 
         // Status map: 0=deleted, 1=active, 2=expired, 3=not_active
         var zatcaStatusMap = {
-            0: { text: "محذوف",     dot: "bg-gray-400",  bg: "bg-gray-100 text-gray-600" },
-            1: { text: "متصل ✓",   dot: "bg-green-500", bg: "bg-green-100 text-green-700" },
-            2: { text: "منتهي ⚠",  dot: "bg-amber-500", bg: "bg-amber-100 text-amber-700" },
-            3: { text: "غير متصل", dot: "bg-red-500",   bg: "bg-red-100 text-red-600" },
-            4: { text: "ينتهي قريباً ⏰", dot: "bg-orange-500", bg: "bg-orange-100 text-orange-700" }
+            0: { text: t('zatca_status_deleted'),     dot: "bg-gray-400",  bg: "bg-gray-100 text-gray-600" },
+            1: { text: t('zatca_status_connected'),   dot: "bg-green-500", bg: "bg-green-100 text-green-700" },
+            2: { text: t('zatca_status_expired'),  dot: "bg-amber-500", bg: "bg-amber-100 text-amber-700" },
+            3: { text: t('zatca_status_disconnected'), dot: "bg-red-500",   bg: "bg-red-100 text-red-600" },
+            4: { text: t('zatca_status_expiring_soon'), dot: "bg-orange-500", bg: "bg-orange-100 text-orange-700" }
         };
 
         // Required fields for enabling Connect button (ALL fields must be filled)
@@ -1588,7 +1588,7 @@
             var otp = document.getElementById('zatca-otp-input').value.trim();
             var errEl = document.getElementById('zatca-otp-error');
             if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
-                errEl.textContent = 'OTP يجب أن يكون 6 أرقام';
+                errEl.textContent = t('otp_invalid_length');
                 errEl.classList.remove('hidden');
                 return;
             }
@@ -1629,7 +1629,7 @@
                     }
                     pollZatcaOnboardStatus(branchId);
                 } else {
-                    var errMsg = (result.data && (result.data.detail || result.data.error)) || 'فشل الربط';
+                    var errMsg = (result.data && (result.data.detail || result.data.error)) || t('zatca_link_failed');
                     errEl.textContent = errMsg;
                     errEl.classList.remove('hidden');
                     if (typeof showToast === 'function') showToast(errMsg, 'error');
@@ -1638,7 +1638,7 @@
             .catch(function() {
                 btn.disabled = false;
                 btn.innerHTML = origHtml;
-                errEl.textContent = 'خطأ في الاتصال بالخادم';
+                errEl.textContent = t('server_connection_error');
                 errEl.classList.remove('hidden');
             });
         };
@@ -1790,30 +1790,30 @@
 
         var _importFields = {
             bills: [
-                { key: 'part_name', label: 'اسم القطعة', required: true },
-                { key: 'price', label: 'السعر', required: true },
-                { key: 'quantity', label: 'الكمية', required: false },
-                { key: 'discount', label: 'الخصم', required: false },
-                { key: 'customer_name', label: 'اسم العميل', required: false },
-                { key: 'customer_phone', label: 'رقم الهاتف', required: false },
-                { key: 'vin', label: 'رقم الشاصي', required: false },
-                { key: 'note', label: 'ملاحظة', required: false },
-                { key: 'date', label: 'التاريخ', required: false },
-                { key: 'bill_group', label: 'رقم الفاتورة (تجميع)', required: false }
+                { key: 'part_name', label: t('field_part_name'), required: true },
+                { key: 'price', label: t('field_price'), required: true },
+                { key: 'quantity', label: t('field_quantity'), required: false },
+                { key: 'discount', label: t('field_discount'), required: false },
+                { key: 'customer_name', label: t('field_customer_name'), required: false },
+                { key: 'customer_phone', label: t('field_phone'), required: false },
+                { key: 'vin', label: t('field_chassis_number'), required: false },
+                { key: 'note', label: t('field_note'), required: false },
+                { key: 'date', label: t('field_date'), required: false },
+                { key: 'bill_group', label: t('field_bill_group'), required: false }
             ],
             purchase_bills: [
-                { key: 'part_name', label: 'اسم القطعة', required: true },
-                { key: 'price', label: 'السعر', required: true },
-                { key: 'quantity', label: 'الكمية', required: false },
-                { key: 'discount', label: 'الخصم', required: false },
-                { key: 'supplier_id', label: 'رقم المورد', required: false },
-                { key: 'date', label: 'التاريخ', required: false }
+                { key: 'part_name', label: t('field_part_name'), required: true },
+                { key: 'price', label: t('field_price'), required: true },
+                { key: 'quantity', label: t('field_quantity'), required: false },
+                { key: 'discount', label: t('field_discount'), required: false },
+                { key: 'supplier_id', label: t('field_supplier_number'), required: false },
+                { key: 'date', label: t('field_date'), required: false }
             ],
             products: [
-                { key: 'price', label: 'سعر البيع', required: true },
-                { key: 'quantity', label: 'الكمية', required: true },
-                { key: 'cost_price', label: 'سعر التكلفة', required: false },
-                { key: 'shelf_number', label: 'رقم الرف', required: false }
+                { key: 'price', label: t('field_sell_price'), required: true },
+                { key: 'quantity', label: t('field_quantity'), required: true },
+                { key: 'cost_price', label: t('field_cost_price'), required: false },
+                { key: 'shelf_number', label: t('field_shelf_number'), required: false }
             ]
         };
 
@@ -1840,7 +1840,7 @@
         window.previewImportFile = function() {
             var fileInput = document.getElementById('import-file');
             if (!fileInput.files || !fileInput.files[0]) {
-                alert('يرجى اختيار ملف');
+                alert(t('select_file_prompt'));
                 return;
             }
 
@@ -1849,7 +1849,7 @@
 
             var btn = document.getElementById('import-preview-btn');
             btn.disabled = true;
-            btn.textContent = 'جاري التحليل...';
+            btn.textContent = t('analyzing_ellipsis');
 
             var csrfCookie = document.cookie.split(';').find(function(c) { return c.trim().startsWith('csrf_token='); });
             var csrfValue = csrfCookie ? csrfCookie.trim().split('=')[1] : '';
@@ -1862,7 +1862,7 @@
             .then(function(resp) { return resp.json(); })
             .then(function(data) {
                 btn.disabled = false;
-                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> معاينة';
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> ' + t('preview_label');
 
                 if (data.error) {
                     alert(data.error);
@@ -1881,8 +1881,8 @@
             })
             .catch(function(err) {
                 btn.disabled = false;
-                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> معاينة';
-                alert('فشل في تحليل الملف: ' + err.message);
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> ' + t('preview_label');
+                alert(t('analyze_failed_prefix') + err.message);
             });
         };
 
@@ -1972,7 +1972,7 @@
                 select.id = 'import-map-col-' + colIdx;
                 var optSkip = document.createElement('option');
                 optSkip.value = '';
-                optSkip.textContent = '— تخطي —';
+                optSkip.textContent = t('skip_option');
                 select.appendChild(optSkip);
                 fields.forEach(function(f) {
                     var opt = document.createElement('option');
@@ -2027,13 +2027,13 @@
                 }
             });
             if (missing.length > 0) {
-                alert('يرجى تعيين الحقول المطلوبة: ' + missing.join('، '));
+                alert(t('map_required_fields_prefix') + missing.join(t('list_separator')));
                 return;
             }
 
             var btn = document.getElementById('import-execute-btn');
             btn.disabled = true;
-            btn.textContent = 'جاري الاستيراد...';
+            btn.textContent = t('importing_ellipsis');
 
             var csrfCookie = document.cookie.split(';').find(function(c) { return c.trim().startsWith('csrf_token='); });
             var csrfValue = csrfCookie ? csrfCookie.trim().split('=')[1] : '';
@@ -2052,7 +2052,7 @@
             .then(function(resp) { return resp.json(); })
             .then(function(data) {
                 btn.disabled = false;
-                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> بدء الاستيراد';
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> ' + t('start_import_label');
 
                 if (data.error) {
                     alert(data.error);
@@ -2063,8 +2063,8 @@
             })
             .catch(function(err) {
                 btn.disabled = false;
-                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> بدء الاستيراد';
-                alert('فشل في الاستيراد: ' + err.message);
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> ' + t('start_import_label');
+                alert(t('import_failed_prefix') + err.message);
             });
         };
 
@@ -2074,22 +2074,22 @@
             document.getElementById('import-step3').style.display = '';
 
             var summary = document.getElementById('import-results-summary');
-            summary.innerHTML = '<div class="p-3 rounded-lg text-center" style="background: var(--md-sys-color-surface-container-low)"><p class="text-xs mb-1" style="color: var(--md-sys-color-on-surface-variant)">الإجمالي</p><p class="text-xl font-bold">' + data.total + '</p></div>'
-                + '<div class="p-3 rounded-lg text-center" style="background: var(--md-sys-color-surface-container-low)"><p class="text-xs mb-1" style="color: var(--md-sys-color-on-surface-variant)">نجح</p><p class="text-xl font-bold text-green-600">' + data.success + '</p></div>'
-                + '<div class="p-3 rounded-lg text-center" style="background: var(--md-sys-color-surface-container-low)"><p class="text-xs mb-1" style="color: var(--md-sys-color-on-surface-variant)">فشل</p><p class="text-xl font-bold text-red-600">' + data.failed + '</p></div>';
+            summary.innerHTML = '<div class="p-3 rounded-lg text-center" style="background: var(--md-sys-color-surface-container-low)"><p class="text-xs mb-1" style="color: var(--md-sys-color-on-surface-variant)">' + t('summary_total') + '</p><p class="text-xl font-bold">' + data.total + '</p></div>'
+                + '<div class="p-3 rounded-lg text-center" style="background: var(--md-sys-color-surface-container-low)"><p class="text-xs mb-1" style="color: var(--md-sys-color-on-surface-variant)">' + t('status_success') + '</p><p class="text-xl font-bold text-green-600">' + data.success + '</p></div>'
+                + '<div class="p-3 rounded-lg text-center" style="background: var(--md-sys-color-surface-container-low)"><p class="text-xs mb-1" style="color: var(--md-sys-color-on-surface-variant)">' + t('status_failed') + '</p><p class="text-xl font-bold text-red-600">' + data.failed + '</p></div>';
 
             var detail = document.getElementById('import-results-detail');
             if (data.results && data.results.length > 0) {
-                var html = '<table class="w-full text-sm"><thead><tr><th class="text-right px-3 py-2">الصف</th><th class="text-right px-3 py-2">الحالة</th><th class="text-right px-3 py-2">التفاصيل</th></tr></thead><tbody>';
+                var html = '<table class="w-full text-sm"><thead><tr><th class="text-right px-3 py-2">' + t('table_header_row') + '</th><th class="text-right px-3 py-2">' + t('table_header_status') + '</th><th class="text-right px-3 py-2">' + t('table_header_details') + '</th></tr></thead><tbody>';
                 data.results.forEach(function(r) {
                     html += '<tr class="border-t"><td class="px-3 py-2">' + r.row + '</td>'
-                        + '<td class="px-3 py-2">' + (r.ok ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">نجح</span>' : '<span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">فشل</span>') + '</td>'
+                        + '<td class="px-3 py-2">' + (r.ok ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">' + t('status_success') + '</span>' : '<span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">' + t('status_failed') + '</span>') + '</td>'
                         + '<td class="px-3 py-2 text-xs">' + (r.error || '—') + '</td></tr>';
                 });
                 html += '</tbody></table>';
                 detail.innerHTML = html;
             } else {
-                detail.innerHTML = '<p class="text-sm text-center py-4" style="color: var(--md-sys-color-on-surface-variant)">تمت العملية بنجاح</p>';
+                detail.innerHTML = '<p class="text-sm text-center py-4" style="color: var(--md-sys-color-on-surface-variant)">' + t('import_success_message') + '</p>';
             }
         }
     })();

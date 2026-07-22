@@ -42,7 +42,7 @@
         <div class="form-group">
             <label class="form-label">{{ L "tpl.supplier.short_address" }}</label>
             <input type="text" name="short_address" class="w-full {{ if hasError .errors "short_address" }}input-error{{ end }}"
-                placeholder="مثال: الرياض - حي العليا" maxlength="200" value="{{ old .old "short_address" }}">
+                placeholder="{{ L "tpl.address.short_address_placeholder" }}" maxlength="200" value="{{ old .old "short_address" }}">
             {{ if hasError .errors "short_address" }}<p class="field-error">{{ fieldError .errors "short_address" }}</p>{{ end }}
         </div>
 
@@ -129,7 +129,7 @@
         <div class="form-group">
             <label class="form-label">{{ L "tpl.supplier.cr" }}</label>
             <input type="text" name="commercial_registration" class="w-full {{ if hasError .errors "commercial_registration" }}input-error{{ end }}"
-                maxlength="10" pattern="^\d{10}$" title="السجل التجاري يتكون من 10 أرقام"
+                maxlength="10" pattern="^\d{10}$" title="{{ L "tpl.validation.cr_number_hint" }}"
                 placeholder="1010000000" value="{{ old .old "commercial_registration" }}">
             {{ if hasError .errors "commercial_registration" }}<p class="field-error">{{ fieldError .errors "commercial_registration" }}</p>{{ end }}
         </div>

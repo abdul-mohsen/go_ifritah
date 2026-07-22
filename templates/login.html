@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ .lang }}" dir="{{ .dir }}">
 
 <head>
     <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 </head>
 
 <body class="login-body min-h-screen flex flex-col items-center justify-center px-4">
-    <div class="login-card rounded-2xl shadow-2xl p-8 w-full max-w-sm" dir="rtl">
+    <div class="login-card rounded-2xl shadow-2xl p-8 w-full max-w-sm" dir="{{ .dir }}">
         <div class="text-center mb-6">
             <img src="/static/images/afrita-logo.svg" alt="{{ L "tpl.auth.app_name" }}" class="mx-auto mb-4" style="height:48px;width:auto">
             <h1 class="text-2xl font-bold mb-1" style="color: var(--md-sys-color-primary)">{{ L "tpl.auth.app_name" }}</h1>
@@ -65,6 +65,8 @@
                     style="color: var(--md-sys-color-primary)">{{ L "tpl.auth.register_here" }}</a></p>
             <p class="login-subtitle text-xs"><a href="/forgot-password" class="hover:underline"
                     style="color: var(--md-sys-color-primary)">{{ L "tpl.auth.forgot_password" }}</a></p>
+            <p class="login-subtitle text-xs"><a href="{{ .lang_toggle_url }}" class="hover:underline"
+                    style="color: var(--md-sys-color-on-surface-variant)">{{ if eq .lang "en" }}العربية{{ else }}English{{ end }}</a></p>
         </div>
     </div>
 
@@ -73,12 +75,15 @@
         <p class="text-xs" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.auth.app_name" }} {{ .version }} © 2024-2026</p>
         <p class="text-[10px]" style="color: var(--md-sys-color-outline)">{{ L "tpl.auth.all_rights" }}</p>
     </footer>
-    <script src="/static/js/i18n.js"></script>
 
     <!-- Toast container — rendered by window.showToast in /static/js/script.js.
          Login is a standalone page (does not use base.html) so we load the
          shared toast renderer explicitly here. -->
     <div id="toast-container"></div>
+    <script>
+        window.I18N = {{ jsI18N | json }};
+        window.t = function (key) { return (window.I18N && window.I18N[key]) || key; };
+    </script>
     <script src="/static/js/script.js"></script>
     <script>
         (function () {

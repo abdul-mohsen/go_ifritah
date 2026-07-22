@@ -4,9 +4,56 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 
 	"afrita/config"
+	"afrita/resources"
 )
+
+// dirForLang returns the HTML "dir" attribute value for a language code —
+// used by base.html to render <html lang="{{.lang}}" dir="{{.dir}}">.
+func dirForLang(lang string) string {
+	if lang == resources.LangEn {
+		return "ltr"
+	}
+	return "rtl"
+}
+
+// otherLang returns the language a lang-toggle control should switch to.
+func otherLang(lang string) string {
+	if lang == resources.LangEn {
+		return resources.LangAr
+	}
+	return resources.LangEn
+}
+
+// BindLangData clones tmpl for the request's language (see config.BindLang)
+// and injects "lang"/"dir"/"lang_toggle_url" into data so base.html (and the
+// standalone auth pages) can render the correct <html> attributes and a
+// working language-switch link. Falls back to the unmodified template on
+// clone error (extremely unlikely — Clone only fails on an already-executed
+// template). Exported so the few call sites that bypass Render/
+// RenderStandalone/RenderPartial and call template.ExecuteTemplate directly
+// (dashboard.go, errors.go) still render through the same unified pipeline.
+func BindLangData(tmpl *template.Template, r *http.Request, data map[string]interface{}) (*template.Template, map[string]interface{}) {
+	lang := GetLang(r)
+	if _, exists := data["lang"]; !exists {
+		data["lang"] = lang
+	}
+	if _, exists := data["dir"]; !exists {
+		data["dir"] = dirForLang(lang)
+	}
+	if _, exists := data["lang_toggle_url"]; !exists {
+		redirect := url.QueryEscape(r.URL.RequestURI())
+		data["lang_toggle_url"] = "/set-language?lang=" + otherLang(lang) + "&redirect=" + redirect
+	}
+	bound, err := config.BindLang(tmpl, lang)
+	if err != nil {
+		log.Printf("❌ BindLang error: %v", err)
+		return tmpl, data
+	}
+	return bound, data
+}
 
 // Render executes a cached template by name, automatically injecting common
 // data (version, user_role). For templates with a base layout it executes
@@ -37,6 +84,7 @@ func Render(w http.ResponseWriter, r *http.Request, name string, data map[string
 			data["csrf_token"] = c.Value
 		}
 	}
+	tmpl, data = BindLangData(tmpl, r, data)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -56,7 +104,7 @@ func Render(w http.ResponseWriter, r *http.Request, name string, data map[string
 
 // RenderStandalone executes a standalone cached template (no base layout).
 // Use for login, register, invoice-preview, etc.
-func RenderStandalone(w http.ResponseWriter, name string, data map[string]interface{}) {
+func RenderStandalone(w http.ResponseWriter, r *http.Request, name string, data map[string]interface{}) {
 	tmpl, ok := config.Templates[name]
 	if !ok || tmpl == nil {
 		log.Printf("❌ Template not found in cache: %s", name)
@@ -70,6 +118,7 @@ func RenderStandalone(w http.ResponseWriter, name string, data map[string]interf
 	if _, exists := data["version"]; !exists {
 		data["version"] = config.AppVersion
 	}
+	tmpl, data = BindLangData(tmpl, r, data)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -84,7 +133,7 @@ func RenderStandalone(w http.ResponseWriter, name string, data map[string]interf
 
 // RenderPartial executes an HTMX partial/fragment template (no base layout, no version injection).
 // Use for HTMX swap responses: vin-result, parts-results, cars-results, etc.
-func RenderPartial(w http.ResponseWriter, name string, data map[string]interface{}) {
+func RenderPartial(w http.ResponseWriter, r *http.Request, name string, data map[string]interface{}) {
 	tmpl, ok := config.Templates[name]
 	if !ok || tmpl == nil {
 		log.Printf("❌ Partial template not found in cache: %s", name)
@@ -95,6 +144,7 @@ func RenderPartial(w http.ResponseWriter, name string, data map[string]interface
 	if data == nil {
 		data = make(map[string]interface{})
 	}
+	tmpl, data = BindLangData(tmpl, r, data)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 

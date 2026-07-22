@@ -20,9 +20,6 @@ on:
   push:
     branches: [dev, main]
 
-permissions:
-  contents: read
-
 concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
@@ -52,6 +49,8 @@ jobs:
     name: e2e (serial)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     env:
       # Token store has to be writable; keep it inside the workspace so the
       # cleanup step can wipe it.
@@ -76,7 +75,7 @@ jobs:
             e2e/package-lock.json
 
       - name: Install root npm deps (Tailwind)
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Build CSS
         run: npm run build:css
@@ -109,7 +108,7 @@ jobs:
 
       - name: Install e2e dependencies
         working-directory: e2e
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Cache Playwright browsers
         id: playwright-cache
@@ -124,12 +123,12 @@ jobs:
         # must always run. It's fast since most libs ship on the runner
         # image already; only the browser binary download below is slow.
         working-directory: e2e
-        run: npx playwright install-deps chromium
+        run: npx --no-install playwright install-deps chromium
 
       - name: Install Playwright browser binary
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: e2e
-        run: npx playwright install chromium
+        run: npx --no-install playwright install chromium
 
       - name: Run Playwright tests (serial)
         timeout-minutes: 20
@@ -176,6 +175,8 @@ jobs:
     name: e2e (parallel shard ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -202,7 +203,7 @@ jobs:
             e2e/package-lock.json
 
       - name: Install root npm deps (Tailwind)
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Build CSS
         run: npm run build:css
@@ -232,7 +233,7 @@ jobs:
 
       - name: Install e2e dependencies
         working-directory: e2e
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Cache Playwright browsers
         id: playwright-cache
@@ -243,12 +244,12 @@ jobs:
 
       - name: Install Playwright OS dependencies
         working-directory: e2e
-        run: npx playwright install-deps chromium
+        run: npx --no-install playwright install-deps chromium
 
       - name: Install Playwright browser binary
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: e2e
-        run: npx playwright install chromium
+        run: npx --no-install playwright install chromium
 
       - name: Run Playwright tests (parallel shard ${{ matrix.shard }}/8)
         timeout-minutes: 15
@@ -294,6 +295,8 @@ jobs:
     needs: [serial, parallel]
     if: always()
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Set up Node
         uses: actions/setup-node@v4

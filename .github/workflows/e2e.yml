@@ -112,17 +112,24 @@ jobs:
         run: npm ci || npm install
 
       - name: Cache Playwright browsers
+        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
 
-      - name: Install Playwright browsers
-        # Idempotent: skips the browser download on a cache hit but still
-        # installs OS-level deps (apt), which can't survive across the
-        # ephemeral runner VM and must run every time.
+      - name: Install Playwright OS dependencies
+        # apt-level deps aren't part of the cached ~/.cache/ms-playwright
+        # path and can't survive across the ephemeral runner VM, so this
+        # must always run. It's fast since most libs ship on the runner
+        # image already; only the browser binary download below is slow.
         working-directory: e2e
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install-deps chromium
+
+      - name: Install Playwright browser binary
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: e2e
+        run: npx playwright install chromium
 
       - name: Run Playwright tests (serial)
         timeout-minutes: 20
@@ -228,14 +235,20 @@ jobs:
         run: npm ci || npm install
 
       - name: Cache Playwright browsers
+        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
 
-      - name: Install Playwright browsers
+      - name: Install Playwright OS dependencies
         working-directory: e2e
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install-deps chromium
+
+      - name: Install Playwright browser binary
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: e2e
+        run: npx playwright install chromium
 
       - name: Run Playwright tests (parallel shard ${{ matrix.shard }}/8)
         timeout-minutes: 15

@@ -90,7 +90,21 @@
 
         <div class="mt-6">
             <h4 class="section-card-title">{{ L "tpl.pb.items" }}</h4>
-            <div id="products-container" class="space-y-3"></div>
+            <div class="pb-items-scroll">
+                <div class="pb-items-rows">
+                    <div class="pb-items-header">
+                        <span class="pbi-state"></span>
+                        <span class="pbi-name">{{ L "tpl.pb.item_label" }}</span>
+                        <span class="pbi-qty">{{ L "tpl.pb.quantity" }}</span>
+                        <span class="pbi-purchase-price">{{ L "tpl.pb.purchase_price" }}</span>
+                        <span class="pbi-cost-price">{{ L "tpl.product.cost_price" }}</span>
+                        <span class="pbi-shelf">{{ L "tpl.product.shelf_number" }}</span>
+                        <span class="pbi-selling-price">{{ L "tpl.product.selling_price" }}</span>
+                        <span class="pbi-remove"></span>
+                    </div>
+                    <div id="products-container"></div>
+                </div>
+            </div>
             <button type="button" onclick="addItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.pb.add_item" }}</button>
         </div>
 
@@ -261,45 +275,26 @@
         var sellingPriceAttrs = canEditSellingPrice ? '' : 'disabled';
         var sellingPricePlaceholder = canEditSellingPrice ? escapeAttr(purchaseBillLabels.sellingPriceAutoHint) : '';
         return `
-            <div class="item-row border rounded p-3" data-row-id="${rowId}">
-                <div class="mb-2">
-                    <span class="item-state text-xs ${trackStock ? 'text-green-700' : 'text-gray-500'}">${escapeHtml(trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem)}</span>
+            <div class="item-row item-row-compact" data-row-id="${rowId}">
+                <span class="item-state pbi-state text-xs ${trackStock ? 'text-green-700' : 'text-gray-500'}" title="${escapeAttr(trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem)}">${escapeHtml(trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem)}</span>
+                <div class="pbi-name">
+                    <input type="text" class="store-product-search" placeholder="${escapeAttr(purchaseBillLabels.itemPlaceholder)}" autocomplete="off"
+                           aria-label="${escapeAttr(purchaseBillLabels.itemLabel)}"
+                           value="${escapeAttr(partName)}"
+                           oninput="onStoreItemInput(this, '${rowId}')" onfocus="showDropdown('${rowId}')">
+                    <input type="hidden" name="products_product_id" value="${prodId}">
+                    <input type="hidden" name="products_part_name" value="${escapeAttr(partName)}">
+                    <input type="hidden" name="products_track_stock" value="${trackStock}">
+                    <div id="dropdown_${rowId}" class="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
-                    <div class="md:col-span-2 relative">
-                        <label class="form-label">${escapeHtml(purchaseBillLabels.itemLabel)}</label>
-                        <input type="text" class="w-full store-product-search" placeholder="${escapeAttr(purchaseBillLabels.itemPlaceholder)}" autocomplete="off"
-                               value="${escapeAttr(partName)}"
-                               oninput="onStoreItemInput(this, '${rowId}')" onfocus="showDropdown('${rowId}')">
-                        <input type="hidden" name="products_product_id" value="${prodId}">
-                        <input type="hidden" name="products_part_name" value="${escapeAttr(partName)}">
-                        <input type="hidden" name="products_track_stock" value="${trackStock}">
-                        <div id="dropdown_${rowId}" class="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
-                    </div>
-                    <div>
-                        <label class="form-label">${escapeHtml(purchaseBillLabels.quantity)}</label>
-                        <input type="number" name="products_quantity" min="1" value="${qty}" class="w-full" oninput="recalculateTotal()">
-                    </div>
-                    <div>
-                        <label class="form-label" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}">${escapeHtml(purchaseBillLabels.purchasePrice)}</label>
-                        <input type="text" name="products_price" value="${price}" class="w-full" oninput="recalculateTotal()">
-                    </div>
-                    <div>
-                        <label class="form-label" title="${escapeAttr(purchaseBillLabels.costPriceHint)}">${escapeHtml(purchaseBillLabels.costPrice)}</label>
-                        <input type="text" name="products_cost_price" class="w-full" placeholder="0" value="${costPrice}">
-                    </div>
-                    <div>
-                        <label class="form-label">${escapeHtml(purchaseBillLabels.shelfNumber)}</label>
-                        <input type="text" name="products_shelf_number" class="w-full" placeholder="" value="${shelfNumber}">
-                    </div>
-                    <div>
-                        <label class="form-label" title="${escapeAttr(purchaseBillLabels.sellingPriceHint)}">${escapeHtml(purchaseBillLabels.sellingPrice)}</label>
-                        <input type="text" name="products_selling_price" class="w-full" placeholder="${sellingPricePlaceholder}" value="${escapeAttr(sellingPrice)}" ${sellingPriceAttrs}>
-                    </div>
-                </div>
-                <div class="mt-2 flex justify-end">
-                    <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">${escapeHtml(purchaseBillLabels.removeLabel)}</button>
-                </div>
+                <input type="number" name="products_quantity" min="1" value="${qty}" class="pbi-qty" aria-label="${escapeAttr(purchaseBillLabels.quantity)}" oninput="recalculateTotal()">
+                <input type="text" name="products_price" value="${price}" class="pbi-purchase-price" aria-label="${escapeAttr(purchaseBillLabels.purchasePrice)}" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}" oninput="recalculateTotal()">
+                <input type="text" name="products_cost_price" class="pbi-cost-price" placeholder="0" value="${costPrice}" aria-label="${escapeAttr(purchaseBillLabels.costPrice)}" title="${escapeAttr(purchaseBillLabels.costPriceHint)}">
+                <input type="text" name="products_shelf_number" class="pbi-shelf" placeholder="" value="${shelfNumber}" aria-label="${escapeAttr(purchaseBillLabels.shelfNumber)}">
+                <input type="text" name="products_selling_price" class="pbi-selling-price" placeholder="${sellingPricePlaceholder}" value="${escapeAttr(sellingPrice)}" aria-label="${escapeAttr(purchaseBillLabels.sellingPrice)}" title="${escapeAttr(purchaseBillLabels.sellingPriceHint)}" ${sellingPriceAttrs}>
+                <button type="button" class="pbi-remove pbi-remove-btn" onclick="removeRow(this)" aria-label="${escapeAttr(purchaseBillLabels.removeLabel)}" title="${escapeAttr(purchaseBillLabels.removeLabel)}">
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6l8 8M14 6l-8 8"/></svg>
+                </button>
             </div>
         `;
     }

@@ -10,10 +10,12 @@ async function assertStockRowPriceLabels(page) {
   const row = page.locator('#products-container .item-row').last();
   await expect(row).toBeVisible();
 
-  const labels = (await row.locator('label').allTextContents()).map((t) => t.trim()).join(' | ');
-  expect(labels, 'stock row must show cost price').toMatch(/سعر التكلفة|Cost Price/);
-  expect(labels, 'stock row must show purchase price').toMatch(/سعر الشراء|Purchase Price/);
-  expect(labels, 'stock row must show selling price for review').toMatch(/سعر البيع|Selling Price/);
+  // Field labels moved from a per-row <label> to a shared column header +
+  // aria-label on each input (compact one-row-per-item layout), so assert
+  // via accessible name instead of sibling <label> text.
+  await expect(row.getByLabel(/سعر التكلفة|Cost Price/)).toBeVisible();
+  await expect(row.getByLabel(/سعر الشراء|Purchase Price/)).toBeVisible();
+  await expect(row.getByLabel(/سعر البيع|Selling Price/)).toBeVisible();
 }
 
 test.describe('Purchase-bill store item price columns', () => {

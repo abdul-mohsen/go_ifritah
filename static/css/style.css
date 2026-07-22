@@ -1921,6 +1921,116 @@ aside nav a.nav-link svg {
     margin-inline-start: 0.125rem;
 }
 
+/* ── Purchase Bill Item Rows (compact, one row per item) ─────
+   Line items used to render as a bordered card per item (label
+   above each field, delete button on its own line below) which
+   made each item ~150px tall - unusable once a bill has 15-20+
+   lines. This renders every item as a single dense row instead,
+   with column labels shown once in a header row above the list.
+   Falls back to horizontal scroll (like .data-table-wrapper)
+   only on viewports too narrow to fit all columns. ────────── */
+.pb-items-scroll {
+    overflow-x: auto;
+}
+
+.pb-items-rows {
+    min-width: 46rem;
+}
+
+.pb-items-header,
+.item-row-compact {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 46rem;
+    padding: 0.3125rem 0.5rem;
+}
+
+.pb-items-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface-variant);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.item-row-compact {
+    position: relative;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.item-row-compact:last-child {
+    border-bottom: none;
+}
+
+.pbi-state {
+    flex: 0 0 4.5rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.pbi-name {
+    position: relative;
+    flex: 1 1 11rem;
+    min-width: 0;
+}
+
+.pbi-qty {
+    flex: 0 0 3.75rem;
+    width: 3.75rem;
+}
+
+.pbi-purchase-price,
+.pbi-cost-price,
+.pbi-selling-price {
+    flex: 0 0 6.25rem;
+    width: 6.25rem;
+}
+
+.pbi-shelf {
+    flex: 0 0 5.5rem;
+    width: 5.5rem;
+}
+
+.pbi-remove {
+    flex: 0 0 1.75rem;
+}
+
+.item-row-compact input,
+.item-row-compact select {
+    padding: 0.3125rem 0.5rem;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+}
+
+.item-row-compact input:focus,
+.item-row-compact select:focus {
+    padding: calc(0.3125rem - 0.5px) calc(0.5rem - 0.5px);
+}
+
+.item-row-compact .existing-item-warning {
+    display: block;
+    font-size: 0.6875rem;
+    margin-top: 0.125rem;
+    white-space: normal;
+}
+
+.pbi-remove-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: var(--md-sys-shape-xs);
+    color: var(--md-sys-color-error);
+    flex-shrink: 0;
+}
+
+.pbi-remove-btn:hover {
+    background: var(--md-sys-color-error-container);
+    color: var(--md-sys-color-on-error-container);
+}
+
 /* ── Excel Import Wizard ────────────────────────────────────── */
 .excel-wizard-step {
     border: 1px solid var(--md-sys-color-outline-variant, var(--md-sys-color-outline));

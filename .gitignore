@@ -112,3 +112,5 @@ templates/users.html
 pr_comments.json
 test-results/
 pr_threads.json
+
+.afrita-tokens/

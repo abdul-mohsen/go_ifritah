@@ -32,10 +32,10 @@ func TestHandleDownloadPurchaseBillTemplateReturnsCSVSample(t *testing.T) {
 		t.Fatalf("csv should start with UTF-8 BOM for Excel compatibility, got %v", bodyBytes[:min(3, len(bodyBytes))])
 	}
 	body := string(bodyBytes)
-	if !strings.Contains(body, "اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف,معرف المنتج (اختياري)\r\n") {
+	if !strings.Contains(body, "اسم القطعة,الكمية,سعر الشراء,رقم الرف,معرف المنتج (اختياري)\r\n") {
 		t.Fatalf("csv should contain CRLF-terminated import headers, got %q", body)
 	}
-	if !strings.Contains(body, "مثال,10,100.00,90.00,A1,\r\n") {
+	if !strings.Contains(body, "مثال,10,100.00,A1,\r\n") {
 		t.Fatalf("csv should contain CRLF-terminated example row, got %q", body)
 	}
 }
@@ -69,9 +69,9 @@ func TestHandleParseCSVItemsParsesUploadedCSV(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create form file: %v", err)
 	}
-	csvBody := "اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف,معرف المنتج (اختياري)\n" +
-		"فلتر زيت,3,25.5,20.25,A1,42\n" +
-		"بواجي,1,0,0,,\n"
+	csvBody := "اسم القطعة,الكمية,سعر الشراء,رقم الرف,معرف المنتج (اختياري)\n" +
+		"فلتر زيت,3,25.5,A1,42\n" +
+		"بواجي,1,0,,\n"
 	if _, err := fileWriter.Write([]byte(csvBody)); err != nil {
 		t.Fatalf("write form file: %v", err)
 	}
@@ -99,8 +99,8 @@ func TestHandleParseCSVItemsParsesUploadedCSV(t *testing.T) {
 	if items[0].PartName != "فلتر زيت" || items[0].Quantity != 3 {
 		t.Fatalf("first item = %+v, want parsed csv row", items[0])
 	}
-	if items[0].PurchasePrice != 25.5 || items[0].CostPrice != 20.25 || items[0].ShelfNumber != "A1" {
-		t.Fatalf("first item prices/shelf = %+v, want purchase=25.5 cost=20.25 shelf=A1", items[0])
+	if items[0].PurchasePrice != 25.5 || items[0].CostPrice != 25.5 || items[0].ShelfNumber != "A1" {
+		t.Fatalf("first item prices/shelf = %+v, want purchase=25.5 cost=25.5 shelf=A1", items[0])
 	}
 	if items[0].ProductID == nil || *items[0].ProductID != 42 {
 		t.Fatalf("first item product id = %v, want 42", items[0].ProductID)
@@ -127,10 +127,10 @@ func TestHandleParseCSVItemsToleratesShortRows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create form file: %v", err)
 	}
-	// Header has all 6 columns (current template), but the data row only
-	// has the original 5 - no trailing product-id cell at all.
-	csvBody := "اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف,معرف المنتج (اختياري)\n" +
-		"فلتر زيت,3,25.5,20.25,A1\n"
+	// Header has all 5 columns (current template), but the data row only
+	// has 4 - no trailing product-id cell at all.
+	csvBody := "اسم القطعة,الكمية,سعر الشراء,رقم الرف,معرف المنتج (اختياري)\n" +
+		"فلتر زيت,3,25.5,A1\n"
 	if _, err := fileWriter.Write([]byte(csvBody)); err != nil {
 		t.Fatalf("write form file: %v", err)
 	}
@@ -192,8 +192,8 @@ func intPtr(v int) *int { return &v }
 func TestHandleParseExcelItemsParsesUploadedWorkbook(t *testing.T) {
 	workbookBody, err := buildPurchaseBillImportWorkbook([][]string{
 		purchaseBillImportTemplateHeader,
-		{"فلتر زيت", "3", "25.5", "20.25", "A1", "42"},
-		{"بواجي", "1", "0", "0", "", ""},
+		{"فلتر زيت", "3", "25.5", "A1", "42"},
+		{"بواجي", "1", "0", "", ""},
 	})
 	if err != nil {
 		t.Fatalf("build workbook: %v", err)
@@ -232,8 +232,8 @@ func TestHandleParseExcelItemsParsesUploadedWorkbook(t *testing.T) {
 	if items[0].PartName != "فلتر زيت" || items[0].Quantity != 3 {
 		t.Fatalf("first item = %+v, want parsed workbook row", items[0])
 	}
-	if items[0].PurchasePrice != 25.5 || items[0].CostPrice != 20.25 || items[0].ShelfNumber != "A1" {
-		t.Fatalf("first item prices/shelf = %+v, want purchase=25.5 cost=20.25 shelf=A1", items[0])
+	if items[0].PurchasePrice != 25.5 || items[0].CostPrice != 25.5 || items[0].ShelfNumber != "A1" {
+		t.Fatalf("first item prices/shelf = %+v, want purchase=25.5 cost=25.5 shelf=A1", items[0])
 	}
 	if items[0].ProductID == nil || *items[0].ProductID != 42 {
 		t.Fatalf("first item product id = %v, want 42", items[0].ProductID)

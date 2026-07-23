@@ -292,8 +292,16 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 
 	// Every UI item uses products_* fields. Only a dropdown-selected item is
 	// stock-tracked; typed and CSV-imported items remain manual purchase lines.
+	// products_price was removed from the UI — the single cost price the user
+	// enters is products_cost_price, which maps to both Price (backend subtotal
+	// field) and CostPrice (inventory cost basis).
 	ids := r.Form["products_product_id"]
+	// products_price kept for backward compatibility with any in-flight forms
+	// that still carry the old field; if absent, products_cost_price is used.
 	prices := r.Form["products_price"]
+	if len(prices) == 0 {
+		prices = r.Form["products_cost_price"]
+	}
 	quantities := r.Form["products_quantity"]
 	names := r.Form["products_part_name"]
 	costPrices := r.Form["products_cost_price"]

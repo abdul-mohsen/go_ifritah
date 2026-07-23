@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"afrita/config"
 	"afrita/helpers"
@@ -113,12 +114,14 @@ func HandleAddPurchaseBill(w http.ResponseWriter, r *http.Request) {
 
 	stores, _ := helpers.FetchStores(token)
 	suppliers, _ := helpers.FetchSuppliers(token)
+	today := time.Now().Format("2006-01-02")
 
 	helpers.Render(w, r, "add-purchase-bill", map[string]interface{}{
 		"title":           "إضافة فاتورة مشتريات",
 		"stores":          stores,
 		"suppliers":       suppliers,
 		"pb_pdf_required": GetSettingValue(token, "pb_pdf_required"),
+		"today":           today,
 	})
 }
 

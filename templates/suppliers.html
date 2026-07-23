@@ -7,7 +7,7 @@
         <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
     </form>
     <div class="toolbar-actions">
-        <button id="generateStatementBtn" type="button" onclick="generateSupplierStatement()" class="btn btn-tonal btn-sm" disabled
+        <button id="generateStatementBtn" type="button" onclick="generateSupplierStatement()" class="btn btn-tonal btn-sm"
             title="{{ L "tpl.supplier.statement_select_hint" }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
@@ -28,6 +28,19 @@
 </div>
 
 <div id="list-results">
+
+{{/* Cross-page selection banner: appears when all visible rows are ticked
+     and there are more suppliers on other pages. */}}
+{{ if gt .pagination.Total .pagination.PerPage }}
+<div id="supplierSelectAllBanner" class="supplier-select-banner hidden">
+    <span id="supplierSelectBannerText"></span>
+    <button type="button" id="supplierSelectAllPagesBtn" onclick="selectAllPages()">
+        {{ L "tpl.supplier.select_all_pages" }} ({{ .pagination.Total }})
+    </button>
+    <button type="button" onclick="clearAllPageSelection()">{{ L "tpl.supplier.clear_selection" }}</button>
+</div>
+{{ end }}
+
 <div class="data-table-wrapper">
     <table aria-label="{{ L "tpl.supplier.table_label" }}">
         <thead>
@@ -77,22 +90,53 @@
 </div>
 
 <script>
+// All supplier IDs across every page — baked in server-side so cross-page
+// "select all" works without an extra round-trip.
+var allSupplierIds = {{ .all_supplier_ids | json }};
+var crossPageSelected = false;
+var crossPageIds = [];
+
 function onSupplierCheckChange() {
     var checks = document.querySelectorAll('.supplier-statement-check');
     var checkedCount = document.querySelectorAll('.supplier-statement-check:checked').length;
-    var btn = document.getElementById('generateStatementBtn');
-    var label = document.getElementById('generateStatementLabel');
-    if (btn) {
-        btn.disabled = checkedCount === 0;
+
+    if (crossPageSelected && checkedCount < checks.length) {
+        crossPageSelected = false;
+        crossPageIds = [];
     }
+
+    var label = document.getElementById('generateStatementLabel');
+    var effectiveCount = crossPageSelected ? allSupplierIds.length : checkedCount;
     if (label) {
-        label.textContent = checkedCount > 0
-            ? '{{ L "tpl.supplier.generate_statement" }} (' + checkedCount + ')'
+        label.textContent = effectiveCount > 0
+            ? '{{ L "tpl.supplier.generate_statement" }} (' + effectiveCount + ')'
             : '{{ L "tpl.supplier.generate_statement" }}';
     }
+
     var selectAll = document.getElementById('supplierSelectAll');
     if (selectAll) {
         selectAll.checked = checks.length > 0 && checkedCount === checks.length;
+        selectAll.indeterminate = checkedCount > 0 && checkedCount < checks.length;
+    }
+
+    var banner = document.getElementById('supplierSelectAllBanner');
+    if (banner) {
+        var allPageChecked = checks.length > 0 && checkedCount === checks.length;
+        var hasMorePages = allSupplierIds.length > checks.length;
+        var bannerText = document.getElementById('supplierSelectBannerText');
+        var selectAllBtn = document.getElementById('supplierSelectAllPagesBtn');
+        if (crossPageSelected) {
+            if (bannerText) bannerText.textContent = allSupplierIds.length + ' {{ L "tpl.supplier.all_selected" }}';
+            if (selectAllBtn) selectAllBtn.style.display = 'none';
+            banner.classList.remove('hidden');
+        } else if (allPageChecked && hasMorePages) {
+            if (bannerText) bannerText.textContent = checkedCount + ' {{ L "tpl.supplier.page_selected" }}';
+            if (selectAllBtn) selectAllBtn.style.display = '';
+            banner.classList.remove('hidden');
+        } else {
+            if (selectAllBtn) selectAllBtn.style.display = '';
+            banner.classList.add('hidden');
+        }
     }
 }
 
@@ -100,23 +144,63 @@ function toggleAllSupplierChecks(source) {
     document.querySelectorAll('.supplier-statement-check').forEach(function (cb) {
         cb.checked = source.checked;
     });
+    if (!source.checked) {
+        crossPageSelected = false;
+        crossPageIds = [];
+    }
+    onSupplierCheckChange();
+}
+
+function selectAllPages() {
+    document.querySelectorAll('.supplier-statement-check').forEach(function (cb) {
+        cb.checked = true;
+    });
+    crossPageSelected = true;
+    crossPageIds = allSupplierIds.slice();
+    onSupplierCheckChange();
+}
+
+function clearAllPageSelection() {
+    crossPageSelected = false;
+    crossPageIds = [];
+    document.querySelectorAll('.supplier-statement-check').forEach(function (cb) {
+        cb.checked = false;
+    });
+    var selectAll = document.getElementById('supplierSelectAll');
+    if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
     onSupplierCheckChange();
 }
 
 function generateSupplierStatement() {
-    var ids = Array.prototype.map.call(
-        document.querySelectorAll('.supplier-statement-check:checked'),
-        function (cb) { return cb.value; }
-    );
-    if (ids.length === 0) return;
+    var ids = crossPageSelected
+        ? crossPageIds
+        : Array.prototype.map.call(
+            document.querySelectorAll('.supplier-statement-check:checked'),
+            function (cb) { return cb.value; }
+          );
+    if (ids.length === 0) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('{{ L "tpl.supplier.statement_select_hint" }}', 'error');
+        }
+        var selectAll = document.getElementById('supplierSelectAll');
+        if (selectAll) {
+            var th = selectAll.closest('th');
+            if (th) {
+                th.style.transition = 'background-color 150ms';
+                th.style.backgroundColor = 'var(--md-sys-color-error-container)';
+                setTimeout(function () { th.style.backgroundColor = ''; }, 1200);
+            }
+        }
+        return;
+    }
     window.location.href = '/dashboard/suppliers/statement?ids=' + encodeURIComponent(ids.join(','));
 }
 
 document.addEventListener('DOMContentLoaded', onSupplierCheckChange);
-// The toolbar button lives outside #list-results, so re-sync its state
-// whenever a search/pagination HTMX swap replaces the (unchecked) rows.
 document.body.addEventListener('htmx:afterSwap', function (evt) {
     if (evt.detail && evt.detail.target && evt.detail.target.id === 'list-results') {
+        crossPageSelected = false;
+        crossPageIds = [];
         onSupplierCheckChange();
     }
 });

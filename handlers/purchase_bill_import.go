@@ -31,7 +31,7 @@ type ImportedItem struct {
 }
 
 var purchaseBillImportTemplateHeader = []string{
-	"اسم القطعة", "الكمية", "سعر الشراء", "سعر التكلفة", "رقم الرف", "معرف المنتج (اختياري)",
+	"اسم القطعة", "الكمية", "سعر الشراء", "رقم الرف", "معرف المنتج (اختياري)",
 }
 
 const contentTypeHeader = "Content-Type"
@@ -51,7 +51,7 @@ func HandleDownloadPurchaseBillTemplate(w http.ResponseWriter, r *http.Request) 
 func HandleDownloadPurchaseBillExcelTemplate(w http.ResponseWriter, r *http.Request) {
 	workbook, err := buildPurchaseBillImportWorkbook([][]string{
 		purchaseBillImportTemplateHeader,
-		{"مثال", "10", "100.00", "90.00", "A1", ""},
+		{"مثال", "10", "100.00", "A1", ""},
 	})
 	if err != nil {
 		http.Error(w, "failed to create template", http.StatusInternalServerError)
@@ -198,18 +198,13 @@ func parseImportedRows(rows [][]string) []ImportedItem {
 			continue
 		}
 
-		costPrice, err := parseOptionalFloat(trimmedCell(row, 3))
-		if err != nil {
-			continue
-		}
-
 		items = append(items, ImportedItem{
 			PartName:      partName,
 			Quantity:      qty,
 			PurchasePrice: purchasePrice,
-			CostPrice:     costPrice,
-			ShelfNumber:   trimmedCell(row, 4),
-			ProductID:     parseOptionalProductID(trimmedCell(row, 5)),
+			CostPrice:     purchasePrice, // single price field: same value for both
+			ShelfNumber:   trimmedCell(row, 3),
+			ProductID:     parseOptionalProductID(trimmedCell(row, 4)),
 		})
 	}
 
@@ -257,7 +252,7 @@ func buildPurchaseBillImportCSVTemplate() []byte {
 	writer := csv.NewWriter(&buffer)
 	writer.UseCRLF = true
 	_ = writer.Write(purchaseBillImportTemplateHeader)
-	_ = writer.Write([]string{"مثال", "10", "100.00", "90.00", "A1", ""})
+	_ = writer.Write([]string{"مثال", "10", "100.00", "A1", ""})
 	writer.Flush()
 	return buffer.Bytes()
 }

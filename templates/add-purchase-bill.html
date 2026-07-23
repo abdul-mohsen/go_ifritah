@@ -108,6 +108,7 @@
                         <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
                         {{ L "tpl.pb.purchase_pdf_label" }}{{ if eq .pb_pdf_required "required" }}<span class="required-mark">*</span>{{ end }}
                     </label>
+                    <span class="pba-hint">{{ L "tpl.pb.pdf_hint" }}</span>
                     <div class="pba-chip" id="bill_pdf_preview">
                         <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" style="flex-shrink:0;color:#ef4444"><path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         <span class="pba-chip-name" id="bill_pdf_name"></span>
@@ -124,6 +125,7 @@
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13"/></svg>
                         {{ L "tpl.pb.extra_docs" }}
                     </label>
+                    <span class="pba-hint">{{ L "tpl.pb.docs_hint" }}</span>
                     <div class="pba-chips" id="documents_preview"></div>
                     <p id="documents_error" class="pba-error hidden"></p>
                 </div>

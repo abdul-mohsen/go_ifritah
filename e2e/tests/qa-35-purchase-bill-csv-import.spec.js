@@ -153,29 +153,24 @@ test.describe('Purchase-bill CSV import flow', () => {
     // products, not catalog products. This mirrors the same
     // product_id-driven catalog/manual split already covered for manual
     // form entry by TestCreatePBManualItemsOnlyInManualProducts.
-    const catalogSection = page
+    // The detail page renders one merged items table (catalog + manual)
+    // with a per-row type badge instead of two separately-grouped tables -
+    // all 3 imported rows should show the "manually added" badge.
+    const itemsSection = page
       .locator('.section-card')
       .filter({
-        has: page
-          .locator('h4.section-card-title')
-          .filter({ hasText: /المنتجات من الكتالوج|Catalog Products/ }),
+        has: page.locator('h4.section-card-title').filter({ hasText: /الأصناف|Items/ }),
       })
       .first();
-    await expect(catalogSection).toContainText(/لا توجد منتجات من الكتالوج|No catalog products/);
-
-    const manualSection = page
-      .locator('.section-card')
-      .filter({
-        has: page.locator('h4.section-card-title').filter({ hasText: /المنتجات اليدوية|Manual Products/ }),
-      })
-      .first();
-    await expect(manualSection).toBeVisible();
-    await expect(manualSection.locator('tbody tr')).toHaveCount(3);
-    await expect(manualSection).toContainText('فلتر زيت E2E');
-    await expect(manualSection).toContainText('بواجي E2E');
-    await expect(manualSection).toContainText('سير مكينة E2E');
-    await expect(manualSection).toContainText('33.50');
-    await expect(manualSection).toContainText('12.00');
-    await expect(manualSection).toContainText('5.00');
+    await expect(itemsSection).toBeVisible();
+    await expect(itemsSection.locator('tbody tr')).toHaveCount(3);
+    await expect(itemsSection.locator('.pbi-state-badge.is-manual')).toHaveCount(3);
+    await expect(itemsSection.locator('.pbi-state-badge.is-stock')).toHaveCount(0);
+    await expect(itemsSection).toContainText('فلتر زيت E2E');
+    await expect(itemsSection).toContainText('بواجي E2E');
+    await expect(itemsSection).toContainText('سير مكينة E2E');
+    await expect(itemsSection).toContainText('33.50');
+    await expect(itemsSection).toContainText('12.00');
+    await expect(itemsSection).toContainText('5.00');
   });
 });

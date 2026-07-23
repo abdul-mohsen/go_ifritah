@@ -90,7 +90,7 @@
 
         <div class="mt-6">
             <h4 class="section-card-title">{{ L "tpl.pb.items" }}</h4>
-            <div id="products-container" class="space-y-3"></div>
+            {{ template "pb-items-table" . }}
             <button type="button" onclick="addItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.pb.add_item" }}</button>
         </div>
 
@@ -170,7 +170,7 @@
 
 <script>
     var canEditSellingPrice = {{ if or (eq .user_role "admin") (eq .user_role "manager") }}true{{ else }}false{{ end }};
-    var purchaseBillLabels = {{ dict "itemLabel" (L "tpl.pb.item_label") "itemPlaceholder" (L "tpl.pb.item_placeholder") "manualItem" (L "tpl.pb.manual_item") "inventoryItem" (L "tpl.pb.inventory_item") "quantity" (L "tpl.pb.quantity") "costPrice" (L "tpl.product.cost_price") "costPriceHint" (L "tpl.pb.cost_price_hint") "shelfNumber" (L "tpl.product.shelf_number") "removeLabel" (L "tpl.pb.remove") "purchasePrice" (L "tpl.pb.purchase_price") "purchasePriceHint" (L "tpl.pb.purchase_price_hint") "sellingPrice" (L "tpl.product.selling_price") "sellingPriceHint" (L "tpl.pb.selling_price_hint") "sellingPriceAutoHint" (L "tpl.pb.selling_price_auto_hint") | json }};
+    var purchaseBillLabels = {{ dict "itemLabel" (L "tpl.pb.item_label") "itemPlaceholder" (L "tpl.pb.item_placeholder") "manualItem" (L "tpl.pb.manual_item") "inventoryItem" (L "tpl.pb.inventory_item") "quantity" (L "tpl.pb.quantity") "costPrice" (L "tpl.product.cost_price") "costPriceHint" (L "tpl.pb.cost_price_hint") "shelfNumber" (L "tpl.product.shelf_number") "deleteLabel" (L "tpl.delete") "purchasePrice" (L "tpl.pb.purchase_price") "purchasePriceHint" (L "tpl.pb.purchase_price_hint") "sellingPrice" (L "tpl.product.selling_price") "sellingPriceHint" (L "tpl.pb.selling_price_hint") "sellingPriceAutoHint" (L "tpl.pb.selling_price_auto_hint") "sellingPriceAutoPlaceholder" (L "tpl.pb.selling_price_auto_placeholder") | json }};
 
     // Supplier payment data for payment method defaults and credit checks
     var suppliersData = {
@@ -247,6 +247,8 @@
     var allStoreProducts = {{ .all_products | json }};
     var searchTimers = {};
 
+    {{ template "pb-item-row-markup-js" . }}
+
     function itemRow(product) {
         var rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         var prodId = product ? (product.product_id || product.id || 0) : 0;
@@ -258,50 +260,7 @@
         var costPrice = product ? (product.cost_price || (inventoryProduct ? inventoryProduct.cost_price : '')) : '';
         var shelfNumber = product ? (product.shelf_number || (inventoryProduct ? inventoryProduct.shelf_number : '')) : '';
         var sellingPrice = product ? (product.selling_price || (inventoryProduct ? inventoryProduct.price : '')) : '';
-        var sellingPriceAttrs = canEditSellingPrice ? '' : 'disabled';
-        var sellingPricePlaceholder = canEditSellingPrice ? escapeAttr(purchaseBillLabels.sellingPriceAutoHint) : '';
-        return `
-            <div class="item-row border rounded p-3" data-row-id="${rowId}">
-                <div class="mb-2">
-                    <span class="item-state text-xs ${trackStock ? 'text-green-700' : 'text-gray-500'}">${escapeHtml(trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem)}</span>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
-                    <div class="md:col-span-2 relative">
-                        <label class="form-label">${escapeHtml(purchaseBillLabels.itemLabel)}</label>
-                        <input type="text" class="w-full store-product-search" placeholder="${escapeAttr(purchaseBillLabels.itemPlaceholder)}" autocomplete="off"
-                               value="${escapeAttr(partName)}"
-                               oninput="onStoreItemInput(this, '${rowId}')" onfocus="showDropdown('${rowId}')">
-                        <input type="hidden" name="products_product_id" value="${prodId}">
-                        <input type="hidden" name="products_part_name" value="${escapeAttr(partName)}">
-                        <input type="hidden" name="products_track_stock" value="${trackStock}">
-                        <div id="dropdown_${rowId}" class="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
-                    </div>
-                    <div>
-                        <label class="form-label">${escapeHtml(purchaseBillLabels.quantity)}</label>
-                        <input type="number" name="products_quantity" min="1" value="${qty}" class="w-full" oninput="recalculateTotal()">
-                    </div>
-                    <div>
-                        <label class="form-label" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}">${escapeHtml(purchaseBillLabels.purchasePrice)}</label>
-                        <input type="text" name="products_price" value="${price}" class="w-full" oninput="recalculateTotal()">
-                    </div>
-                    <div>
-                        <label class="form-label" title="${escapeAttr(purchaseBillLabels.costPriceHint)}">${escapeHtml(purchaseBillLabels.costPrice)}</label>
-                        <input type="text" name="products_cost_price" class="w-full" placeholder="0" value="${costPrice}">
-                    </div>
-                    <div>
-                        <label class="form-label">${escapeHtml(purchaseBillLabels.shelfNumber)}</label>
-                        <input type="text" name="products_shelf_number" class="w-full" placeholder="" value="${shelfNumber}">
-                    </div>
-                    <div>
-                        <label class="form-label" title="${escapeAttr(purchaseBillLabels.sellingPriceHint)}">${escapeHtml(purchaseBillLabels.sellingPrice)}</label>
-                        <input type="text" name="products_selling_price" class="w-full" placeholder="${sellingPricePlaceholder}" value="${escapeAttr(sellingPrice)}" ${sellingPriceAttrs}>
-                    </div>
-                </div>
-                <div class="mt-2 flex justify-end">
-                    <button type="button" class="text-red-600 text-sm hover:underline" onclick="removeRow(this)">${escapeHtml(purchaseBillLabels.removeLabel)}</button>
-                </div>
-            </div>
-        `;
+        return buildItemRowMarkup({ rowId: rowId, productId: prodId, trackStock: trackStock, name: partName, quantity: qty, purchasePrice: price, costPrice: costPrice, shelfNumber: shelfNumber, sellingPrice: sellingPrice, includeExistingItemWarning: false });
     }
 
     {{ template "pb-store-product-search-js" . }}

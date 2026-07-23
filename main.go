@@ -41,7 +41,14 @@ func main() {
 	staticFS := http.FileServer(http.Dir("static"))
 	staticHandler := http.StripPrefix("/static/", staticFS)
 	router.PathPrefix("/static/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+		// `immutable` + a 7-day max-age told browsers to never even check
+		// for updates, so any CSS/JS fix was invisible to returning users
+		// for up to a week. Static assets have no cache-busting (hashed
+		// filenames/query version) here, so "no-cache" is the safe choice:
+		// still cached locally, but always revalidated (conditional GET,
+		// cheap 304s via http.FileServer's built-in Last-Modified/ETag)
+		// before use - freshness on every load without losing 304 savings.
+		w.Header().Set("Cache-Control", "no-cache, must-revalidate")
 		staticHandler.ServeHTTP(w, r)
 	}))
 

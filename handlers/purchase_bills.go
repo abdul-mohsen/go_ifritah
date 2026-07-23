@@ -360,6 +360,11 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		"manual_products":          manualProducts,
 		"products_subtotal":        helpers.SumBillItemsTotal(products),
 		"manual_subtotal":          helpers.SumBillItemsTotal(manualProducts),
+		// Detail view merges catalog+manual into one items table (a single
+		// per-row badge distinguishes the two, matching add/edit's item
+		// list) - needs one combined subtotal rather than the two separate
+		// per-table ones above (kept for back-compat, no longer rendered).
+		"items_subtotal": helpers.SumBillItemsTotal(append(append([]models.BillItem{}, products...), manualProducts...)),
 		"store_name":               storeName,
 		"supplier_name":            supplierName,
 		"supplier":                 matchedSupplier,

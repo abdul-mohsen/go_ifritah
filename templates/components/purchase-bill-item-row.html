@@ -203,15 +203,27 @@ function hideDropdown(rowId) {
 // overflow spec, forces overflow-y:auto too and would otherwise clip
 // any dropdown taller than the table wrapper's own box). Fixed
 // positioning needs the input's real screen coordinates recomputed
-// each time it's shown.
+// each time it's shown. Width is intentionally NOT the input's own
+// width - the search input sits in a narrow compact-row cell, and
+// matching it 1:1 squeezed result names unreadably. Use whichever is
+// wider (input width or a comfortable minimum), then clamp so it
+// never runs past either viewport edge - getBoundingClientRect()
+// coordinates are physical/viewport pixels, so this works the same
+// regardless of the page's RTL direction.
 function positionDropdown(rowId) {
     var dd = document.getElementById('dropdown_' + rowId);
     var input = document.querySelector('[data-row-id="' + rowId + '"] .store-product-search');
     if (!dd || !input) return;
     var rect = input.getBoundingClientRect();
+    var minWidth = 288;
+    var width = Math.max(rect.width, minWidth);
+    var left = rect.left;
+    var margin = 8;
+    if (left + width > window.innerWidth - margin) left = window.innerWidth - width - margin;
+    if (left < margin) left = margin;
     dd.style.top = rect.bottom + 'px';
-    dd.style.left = rect.left + 'px';
-    dd.style.width = rect.width + 'px';
+    dd.style.left = left + 'px';
+    dd.style.width = width + 'px';
 }
 
 // A fixed-position dropdown doesn't move with its input, so it goes
@@ -227,6 +239,21 @@ document.addEventListener('scroll', function () {
 }, true);
 window.addEventListener('resize', function () {
     document.querySelectorAll('[id^="dropdown_"]:not(.hidden)').forEach(function (dd) {
+        dd.classList.add('hidden');
+    });
+});
+
+// A position:fixed dropdown floats above unrelated page content until
+// something explicitly closes it, unlike a position:absolute dropdown
+// sitting inertly in normal document flow. Close any open dropdown on
+// a click outside of it (and outside its own search input) - the
+// per-row onclick handlers in renderStoreProductDropdown() already
+// select+close before this global listener runs.
+document.addEventListener('click', function (e) {
+    document.querySelectorAll('[id^="dropdown_"]:not(.hidden)').forEach(function (dd) {
+        var rowId = dd.id.replace('dropdown_', '');
+        var input = document.querySelector('[data-row-id="' + rowId + '"] .store-product-search');
+        if (dd.contains(e.target) || (input && input.contains(e.target))) return;
         dd.classList.add('hidden');
     });
 });

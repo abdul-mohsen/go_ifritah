@@ -199,26 +199,28 @@
         </div>
     </div>
 
-    <!-- Catalog Products Table -->
+    <!-- Items Table (catalog + manual merged; a per-row badge distinguishes
+         the two - mirrors add/edit's single item list + per-row state
+         badge instead of two separately-grouped tables) -->
     <div class="section-card">
         <h4 class="section-card-title">
             <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
-            {{ L "tpl.pb.catalog_products" }}
-            {{ if .catalog_products }}
-            <span class="text-sm font-normal" style="color: var(--md-sys-color-on-surface-variant); margin-right: 0.5rem">({{ len .catalog_products }})</span>
+            {{ L "tpl.pb.items" }}
+            {{ if or .catalog_products .manual_products }}
+            <span class="text-sm font-normal" style="color: var(--md-sys-color-on-surface-variant); margin-right: 0.5rem">({{ add (len .catalog_products) (len .manual_products) }})</span>
             {{ end }}
         </h4>
-        {{ if .catalog_products }}
+        {{ if or .catalog_products .manual_products }}
         <div class="data-table-wrapper" style="box-shadow:none">
-            <table>
+            <table class="pb-detail-items-table">
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>{{ L "tpl.pb.product_number" }}</th>
                         <th>{{ L "tpl.pb.part_name" }}</th>
+                        <th>{{ L "tpl.pb.item_type" }}</th>
                         <th>{{ L "tpl.pb.quantity" }}</th>
                         <th>{{ L "tpl.pb.unit_price" }}</th>
                         <th>{{ L "tpl.pb.subtotal" }}</th>
@@ -228,8 +230,19 @@
                     {{ range $i, $p := .catalog_products }}
                     <tr>
                         <td>{{ add $i 1 }}</td>
-                        <td><span class="badge badge-info" style="font-size: 0.75rem">{{ $p.ProductID }}</span></td>
                         <td class="font-medium">{{ if $p.PartName }}{{ $p.PartName }}{{ else }}<span style="color: var(--md-sys-color-on-surface-variant)">—</span>{{ end }}</td>
+                        <td><span class="pbi-state-badge is-stock">{{ L "tpl.pb.inventory_item" }}</span></td>
+                        <td>{{ $p.Quantity }}</td>
+                        <td>{{ printf "%.2f" $p.Price }} {{ L "tpl.currency" }}</td>
+                        <td class="font-medium">{{ if gt $p.TotalBeforeVAT 0.0 }}{{ printf "%.2f" $p.TotalBeforeVAT }}{{ else }}{{ printf "%.2f" (mul $p.Price $p.Quantity) }}{{ end }} {{ L "tpl.currency" }}</td>
+                    </tr>
+                    {{ end }}
+                    {{ $catalogCount := len .catalog_products }}
+                    {{ range $i, $p := .manual_products }}
+                    <tr>
+                        <td>{{ add (add $i 1) $catalogCount }}</td>
+                        <td class="font-medium">{{ $p.PartName }}</td>
+                        <td><span class="pbi-state-badge is-manual">{{ L "tpl.pb.manual_item" }}</span></td>
                         <td>{{ $p.Quantity }}</td>
                         <td>{{ printf "%.2f" $p.Price }} {{ L "tpl.currency" }}</td>
                         <td class="font-medium">{{ if gt $p.TotalBeforeVAT 0.0 }}{{ printf "%.2f" $p.TotalBeforeVAT }}{{ else }}{{ printf "%.2f" (mul $p.Price $p.Quantity) }}{{ end }} {{ L "tpl.currency" }}</td>
@@ -238,8 +251,8 @@
                 </tbody>
                 <tfoot>
                     <tr style="font-weight: 600; border-top: 2px solid var(--md-sys-color-outline-variant)">
-                        <td colspan="5" style="text-align: left">{{ L "tpl.pb.catalog_subtotal" }}</td>
-                        <td>{{ .products_subtotal }} {{ L "tpl.currency" }}</td>
+                        <td colspan="5" style="text-align: left">{{ L "tpl.pb.items_subtotal" }}</td>
+                        <td>{{ .items_subtotal }} {{ L "tpl.currency" }}</td>
                     </tr>
                 </tfoot>
             </table>
@@ -250,61 +263,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                     d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
-            <p style="color: var(--md-sys-color-on-surface-variant); margin-top: 0.5rem">{{ L "tpl.pb.no_catalog" }}</p>
-        </div>
-        {{ end }}
-    </div>
-
-    <!-- Manual Products Table -->
-    <div class="section-card">
-        <h4 class="section-card-title">
-            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            {{ L "tpl.pb.manual_products" }}
-            {{ if .manual_products }}
-            <span class="text-sm font-normal" style="color: var(--md-sys-color-on-surface-variant); margin-right: 0.5rem">({{ len .manual_products }})</span>
-            {{ end }}
-        </h4>
-        {{ if .manual_products }}
-        <div class="data-table-wrapper" style="box-shadow:none">
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>{{ L "tpl.pb.part_name" }}</th>
-                        <th>{{ L "tpl.pb.quantity" }}</th>
-                        <th>{{ L "tpl.pb.unit_price" }}</th>
-                        <th>{{ L "tpl.pb.subtotal" }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{ range $i, $p := .manual_products }}
-                    <tr>
-                        <td>{{ add $i 1 }}</td>
-                        <td class="font-medium">{{ $p.PartName }}</td>
-                        <td>{{ $p.Quantity }}</td>
-                        <td>{{ printf "%.2f" $p.Price }} {{ L "tpl.currency" }}</td>
-                        <td class="font-medium">{{ if gt $p.TotalBeforeVAT 0.0 }}{{ printf "%.2f" $p.TotalBeforeVAT }}{{ else }}{{ printf "%.2f" (mul $p.Price $p.Quantity) }}{{ end }} {{ L "tpl.currency" }}</td>
-                    </tr>
-                    {{ end }}
-                </tbody>
-                <tfoot>
-                    <tr style="font-weight: 600; border-top: 2px solid var(--md-sys-color-outline-variant)">
-                        <td colspan="4" style="text-align: left">{{ L "tpl.pb.manual_subtotal" }}</td>
-                        <td>{{ .manual_subtotal }} {{ L "tpl.currency" }}</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-        {{ else }}
-        <div style="padding: 2rem 1rem; text-align: center">
-            <svg class="w-10 h-10 mx-auto" style="color: var(--md-sys-color-on-surface-variant); opacity: 0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            <p style="color: var(--md-sys-color-on-surface-variant); margin-top: 0.5rem">{{ L "tpl.pb.no_manual" }}</p>
+            <p style="color: var(--md-sys-color-on-surface-variant); margin-top: 0.5rem">{{ L "tpl.pb.no_items" }}</p>
         </div>
         {{ end }}
     </div>

@@ -43,10 +43,10 @@ async function searchForSequence(page, sequence) {
 test.describe('Purchase-bill CSV import flow', () => {
   test('downloads CSV sample, appends repeated uploads, and submits imported items', async ({ page }, testInfo) => {
     const firstUploadRows = [
-      ['فلتر زيت E2E', '2', '33.50', '28.25', 'A-11'],
-      ['بواجي E2E', '1', '12.00', '10.00', 'B-22'],
+      ['فلتر زيت E2E', '2', '33.50', 'A-11'],
+      ['بواجي E2E', '1', '12.00', 'B-22'],
     ];
-    const secondUploadRows = [['سير مكينة E2E', '4', '5.00', '4.00', 'C-33']];
+    const secondUploadRows = [['سير مكينة E2E', '4', '5.00', 'C-33']];
     const sequence = String(Date.now()).slice(-10);
 
     await page.goto('/dashboard/purchase-bills/add');
@@ -60,8 +60,8 @@ test.describe('Purchase-bill CSV import flow', () => {
     expect(response.contentType).toContain('text/csv');
 
     const templateBody = fs.readFileSync(templatePath, 'utf8');
-    expect(templateBody).toContain('اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف');
-    expect(templateBody).toContain('مثال,10,100.00,90.00,A1');
+    expect(templateBody).toContain('اسم القطعة,الكمية,سعر الشراء,رقم الرف');
+    expect(templateBody).toContain('مثال,10,100.00,A1');
 
     const firstUploadPath = writeFilledTemplate(templatePath, firstUploadRows, 'purchase-bill-import-1.csv', testInfo);
     const secondUploadPath = writeFilledTemplate(
@@ -99,15 +99,13 @@ test.describe('Purchase-bill CSV import flow', () => {
     await expect(firstRow.locator('[name="products_part_name"]')).toHaveValue('فلتر زيت E2E');
     await expect(firstRow.locator('[name="products_product_id"]')).toHaveValue('0');
     await expect(firstRow.locator('[name="products_quantity"]')).toHaveValue('2');
-    await expect(firstRow.locator('[name="products_price"]')).toHaveValue('33.5');
-    await expect(firstRow.locator('[name="products_cost_price"]')).toHaveValue('28.25');
+    await expect(firstRow.locator('[name="products_cost_price"]')).toHaveValue('33.5');
     await expect(firstRow.locator('[name="products_shelf_number"]')).toHaveValue('A-11');
 
     const secondRow = productRows.nth(1);
     await expect(secondRow.locator('.store-product-search')).toHaveValue('بواجي E2E');
     await expect(secondRow.locator('[name="products_quantity"]')).toHaveValue('1');
-    await expect(secondRow.locator('[name="products_price"]')).toHaveValue('12');
-    await expect(secondRow.locator('[name="products_cost_price"]')).toHaveValue('10');
+    await expect(secondRow.locator('[name="products_cost_price"]')).toHaveValue('12');
     await expect(secondRow.locator('[name="products_shelf_number"]')).toHaveValue('B-22');
     await expect(page.locator('#total_amount')).toHaveValue('90.85');
 
@@ -126,8 +124,7 @@ test.describe('Purchase-bill CSV import flow', () => {
     await expect(thirdRow.locator('[name="products_part_name"]')).toHaveValue('سير مكينة E2E');
     await expect(thirdRow.locator('[name="products_product_id"]')).toHaveValue('0');
     await expect(thirdRow.locator('[name="products_quantity"]')).toHaveValue('4');
-    await expect(thirdRow.locator('[name="products_price"]')).toHaveValue('5');
-    await expect(thirdRow.locator('[name="products_cost_price"]')).toHaveValue('4');
+    await expect(thirdRow.locator('[name="products_cost_price"]')).toHaveValue('5');
     await expect(thirdRow.locator('[name="products_shelf_number"]')).toHaveValue('C-33');
     await expect(page.locator('#total_amount')).toHaveValue('113.85');
 

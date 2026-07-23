@@ -31,7 +31,7 @@
             </div>
             <div>
                 <label class="form-label" for="purchase_payment_date">{{ L "tpl.pb.date" }}</label>
-                <input type="date" name="payment_date" id="purchase_payment_date" class="w-full" required>
+                <input type="date" name="payment_date" id="purchase_payment_date" value="{{ .today }}" class="w-full" required>
             </div>
             <div id="payment-due-date-field" style="display:none">
                 <label class="form-label" for="purchase_payment_due_date">{{ L "tpl.pb.payment_due_date" }}</label>
@@ -79,7 +79,7 @@
         <div id="purchase-bill-import" class="mt-6">
             <h4 class="section-card-title">{{ L "tpl.pb.items" }}</h4>
             {{ template "pb-items-table" . }}
-            <button type="button" onclick="addItem()" class="btn btn-tonal btn-xs mt-2">{{ L "tpl.pb.add_item" }}</button>
+            <button type="button" onclick="addItem()" class="btn btn-tonal btn-xs mt-2" title="{{ L "tpl.pb.add_item_hint" }}">{{ L "tpl.pb.add_item" }} <kbd class="pbi-kbd">Alt+N</kbd></button>
         </div>
 
         <div class="mt-6">
@@ -99,45 +99,33 @@
 
         <div class="mt-6"{{ if eq .pb_pdf_required "disabled" }} style="display:none"{{ end }}>
             <h4 class="section-card-title">{{ L "tpl.pb.attachments" }}</h4>
-            <div class="flex flex-col gap-4">
-                <div>
-                    <span class="form-label">{{ L "tpl.pb.purchase_pdf_label" }}{{ if eq .pb_pdf_required "required" }} <span class="required-mark">*</span>{{ end }}</span>
-                    <div class="file-upload-zone" id="bill_pdf_zone">
-                        <input type="file" name="bill_pdf" id="bill_pdf_input" accept=".pdf"{{ if eq .pb_pdf_required "required" }} required{{ end }}
-                            style="display:none" onchange="validateBillPDF(this)">
-                        <label for="bill_pdf_input" class="file-upload-label">
-                            <span class="file-upload-icon">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
-                            </span>
-                            <span class="file-upload-text">{{ L "tpl.pb.drag_pdf" }}</span>
-                            <span class="file-upload-browse">{{ L "tpl.pb.browse_file" }}</span>
-                            <span class="file-upload-hint">{{ L "tpl.pb.pdf_hint" }}</span>
-                        </label>
-                        <div class="file-upload-preview" id="bill_pdf_preview">
-                            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style="flex-shrink:0;color:#ef4444"><path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            <span class="file-name" id="bill_pdf_name"></span>
-                            <span class="file-size" id="bill_pdf_size"></span>
-                            <button type="button" class="file-remove" onclick="clearFileInput('bill_pdf')" title="{{ L "tpl.pb.remove" }}">&times;</button>
-                        </div>
+            <div class="pba-list">
+                <!-- PDF invoice attachment -->
+                <div class="pba-row" id="bill_pdf_zone">
+                    <input type="file" name="bill_pdf" id="bill_pdf_input" accept=".pdf"{{ if eq .pb_pdf_required "required" }} required{{ end }}
+                        style="display:none" onchange="validateBillPDF(this)">
+                    <label for="bill_pdf_input" class="pba-trigger">
+                        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                        {{ L "tpl.pb.purchase_pdf_label" }}{{ if eq .pb_pdf_required "required" }}<span class="required-mark">*</span>{{ end }}
+                    </label>
+                    <div class="pba-chip" id="bill_pdf_preview">
+                        <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" style="flex-shrink:0;color:#ef4444"><path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span class="pba-chip-name" id="bill_pdf_name"></span>
+                        <span class="pba-chip-size" id="bill_pdf_size"></span>
+                        <button type="button" class="pba-chip-remove" onclick="clearFileInput('bill_pdf')" title="{{ L "tpl.pb.remove" }}">&times;</button>
                     </div>
-                    <p id="bill_pdf_error" class="text-xs mt-1 text-red-600 hidden"></p>
+                    <p id="bill_pdf_error" class="pba-error hidden"></p>
                 </div>
-                <div>
-                    <span class="form-label">{{ L "tpl.pb.extra_docs" }}</span>
-                    <div class="file-upload-zone" id="documents_zone">
-                        <input type="file" name="documents" id="documents_input" accept=".pdf,.jpg,.jpeg,.png" multiple
-                            style="display:none" onchange="validateDocuments(this)">
-                        <label for="documents_input" class="file-upload-label">
-                            <span class="file-upload-icon">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13"/></svg>
-                            </span>
-                            <span class="file-upload-text">{{ L "tpl.pb.drag_files" }}</span>
-                            <span class="file-upload-browse">{{ L "tpl.pb.browse_files" }}</span>
-                            <span class="file-upload-hint">{{ L "tpl.pb.docs_hint" }}</span>
-                        </label>
-                        <div class="file-upload-multi-preview" id="documents_preview"></div>
-                    </div>
-                    <p id="documents_error" class="text-xs mt-1 text-red-600 hidden"></p>
+                <!-- Extra documents attachment -->
+                <div class="pba-row" id="documents_zone">
+                    <input type="file" name="documents" id="documents_input" accept=".pdf,.jpg,.jpeg,.png" multiple
+                        style="display:none" onchange="validateDocuments(this)">
+                    <label for="documents_input" class="pba-trigger">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13"/></svg>
+                        {{ L "tpl.pb.extra_docs" }}
+                    </label>
+                    <div class="pba-chips" id="documents_preview"></div>
+                    <p id="documents_error" class="pba-error hidden"></p>
                 </div>
             </div>
         </div>
@@ -389,11 +377,16 @@
         var trackStock = productId > 0 && (!product || product.track_stock !== false);
         var name = product ? (product.name || product.partName || product.part_name || '') : '';
         var quantity = product ? (product.quantity || 1) : 1;
-        var purchasePrice = product ? (product.purchasePrice !== undefined ? product.purchasePrice : (product.price || '')) : '';
-        var costPrice = product ? (product.costPrice !== undefined ? product.costPrice : (product.cost_price || '')) : '';
+        // purchasePrice (what was paid to supplier) and costPrice (inventory
+        // cost basis) are now the same single field shown to the user.
+        // Prefer costPrice if set; fall back to purchasePrice / price.
+        var costPrice = product
+            ? (product.costPrice !== undefined ? product.costPrice
+                : (product.cost_price || product.purchasePrice || product.price || ''))
+            : '';
         var shelfNumber = product ? (product.shelfNumber || product.shelf_number || '') : '';
         var sellingPrice = product ? (product.sellingPrice || '') : '';
-        return buildItemRowMarkup({ rowId: rowId, productId: productId, trackStock: trackStock, name: name, quantity: quantity, purchasePrice: purchasePrice, costPrice: costPrice, shelfNumber: shelfNumber, sellingPrice: sellingPrice, includeExistingItemWarning: true });
+        return buildItemRowMarkup({ rowId: rowId, productId: productId, trackStock: trackStock, name: name, quantity: quantity, costPrice: costPrice, shelfNumber: shelfNumber, sellingPrice: sellingPrice, includeExistingItemWarning: true });
     }
 
     function hideExistingItemWarning(row) {
@@ -414,6 +407,12 @@
     function addItem() {
         var container = document.getElementById('products-container');
         container.insertAdjacentHTML('beforeend', itemRow());
+        // Focus the name input of the newly added row so the user can type immediately
+        var newRow = container.lastElementChild;
+        if (newRow) {
+            var nameInput = newRow.querySelector('.store-product-search');
+            if (nameInput) nameInput.focus();
+        }
     }
 
     function removeRow(btn) {
@@ -423,7 +422,7 @@
     }
 
     function sumPurchaseItems() {
-        var prices = document.getElementsByName('products_price');
+        var prices = document.getElementsByName('products_cost_price');
         var qtys = document.getElementsByName('products_quantity');
         var total = 0;
         for (var i = 0; i < Math.max(prices.length, qtys.length); i++) {
@@ -508,13 +507,13 @@
         zone.classList.remove('has-error');
         for (var i = 0; i < files.length; i++) {
             var item = document.createElement('div');
-            item.className = 'file-item';
+            item.className = 'pba-chip';
             var ext = files[i].name.split('.').pop().toLowerCase();
             var iconColor = ext === 'pdf' ? 'text-red-500' : 'text-blue-500';
-            item.innerHTML = '<svg width="14" height="14" class="' + iconColor + '" style="flex-shrink:0" fill="currentColor" viewBox="0 0 20 20"><path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' +
-                '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + files[i].name + '</span>' +
-                '<span style="color:var(--md-sys-color-on-surface-variant);font-size:0.6875rem">' + formatFileSize(files[i].size) + '</span>' +
-                '<span class="file-remove" onclick="removeDocFile(' + i + ')" title="\u0625\u0632\u0627\u0644\u0629">&times;</span>';
+            item.innerHTML = '<svg width="12" height="12" class="' + iconColor + '" style="flex-shrink:0" fill="currentColor" viewBox="0 0 20 20"><path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' +
+                '<span class="pba-chip-name">' + files[i].name + '</span>' +
+                '<span class="pba-chip-size">' + formatFileSize(files[i].size) + '</span>' +
+                '<button type="button" class="pba-chip-remove" onclick="removeDocFile(' + i + ')" title="\u0625\u0632\u0627\u0644\u0629">&times;</button>';
             preview.appendChild(item);
         }
     }
@@ -769,6 +768,16 @@
             body: formData
         }).then(function (r) { return r.json(); }).catch(function () { return []; });
     }
+
+    // Alt+N — add a new item row from anywhere on the page.
+    document.addEventListener('keydown', function (e) {
+        if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'n' || e.key === 'N' || e.key === 'ن')) {
+            var tag = (document.activeElement && document.activeElement.tagName) || '';
+            if (tag === 'INPUT' && document.activeElement.type === 'file') return;
+            if (document.activeElement && document.activeElement.isContentEditable) return;
+            e.preventDefault(); addItem();
+        }
+    });
 </script>
 <script src="/static/js/supplier-search.js"></script>
 {{ end }}

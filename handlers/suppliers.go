@@ -170,13 +170,21 @@ func HandleSuppliers(w http.ResponseWriter, r *http.Request) {
 		nextPage = pagination.Page + 1
 	}
 
+	// Build a flat list of all supplier IDs (across all pages) so the
+	// template can offer a "select all N suppliers" cross-page shortcut.
+	allIDs := make([]int, 0, len(suppliers))
+	for _, s := range suppliers {
+		allIDs = append(allIDs, s.ID)
+	}
+
 	helpers.Render(w, r, "suppliers", map[string]interface{}{
-		"title":      "الموردين",
-		"suppliers":  pagedSuppliers,
-		"pagination": pagination,
-		"prev_page":  prevPage,
-		"next_page":  nextPage,
-		"query":      query,
+		"title":           "الموردين",
+		"suppliers":       pagedSuppliers,
+		"pagination":      pagination,
+		"prev_page":       prevPage,
+		"next_page":       nextPage,
+		"query":           query,
+		"all_supplier_ids": allIDs,
 	})
 }
 

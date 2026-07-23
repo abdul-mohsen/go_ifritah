@@ -1025,6 +1025,7 @@ var labels = map[string]Label{
 	"tpl.pb.store_product_placeholder":      {Ar: "ابحث باسم القطعة في المخزن", En: "Search store items by name"},
 	"tpl.pb.items":                          {Ar: "الأصناف", En: "Items"},
 	"tpl.pb.add_item":                       {Ar: "+ إضافة صنف", En: "+ Add Item"},
+	"tpl.pb.add_item_hint":                  {Ar: "إضافة صنف جديد (Alt+N)", En: "Add a new item row (Alt+N)"},
 	"tpl.pb.item_label":                     {Ar: "الصنف", En: "Item"},
 	"tpl.pb.item_placeholder":               {Ar: "اكتب اسم الصنف أو اختر من المخزن", En: "Type an item name or select from inventory"},
 	"tpl.pb.manual_item":                    {Ar: "مضاف يدوياً", En: "Manually Added"},
@@ -1930,6 +1931,10 @@ var labels = map[string]Label{
 	"tpl.supplier.select_for_statement":    {Ar: "تحديد لإنشاء كشف حساب", En: "Select for ledger statement"},
 	"tpl.supplier.generate_statement":      {Ar: "إنشاء كشف حساب", En: "Generate Ledger Statement"},
 	"tpl.supplier.statement_select_hint":   {Ar: "اختر مورداً واحداً أو أكثر", En: "Select one or more suppliers"},
+	"tpl.supplier.select_all_pages":        {Ar: "تحديد جميع الموردين في كل الصفحات", En: "Select all suppliers across all pages"},
+	"tpl.supplier.clear_selection":         {Ar: "إلغاء التحديد", En: "Clear selection"},
+	"tpl.supplier.page_selected":           {Ar: "مورد محدد في هذه الصفحة", En: "suppliers selected on this page"},
+	"tpl.supplier.all_selected":            {Ar: "مورد محدد في جميع الصفحات", En: "suppliers selected across all pages"},
 	// Aging analysis
 	"tpl.report.aging_analysis": {Ar: "تحليل أعمار الديون", En: "Aging Analysis"},
 	// Bills table

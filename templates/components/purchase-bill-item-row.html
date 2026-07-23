@@ -22,7 +22,6 @@
             <col class="col-pbi-name">
             <col class="col-pbi-qty">
             <col class="col-pbi-price">
-            <col class="col-pbi-price">
             <col class="col-pbi-shelf">
             <col class="col-pbi-price">
             <col class="col-pbi-action">
@@ -32,7 +31,6 @@
                 <th>{{ L "tpl.pb.item_label" }}</th>
                 <th>{{ L "tpl.pb.quantity" }}</th>
                 <th>{{ L "tpl.pb.purchase_price" }}</th>
-                <th>{{ L "tpl.product.cost_price" }}</th>
                 <th>{{ L "tpl.product.shelf_number" }}</th>
                 <th>{{ L "tpl.product.selling_price" }}</th>
                 <th><span class="sr-only">{{ L "tpl.delete" }}</span></th>
@@ -43,24 +41,9 @@
 </div>
 {{ end }}
 {{ define "pb-item-row-markup-js" }}
-// Builds the actual compact one-line item-row markup. Both pages keep
-// their own itemRow(product) wrapper, since field derivation legitimately
-// differs (edit-purchase-bill.html falls back to allStoreProducts for
-// cost/shelf/selling price on existing lines) - but both call this for
-// the returned HTML itself so it can't drift out of sync between the two
-// pages (source of a real SonarCloud new-code duplication finding).
 function buildItemRowMarkup(opts) {
     var stateText = opts.trackStock ? purchaseBillLabels.inventoryItem : purchaseBillLabels.manualItem;
-    // canEditSellingPrice/purchaseBillLabels are page-level globals both
-    // callers already have in scope - computed here (not passed in) so
-    // each page's itemRow() has one less thing to duplicate.
     var sellingPriceAttrs = canEditSellingPrice ? '' : 'disabled';
-    // Was inverted (showed the long auto-calc sentence as placeholder
-    // when the field was EDITABLE, and nothing when it was disabled) -
-    // the auto-calc hint only makes sense while the field is disabled.
-    // Also swapped the long sentence for a short word here (it doesn't
-    // fit a 6.5rem column); the full sentence still surfaces as the
-    // tooltip below.
     var sellingPricePlaceholder = canEditSellingPrice ? '' : escapeAttr(purchaseBillLabels.sellingPriceAutoPlaceholder);
     var sellingPriceTitle = canEditSellingPrice ? purchaseBillLabels.sellingPriceHint : purchaseBillLabels.sellingPriceAutoHint;
     var warningSpan = opts.includeExistingItemWarning
@@ -82,8 +65,7 @@ function buildItemRowMarkup(opts) {
                 </div>
             </td>
             <td class="pbi-cell-qty"><input type="number" name="products_quantity" min="1" value="${opts.quantity}" dir="ltr" aria-label="${escapeAttr(purchaseBillLabels.quantity)}" oninput="recalculateTotal()"></td>
-            <td class="pbi-cell-price"><input type="text" name="products_price" value="${opts.purchasePrice}" dir="ltr" inputmode="decimal" aria-label="${escapeAttr(purchaseBillLabels.purchasePrice)}" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}" oninput="recalculateTotal()"></td>
-            <td class="pbi-cell-price"><input type="text" name="products_cost_price" value="${opts.costPrice}" dir="ltr" inputmode="decimal" placeholder="0" aria-label="${escapeAttr(purchaseBillLabels.costPrice)}" title="${escapeAttr(purchaseBillLabels.costPriceHint)}"></td>
+            <td class="pbi-cell-price"><input type="text" name="products_cost_price" value="${opts.costPrice}" dir="ltr" inputmode="decimal" placeholder="0" aria-label="${escapeAttr(purchaseBillLabels.purchasePrice)}" title="${escapeAttr(purchaseBillLabels.purchasePriceHint)}" oninput="recalculateTotal()"></td>
             <td class="pbi-cell-shelf"><input type="text" name="products_shelf_number" value="${escapeAttr(opts.shelfNumber)}" dir="auto" placeholder="" aria-label="${escapeAttr(purchaseBillLabels.shelfNumber)}"></td>
             <td class="pbi-cell-price"><input type="text" name="products_selling_price" value="${escapeAttr(opts.sellingPrice)}" dir="ltr" inputmode="decimal" aria-label="${escapeAttr(purchaseBillLabels.sellingPrice)}" title="${escapeAttr(sellingPriceTitle)}" placeholder="${sellingPricePlaceholder}" ${sellingPriceAttrs}></td>
             <td class="pbi-cell-action">

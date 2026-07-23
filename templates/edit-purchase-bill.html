@@ -254,13 +254,16 @@
         var prodId = product ? (product.product_id || product.id || 0) : 0;
         var trackStock = prodId > 0 && (!product || product.track_stock !== false);
         var qty = product ? product.quantity || 1 : 1;
-        var price = product ? product.price || 0 : 0;
         var partName = product ? (product.name || product.part_name || '') : '';
         var inventoryProduct = allStoreProducts.find(function(p) { return p.id === prodId; });
-        var costPrice = product ? (product.cost_price || (inventoryProduct ? inventoryProduct.cost_price : '')) : '';
+        // costPrice = single price shown to user (purchase price paid to supplier).
+        // Prefer product.cost_price; fall back to product.price (purchase amount).
+        var costPrice = product
+            ? (product.cost_price || product.price || (inventoryProduct ? inventoryProduct.cost_price : ''))
+            : '';
         var shelfNumber = product ? (product.shelf_number || (inventoryProduct ? inventoryProduct.shelf_number : '')) : '';
         var sellingPrice = product ? (product.selling_price || (inventoryProduct ? inventoryProduct.price : '')) : '';
-        return buildItemRowMarkup({ rowId: rowId, productId: prodId, trackStock: trackStock, name: partName, quantity: qty, purchasePrice: price, costPrice: costPrice, shelfNumber: shelfNumber, sellingPrice: sellingPrice, includeExistingItemWarning: false });
+        return buildItemRowMarkup({ rowId: rowId, productId: prodId, trackStock: trackStock, name: partName, quantity: qty, costPrice: costPrice, shelfNumber: shelfNumber, sellingPrice: sellingPrice, includeExistingItemWarning: false });
     }
 
     {{ template "pb-store-product-search-js" . }}
@@ -284,7 +287,7 @@
     }
 
     function sumPurchaseItems() {
-        var prices = document.getElementsByName('products_price');
+        var prices = document.getElementsByName('products_cost_price');
         var qtys = document.getElementsByName('products_quantity');
         var total = 0;
         for (var i = 0; i < Math.max(prices.length, qtys.length); i++) {

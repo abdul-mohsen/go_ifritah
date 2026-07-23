@@ -137,8 +137,8 @@ test.describe('Purchase-bill Excel/CSV import existing-product lookup', () => {
 
     const csrfToken = await getCsrfToken(page);
     const csvBody =
-      'اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف,معرف المنتج (اختياري)\n' +
-      `${name},3,220,205,${shelfNumber},${productId}\n`;
+      'اسم القطعة,الكمية,سعر الشراء,رقم الرف,معرف المنتج (اختياري)\n' +
+      `${name},3,220,${shelfNumber},${productId}\n`;
     const parseResponse = await page.request.post(appURL('/api/purchase-bills/parse-csv'), {
       headers: { 'X-CSRF-Token': csrfToken },
       multipart: { file: { name: 'import-with-id.csv', mimeType: 'text/csv', buffer: Buffer.from(csvBody, 'utf8') } },

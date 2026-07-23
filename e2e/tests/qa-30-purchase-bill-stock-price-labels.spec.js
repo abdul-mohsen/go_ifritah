@@ -10,16 +10,16 @@ async function assertStockRowPriceLabels(page) {
   const row = page.locator('#products-container .item-row').last();
   await expect(row).toBeVisible();
 
-  // Field labels moved from a per-row <label> to a shared column header +
-  // aria-label on each input (compact one-row-per-item layout), so assert
-  // via accessible name instead of sibling <label> text.
-  await expect(row.getByLabel(/سعر التكلفة|Cost Price/)).toBeVisible();
+  // Two price fields since the cost-price column was merged into purchase price:
+  //   - Purchase Price (products_cost_price, aria-label = tpl.pb.purchase_price)
+  //   - Selling Price  (products_selling_price)
+  // The old separate Cost Price column was removed.
   await expect(row.getByLabel(/سعر الشراء|Purchase Price/)).toBeVisible();
   await expect(row.getByLabel(/سعر البيع|Selling Price/)).toBeVisible();
 }
 
 test.describe('Purchase-bill store item price columns', () => {
-  test('add page labels store item prices as purchase price + cost price + selling price', async ({ page }) => {
+  test('add page labels store item prices as purchase price + selling price', async ({ page }) => {
     await login(page);
     await page.goto('/dashboard/purchase-bills/add');
     await page.waitForLoadState('domcontentloaded');
@@ -27,7 +27,7 @@ test.describe('Purchase-bill store item price columns', () => {
     await assertStockRowPriceLabels(page);
   });
 
-  test('edit page labels store item prices as purchase price + cost price + selling price', async ({ page }) => {
+  test('edit page labels store item prices as purchase price + selling price', async ({ page }) => {
     await login(page);
     await page.goto('/dashboard/purchase-bills');
     await page.waitForLoadState('domcontentloaded');

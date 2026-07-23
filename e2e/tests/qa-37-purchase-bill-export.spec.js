@@ -40,6 +40,6 @@ test.describe('Purchase-bill export', () => {
     const csv = (await response.text()).replace(/^\uFEFF/, '');
     // Template gained a trailing optional Product ID column so imports can
     // link a row to an existing catalog product (see qa-39).
-    expect(csv.split(/\r?\n/)[0]).toMatch(/^(Product Name,Quantity,Purchase Price,Cost Price,Shelf Number,Product ID \(optional\)|اسم القطعة,الكمية,سعر الشراء,سعر التكلفة,رقم الرف,معرف المنتج \(اختياري\))$/);
+    expect(csv.split(/\r?\n/)[0]).toMatch(/^(Product Name,Quantity,Purchase Price,Shelf Number,Product ID \(optional\)|اسم القطعة,الكمية,سعر الشراء,رقم الرف,معرف المنتج \(اختياري\))$/);
   });
 });

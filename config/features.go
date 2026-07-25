@@ -11,6 +11,7 @@ const (
 // Feature identifiers are the stable keys used by plan-gating and plugins.
 const (
 	FeatureZATCAInvoicing       = "zatca_invoicing"
+	FeatureZATCAMonitor         = "zatca_monitor"
 	FeatureDashboardAdvanced    = "dashboard_advanced"
 	FeatureDashboardBasic       = "dashboard_basic"
 	FeatureCashVouchersApproval = "cash_vouchers_approval"
@@ -50,6 +51,7 @@ type Plan struct {
 // FeatureCatalog is the single source of truth for plan-gated capabilities.
 var FeatureCatalog = []Feature{
 	{ID: FeatureZATCAInvoicing, MinPlan: PlanSolo, AlwaysOn: true},
+	{ID: FeatureZATCAMonitor, MinPlan: PlanBusiness},
 	{ID: FeatureDashboardAdvanced, MinPlan: PlanGrowth, Replaces: FeatureDashboardBasic},
 	{ID: FeatureCashVouchersApproval, MinPlan: PlanGrowth},
 	{ID: FeatureSupplierLedger, MinPlan: PlanGrowth},

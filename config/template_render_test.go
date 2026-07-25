@@ -36,7 +36,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"zatca-monitor",
 		// Standalone pages
 		"login", "register", "forgot-password",
-		"invoice-preview", "invoice-print", "error-page",
+		"invoice-preview", "invoice-print", "error-page", "upgrade-prompt",
 		// Partials
 		"vin-result", "parts-results", "cars-results", "stock-movements",
 	}
@@ -66,8 +66,9 @@ func TestAllTemplatesExecute(t *testing.T) {
 	// in map[string]interface{}, so we only need to supply data that templates
 	// iterate over (range) or call methods on.
 	minimalData := map[string]interface{}{
-		"title":   "Test",
-		"version": "0.0.0-test",
+		"title":    "Test",
+		"version":  "0.0.0-test",
+		"tenantID": "test-tenant",
 
 		// Common page data
 		"invoices":        []interface{}{},

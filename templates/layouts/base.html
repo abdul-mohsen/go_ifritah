@@ -29,6 +29,41 @@
             animation-duration: 0s !important;
             animation-delay: 0s !important;
         }
+
+        .nav-item-locked {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: calc(100% - 1rem);
+            padding: 0.5rem 0.75rem;
+            margin: 0.125rem 0.5rem;
+            border: 0;
+            color: var(--md-sys-color-on-surface-variant);
+            background: transparent;
+            border-radius: var(--md-sys-shape-full);
+            font: inherit;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            line-height: 1.4;
+            text-align: start;
+            cursor: pointer;
+            opacity: 0.72;
+            transition: background-color 200ms, color 200ms, opacity 200ms;
+        }
+
+        .nav-item-locked:hover,
+        .nav-item-locked:focus-visible {
+            background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+            color: var(--md-sys-color-on-surface);
+            opacity: 1;
+        }
+
+        .nav-item-locked svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
     </style>
     <link href="/static/output.css" rel="stylesheet">
     <!--
@@ -197,6 +232,25 @@
                             </svg>
                             <span class="sidebar-label" data-i18n="nav.suppliers">{{ L "nav.suppliers" }}</span>
                         </a>
+                        {{ if and .tenantID (isEnabled .tenantID "supplier_ledger") }}
+                        <a href="/dashboard/suppliers/statement" data-rbac="suppliers:view" class="nav-link">
+                            <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
+                                fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                <path d="M6 3h12v18H6zM9 7h6M9 11h6M9 15h4" />
+                            </svg>
+                            <span class="sidebar-label" data-i18n="nav.supplier_ledger">{{ L "nav.supplier_ledger" }}</span>
+                        </a>
+                        {{ else }}
+                        <button type="button" class="nav-item-locked" data-feature="supplier_ledger"
+                            data-rbac="suppliers:view" onclick="showUpgradeBanner(this.dataset.feature)">
+                            <svg class="shrink-0" fill="none" stroke="currentColor" stroke-width="1.5"
+                                viewBox="0 0 24 24">
+                                <rect x="5" y="10" width="14" height="10" rx="2" />
+                                <path d="M8 10V7a4 4 0 018 0v3M12 14v2" />
+                            </svg>
+                            <span class="sidebar-label" data-i18n="nav.supplier_ledger">{{ L "nav.supplier_ledger" }}</span>
+                        </button>
+                        {{ end }}
                         <a href="/dashboard/clients" data-rbac="clients:view" class="nav-link">
                             <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
                                 fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -245,6 +299,44 @@
                         </a>
                     </div>
                 </div>
+                <!-- Section: الميزات المتقدمة -->
+                <div class="sidebar-section mt-1.5" data-section="premium">
+                    <button type="button" onclick="toggleNavSection(this.parentElement)"
+                        class="sidebar-section-btn w-full flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-bold uppercase sidebar-label"
+                        style="color: var(--md-sys-color-on-surface-variant)">
+                        <span data-i18n="nav.premium_section">{{ L "nav.premium_section" }}</span>
+                        <svg class="section-chevron transition-transform" style="width:10px;height:10px" fill="none"
+                            stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="sidebar-section-items">
+                        <button type="button" class="nav-item-locked" data-feature="pos_mode"
+                            onclick="showUpgradeBanner(this.dataset.feature)">
+                            <svg class="shrink-0" fill="none" stroke="currentColor" stroke-width="1.5"
+                                viewBox="0 0 24 24">
+                                <path d="M4 5h16v14H4zM8 9h8M8 13h3M15 13h1" />
+                            </svg>
+                            <span class="sidebar-label" data-i18n="nav.pos">{{ L "nav.pos" }}</span>
+                        </button>
+                        <button type="button" class="nav-item-locked" data-feature="vat_return_report"
+                            onclick="showUpgradeBanner(this.dataset.feature)">
+                            <svg class="shrink-0" fill="none" stroke="currentColor" stroke-width="1.5"
+                                viewBox="0 0 24 24">
+                                <path d="M5 20V10M12 20V4M19 20v-7" />
+                            </svg>
+                            <span class="sidebar-label" data-i18n="nav.reports">{{ L "nav.reports" }}</span>
+                        </button>
+                        <button type="button" class="nav-item-locked" data-feature="chart_of_accounts"
+                            onclick="showUpgradeBanner(this.dataset.feature)">
+                            <svg class="shrink-0" fill="none" stroke="currentColor" stroke-width="1.5"
+                                viewBox="0 0 24 24">
+                                <path d="M4 5h16M4 12h16M4 19h16M8 5v14M16 5v14" />
+                            </svg>
+                            <span class="sidebar-label" data-i18n="nav.accounting">{{ L "nav.accounting" }}</span>
+                        </button>
+                    </div>
+                </div>
                 <!-- Section: الإدارة -->
                 <div class="sidebar-section mt-1.5" data-section="admin">
                     <button type="button" onclick="toggleNavSection(this.parentElement)"
@@ -257,6 +349,33 @@
                         </svg>
                     </button>
                     <div class="sidebar-section-items">
+                        <button type="button" class="nav-item-locked" data-feature="user_management"
+                            data-role="admin" onclick="showUpgradeBanner(this.dataset.feature)">
+                            <svg class="shrink-0" fill="none" stroke="currentColor" stroke-width="1.5"
+                                viewBox="0 0 24 24">
+                                <path d="M16 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 11a4 4 0 100-8 4 4 0 000 8zM17 8v6M20 11h-6" />
+                            </svg>
+                            <span class="sidebar-label" data-i18n="nav.users">{{ L "nav.users" }}</span>
+                        </button>
+                        {{ if and .tenantID (isEnabled .tenantID "zatca_monitor") }}
+                        <a href="/dashboard/zatca-monitor" data-role="admin" class="nav-link">
+                            <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
+                                fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                <path d="M4 19V5h16v14H4zM8 15v-3M12 15V8M16 15v-5" />
+                            </svg>
+                            <span class="sidebar-label" data-i18n="nav.zatca_monitor">{{ L "nav.zatca_monitor" }}</span>
+                        </a>
+                        {{ else }}
+                        <button type="button" class="nav-item-locked" data-feature="zatca_monitor"
+                            data-role="admin" onclick="showUpgradeBanner(this.dataset.feature)">
+                            <svg class="shrink-0" fill="none" stroke="currentColor" stroke-width="1.5"
+                                viewBox="0 0 24 24">
+                                <rect x="5" y="10" width="14" height="10" rx="2" />
+                                <path d="M8 10V7a4 4 0 018 0v3M12 14v2" />
+                            </svg>
+                            <span class="sidebar-label" data-i18n="nav.zatca_monitor">{{ L "nav.zatca_monitor" }}</span>
+                        </button>
+                        {{ end }}
                         <a href="/dashboard/settings" data-rbac="settings:view" data-role="admin" class="nav-link">
                             <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
                                 fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -398,12 +517,9 @@
 
             var perms = ROLE_PERMISSIONS[role];
             if (perms !== null && perms !== undefined) {
-                var links = document.querySelectorAll('#sidebar-nav [data-rbac]');
+                var links = document.querySelectorAll('#sidebar-nav [data-rbac], #sidebar-nav [data-role]');
                 for (var i = 0; i < links.length; i++) {
                     var link = links[i];
-                    var parts = link.getAttribute('data-rbac').split(':');
-                    var resource = parts[0];
-                    var action = parts[1];
 
                     // Check data-role restriction first
                     var roleRestriction = link.getAttribute('data-role');
@@ -414,6 +530,14 @@
                             continue;
                         }
                     }
+
+                    var rbac = link.getAttribute('data-rbac');
+                    if (!rbac) {
+                        continue;
+                    }
+                    var parts = rbac.split(':');
+                    var resource = parts[0];
+                    var action = parts[1];
 
                     // Check resource permission
                     if (!perms[resource] || perms[resource].indexOf(action) === -1) {
@@ -441,6 +565,46 @@
                 }
             }
         })();
+    </script>
+    <script>
+        function closeUpgradeModal() {
+            var modal = document.getElementById('upgrade-modal');
+            if (modal) modal.remove();
+        }
+
+        function showUpgradeBanner(featureID) {
+            if (!featureID) return;
+
+            fetch('/upgrade-prompt?feature=' + encodeURIComponent(featureID), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Upgrade prompt request failed: ' + response.status);
+                    }
+                    return response.text();
+                })
+                .then(function (markup) {
+                    var host = document.createElement('div');
+                    host.innerHTML = markup.trim();
+                    var modal = host.firstElementChild;
+                    if (!modal || modal.id !== 'upgrade-modal') {
+                        throw new Error('Upgrade prompt response was invalid');
+                    }
+
+                    closeUpgradeModal();
+                    document.body.appendChild(modal);
+                    if (window.i18n) {
+                        window.i18n.applyLang(window.i18n.getLang());
+                    }
+                    var closeButton = modal.querySelector('[data-upgrade-close]');
+                    if (closeButton) closeButton.focus();
+                })
+                .catch(function (error) {
+                    console.error('Unable to display upgrade prompt', error);
+                    window.alert('تعذر تحميل رسالة الترقية. حاول مرة أخرى.');
+                });
+        }
     </script>
     <script>
         // ── Loading indicator with debounce (avoid flicker on fast loads) ──

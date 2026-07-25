@@ -114,15 +114,29 @@ func RequireFeature(w http.ResponseWriter, r *http.Request, tenantID, featureID 
 	return false
 }
 
-// RenderUpgradePrompt provides a safe fallback until the full upgrade page is
-// available. If its cached template exists, it is used directly.
+// RenderUpgradePrompt renders the cached upgrade fragment, with a plain-text
+// forbidden response as a fallback when templates are unavailable.
 func RenderUpgradePrompt(w http.ResponseWriter, r *http.Request, featureID, currentPlan, requiredPlan string) {
 	if config.Templates != nil {
 		if _, ok := config.Templates["upgrade-prompt"]; ok {
+			currentPlanLabelAR, currentPlanLabelEN := currentPlan, currentPlan
+			if plan, ok := config.PlanCatalog[currentPlan]; ok {
+				currentPlanLabelAR = plan.LabelAR
+				currentPlanLabelEN = plan.LabelEN
+			}
+			requiredPlanLabelAR, requiredPlanLabelEN := requiredPlan, requiredPlan
+			if plan, ok := config.PlanCatalog[requiredPlan]; ok {
+				requiredPlanLabelAR = plan.LabelAR
+				requiredPlanLabelEN = plan.LabelEN
+			}
 			Render(w, r, "upgrade-prompt", map[string]interface{}{
-				"featureID":    featureID,
-				"currentPlan":  currentPlan,
-				"requiredPlan": requiredPlan,
+				"featureID":           featureID,
+				"currentPlan":         currentPlan,
+				"currentPlanLabelAR":  currentPlanLabelAR,
+				"currentPlanLabelEN":  currentPlanLabelEN,
+				"requiredPlan":        requiredPlan,
+				"requiredPlanLabelAR": requiredPlanLabelAR,
+				"requiredPlanLabelEN": requiredPlanLabelEN,
 			})
 			return
 		}

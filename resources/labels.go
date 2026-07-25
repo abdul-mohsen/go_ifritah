@@ -650,7 +650,12 @@ var labels = map[string]Label{
 	"nav.stores":            {Ar: "المخازن", En: "Stores"},
 	"nav.branches":          {Ar: "الفروع", En: "Branches"},
 	"nav.admin_section":     {Ar: "الإدارة", En: "Administration"},
+	"nav.premium_section":   {Ar: "الميزات المتقدمة", En: "Advanced Features"},
 	"nav.users":             {Ar: "إدارة المستخدمين", En: "User Management"},
+	"nav.pos":               {Ar: "نقطة البيع", En: "Point of Sale"},
+	"nav.reports":           {Ar: "التقارير", En: "Reports"},
+	"nav.accounting":        {Ar: "المحاسبة", En: "Accounting"},
+	"nav.supplier_ledger":   {Ar: "كشف حساب الموردين", En: "Supplier Ledger"},
 	"nav.settings":          {Ar: "الإعدادات", En: "Settings"},
 	"nav.zatca_monitor":     {Ar: "مراقبة زاتكا", En: "ZATCA Monitor"},
 	"nav.logout":            {Ar: "تسجيل خروج", En: "Logout"},
@@ -664,6 +669,12 @@ var labels = map[string]Label{
 	"layout.notifications": {Ar: "الإشعارات", En: "Notifications"},
 	"layout.dark_mode":     {Ar: "الوضع الداكن", En: "Dark Mode"},
 	"layout.all_rights":    {Ar: "جميع الحقوق محفوظة.", En: "All rights reserved."},
+
+	"upgrade.title":         {Ar: "الترقية مطلوبة", En: "Upgrade Required"},
+	"upgrade.message":       {Ar: "هذه الميزة غير متاحة في خطتك الحالية.", En: "This feature is not available on your current plan."},
+	"upgrade.current_plan":  {Ar: "الخطة الحالية", En: "Current plan"},
+	"upgrade.required_plan": {Ar: "الخطة المطلوبة", En: "Required plan"},
+	"upgrade.close":         {Ar: "إغلاق", En: "Close"},
 
 	// ── Common Template Labels (shared across pages) ─────────────────
 	"tpl.search":         {Ar: "بحث", En: "Search"},

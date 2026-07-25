@@ -15,6 +15,12 @@
             'nav.stores': 'المخازن',
             'nav.branches': 'الفروع',
             'nav.users': 'إدارة المستخدمين',
+            'nav.premium_section': 'الميزات المتقدمة',
+            'nav.pos': 'نقطة البيع',
+            'nav.reports': 'التقارير',
+            'nav.accounting': 'المحاسبة',
+            'nav.supplier_ledger': 'كشف حساب الموردين',
+            'nav.zatca_monitor': 'مراقبة زاتكا',
             'nav.settings': 'الإعدادات',
             'nav.logout': 'تسجيل خروج',
             'nav.cash_vouchers': 'سندات القبض والصرف',
@@ -142,6 +148,13 @@
             'settings.low_stock_alerts': 'تنبيهات المخزون المنخفض',
             'settings.save_success': 'تم حفظ الإعدادات بنجاح',
 
+            // Upgrade prompt
+            'upgrade.title': 'الترقية مطلوبة',
+            'upgrade.message': 'هذه الميزة غير متاحة في خطتك الحالية.',
+            'upgrade.current_plan': 'الخطة الحالية',
+            'upgrade.required_plan': 'الخطة المطلوبة',
+            'upgrade.close': 'إغلاق',
+
             // Search
             'search.parts_title': 'البحث عن قطع غيار',
             'search.cars_title': 'البحث عن سيارات',
@@ -188,10 +201,16 @@
             'nav.stores': 'Stores',
             'nav.branches': 'Branches',
             'nav.users': 'User Management',
+            'nav.premium_section': 'Advanced Features',
             'nav.settings': 'Settings',
             'nav.logout': 'Logout',
             'nav.cash_vouchers': 'Cash Vouchers',
             'nav.stock_adjustments': 'Stock Adjustments',
+            'nav.pos': 'Point of Sale',
+            'nav.reports': 'Reports',
+            'nav.accounting': 'Accounting',
+            'nav.supplier_ledger': 'Supplier Ledger',
+            'nav.zatca_monitor': 'ZATCA Monitor',
 
             // Settings sidebar
             'settings.dark_mode': 'Dark Mode',
@@ -315,6 +334,13 @@
             'settings.low_stock_alerts': 'Low Stock Alerts',
             'settings.save_success': 'Settings saved successfully',
 
+            // Upgrade prompt
+            'upgrade.title': 'Upgrade Required',
+            'upgrade.message': 'This feature is not available on your current plan.',
+            'upgrade.current_plan': 'Current plan',
+            'upgrade.required_plan': 'Required plan',
+            'upgrade.close': 'Close',
+
             // Search
             'search.parts_title': 'Parts Search',
             'search.cars_title': 'Cars Search',
@@ -390,6 +416,13 @@
                     els[i].setAttribute('placeholder', text);
                 } else {
                     els[i].textContent = text;
+                }
+
+                var planEls = document.querySelectorAll('[data-plan-ar]');
+                for (var p = 0; p < planEls.length; p++) {
+                    planEls[p].textContent = lang === 'en'
+                        ? planEls[p].getAttribute('data-plan-en')
+                        : planEls[p].getAttribute('data-plan-ar');
                 }
             }
         }

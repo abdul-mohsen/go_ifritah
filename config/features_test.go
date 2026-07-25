@@ -11,6 +11,14 @@ func TestGetFeature(t *testing.T) {
 		t.Fatalf("supplier_ledger minimum plan = %q, want %q", feature.MinPlan, PlanGrowth)
 	}
 
+	monitor := GetFeature(FeatureZATCAMonitor)
+	if monitor == nil {
+		t.Fatal("GetFeature returned nil for zatca_monitor")
+	}
+	if monitor.MinPlan != PlanBusiness {
+		t.Fatalf("zatca_monitor minimum plan = %q, want %q", monitor.MinPlan, PlanBusiness)
+	}
+
 	if GetFeature("missing_feature") != nil {
 		t.Fatal("GetFeature returned an entry for an unknown feature")
 	}

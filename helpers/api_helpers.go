@@ -1555,6 +1555,7 @@ func ParseBillRaw(raw map[string]interface{}, id string) (models.Invoice, []mode
 		"maintenance_cost", "url", "credit_note", "qr_code",
 		"supplier_id", "supplier_sequence_number",
 		"payment_method", "branch_id", "branch_name", "deliver_date",
+		"received_at",
 		"client_id", "vin", "pdf_link", "attachments",
 	} {
 		if v, exists := raw[key]; exists {
@@ -1571,13 +1572,35 @@ func ParseBillRaw(raw map[string]interface{}, id string) (models.Invoice, []mode
 		extra["payment_due_date"] = pdd
 	}
 
-	// Parse deliver_date (may be nested or plain string)
-	if dd, ok := raw["deliver_date"].(map[string]interface{}); ok {
-		if t, ok := dd["Time"].(string); ok {
-			extra["deliver_date"] = t
+	// Normalize nullable date fields (may be nested or plain strings). A
+	// nullable backend value with Valid=false must not look truthy to a
+	// template conditional.
+	for _, key := range []string{"deliver_date", "received_at"} {
+		value, exists := raw[key]
+		if !exists || value == nil {
+			delete(extra, key)
+			continue
 		}
-	} else if dd, ok := raw["deliver_date"].(string); ok && dd != "" {
-		extra["deliver_date"] = dd
+		switch dateValue := value.(type) {
+		case map[string]interface{}:
+			if valid, hasValid := dateValue["Valid"].(bool); hasValid && !valid {
+				delete(extra, key)
+				continue
+			}
+			if timestamp, ok := dateValue["Time"].(string); ok && timestamp != "" {
+				extra[key] = timestamp
+			} else {
+				delete(extra, key)
+			}
+		case string:
+			if dateValue == "" {
+				delete(extra, key)
+			} else {
+				extra[key] = dateValue
+			}
+		default:
+			delete(extra, key)
+		}
 	}
 
 	return inv, products, manualProducts, extra, nil

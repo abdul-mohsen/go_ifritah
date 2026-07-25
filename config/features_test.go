@@ -19,6 +19,14 @@ func TestGetFeature(t *testing.T) {
 		t.Fatalf("zatca_monitor minimum plan = %q, want %q", monitor.MinPlan, PlanBusiness)
 	}
 
+	receipt := GetFeature(FeaturePurchaseBillReceipt)
+	if receipt == nil {
+		t.Fatal("GetFeature returned nil for purchase_bill_receipt")
+	}
+	if receipt.MinPlan != PlanBusiness {
+		t.Fatalf("purchase_bill_receipt minimum plan = %q, want %q", receipt.MinPlan, PlanBusiness)
+	}
+
 	if GetFeature("missing_feature") != nil {
 		t.Fatal("GetFeature returned an entry for an unknown feature")
 	}

@@ -38,7 +38,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"login", "register", "forgot-password",
 		"invoice-preview", "invoice-print", "error-page", "upgrade-prompt",
 		// Partials
-		"vin-result", "parts-results", "cars-results", "stock-movements",
+		"vin-result", "parts-results", "cars-results", "stock-movements", "purchase-bill-header",
 	}
 
 	for _, name := range expected {
@@ -115,6 +115,8 @@ func TestAllTemplatesExecute(t *testing.T) {
 		"effective_date":      "",
 		"payment_due_date":    "",
 		"deliver_date":        "",
+		"received_date":       "",
+		"receipt_enabled":     false,
 		"bill_payment_method": "",
 		"store_name":          "",
 		"company_name":        "",

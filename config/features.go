@@ -29,6 +29,7 @@ const (
 	FeatureAVCOValuation        = "avco_valuation"
 	FeaturePOWorkflow           = "po_workflow"
 	FeatureBankReconciliation   = "bank_reconciliation"
+	FeaturePurchaseBillReceipt  = "purchase_bill_receipt"
 )
 
 // Feature describes a capability and the minimum plan required to use it.
@@ -68,6 +69,7 @@ var FeatureCatalog = []Feature{
 	{ID: FeatureAVCOValuation, MinPlan: PlanEnterprise},
 	{ID: FeaturePOWorkflow, MinPlan: PlanEnterprise},
 	{ID: FeatureBankReconciliation, MinPlan: PlanEnterprise},
+	{ID: FeaturePurchaseBillReceipt, MinPlan: PlanBusiness},
 }
 
 // PlanCatalog contains the plan levels, prices, and localized labels.

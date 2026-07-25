@@ -423,10 +423,11 @@ func LoadTemplates() {
 
 	// ── Partials (HTMX fragments) ─────────────────────────────────
 	partials := map[string]string{
-		"vin-result":      filepath.Join(BaseDir, "templates/partials/vin-result.html"),
-		"parts-results":   filepath.Join(BaseDir, "templates/partials/parts-results.html"),
-		"cars-results":    filepath.Join(BaseDir, "templates/partials/cars-results.html"),
-		"stock-movements": filepath.Join(BaseDir, "templates/partials/stock-movements.html"),
+		"vin-result":           filepath.Join(BaseDir, "templates/partials/vin-result.html"),
+		"parts-results":        filepath.Join(BaseDir, "templates/partials/parts-results.html"),
+		"cars-results":         filepath.Join(BaseDir, "templates/partials/cars-results.html"),
+		"stock-movements":      filepath.Join(BaseDir, "templates/partials/stock-movements.html"),
+		"purchase-bill-header": filepath.Join(BaseDir, "templates/components/purchase-bill-header.html"),
 	}
 
 	for name, page := range partials {

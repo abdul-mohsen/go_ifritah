@@ -27,6 +27,42 @@ type purchaseBillDuplicateCheckRequest struct {
 	SupplierSequenceNumber uint64 `json:"supplier_sequence_number"`
 }
 
+func purchaseBillReceiptEnabled(r *http.Request) bool {
+	tenantID := config.TenantID
+	if value, ok := r.Context().Value(config.TenantIDContextKey).(string); ok && value != "" {
+		tenantID = value
+	}
+	return helpers.IsEnabled(tenantID, config.FeaturePurchaseBillReceipt)
+}
+
+func purchaseBillHeaderData(r *http.Request, invoice models.Invoice, extra map[string]interface{}, id string) map[string]interface{} {
+	status, statusClass := helpers.InvoiceStatus(invoice)
+	status = helpers.TranslateInvoiceStatus(status)
+
+	effectiveDate := ""
+	if invoice.EffectiveDate.Valid && invoice.EffectiveDate.Time != "" {
+		effectiveDate = helpers.ToDisplayDate(invoice.EffectiveDate.Time)
+	}
+
+	supplierSeqNum := ""
+	if v, ok := extra["supplier_sequence_number"].(string); ok && v != "" {
+		supplierSeqNum = v
+	} else if v, ok := helpers.CoerceFloat(extra["supplier_sequence_number"]); ok && v > 0 {
+		supplierSeqNum = fmt.Sprintf("%.0f", v)
+	}
+
+	return map[string]interface{}{
+		"bill":                     invoice,
+		"bill_id":                  id,
+		"status_label":             status,
+		"status_class":             statusClass,
+		"effective_date":           effectiveDate,
+		"supplier_sequence_number": supplierSeqNum,
+		"received_date":            extractDateField(extra["received_at"]),
+		"receipt_enabled":          purchaseBillReceiptEnabled(r),
+	}
+}
+
 // HandlePurchaseBills renders the purchase bills list page.
 func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 	token, ok := helpers.GetTokenOrRedirect(w, r)
@@ -283,31 +319,8 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Status label and class
-	status, statusClass := helpers.InvoiceStatus(invoice)
-	status = helpers.TranslateInvoiceStatus(status)
-
-	// Format effective date. Re-localize to Riyadh rather than slicing the
-	// raw string - the backend may return a UTC-offset timestamp, and a naive
-	// [:10] slice silently shifts the calendar date by a day.
-	effectiveDate := ""
-	if invoice.EffectiveDate.Valid && invoice.EffectiveDate.Time != "" {
-		effectiveDate = helpers.ToDisplayDate(invoice.EffectiveDate.Time)
-	}
-
-	// Supplier sequence number
-	supplierSeqNum := ""
-	if v, ok := extra["supplier_sequence_number"].(string); ok && v != "" {
-		supplierSeqNum = v
-	} else if v, ok := helpers.CoerceFloat(extra["supplier_sequence_number"]); ok && v > 0 {
-		supplierSeqNum = fmt.Sprintf("%.0f", v)
-	}
-
 	// Deliver date
-	deliverDate := ""
-	if v, ok := extra["deliver_date"].(string); ok {
-		deliverDate = helpers.ToDisplayDate(v)
-	}
+	deliverDate := extractDateField(extra["deliver_date"])
 
 	// Note
 	note := ""
@@ -355,37 +368,102 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	helpers.Render(w, r, "purchase-bill-detail", map[string]interface{}{
-		"title":                    "تفاصيل فاتورة المشتريات",
-		"bill":                     invoice,
-		"bill_id":                  id,
-		"catalog_products":         products,
-		"manual_products":          manualProducts,
-		"products_subtotal":        helpers.SumBillItemsTotal(products),
-		"manual_subtotal":          helpers.SumBillItemsTotal(manualProducts),
+	data := map[string]interface{}{
+		"title":             "تفاصيل فاتورة المشتريات",
+		"bill":              invoice,
+		"bill_id":           id,
+		"catalog_products":  products,
+		"manual_products":   manualProducts,
+		"products_subtotal": helpers.SumBillItemsTotal(products),
+		"manual_subtotal":   helpers.SumBillItemsTotal(manualProducts),
 		// Detail view merges catalog+manual into one items table (a single
 		// per-row badge distinguishes the two, matching add/edit's item
 		// list) - needs one combined subtotal rather than the two separate
 		// per-table ones above (kept for back-compat, no longer rendered).
-		"items_subtotal": helpers.SumBillItemsTotal(append(append([]models.BillItem{}, products...), manualProducts...)),
-		"store_name":               storeName,
-		"supplier_name":            supplierName,
-		"supplier":                 matchedSupplier,
-		"store_id":                 storeID,
-		"merchant_id":              merchantID,
-		"status_label":             status,
-		"status_class":             statusClass,
-		"effective_date":           effectiveDate,
-		"payment_due_date":         paymentDueDate,
-		"type_label":               typeLabel,
-		"total_display":            fmt.Sprintf("%.2f", total),
-		"vat_amount":               invoice.VAT,
-		"supplier_sequence_number": supplierSeqNum,
-		"deliver_date":             deliverDate,
-		"note":                     note,
-		"payment_method":           paymentMethod,
-		"pdf_link_key":             pdfLinkKey,
-	})
+		"items_subtotal":   helpers.SumBillItemsTotal(append(append([]models.BillItem{}, products...), manualProducts...)),
+		"store_name":       storeName,
+		"supplier_name":    supplierName,
+		"supplier":         matchedSupplier,
+		"store_id":         storeID,
+		"merchant_id":      merchantID,
+		"payment_due_date": paymentDueDate,
+		"type_label":       typeLabel,
+		"total_display":    fmt.Sprintf("%.2f", total),
+		"vat_amount":       invoice.VAT,
+		"deliver_date":     deliverDate,
+		"note":             note,
+		"payment_method":   paymentMethod,
+		"pdf_link_key":     pdfLinkKey,
+	}
+	for key, value := range purchaseBillHeaderData(r, invoice, extra, id) {
+		data[key] = value
+	}
+
+	helpers.Render(w, r, "purchase-bill-detail", data)
+}
+
+// HandleMarkPurchaseBillReceived confirms receipt of the purchase bill's goods.
+func HandleMarkPurchaseBillReceived(w http.ResponseWriter, r *http.Request) {
+	handlePurchaseBillReceipt(w, r, http.MethodPut)
+}
+
+// HandleUnmarkPurchaseBillReceived clears the purchase bill receipt confirmation.
+func HandleUnmarkPurchaseBillReceived(w http.ResponseWriter, r *http.Request) {
+	handlePurchaseBillReceipt(w, r, http.MethodDelete)
+}
+
+func handlePurchaseBillReceipt(w http.ResponseWriter, r *http.Request, method string) {
+	id := mux.Vars(r)["id"]
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return
+	}
+
+	req, err := http.NewRequestWithContext(
+		r.Context(),
+		method,
+		config.BackendDomain+"/api/v2/purchase_bill/"+id+"/received",
+		nil,
+	)
+	if err != nil {
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "تعذر تحديث حالة الاستلام")
+		return
+	}
+
+	resp, err := helpers.DoAuthedRequest(req, token)
+	if err != nil {
+		if helpers.IsUnauthorizedError(err) {
+			helpers.HandleUnauthorized(w, r)
+			return
+		}
+		helpers.WriteErrorResponse(w, http.StatusBadGateway, nil, "تعذر الاتصال بخادم الفواتير")
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		helpers.HandleUnauthorized(w, r)
+		return
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		helpers.WriteErrorResponse(w, resp.StatusCode, resp, "تعذر تحديث حالة الاستلام")
+		return
+	}
+
+	helpers.APICache.Delete("purchase_bills")
+	invoice, _, _, extra, err := helpers.FetchPurchaseBillDetail(token, id)
+	if err != nil {
+		if helpers.IsUnauthorizedError(err) {
+			helpers.HandleUnauthorized(w, r)
+			return
+		}
+		helpers.WriteErrorResponse(w, http.StatusBadGateway, nil, "تم التحديث لكن تعذر تحميل حالة الفاتورة")
+		return
+	}
+
+	data := purchaseBillHeaderData(r, invoice, extra, id)
+	data["receipt_oob"] = true
+	helpers.RenderPartial(w, "purchase-bill-header", data)
 }
 
 // HandleEditPurchaseBill renders the edit purchase bill form.

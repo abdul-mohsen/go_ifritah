@@ -142,6 +142,8 @@ func main() {
 	router.HandleFunc("/api/purchase-bills/parse-csv", protect("purchase_bills", "add", handlers.HandleParseCSVItems)).Methods("POST")
 	router.HandleFunc("/api/purchase-bills/{id}", protect("purchase_bills", "view", handlers.HandleGetPurchaseBill)).Methods("GET")
 	router.HandleFunc("/api/purchase-bills/{id}", protect("purchase_bills", "edit", handlers.HandleUpdatePurchaseBill)).Methods("PUT")
+	router.HandleFunc("/api/purchase-bills/{id}/received", protect("purchase_bills", "edit", requireFeature(config.FeaturePurchaseBillReceipt, handlers.HandleMarkPurchaseBillReceived))).Methods("PUT")
+	router.HandleFunc("/api/purchase-bills/{id}/received", protect("purchase_bills", "edit", requireFeature(config.FeaturePurchaseBillReceipt, handlers.HandleUnmarkPurchaseBillReceived))).Methods("DELETE")
 	router.HandleFunc("/api/purchase-bills/{id}", protect("purchase_bills", "delete", handlers.HandleDeletePurchaseBill)).Methods("DELETE")
 	router.HandleFunc("/api/purchase-bills", protect("purchase_bills", "add", handlers.HandleCreatePurchaseBill)).Methods("POST")
 

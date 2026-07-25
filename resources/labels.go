@@ -1594,6 +1594,7 @@ var labels = map[string]Label{
 	"zatca_monitor.type_simplified":    {Ar: "مبسطة", En: "Simplified"},
 	"zatca_monitor.retry":              {Ar: "إعادة إرسال", En: "Retry"},
 	"zatca_monitor.details":            {Ar: "التفاصيل", En: "Details"},
+	"zatca_monitor.load_error":         {Ar: "تعذر تحميل بيانات مراقبة زاتكا من الخادم حالياً", En: "Unable to load ZATCA monitor data from the server"},
 
 	// ── Import Bills / Purchase Bills ────────────────────────
 	// Page titles & navigation

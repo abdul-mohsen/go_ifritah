@@ -34,6 +34,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"cash-vouchers", "add-cash-voucher", "cash-voucher-detail", "edit-cash-voucher",
 		"stock-adjustments", "notifications", "supplier-report", "supplier-statement",
 		"zatca-monitor", "users", "add-user", "edit-user",
+		"onboarding",
 		// Standalone pages
 		"login", "register", "forgot-password",
 		"invoice-preview", "invoice-print", "error-page", "upgrade-prompt",
@@ -81,6 +82,7 @@ func TestAllTemplatesExecute(t *testing.T) {
 		"users":           []interface{}{},
 		"all_products":    []interface{}{},
 		"manual_products": []interface{}{},
+		"zatca":           []interface{}{},
 
 		// Pagination
 		"pagination": map[string]interface{}{

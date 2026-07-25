@@ -1,0 +1,497 @@
+{{ define "content" }}
+<div id="onboarding-page" class="mx-auto max-w-4xl space-y-6">
+    <header class="page-header">
+        <div>
+            <h1 class="page-title">إعداد حسابك</h1>
+            <p class="page-subtitle">أكمل الخطوات الأساسية للبدء باستخدام عفريته.</p>
+        </div>
+    </header>
+
+    <div id="onboarding-error" role="alert"
+        class="{{ if not .error }}hidden {{ end }}rounded-xl border px-4 py-3"
+        style="background: var(--md-sys-color-error-container); border-color: var(--md-sys-color-error); color: var(--md-sys-color-on-error-container)">
+        {{ .error }}
+    </div>
+
+    <ol id="onboarding-progress" class="grid grid-cols-5 gap-2" aria-label="تقدم الإعداد">
+        <li data-progress-step="1" class="flex items-center gap-2 text-sm font-semibold">
+            <span class="progress-dot flex h-8 w-8 items-center justify-center rounded-full border">1</span>
+            <span class="hidden sm:inline">الشركة</span>
+        </li>
+        <li data-progress-step="2" class="flex items-center gap-2 text-sm font-semibold">
+            <span class="progress-dot flex h-8 w-8 items-center justify-center rounded-full border">2</span>
+            <span class="hidden sm:inline">الفرع والمخزن</span>
+        </li>
+        <li data-progress-step="3" class="flex items-center gap-2 text-sm font-semibold">
+            <span class="progress-dot flex h-8 w-8 items-center justify-center rounded-full border">3</span>
+            <span class="hidden sm:inline">المنتجات</span>
+        </li>
+        <li data-progress-step="4" class="flex items-center gap-2 text-sm font-semibold">
+            <span class="progress-dot flex h-8 w-8 items-center justify-center rounded-full border">4</span>
+            <span class="hidden sm:inline">المورد</span>
+        </li>
+        <li data-progress-step="5" class="flex items-center gap-2 text-sm font-semibold">
+            <span class="progress-dot flex h-8 w-8 items-center justify-center rounded-full border">5</span>
+            <span class="hidden sm:inline">الفوترة الإلكترونية</span>
+        </li>
+    </ol>
+
+    <section data-step-panel="1" class="section-card">
+        <h2 class="section-card-title">بيانات الشركة</h2>
+        <p class="mb-5 text-sm" style="color: var(--md-sys-color-on-surface-variant)">يمكنك تعديل هذه البيانات لاحقاً من الإعدادات.</p>
+        <form id="onboarding-company-form" class="space-y-4">
+            <input type="hidden" name="section" value="company">
+            <input type="hidden" name="csrf_token" value="{{ .csrf_token }}">
+            <div>
+                <label class="form-label" for="onboarding-company-name">اسم الشركة <span class="required-mark">*</span></label>
+                <input id="onboarding-company-name" name="company_name" class="w-full" required maxlength="150"
+                    value="{{ index .settings "company_name" }}" autocomplete="organization">
+            </div>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                    <label class="form-label" for="onboarding-company-vat">الرقم الضريبي</label>
+                    <input id="onboarding-company-vat" name="company_vat" class="w-full" maxlength="15"
+                        value="{{ index .settings "company_vat" }}" inputmode="numeric">
+                </div>
+                <div>
+                    <label class="form-label" for="onboarding-company-cr">السجل التجاري</label>
+                    <input id="onboarding-company-cr" name="company_cr" class="w-full" maxlength="50"
+                        value="{{ index .settings "company_cr" }}">
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="btn btn-filled">التالي</button>
+            </div>
+        </form>
+    </section>
+
+    <section data-step-panel="2" class="section-card hidden">
+        <h2 class="section-card-title">الفرع والمخزن</h2>
+        <p id="onboarding-location-hint" class="mb-5 text-sm" style="color: var(--md-sys-color-on-surface-variant)">
+            أضف أول فرع ومخزن لتسجيل المبيعات والمخزون.
+        </p>
+        <form id="onboarding-location-form" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ .csrf_token }}">
+            <div>
+                <label class="form-label" for="onboarding-branch-name">اسم الفرع <span class="required-mark">*</span></label>
+                <input id="onboarding-branch-name" name="branch_name" class="w-full" required maxlength="100"
+                    autocomplete="organization">
+            </div>
+            <div>
+                <label class="form-label" for="onboarding-store-name">اسم المخزن <span class="required-mark">*</span></label>
+                <input id="onboarding-store-name" name="store_name" class="w-full" required maxlength="100">
+            </div>
+            <div class="flex justify-between gap-3">
+                <button type="button" data-back-step="1" class="btn btn-tonal">السابق</button>
+                <button type="submit" class="btn btn-filled">حفظ ومتابعة</button>
+            </div>
+        </form>
+    </section>
+
+    <section data-step-panel="3" class="section-card hidden">
+        <h2 class="section-card-title">أضف منتجاتك</h2>
+        <p class="mb-5 text-sm" style="color: var(--md-sys-color-on-surface-variant)">أضف حتى ثلاثة منتجات للبدء، أو تخطَّ هذه الخطوة.</p>
+        <form id="onboarding-products-form" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ .csrf_token }}">
+            <div id="onboarding-product-rows" class="space-y-3">
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2" data-product-row>
+                    <div>
+                        <label class="form-label" for="onboarding-product-name-1">اسم المنتج 1</label>
+                        <input id="onboarding-product-name-1" name="product_name_1" class="w-full" maxlength="150">
+                    </div>
+                    <div>
+                        <label class="form-label" for="onboarding-product-price-1">السعر</label>
+                        <input id="onboarding-product-price-1" name="product_price_1" type="number" min="0" step="1" class="w-full">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2" data-product-row>
+                    <div>
+                        <label class="form-label" for="onboarding-product-name-2">اسم المنتج 2</label>
+                        <input id="onboarding-product-name-2" name="product_name_2" class="w-full" maxlength="150">
+                    </div>
+                    <div>
+                        <label class="form-label" for="onboarding-product-price-2">السعر</label>
+                        <input id="onboarding-product-price-2" name="product_price_2" type="number" min="0" step="1" class="w-full">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2" data-product-row>
+                    <div>
+                        <label class="form-label" for="onboarding-product-name-3">اسم المنتج 3</label>
+                        <input id="onboarding-product-name-3" name="product_name_3" class="w-full" maxlength="150">
+                    </div>
+                    <div>
+                        <label class="form-label" for="onboarding-product-price-3">السعر</label>
+                        <input id="onboarding-product-price-3" name="product_price_3" type="number" min="0" step="1" class="w-full">
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-between gap-3">
+                <button type="button" data-back-step="2" class="btn btn-tonal">السابق</button>
+                <div class="flex gap-2">
+                    <button type="button" id="onboarding-products-skip" class="btn btn-tonal">تخطي</button>
+                    <button type="submit" class="btn btn-filled">حفظ ومتابعة</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <section data-step-panel="4" class="section-card hidden">
+        <h2 class="section-card-title">أضف مورداً</h2>
+        <p class="mb-5 text-sm" style="color: var(--md-sys-color-on-surface-variant)">يمكنك إضافة الموردين لاحقاً من قائمة الموردين.</p>
+        <form id="onboarding-supplier-form" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ .csrf_token }}">
+            <div>
+                <label class="form-label" for="onboarding-supplier-name">اسم المورد</label>
+                <input id="onboarding-supplier-name" name="name" class="w-full" maxlength="100">
+            </div>
+            <div>
+                <label class="form-label" for="onboarding-supplier-phone">الهاتف</label>
+                <input id="onboarding-supplier-phone" name="phone_number" type="tel" class="w-full" inputmode="tel"
+                    placeholder="05xxxxxxxx">
+            </div>
+            <div class="flex justify-between gap-3">
+                <button type="button" data-back-step="3" class="btn btn-tonal">السابق</button>
+                <div class="flex gap-2">
+                    <button type="button" id="onboarding-supplier-skip" class="btn btn-tonal">تخطي</button>
+                    <button type="submit" class="btn btn-filled">حفظ ومتابعة</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <section data-step-panel="5" class="section-card hidden">
+        <h2 class="section-card-title">حالة الفوترة الإلكترونية</h2>
+        <p class="mb-5 text-sm" style="color: var(--md-sys-color-on-surface-variant)">
+            راجع حالة الربط لكل فرع. يمكنك إكمال الإعداد الآن أو المتابعة إلى لوحة التحكم.
+        </p>
+        <div id="onboarding-zatca-status" class="space-y-3">
+            {{ range .zatca }}
+            <div class="flex items-center justify-between gap-3 rounded-xl border px-4 py-3">
+                <span>{{ .BranchName }}</span>
+                <span class="text-sm font-semibold" style="color: {{ if eq .Status 1 }}var(--md-sys-color-primary){{ else if .Configured }}var(--md-sys-color-tertiary){{ else }}var(--md-sys-color-error){{ end }}">
+                    {{ if eq .Status 1 }}تم الربط{{ else if .Configured }}تم الإعداد{{ else }}غير مُعد{{ end }}
+                </span>
+            </div>
+            {{ else }}
+            <p class="rounded-xl border px-4 py-3 text-sm">أضف فرعاً لعرض حالة الفوترة الإلكترونية.</p>
+            {{ end }}
+        </div>
+        <div class="mt-5 flex flex-wrap justify-between gap-3">
+            <button type="button" data-back-step="4" class="btn btn-tonal">السابق</button>
+            <div class="flex gap-2">
+                <a href="/dashboard/settings#zatca" class="btn btn-tonal">تهيئة ZATCA</a>
+                <button type="button" id="onboarding-complete" class="btn btn-filled">إنهاء الإعداد</button>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    (function () {
+        'use strict';
+
+        var csrfToken = {{ json .csrf_token }};
+        if (!csrfToken) {
+            var csrfCookie = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+            if (csrfCookie) {
+                csrfToken = decodeURIComponent(csrfCookie[1]);
+            }
+        }
+        var initialState = {
+            branches: {{ json .branches }},
+            stores: {{ json .stores }},
+            zatca: {{ json .zatca }}
+        };
+        var tenantID = {{ json .tenantID }};
+        var storageKey = 'afrita_onboarding_step_' + (tenantID || 'default');
+        var currentStep = 1;
+
+        function readStoredStep() {
+            try {
+                var stored = Number.parseInt(sessionStorage.getItem(storageKey), 10);
+                return stored >= 1 && stored <= 5 ? stored : 1;
+            } catch (_) {
+                return 1;
+            }
+        }
+
+        function writeStoredStep(step) {
+            try {
+                sessionStorage.setItem(storageKey, String(step));
+            } catch (_) {
+                // The wizard still works when sessionStorage is unavailable.
+            }
+        }
+
+        function showError(message) {
+            var error = document.getElementById('onboarding-error');
+            error.textContent = message;
+            error.classList.remove('hidden');
+        }
+
+        function clearError() {
+            var error = document.getElementById('onboarding-error');
+            error.textContent = '';
+            error.classList.add('hidden');
+        }
+
+        function setBusy(form, busy) {
+            form.querySelectorAll('button').forEach(function (button) {
+                button.disabled = busy;
+            });
+        }
+
+        function showStep(step) {
+            currentStep = step;
+            writeStoredStep(step);
+            document.querySelectorAll('[data-step-panel]').forEach(function (panel) {
+                panel.classList.toggle('hidden', Number(panel.dataset.stepPanel) !== step);
+            });
+            document.querySelectorAll('[data-progress-step]').forEach(function (item) {
+                var itemStep = Number(item.dataset.progressStep);
+                var dot = item.querySelector('.progress-dot');
+                item.setAttribute('aria-current', itemStep === step ? 'step' : 'false');
+                dot.style.background = itemStep === step
+                    ? 'var(--md-sys-color-primary)'
+                    : itemStep < step ? 'var(--md-sys-color-primary-container)' : 'transparent';
+                dot.style.color = itemStep === step
+                    ? 'var(--md-sys-color-on-primary)'
+                    : 'var(--md-sys-color-on-surface)';
+                dot.style.borderColor = itemStep <= step
+                    ? 'var(--md-sys-color-primary)'
+                    : 'var(--md-sys-color-outline-variant)';
+            });
+        }
+
+        async function postForm(url, formData) {
+            if (!formData.has('csrf_token')) {
+                formData.append('csrf_token', csrfToken);
+            }
+            var response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                headers: { 'X-CSRF-Token': csrfToken },
+                redirect: 'manual'
+            });
+            var redirected = response.type === 'opaqueredirect' ||
+                (response.status >= 300 && response.status < 400) ||
+                response.headers.has('HX-Redirect');
+            if (!redirected) {
+                throw new Error('request did not complete: ' + response.status);
+            }
+            return response;
+        }
+
+        async function refreshState() {
+            var response = await fetch('/api/onboarding/state', {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!response.ok) {
+                throw new Error('state request failed: ' + response.status);
+            }
+            var state = await response.json();
+            initialState = state;
+            renderZatca(state.zatca || []);
+            return state;
+        }
+
+        function renderZatca(statuses) {
+            var container = document.getElementById('onboarding-zatca-status');
+            container.textContent = '';
+            if (!statuses.length) {
+                var empty = document.createElement('p');
+                empty.className = 'rounded-xl border px-4 py-3 text-sm';
+                empty.textContent = 'أضف فرعاً لعرض حالة الفوترة الإلكترونية.';
+                container.appendChild(empty);
+                return;
+            }
+            statuses.forEach(function (status) {
+                var row = document.createElement('div');
+                row.className = 'flex items-center justify-between gap-3 rounded-xl border px-4 py-3';
+                var name = document.createElement('span');
+                name.textContent = status.branch_name || 'فرع';
+                var label = document.createElement('span');
+                label.className = 'text-sm font-semibold';
+                label.textContent = status.status === 1
+                    ? 'تم الربط'
+                    : status.configured ? 'تم الإعداد' : 'غير مُعد';
+                label.style.color = status.status === 1
+                    ? 'var(--md-sys-color-primary)'
+                    : status.configured ? 'var(--md-sys-color-tertiary)' : 'var(--md-sys-color-error)';
+                row.appendChild(name);
+                row.appendChild(label);
+                container.appendChild(row);
+            });
+        }
+
+        async function saveCompany(event) {
+            event.preventDefault();
+            clearError();
+            var form = event.currentTarget;
+            setBusy(form, true);
+            try {
+                await postForm('/dashboard/settings', new FormData(form));
+                showStep(2);
+            } catch (_) {
+                showError('تعذر حفظ بيانات الشركة. حاول مرة أخرى.');
+            } finally {
+                setBusy(form, false);
+            }
+        }
+
+        async function saveLocation(event) {
+            event.preventDefault();
+            clearError();
+            var form = event.currentTarget;
+            var branchName = form.elements.branch_name.value.trim();
+            var storeName = form.elements.store_name.value.trim();
+            if (!branchName || !storeName) {
+                showError('يرجى إدخال اسم الفرع واسم المخزن.');
+                return;
+            }
+            setBusy(form, true);
+            try {
+                var state = await refreshState();
+                var branch = state.branches[0];
+                if (!branch) {
+                    var branchForm = new FormData();
+                    branchForm.append('name', branchName);
+                    branchForm.append('location', branchName);
+                    branchForm.append('phone', '');
+                    await postForm('/dashboard/branches/create', branchForm);
+                    state = await refreshState();
+                    branch = state.branches[0];
+                }
+                if (!branch || !branch.id) {
+                    throw new Error('branch was not created');
+                }
+                if (!state.stores.length) {
+                    var storeForm = new FormData();
+                    storeForm.append('name', storeName);
+                    storeForm.append('branch_id', String(branch.id));
+                    await postForm('/dashboard/stores/create', storeForm);
+                    state = await refreshState();
+                    if (!state.stores.length) {
+                        throw new Error('store was not created');
+                    }
+                }
+                showStep(3);
+            } catch (_) {
+                showError('تعذر حفظ الفرع والمخزن. حاول مرة أخرى.');
+            } finally {
+                setBusy(form, false);
+            }
+        }
+
+        async function saveProducts(event) {
+            event.preventDefault();
+            clearError();
+            var form = event.currentTarget;
+            var rows = Array.from(form.querySelectorAll('[data-product-row]'));
+            var products = rows.map(function (row) {
+                return {
+                    name: row.querySelector('[name^="product_name_"]').value.trim(),
+                    price: row.querySelector('[name^="product_price_"]').value
+                };
+            }).filter(function (product) { return product.name || product.price; });
+            if (!products.length) {
+                showStep(4);
+                return;
+            }
+            if (products.some(function (product) { return !product.name || !product.price; })) {
+                showError('يرجى إدخال اسم المنتج وسعره أو ترك الصف فارغاً.');
+                return;
+            }
+            var store = initialState.stores[0];
+            if (!store || !store.id) {
+                showError('أضف فرعاً ومخزناً قبل إضافة المنتجات.');
+                return;
+            }
+            setBusy(form, true);
+            try {
+                for (var i = 0; i < products.length; i += 1) {
+                    var productForm = new FormData();
+                    productForm.append('store_id', String(store.id));
+                    productForm.append('quantity[]', '1');
+                    productForm.append('price[]', products[i].price);
+                    productForm.append('part_name[]', products[i].name);
+                    await postForm('/dashboard/products/create', productForm);
+                }
+                showStep(4);
+            } catch (_) {
+                showError('تعذر حفظ المنتجات. تحقق من البيانات وحاول مرة أخرى.');
+            } finally {
+                setBusy(form, false);
+            }
+        }
+
+        async function saveSupplier(event) {
+            event.preventDefault();
+            clearError();
+            var form = event.currentTarget;
+            var name = form.elements.name.value.trim();
+            if (!name) {
+                showStep(5);
+                return;
+            }
+            setBusy(form, true);
+            try {
+                await postForm('/dashboard/suppliers/create', new FormData(form));
+                showStep(5);
+            } catch (_) {
+                showError('تعذر حفظ المورد. تحقق من البيانات وحاول مرة أخرى.');
+            } finally {
+                setBusy(form, false);
+            }
+        }
+
+        async function completeOnboarding() {
+            clearError();
+            var button = document.getElementById('onboarding-complete');
+            button.disabled = true;
+            try {
+                var response = await fetch('/api/onboarding/complete', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'X-CSRF-Token': csrfToken, 'Accept': 'application/json' }
+                });
+                if (!response.ok) {
+                    throw new Error('completion failed: ' + response.status);
+                }
+                try {
+                    sessionStorage.removeItem(storageKey);
+                } catch (_) {
+                    // Completion does not depend on sessionStorage.
+                }
+                window.location.assign('/dashboard');
+            } catch (_) {
+                showError('تعذر إنهاء الإعداد. حاول مرة أخرى.');
+                button.disabled = false;
+            }
+        }
+
+        document.getElementById('onboarding-company-form').addEventListener('submit', saveCompany);
+        document.getElementById('onboarding-location-form').addEventListener('submit', saveLocation);
+        document.getElementById('onboarding-products-form').addEventListener('submit', saveProducts);
+        document.getElementById('onboarding-supplier-form').addEventListener('submit', saveSupplier);
+        document.getElementById('onboarding-products-skip').addEventListener('click', function () { clearError(); showStep(4); });
+        document.getElementById('onboarding-supplier-skip').addEventListener('click', function () { clearError(); showStep(5); });
+        document.getElementById('onboarding-complete').addEventListener('click', completeOnboarding);
+        document.querySelectorAll('[data-back-step]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                clearError();
+                showStep(Number(button.dataset.backStep));
+            });
+        });
+
+        var storedStep = readStoredStep();
+        if (initialState.branches.length && initialState.stores.length && storedStep < 3) {
+            storedStep = 3;
+        }
+        renderZatca(initialState.zatca || []);
+        showStep(storedStep);
+    }());
+</script>
+{{ end }}

@@ -265,6 +265,12 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := loadSettingsFromBackend(token); err == nil &&
+		GetSettingValue(token, "onboarding_completed") != "true" {
+		http.Redirect(w, r, "/dashboard/onboarding", http.StatusSeeOther)
+		return
+	}
+
 	stateFilter := r.URL.Query().Get("state")
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")

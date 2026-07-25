@@ -96,6 +96,9 @@ func main() {
 
 	// Dashboard routes (auth only — no resource-level RBAC)
 	router.HandleFunc("/dashboard", handlers.HandleDashboard).Methods("GET")
+	router.HandleFunc("/dashboard/onboarding", handlers.HandleOnboarding).Methods("GET")
+	router.HandleFunc("/api/onboarding/state", handlers.HandleOnboardingState).Methods("GET")
+	router.HandleFunc("/api/onboarding/complete", handlers.HandleCompleteOnboarding).Methods("POST")
 	router.HandleFunc("/dashboard/export-pdf", handlers.HandleDashboardExportPDF).Methods("GET")
 	router.HandleFunc("/dashboard/compare", handlers.HandleDashboardCompare).Methods("GET")
 

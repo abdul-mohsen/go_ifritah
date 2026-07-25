@@ -69,6 +69,7 @@ var settingsDefaults = map[string]string{
 	"company_description":          "",
 	"company_address":              "",
 	"company_phone":                "",
+	"onboarding_completed":         "",
 	"whatsapp_enabled":             "false",
 	"whatsapp_business_account_id": "",
 	"whatsapp_phone_number_id":     "",
@@ -131,7 +132,7 @@ var settingsCategoryMap = map[string]string{
 	"company_name": "company", "company_email": "company",
 	"company_vat": "company", "company_cr": "company",
 	"company_description": "company", "company_address": "company",
-	"company_phone": "company",
+	"company_phone": "company", "onboarding_completed": "company",
 	// inventory
 	"low_stock_threshold": "inventory", "default_unit": "inventory",
 	"stock_enforcement": "inventory", "track_inventory": "inventory",
@@ -173,24 +174,28 @@ var allSettingsKeys = []string{
 	"default_unit", "stock_enforcement", "track_inventory", "allow_negative_stock",
 	"show_cost_price", "company_name", "company_email", "company_vat",
 	"company_cr", "company_description", "company_address", "company_phone",
+	"onboarding_completed",
 	"whatsapp_enabled", "whatsapp_business_account_id", "whatsapp_phone_number_id",
 	"whatsapp_access_token", "whatsapp_api_version", "whatsapp_invoice_message",
 }
 
 // loadSettingsFromBackend fetches settings from GET /api/v2/settings
 // and merges them into the in-memory store.
-func loadSettingsFromBackend(token string) {
-	req, _ := http.NewRequest("GET", config.BackendDomain+"/api/v2/settings", nil)
+func loadSettingsFromBackend(token string) error {
+	req, err := http.NewRequest("GET", config.BackendDomain+"/api/v2/settings", nil)
+	if err != nil {
+		return err
+	}
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
 		log.Printf("[SETTINGS] Failed to fetch from backend: %v", err)
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("[SETTINGS] Backend returned %d", resp.StatusCode)
-		return
+		return fmt.Errorf("backend status %d", resp.StatusCode)
 	}
 
 	var result struct {
@@ -198,7 +203,7 @@ func loadSettingsFromBackend(token string) {
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		log.Printf("[SETTINGS] Failed to decode backend response: %v", err)
-		return
+		return err
 	}
 
 	ts := storeFor(token)
@@ -213,6 +218,7 @@ func loadSettingsFromBackend(token string) {
 
 	// Also load notification config (separate endpoint, structured payload).
 	overlayNotificationConfigIntoSettings(token)
+	return nil
 }
 
 // overlayNotificationConfigIntoSettings calls /api/v2/notification/config and

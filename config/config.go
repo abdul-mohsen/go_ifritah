@@ -382,6 +382,7 @@ func LoadTemplates() {
 		"users":                 filepath.Join(BaseDir, "templates/users.html"),
 		"add-user":              filepath.Join(BaseDir, "templates/add-user.html"),
 		"edit-user":             filepath.Join(BaseDir, "templates/edit-user.html"),
+		"onboarding":            filepath.Join(BaseDir, "templates/onboarding.html"),
 	}
 
 	for name, page := range layoutPages {

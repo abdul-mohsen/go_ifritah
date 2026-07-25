@@ -256,6 +256,7 @@ func Initialize() {
 	}
 
 	AppVersion = loadAppVersion()
+	initializeMasterDB()
 
 	log.Printf("Frontend: %s | Backend: %s | Version: %s", AppDomain, BackendDomain, AppVersion)
 

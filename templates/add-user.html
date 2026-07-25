@@ -1,0 +1,39 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/users" "section_label" (L "nav.users") "current" (L "tpl.user.add_heading") }}
+<div class="page-card">
+    {{ template "form-errors" . }}
+    <form method="post" action="/dashboard/users/create" hx-post="/dashboard/users/create" hx-target="body">
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.user.username" }} <span class="required-mark">*</span></label>
+            <input type="text" name="username" required minlength="3" maxlength="30" pattern="^[A-Za-z0-9_.]{3,30}$" class="w-full" value="{{ old .old "username" }}">
+            {{ if hasError .errors "username" }}<p class="field-error">{{ fieldError .errors "username" }}</p>{{ end }}
+        </div>
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.user.role" }} <span class="required-mark">*</span></label>
+            <select name="role" required class="w-full">
+                <option value="employee" {{ if eq (old .old "role") "employee" }}selected{{ end }}>{{ L "tpl.user.role_employee" }}</option>
+                <option value="manager" {{ if eq (old .old "role") "manager" }}selected{{ end }}>{{ L "tpl.user.role_manager" }}</option>
+                <option value="admin" {{ if eq (old .old "role") "admin" }}selected{{ end }}>{{ L "tpl.user.role_admin" }}</option>
+            </select>
+            {{ if hasError .errors "role" }}<p class="field-error">{{ fieldError .errors "role" }}</p>{{ end }}
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.user.password" }} <span class="required-mark">*</span></label>
+                <input type="password" name="password" required minlength="8" maxlength="128" class="w-full">
+                {{ if hasError .errors "password" }}<p class="field-error">{{ fieldError .errors "password" }}</p>{{ end }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">{{ L "tpl.user.confirm_password" }} <span class="required-mark">*</span></label>
+                <input type="password" name="confirm_password" required minlength="8" maxlength="128" class="w-full">
+                {{ if hasError .errors "confirm_password" }}<p class="field-error">{{ fieldError .errors "confirm_password" }}</p>{{ end }}
+            </div>
+        </div>
+        <label class="flex items-center gap-3 form-group">
+            <input type="checkbox" name="active" value="true" checked class="w-4 h-4">
+            <span class="form-label" style="margin-bottom:0">{{ L "tpl.user.account_active" }}</span>
+        </label>
+        {{ template "form-actions" dict "submit_label" (L "tpl.user.save_user") "cancel_url" "/dashboard/users" }}
+    </form>
+</div>
+{{ end }}

@@ -201,8 +201,16 @@ func main() {
 	router.HandleFunc("/dashboard/branches/{id}/update", protect("branches", "edit", handlers.HandleUpdateBranch)).Methods("POST")
 	router.HandleFunc("/dashboard/branches/{id}/delete", protect("branches", "delete", handlers.HandleDeleteBranch)).Methods("POST")
 
-	// User routes — backend lacks /api/v2/users CRUD endpoints; mock pages
-	// were removed. Tracked in the backend issue tracker.
+	// User management — admin-only and Business+.
+	userRoute := func(h http.HandlerFunc) http.HandlerFunc {
+		return adminOnly(requireFeature(config.FeatureUserManagement, h))
+	}
+	router.HandleFunc("/dashboard/users", userRoute(handlers.HandleUsers)).Methods("GET")
+	router.HandleFunc("/dashboard/users/add", userRoute(handlers.HandleAddUser)).Methods("GET")
+	router.HandleFunc("/dashboard/users/create", userRoute(handlers.HandleCreateUser)).Methods("POST")
+	router.HandleFunc("/dashboard/users/{id}/edit", userRoute(handlers.HandleEditUser)).Methods("GET")
+	router.HandleFunc("/dashboard/users/{id}/update", userRoute(handlers.HandleUpdateUser)).Methods("POST")
+	router.HandleFunc("/dashboard/users/{id}/delete", userRoute(handlers.HandleDeleteUser)).Methods("POST")
 
 	// Settings routes — Admin only
 	router.HandleFunc("/dashboard/settings", adminOnly(handlers.HandleSettingsPage)).Methods("GET")

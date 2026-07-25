@@ -349,6 +349,15 @@
                         </svg>
                     </button>
                     <div class="sidebar-section-items">
+                        {{ if and .tenantID (isEnabled .tenantID "user_management") }}
+                        <a href="/dashboard/users" data-role="admin" class="nav-link">
+                            <svg class="shrink-0" fill="none" stroke="currentColor" stroke-width="1.5"
+                                viewBox="0 0 24 24">
+                                <path d="M16 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 11a4 4 0 100-8 4 4 0 000 8zM17 8v6M20 11h-6" />
+                            </svg>
+                            <span class="sidebar-label" data-i18n="nav.users">{{ L "nav.users" }}</span>
+                        </a>
+                        {{ else }}
                         <button type="button" class="nav-item-locked" data-feature="user_management"
                             data-role="admin" onclick="showUpgradeBanner(this.dataset.feature)">
                             <svg class="shrink-0" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -357,6 +366,7 @@
                             </svg>
                             <span class="sidebar-label" data-i18n="nav.users">{{ L "nav.users" }}</span>
                         </button>
+                        {{ end }}
                         {{ if and .tenantID (isEnabled .tenantID "zatca_monitor") }}
                         <a href="/dashboard/zatca-monitor" data-role="admin" class="nav-link">
                             <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"

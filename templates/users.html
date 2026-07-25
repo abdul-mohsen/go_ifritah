@@ -1,0 +1,58 @@
+{{ define "content" }}
+{{ template "error-alert" . }}
+<div class="list-toolbar">
+    <form method="get">
+        <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.user.search_placeholder" }}" class="search-input">
+        <select name="role">
+            <option value="">{{ L "tpl.user.all_roles" }}</option>
+            <option value="admin" {{ if eq .role_filter "admin" }}selected{{ end }}>{{ L "tpl.user.role_admin" }}</option>
+            <option value="manager" {{ if eq .role_filter "manager" }}selected{{ end }}>{{ L "tpl.user.role_manager" }}</option>
+            <option value="employee" {{ if eq .role_filter "employee" }}selected{{ end }}>{{ L "tpl.user.role_employee" }}</option>
+        </select>
+        <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
+    </form>
+    <div class="toolbar-actions">
+        <a href="/dashboard/users/add" class="btn btn-filled">{{ L "tpl.user.add" }}</a>
+        {{ template "item-count" dict "pagination" .pagination }}
+    </div>
+</div>
+<div class="data-table-wrapper">
+    <table aria-label="{{ L "tpl.user.table_label" }}">
+        <thead>
+            <tr>
+                <th>{{ L "tpl.user.username" }}</th>
+                <th>{{ L "tpl.user.role" }}</th>
+                <th>{{ L "tpl.user.status" }}</th>
+                <th>{{ L "tpl.user.last_login" }}</th>
+                <th>{{ L "tpl.actions" }}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {{ if not .users }}
+            {{ template "empty-table-row" dict "colspan" 5 "message" (L "tpl.user.no_users") "action_url" "/dashboard/users/add" "action_label" (L "tpl.user.add") }}
+        {{ end }}
+        {{ range .users }}
+            <tr>
+                <td class="font-semibold">{{ .Username }}</td>
+                <td>
+                    {{ if eq .Role "admin" }}<span class="badge badge-danger">{{ L "tpl.user.role_admin" }}</span>
+                    {{ else if eq .Role "manager" }}<span class="badge badge-info">{{ L "tpl.user.role_manager" }}</span>
+                    {{ else }}<span class="badge badge-success">{{ L "tpl.user.role_employee" }}</span>{{ end }}
+                </td>
+                <td>{{ if .Active }}<span class="badge badge-active">{{ L "tpl.user.active" }}</span>{{ else }}<span class="badge badge-inactive">{{ L "tpl.user.inactive" }}</span>{{ end }}</td>
+                <td>{{ if .LastLogin }}{{ .LastLogin.Format "2006-01-02 15:04" }}{{ else }}{{ L "tpl.user.no_login_yet" }}{{ end }}</td>
+                <td>
+                    <div class="action-links">
+                        <a href="/dashboard/users/{{ .ID }}/edit" class="action-link action-edit">{{ L "tpl.edit" }}</a>
+                        {{ if ne .Role "admin" }}
+                        <a href="#" hx-post="/dashboard/users/{{ .ID }}/delete" hx-confirm="{{ L "tpl.user.confirm_delete" }}" class="action-link action-delete">{{ L "tpl.delete" }}</a>
+                        {{ end }}
+                    </div>
+                </td>
+            </tr>
+        {{ end }}
+        </tbody>
+    </table>
+</div>
+{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query "extra_params" (printf "&role=%s" .role_filter) }}
+{{ end }}

@@ -379,6 +379,9 @@ func LoadTemplates() {
 		"stock-adjustments":     filepath.Join(BaseDir, "templates/stock-adjustments.html"),
 		"notifications":         filepath.Join(BaseDir, "templates/notifications.html"),
 		"zatca-monitor":         filepath.Join(BaseDir, "templates/zatca-monitor.html"),
+		"users":                 filepath.Join(BaseDir, "templates/users.html"),
+		"add-user":              filepath.Join(BaseDir, "templates/add-user.html"),
+		"edit-user":             filepath.Join(BaseDir, "templates/edit-user.html"),
 	}
 
 	for name, page := range layoutPages {

@@ -1254,6 +1254,8 @@ var labels = map[string]Label{
 	"tpl.user.connection_error": {Ar: "حدث خطأ في الاتصال", En: "Connection error"},
 	"tpl.user.updated_success":  {Ar: "تم حفظ التعديلات بنجاح", En: "Changes saved successfully"},
 	"tpl.user.save_changes":     {Ar: "حفظ التعديلات", En: "Save Changes"},
+	"tpl.user.reset_password":  {Ar: "إعادة تعيين كلمة المرور", En: "Reset Password"},
+	"tpl.user.new_password":    {Ar: "كلمة المرور الجديدة", En: "New Password"},
 	"tpl.user.res_branches":     {Ar: "الفروع", En: "Branches"},
 	"tpl.user.res_reports":      {Ar: "التقارير", En: "Reports"},
 	"tpl.user.res_warehouses":   {Ar: "المستودعات", En: "Warehouses"},

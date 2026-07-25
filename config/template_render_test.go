@@ -33,7 +33,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"settings", "parts-search", "cars-search", "import-bills",
 		"cash-vouchers", "add-cash-voucher", "cash-voucher-detail", "edit-cash-voucher",
 		"stock-adjustments", "notifications", "supplier-report", "supplier-statement",
-		"zatca-monitor",
+		"zatca-monitor", "users", "add-user", "edit-user",
 		// Standalone pages
 		"login", "register", "forgot-password",
 		"invoice-preview", "invoice-print", "error-page", "upgrade-prompt",
@@ -184,6 +184,9 @@ func TestAllTemplatesExecute(t *testing.T) {
 			"Role":        "",
 			"Active":      true,
 			"Permissions": []interface{}{},
+		},
+		"User": map[string]interface{}{
+			"ID": 0, "Username": "", "Role": "employee", "Active": true,
 		},
 
 		// Dashboard specific

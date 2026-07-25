@@ -1,0 +1,47 @@
+{{ define "content" }}
+{{ template "breadcrumb" dict "section_url" "/dashboard/users" "section_label" (L "nav.users") "current" (L "tpl.user.edit_heading") }}
+<div class="page-card">
+    {{ template "form-errors" . }}
+    <form method="post" action="/dashboard/users/{{ .User.ID }}/update" hx-post="/dashboard/users/{{ .User.ID }}/update" hx-target="body">
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.user.username" }} <span class="required-mark">*</span></label>
+            <input type="text" name="username" required minlength="3" maxlength="30" pattern="^[A-Za-z0-9_.]{3,30}$" class="w-full" value="{{ if .old }}{{ old .old "username" }}{{ else }}{{ .User.Username }}{{ end }}">
+            {{ if hasError .errors "username" }}<p class="field-error">{{ fieldError .errors "username" }}</p>{{ end }}
+        </div>
+        <div class="form-group">
+            <label class="form-label">{{ L "tpl.user.role" }} <span class="required-mark">*</span></label>
+            <select name="role" required class="w-full">
+                <option value="employee" {{ if eq .User.Role "employee" }}selected{{ end }}>{{ L "tpl.user.role_employee" }}</option>
+                <option value="manager" {{ if eq .User.Role "manager" }}selected{{ end }}>{{ L "tpl.user.role_manager" }}</option>
+                <option value="admin" {{ if eq .User.Role "admin" }}selected{{ end }}>{{ L "tpl.user.role_admin" }}</option>
+            </select>
+            {{ if hasError .errors "role" }}<p class="field-error">{{ fieldError .errors "role" }}</p>{{ end }}
+        </div>
+        <label class="flex items-center gap-3 form-group">
+            <input type="checkbox" name="active" value="true" {{ if .User.Active }}checked{{ end }} class="w-4 h-4">
+            <span class="form-label" style="margin-bottom:0">{{ L "tpl.user.account_active" }}</span>
+        </label>
+        {{ template "form-actions" dict "submit_label" (L "tpl.user.save_changes") "cancel_url" "/dashboard/users" }}
+    </form>
+
+    <section class="page-card mt-6">
+        <h2 class="section-card-title">{{ L "tpl.user.password" }}</h2>
+        <p class="detail-label">{{ L "tpl.user.deactivate_hint" }}</p>
+        <form method="post" action="/dashboard/users/{{ .User.ID }}/update" hx-post="/dashboard/users/{{ .User.ID }}/update" hx-target="body" class="mt-4">
+            <button type="button" class="btn btn-tonal" id="show-reset-password">{{ L "tpl.user.reset_password" }}</button>
+            <div id="reset-password-fields" class="hidden mt-4">
+                <label class="form-label">{{ L "tpl.user.new_password" }}</label>
+                <input type="password" name="new_password" minlength="8" maxlength="128" class="w-full" required>
+                {{ if hasError .errors "new_password" }}<p class="field-error">{{ fieldError .errors "new_password" }}</p>{{ end }}
+                <button type="submit" class="btn btn-filled mt-3">{{ L "tpl.user.reset_password" }}</button>
+            </div>
+        </form>
+    </section>
+</div>
+<script>
+    document.getElementById('show-reset-password').addEventListener('click', function () {
+        document.getElementById('reset-password-fields').classList.remove('hidden');
+        this.classList.add('hidden');
+    });
+</script>
+{{ end }}

@@ -4,13 +4,13 @@
     {{ template "form-errors" . }}
     <form method="post" action="/dashboard/users/create" hx-post="/dashboard/users/create" hx-target="body">
         <div class="form-group">
-            <label class="form-label">{{ L "tpl.user.username" }} <span class="required-mark">*</span></label>
-            <input type="text" name="username" required minlength="3" maxlength="30" pattern="^[A-Za-z0-9_.]{3,30}$" class="w-full" value="{{ old .old "username" }}">
+            <label for="user-username" class="form-label">{{ L "tpl.user.username" }} <span class="required-mark">*</span></label>
+            <input id="user-username" type="text" name="username" required minlength="3" maxlength="30" pattern="^[A-Za-z0-9_.]{3,30}$" class="w-full" value="{{ old .old "username" }}">
             {{ if hasError .errors "username" }}<p class="field-error">{{ fieldError .errors "username" }}</p>{{ end }}
         </div>
         <div class="form-group">
-            <label class="form-label">{{ L "tpl.user.role" }} <span class="required-mark">*</span></label>
-            <select name="role" required class="w-full">
+            <label for="user-role" class="form-label">{{ L "tpl.user.role" }} <span class="required-mark">*</span></label>
+            <select id="user-role" name="role" required class="w-full">
                 <option value="employee" {{ if eq (old .old "role") "employee" }}selected{{ end }}>{{ L "tpl.user.role_employee" }}</option>
                 <option value="manager" {{ if eq (old .old "role") "manager" }}selected{{ end }}>{{ L "tpl.user.role_manager" }}</option>
                 <option value="admin" {{ if eq (old .old "role") "admin" }}selected{{ end }}>{{ L "tpl.user.role_admin" }}</option>
@@ -19,13 +19,13 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="form-group">
-                <label class="form-label">{{ L "tpl.user.password" }} <span class="required-mark">*</span></label>
-                <input type="password" name="password" required minlength="8" maxlength="128" class="w-full">
+                <label for="user-password" class="form-label">{{ L "tpl.user.password" }} <span class="required-mark">*</span></label>
+                <input id="user-password" type="password" name="password" required minlength="8" maxlength="128" class="w-full">
                 {{ if hasError .errors "password" }}<p class="field-error">{{ fieldError .errors "password" }}</p>{{ end }}
             </div>
             <div class="form-group">
-                <label class="form-label">{{ L "tpl.user.confirm_password" }} <span class="required-mark">*</span></label>
-                <input type="password" name="confirm_password" required minlength="8" maxlength="128" class="w-full">
+                <label for="user-confirm-password" class="form-label">{{ L "tpl.user.confirm_password" }} <span class="required-mark">*</span></label>
+                <input id="user-confirm-password" type="password" name="confirm_password" required minlength="8" maxlength="128" class="w-full">
                 {{ if hasError .errors "confirm_password" }}<p class="field-error">{{ fieldError .errors "confirm_password" }}</p>{{ end }}
             </div>
         </div>

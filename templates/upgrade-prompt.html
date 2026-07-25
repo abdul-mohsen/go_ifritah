@@ -1,6 +1,6 @@
-<div id="upgrade-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4"
-    role="dialog" aria-modal="true" aria-labelledby="upgrade-modal-title"
-    style="background: rgba(0, 0, 0, 0.42)" onclick="if (event.target === this) closeUpgradeModal()">
+<dialog id="upgrade-modal" open class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    aria-labelledby="upgrade-modal-title"
+    style="background: rgba(0, 0, 0, 0.42)">
     <div class="w-full max-w-md p-6 text-right"
         style="background: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface); border-radius: var(--md-sys-shape-lg); box-shadow: var(--md-sys-elevation-3)">
         <div class="flex items-start gap-3">
@@ -36,4 +36,4 @@
                 data-i18n="upgrade.close">{{ L "upgrade.close" }}</button>
         </div>
     </div>
-</div>
+</dialog>

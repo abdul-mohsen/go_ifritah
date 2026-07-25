@@ -394,6 +394,13 @@
 
     // Apply language to all elements with data-i18n
     function applyLang(lang) {
+        setDocumentDirection(lang);
+        translateElements(lang);
+        updatePlanLabels(lang);
+        updateLangLabel(lang);
+    }
+
+    function setDocumentDirection(lang) {
         var html = document.documentElement;
         if (lang === 'en') {
             html.setAttribute('dir', 'ltr');
@@ -406,28 +413,32 @@
             document.body.classList.remove('text-left');
             document.body.classList.add('text-right');
         }
+    }
 
+    function translateElements(lang) {
         const els = document.querySelectorAll('[data-i18n]');
         for (const element of els) {
             const key = element.dataset.i18n;
-            const text = translations[lang] && translations[lang][key];
-            if (text) {
-                if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
-                    element.setAttribute('placeholder', text);
-                } else {
-                    element.textContent = text;
-                }
+            const text = translations[lang]?.[key];
+            if (!text) continue;
+            if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+                element.setAttribute('placeholder', text);
+            } else {
+                element.textContent = text;
             }
         }
+    }
 
+    function updatePlanLabels(lang) {
         const planEls = document.querySelectorAll('[data-plan-ar]');
         for (const element of planEls) {
             element.textContent = lang === 'en'
                 ? element.dataset.planEn
                 : element.dataset.planAr;
         }
+    }
 
-        // Update lang toggle label
+    function updateLangLabel(lang) {
         var langLabel = document.getElementById('lang-label');
         if (langLabel) {
             langLabel.textContent = lang === 'ar' ? 'English' : 'العربية';

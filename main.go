@@ -20,6 +20,7 @@ import (
 
 func main() {
 	config.Initialize()
+	config.RegisterFeatureChecker(helpers.IsEnabled)
 	config.LoadTemplates()
 	helpers.LoadPersistedTokens()
 	go helpers.PeriodicTokenCleanup()

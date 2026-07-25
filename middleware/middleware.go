@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"compress/gzip"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -12,6 +13,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"afrita/config"
+	"afrita/helpers"
 )
 
 // ──────────────────────────────────────────────
@@ -393,7 +397,12 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		next.ServeHTTP(w, r)
+		tenantID := config.TenantID
+		plan := helpers.GetTenantPlan(tenantID)
+		ctx := context.WithValue(r.Context(), config.TenantIDContextKey, tenantID)
+		ctx = context.WithValue(ctx, config.PlanContextKey, plan)
+		ctx = context.WithValue(ctx, config.PlanLevelContextKey, config.PlanLevel(plan))
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 

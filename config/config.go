@@ -18,7 +18,13 @@ import (
 
 // templateFuncs provides custom functions available in all templates.
 var templateFuncs = template.FuncMap{
-	"L":   resources.L,
+	"L": resources.L,
+	"isEnabled": func(tenantID, featureID string) bool {
+		if featureChecker == nil {
+			return false
+		}
+		return featureChecker(tenantID, featureID)
+	},
 	"add": func(a, b int) int { return a + b },
 	"sub": func(a, b int) int { return a - b },
 	"mul": func(a, b interface{}) float64 {
@@ -212,7 +218,25 @@ var (
 	BackendDomain string
 	AppVersion    string
 	BaseDir       string // Project root directory (defaults to ".")
+	TenantID      string
 )
+
+// ContextKey identifies values shared between middleware and render helpers.
+type ContextKey string
+
+const (
+	TenantIDContextKey  ContextKey = "tenantID"
+	PlanContextKey      ContextKey = "plan"
+	PlanLevelContextKey ContextKey = "planLevel"
+)
+
+var featureChecker func(tenantID, featureID string) bool
+
+// RegisterFeatureChecker wires the plan gate into the template function map
+// without creating a config/helpers import cycle.
+func RegisterFeatureChecker(checker func(tenantID, featureID string) bool) {
+	featureChecker = checker
+}
 
 // Templates holds all pre-parsed templates keyed by name.
 // Parsed once at startup — never re-read from disk on each request.
@@ -255,6 +279,7 @@ func Initialize() {
 		AppPort = "8000"
 	}
 
+	TenantID = os.Getenv("TENANT_ID")
 	AppVersion = loadAppVersion()
 	initializeMasterDB()
 

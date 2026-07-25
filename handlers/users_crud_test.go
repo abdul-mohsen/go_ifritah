@@ -49,7 +49,7 @@ func TestUserCreateProxyAndValidation(t *testing.T) {
 	if rec.Code != http.StatusOK || rec.Header().Get("HX-Redirect") != "/dashboard/users" {
 		t.Fatalf("create response = %d, HX-Redirect=%q", rec.Code, rec.Header().Get("HX-Redirect"))
 	}
-	if received["username"] != "manager1" || received["role"] != "manager" || received["password"] != "correct horse" || received["active"] != true {
+	if received["username"] != "manager1" || received["role"] != "manager" || received["password"] != "correct horse" || received["is_active"] != true {
 		t.Fatalf("create payload = %#v", received)
 	}
 
@@ -74,7 +74,7 @@ func TestUserUpdateAndPasswordResetProxy(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/api/v2/user/all":
-			_, _ = w.Write([]byte(`[{"id":9,"username":"worker","role":"employee","active":true}]`))
+			_, _ = w.Write([]byte(`{"items":[{"id":9,"username":"worker","role":"employee","is_active":true}]}`))
 		case "/api/v2/user/9":
 			if r.Method != http.MethodPut {
 				t.Fatalf("user update method = %s", r.Method)
@@ -107,7 +107,7 @@ func TestUserUpdateAndPasswordResetProxy(t *testing.T) {
 	if rec.Code != http.StatusOK || rec.Header().Get("HX-Redirect") != "/dashboard/users" {
 		t.Fatalf("update response = %d, HX-Redirect=%q", rec.Code, rec.Header().Get("HX-Redirect"))
 	}
-	if updatePayload["role"] != "manager" || updatePayload["active"] != true {
+	if updatePayload["role"] != "manager" || updatePayload["is_active"] != true {
 		t.Fatalf("update payload = %#v", updatePayload)
 	}
 
@@ -123,6 +123,19 @@ func TestUserUpdateAndPasswordResetProxy(t *testing.T) {
 	}
 	if len(methods) != 2 || methods[0] != "PUT /api/v2/user/9" || methods[1] != "POST /api/v2/user/9/password" {
 		t.Fatalf("backend requests = %v", methods)
+	}
+}
+
+func TestDecodeUsersMapsBackendActivityField(t *testing.T) {
+	users, err := decodeUsers([]byte(`{"items":[{"id":9,"username":"worker","role":"employee","is_active":false,"last_login":"2026-04-09T22:30:00Z"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(users) != 1 || users[0].Active {
+		t.Fatalf("decoded users = %#v, want one inactive user", users)
+	}
+	if users[0].LastLogin == nil || users[0].LastLogin.Format("2006-01-02") != "2026-04-09" {
+		t.Fatalf("decoded last login = %v", users[0].LastLogin)
 	}
 }
 

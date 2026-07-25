@@ -213,10 +213,10 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	payload := map[string]interface{}{
-		"username": r.FormValue("username"),
-		"role":     r.FormValue("role"),
-		"active":   formActive(r),
-		"password": r.FormValue("password"),
+		"username":  r.FormValue("username"),
+		"role":      r.FormValue("role"),
+		"is_active": formActive(r),
+		"password":  r.FormValue("password"),
 	}
 	resp, err := proxyUserRequest(http.MethodPost, "/api/v2/user", token, payload)
 	if err != nil {
@@ -264,7 +264,7 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		renderUserFormError(w, r, "edit-user", "تعديل المستخدم", errs, models.User{ID: helpers.ParseIntValue(id), Username: r.FormValue("username"), Role: models.Role(r.FormValue("role")), Active: formActive(r)})
 		return
 	}
-	payload := map[string]interface{}{"username": r.FormValue("username"), "role": r.FormValue("role"), "active": formActive(r)}
+	payload := map[string]interface{}{"username": r.FormValue("username"), "role": r.FormValue("role"), "is_active": formActive(r)}
 	resp, err := proxyUserRequest(http.MethodPut, "/api/v2/user/"+id, token, payload)
 	if err != nil {
 		helpers.WriteErrorResponse(w, http.StatusBadGateway, nil, "تعذر تحديث المستخدم")

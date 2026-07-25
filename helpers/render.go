@@ -22,45 +22,10 @@ func Render(w http.ResponseWriter, r *http.Request, name string, data map[string
 		return
 	}
 
-	// Auto-inject common template data
 	if data == nil {
 		data = make(map[string]interface{})
 	}
-	if _, exists := data["version"]; !exists {
-		data["version"] = config.AppVersion
-	}
-	if _, exists := data["user_role"]; !exists {
-		data["user_role"] = GetUserRole(r)
-	}
-	if _, exists := data["csrf_token"]; !exists {
-		if c, err := r.Cookie("csrf_token"); err == nil {
-			data["csrf_token"] = c.Value
-		}
-	}
-	if _, exists := data["tenantID"]; !exists {
-		tenantID := config.TenantID
-		if value, ok := r.Context().Value(config.TenantIDContextKey).(string); ok {
-			tenantID = value
-		}
-		data["tenantID"] = tenantID
-	}
-	if _, exists := data["plan"]; !exists {
-		plan := config.PlanSolo
-		if value, ok := r.Context().Value(config.PlanContextKey).(string); ok {
-			plan = value
-		}
-		data["plan"] = plan
-	}
-	if _, exists := data["planLevel"]; !exists {
-		planLevel := config.PlanLevel(config.PlanSolo)
-		if plan, ok := data["plan"].(string); ok {
-			planLevel = config.PlanLevel(plan)
-		}
-		if value, ok := r.Context().Value(config.PlanLevelContextKey).(int); ok {
-			planLevel = value
-		}
-		data["planLevel"] = planLevel
-	}
+	injectCommonData(r, data)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -76,6 +41,52 @@ func Render(w http.ResponseWriter, r *http.Request, name string, data map[string
 			log.Printf("❌ Template execution error (%s): %v", name, err)
 		}
 	}
+}
+
+func injectCommonData(r *http.Request, data map[string]interface{}) {
+	setTemplateDefault(data, "version", config.AppVersion)
+	setTemplateDefault(data, "user_role", GetUserRole(r))
+
+	if c, err := r.Cookie("csrf_token"); err == nil {
+		setTemplateDefault(data, "csrf_token", c.Value)
+	}
+
+	setTemplateDefault(data, "tenantID", requestTenantID(r))
+	setTemplateDefault(data, "plan", requestPlan(r))
+	setTemplateDefault(data, "planLevel", requestPlanLevel(r, data["plan"]))
+}
+
+func setTemplateDefault(data map[string]interface{}, key string, value interface{}) {
+	if _, exists := data[key]; !exists {
+		data[key] = value
+	}
+}
+
+func requestTenantID(r *http.Request) string {
+	tenantID := config.TenantID
+	if value, ok := r.Context().Value(config.TenantIDContextKey).(string); ok {
+		tenantID = value
+	}
+	return tenantID
+}
+
+func requestPlan(r *http.Request) string {
+	plan := config.PlanSolo
+	if value, ok := r.Context().Value(config.PlanContextKey).(string); ok {
+		plan = value
+	}
+	return plan
+}
+
+func requestPlanLevel(r *http.Request, planValue interface{}) int {
+	planLevel := config.PlanLevel(config.PlanSolo)
+	if plan, ok := planValue.(string); ok {
+		planLevel = config.PlanLevel(plan)
+	}
+	if value, ok := r.Context().Value(config.PlanLevelContextKey).(int); ok {
+		planLevel = value
+	}
+	return planLevel
 }
 
 // RenderStandalone executes a standalone cached template (no base layout).

@@ -19,6 +19,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const purchaseBillAPIPath = "/api/v2/purchase_bill/"
+
 // purchaseBillCreateLock prevents duplicate purchase bill creation per user session.
 var purchaseBillCreateLock sync.Map
 
@@ -422,7 +424,7 @@ func handlePurchaseBillReceipt(w http.ResponseWriter, r *http.Request, method st
 	req, err := http.NewRequestWithContext(
 		r.Context(),
 		method,
-		config.BackendDomain+"/api/v2/purchase_bill/"+id+"/received",
+		config.BackendDomain+purchaseBillAPIPath+id+"/received",
 		nil,
 	)
 	if err != nil {
@@ -476,7 +478,7 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, _ := http.NewRequest("GET", config.BackendDomain+"/api/v2/purchase_bill/"+id, nil)
+	req, _ := http.NewRequest("GET", config.BackendDomain+purchaseBillAPIPath+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
 		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
@@ -571,7 +573,7 @@ func HandleUpdatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[UPDATE PURCHASE BILL] ID=%s Payload: %s", id, string(body))
 
-	req, _ := http.NewRequest("PUT", config.BackendDomain+"/api/v2/purchase_bill/"+id, bytes.NewBuffer(body))
+	req, _ := http.NewRequest("PUT", config.BackendDomain+purchaseBillAPIPath+id, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
@@ -601,7 +603,7 @@ func HandleDeletePurchaseBill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, _ := http.NewRequest("DELETE", config.BackendDomain+"/api/v2/purchase_bill/"+id, nil)
+	req, _ := http.NewRequest("DELETE", config.BackendDomain+purchaseBillAPIPath+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
 		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")

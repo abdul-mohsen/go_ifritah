@@ -407,24 +407,24 @@
             document.body.classList.add('text-right');
         }
 
-        var els = document.querySelectorAll('[data-i18n]');
-        for (var i = 0; i < els.length; i++) {
-            var key = els[i].getAttribute('data-i18n');
-            var text = translations[lang] && translations[lang][key];
+        const els = document.querySelectorAll('[data-i18n]');
+        for (const element of els) {
+            const key = element.dataset.i18n;
+            const text = translations[lang] && translations[lang][key];
             if (text) {
-                if (els[i].tagName === 'INPUT' || els[i].tagName === 'TEXTAREA') {
-                    els[i].setAttribute('placeholder', text);
+                if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+                    element.setAttribute('placeholder', text);
                 } else {
-                    els[i].textContent = text;
-                }
-
-                var planEls = document.querySelectorAll('[data-plan-ar]');
-                for (var p = 0; p < planEls.length; p++) {
-                    planEls[p].textContent = lang === 'en'
-                        ? planEls[p].getAttribute('data-plan-en')
-                        : planEls[p].getAttribute('data-plan-ar');
+                    element.textContent = text;
                 }
             }
+        }
+
+        const planEls = document.querySelectorAll('[data-plan-ar]');
+        for (const element of planEls) {
+            element.textContent = lang === 'en'
+                ? element.dataset.planEn
+                : element.dataset.planAr;
         }
 
         // Update lang toggle label

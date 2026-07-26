@@ -11,8 +11,10 @@ type Label struct {
 // Common bilingual literals reused by multiple keys. Centralizing them
 // avoids the SonarCloud S1192 "string literal duplicated" warning.
 const (
-	arCity = "المدينة"
-	enCity = "City"
+	arCity     = "المدينة"
+	enCity     = "City"
+	arStore    = "المخزن"
+	arSubtotal = "المجموع الفرعي"
 )
 
 // labels is the master map of all user-facing strings.
@@ -662,7 +664,7 @@ var labels = map[string]Label{
 
 	// ── POS ──────────────────────────────────────────────────────────
 	"pos.title":              {Ar: "نقطة البيع", En: "Point of Sale"},
-	"pos.store":              {Ar: "المخزن", En: "Store"},
+	"pos.store":              {Ar: arStore, En: "Store"},
 	"pos.no_stores":          {Ar: "لا توجد مخازن متاحة", En: "No stores available"},
 	"pos.store_load_error":   {Ar: "تعذر تحميل المخازن", En: "Unable to load stores"},
 	"pos.search_label":       {Ar: "البحث عن منتج", En: "Search products"},
@@ -673,7 +675,7 @@ var labels = map[string]Label{
 	"pos.out_of_stock":       {Ar: "غير متوفر", En: "Out of stock"},
 	"pos.current_order":      {Ar: "الطلب الحالي", En: "Current order"},
 	"pos.empty_order":        {Ar: "أضف منتجات إلى الطلب للبدء", En: "Add products to start an order"},
-	"pos.subtotal":           {Ar: "المجموع الفرعي", En: "Subtotal"},
+	"pos.subtotal":           {Ar: arSubtotal, En: "Subtotal"},
 	"pos.vat":                {Ar: "ضريبة القيمة المضافة (15%)", En: "VAT (15%)"},
 	"pos.total":              {Ar: "الإجمالي", En: "Total"},
 	"pos.checkout":           {Ar: "إتمام الدفع", En: "Checkout"},
@@ -776,7 +778,7 @@ var labels = map[string]Label{
 	"tpl.invoice.discount":             {Ar: "الخصم", En: "Discount"},
 	"tpl.invoice.subtotal":             {Ar: "المجموع", En: "Subtotal"},
 	"tpl.invoice.financial_summary":    {Ar: "الملخص المالي", En: "Financial Summary"},
-	"tpl.invoice.sub_total":            {Ar: "المجموع الفرعي", En: "Subtotal"},
+	"tpl.invoice.sub_total":            {Ar: arSubtotal, En: "Subtotal"},
 	"tpl.invoice.maintenance_cost":     {Ar: "تكلفة الصيانة", En: "Maintenance Cost"},
 	"tpl.invoice.before_vat":           {Ar: "المبلغ قبل الضريبة", En: "Amount Before VAT"},
 	"tpl.invoice.vat_label":            {Ar: "ضريبة القيمة المضافة", En: "VAT"},
@@ -880,7 +882,7 @@ var labels = map[string]Label{
 	"tpl.product.loading_history":    {Ar: "جاري تحميل سجل الحركة...", En: "Loading movement history..."},
 	"tpl.product.edit":               {Ar: "تعديل منتج", En: "Edit Product"},
 	"tpl.product.update":             {Ar: "تحديث", En: "Update"},
-	"tpl.product.store_label":        {Ar: "المخزن", En: "Store"},
+	"tpl.product.store_label":        {Ar: arStore, En: "Store"},
 	"tpl.product.select_store":       {Ar: "اختر المخزن", En: "Select Store"},
 	"tpl.product.products_section":   {Ar: "المنتجات", En: "Products"},
 	"tpl.product.add_row":            {Ar: "+ إضافة منتج", En: "+ Add Product"},
@@ -1033,7 +1035,7 @@ var labels = map[string]Label{
 	"tpl.pb.items_subtotal":                 {Ar: "إجمالي الأصناف", En: "Items Subtotal"},
 	"tpl.pb.item_type":                      {Ar: "النوع", En: "Type"},
 	"tpl.pb.financial_summary":              {Ar: "الملخص المالي", En: "Financial Summary"},
-	"tpl.pb.sub_total":                      {Ar: "المجموع الفرعي", En: "Subtotal"},
+	"tpl.pb.sub_total":                      {Ar: arSubtotal, En: "Subtotal"},
 	"tpl.pb.discount":                       {Ar: "الخصم", En: "Discount"},
 	"tpl.pb.vat":                            {Ar: "ضريبة القيمة المضافة", En: "VAT"},
 	"tpl.pb.attachments":                    {Ar: "المرفقات", En: "Attachments"},
@@ -1362,7 +1364,7 @@ var labels = map[string]Label{
 	"tpl.settings.import_type_bills":              {Ar: "فواتير المبيعات", En: "Sales Invoices"},
 	"tpl.settings.import_type_purchase_bills":     {Ar: "فواتير المشتريات", En: "Purchase Bills"},
 	"tpl.settings.import_type_products":           {Ar: "المنتجات", En: "Products"},
-	"tpl.settings.import_store":                   {Ar: "المخزن", En: "Store"},
+	"tpl.settings.import_store":                   {Ar: arStore, En: "Store"},
 	"tpl.settings.import_file":                    {Ar: "اختر ملف CSV", En: "Choose CSV File"},
 	"tpl.settings.import_available_fields":        {Ar: "الحقول المتاحة للتعيين:", En: "Available fields for mapping:"},
 	"tpl.settings.import_preview":                 {Ar: "معاينة", En: "Preview"},

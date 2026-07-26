@@ -311,7 +311,17 @@
                         </svg>
                     </button>
                     <div class="sidebar-section-items">
+                        {{ if and .tenantID (isEnabled .tenantID "pos_mode") }}
+                        <a href="/dashboard/pos" data-rbac="invoices:add" class="nav-link">
+                            <svg class="w-4 h-4 shrink-0" style="color: var(--md-sys-color-on-surface-variant)"
+                                fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                <path d="M4 5h16v14H4zM8 9h8M8 13h3M15 13h1" />
+                            </svg>
+                            <span class="sidebar-label" data-i18n="nav.pos">{{ L "nav.pos" }}</span>
+                        </a>
+                        {{ else }}
                         <button type="button" class="nav-item-locked" data-feature="pos_mode"
+                            data-rbac="invoices:add"
                             onclick="showUpgradeBanner(this.dataset.feature)">
                             <svg class="shrink-0" fill="none" stroke="currentColor" stroke-width="1.5"
                                 viewBox="0 0 24 24">
@@ -319,6 +329,7 @@
                             </svg>
                             <span class="sidebar-label" data-i18n="nav.pos">{{ L "nav.pos" }}</span>
                         </button>
+                        {{ end }}
                         <button type="button" class="nav-item-locked" data-feature="vat_return_report"
                             onclick="showUpgradeBanner(this.dataset.feature)">
                             <svg class="shrink-0" fill="none" stroke="currentColor" stroke-width="1.5"

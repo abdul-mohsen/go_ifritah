@@ -131,6 +131,7 @@ func main() {
 	router.HandleFunc("/api/invoices/{id}/submit", protect("invoices", "edit", handlers.HandleSubmitDraftInvoice)).Methods("POST")
 	router.HandleFunc("/api/invoices/{id}/whatsapp", protect("invoices", "view", handlers.HandleSendInvoiceWhatsApp)).Methods("POST")
 	router.HandleFunc("/api/invoices/{id}", protect("invoices", "delete", handlers.HandleDeleteInvoice)).Methods("DELETE")
+	router.HandleFunc("/dashboard/pos", protect("invoices", "add", requireFeature(config.FeaturePOSMode, handlers.HandlePOS))).Methods("GET")
 
 	// Purchase bill routes — RBAC protected
 	router.HandleFunc("/dashboard/purchase-bills", protect("purchase_bills", "view", handlers.HandlePurchaseBills)).Methods("GET")

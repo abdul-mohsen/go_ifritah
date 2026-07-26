@@ -37,7 +37,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"onboarding",
 		// Standalone pages
 		"login", "register", "forgot-password",
-		"invoice-preview", "invoice-print", "error-page", "upgrade-prompt",
+		"invoice-preview", "invoice-print", "error-page", "upgrade-prompt", "pos",
 		// Partials
 		"vin-result", "parts-results", "cars-results", "stock-movements", "purchase-bill-header",
 	}

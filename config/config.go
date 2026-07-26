@@ -409,6 +409,7 @@ func LoadTemplates() {
 		"invoice-print":   filepath.Join(BaseDir, "templates/invoice-print.html"),
 		"error-page":      filepath.Join(BaseDir, "templates/error-page.html"),
 		"upgrade-prompt":  filepath.Join(BaseDir, "templates/upgrade-prompt.html"),
+		"pos":             filepath.Join(BaseDir, "templates/pos.html"),
 	}
 
 	for name, page := range standalonePages {

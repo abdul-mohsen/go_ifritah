@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 
 	"afrita/config"
 )
@@ -54,6 +55,17 @@ func injectCommonData(r *http.Request, data map[string]interface{}) {
 	setTemplateDefault(data, "tenantID", requestTenantID(r))
 	setTemplateDefault(data, "plan", requestPlan(r))
 	setTemplateDefault(data, "planLevel", requestPlanLevel(r, data["plan"]))
+	setTemplateDefault(data, "pagination_query", paginationQuery(r.URL.Query()))
+}
+
+func paginationQuery(values url.Values) string {
+	query := make(url.Values, len(values))
+	for key, entries := range values {
+		query[key] = append([]string(nil), entries...)
+	}
+	query.Del("page")
+	query.Del("per")
+	return query.Encode()
 }
 
 func setTemplateDefault(data map[string]interface{}, key string, value interface{}) {

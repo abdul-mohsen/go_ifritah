@@ -85,7 +85,7 @@
     </table>
 </div>
 
-{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query
+{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query "pagination_query" .pagination_query
 "extra_params" (printf "&type=%s" .voucher_type) }}
 </div>
 {{ end }}

@@ -58,7 +58,6 @@
     '/dashboard/orders': [
       { param: 'sequence_number', label: 'رقم الطلب', icon: '#', kind: 'digits' },
       { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
-      { param: 'vin', label: 'رقم الهيكل', icon: '🚗', kind: 'alnum' },
     ],
     '/dashboard/cash-vouchers': [
       { param: 'sequence_number', label: 'رقم السند', icon: '#', kind: 'digits' },

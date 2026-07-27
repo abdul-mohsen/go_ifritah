@@ -3,6 +3,7 @@ package helpers
 import (
 	"afrita/config"
 	"afrita/models"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -42,6 +43,42 @@ func TestDecodeListResponseOrdersWrapped(t *testing.T) {
 	}
 	if len(orders) != 2 {
 		t.Fatalf("expected 2 orders, got %d", len(orders))
+	}
+}
+
+func TestFetchUsersListForwardsSearchAndTypedFilters(t *testing.T) {
+	var payload map[string]interface{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v2/user/all" {
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode users payload: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":1,"username":"worker","email":"worker@example.com","role":"employee","is_active":true}]}`))
+	}))
+	defer server.Close()
+
+	oldDomain := config.BackendDomain
+	config.BackendDomain = server.URL
+	defer func() { config.BackendDomain = oldDomain }()
+
+	users, err := FetchUsersList("token", ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   "worker",
+		Role:    "employee",
+		Typed:   map[string]string{"email": "worker@"},
+	})
+	if err != nil {
+		t.Fatalf("FetchUsersList() error = %v", err)
+	}
+	if len(users) != 1 || users[0].Username != "worker" {
+		t.Fatalf("FetchUsersList() = %#v, want one worker", users)
+	}
+	if payload["query"] != "worker" || payload["role"] != "employee" || payload["email"] != "worker@" {
+		t.Fatalf("users payload = %#v", payload)
 	}
 }
 

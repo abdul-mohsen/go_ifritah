@@ -1,7 +1,7 @@
 {{ define "content" }}
 {{ template "error-alert" . }}
 <div class="list-toolbar">
-    <form method="get">
+    <form method="get" hx-get="" hx-target="#list-results" hx-select="#list-results" hx-swap="outerHTML" hx-push-url="true" hx-trigger="submit, input changed delay:400ms from:input[name='q'], change from:select" hx-indicator="#list-results">
         <input type="text" name="q" value="{{ .query }}" placeholder="{{ L "tpl.user.search_placeholder" }}" class="search-input">
         <select name="role">
             <option value="">{{ L "tpl.user.all_roles" }}</option>
@@ -9,6 +9,7 @@
             <option value="manager" {{ if eq .role_filter "manager" }}selected{{ end }}>{{ L "tpl.user.role_manager" }}</option>
             <option value="employee" {{ if eq .role_filter "employee" }}selected{{ end }}>{{ L "tpl.user.role_employee" }}</option>
         </select>
+        {{ template "per-page-select" dict "pagination" .pagination }}
         <button type="submit" class="btn btn-tonal btn-sm">{{ L "tpl.search" }}</button>
     </form>
     <div class="toolbar-actions">
@@ -16,6 +17,7 @@
         {{ template "item-count" dict "pagination" .pagination }}
     </div>
 </div>
+<div id="list-results">
 <div class="data-table-wrapper">
     <table aria-label="{{ L "tpl.user.table_label" }}">
         <thead>
@@ -54,5 +56,6 @@
         </tbody>
     </table>
 </div>
-{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query "extra_params" (printf "&role=%s" .role_filter) }}
+{{ template "pagination" dict "prev_page" .prev_page "next_page" .next_page "pagination" .pagination "query" .query "pagination_query" .pagination_query "extra_params" (printf "&role=%s" .role_filter) }}
+</div>
 {{ end }}

@@ -2333,6 +2333,7 @@ func decodeListResponse[T any](body []byte) ([]T, error) {
 		"suppliers",
 		"clients",
 		"orders",
+		"users",
 	}
 	for _, key := range keys {
 		if raw, ok := wrapper[key]; ok {

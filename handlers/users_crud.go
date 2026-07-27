@@ -134,7 +134,17 @@ func HandleUsers(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	users, err := fetchUsers(token)
+
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	roleFilter := r.URL.Query().Get("role")
+	typed := helpers.TypedListFilters("users", r.URL.Query())
+	users, err := helpers.FetchUsersList(token, helpers.ListOpts{
+		Page:    0,
+		PerPage: 10000,
+		Query:   query,
+		Role:    roleFilter,
+		Typed:   typed,
+	})
 	backendErr := ""
 	if err != nil {
 		if helpers.IsUnauthorizedError(err) {
@@ -145,13 +155,8 @@ func HandleUsers(w http.ResponseWriter, r *http.Request) {
 		backendErr = "تعذر تحميل المستخدمين من الخادم حالياً"
 	}
 
-	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	roleFilter := r.URL.Query().Get("role")
 	filtered := make([]models.User, 0, len(users))
 	for _, user := range users {
-		if query != "" && !helpers.MatchSearchQuery(query, user.Username, user.Email) {
-			continue
-		}
 		if roleFilter != "" && string(user.Role) != roleFilter {
 			continue
 		}

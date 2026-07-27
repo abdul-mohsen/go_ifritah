@@ -139,6 +139,51 @@ func TestDecodeUsersMapsBackendActivityField(t *testing.T) {
 	}
 }
 
+func TestHandleUsersUsesUnifiedSearchAndFilterState(t *testing.T) {
+	var payload map[string]interface{}
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v2/user/all" {
+			t.Fatalf("unexpected backend request: %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode users list payload: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[
+			{"id":1,"username":"worker","email":"worker@example.com","role":"employee","is_active":true},
+			{"id":2,"username":"admin","email":"admin@example.com","role":"admin","is_active":true}
+		]}`))
+	}))
+	defer backend.Close()
+
+	previous := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = previous }()
+	seedTestSession()
+
+	req := httptest.NewRequest("GET", "/dashboard/users?q=worker&role=employee&email=worker%40example.com", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "test-session"})
+	rec := httptest.NewRecorder()
+
+	HandleUsers(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("HandleUsers status = %d, want 200", rec.Code)
+	}
+	if payload["query"] != "worker" || payload["role"] != "employee" || payload["email"] != "worker@example.com" {
+		t.Fatalf("users list payload = %#v", payload)
+	}
+	body := rec.Body.String()
+	for _, expected := range []string{`hx-select="#list-results"`, `id="list-results"`, "worker"} {
+		if !strings.Contains(body, expected) {
+			t.Errorf("users page missing %q", expected)
+		}
+	}
+	if strings.Contains(body, ">admin<") {
+		t.Error("role filter should remove non-matching users before rendering")
+	}
+}
+
 func TestUserTemplatesAreRegistered(t *testing.T) {
 	for _, name := range []string{"users", "add-user", "edit-user"} {
 		if config.Templates[name] == nil {

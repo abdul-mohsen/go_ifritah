@@ -162,6 +162,9 @@ func HandleAddPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := loadSettingsFromBackend(token); err != nil {
+		log.Printf("[PURCHASE BILL] settings refresh failed: %v", err)
+	}
 	stores, _ := helpers.FetchStores(token)
 	suppliers, _ := helpers.FetchSuppliers(token)
 	today := time.Now().Format("2006-01-02")
@@ -489,6 +492,9 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := loadSettingsFromBackend(token); err != nil {
+		log.Printf("[PURCHASE BILL] settings refresh failed: %v", err)
+	}
 	req, _ := http.NewRequest("GET", config.BackendDomain+purchaseBillAPIPath+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {

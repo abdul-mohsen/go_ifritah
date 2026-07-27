@@ -27,8 +27,8 @@ repositories and are reviewed through their repository-specific pull requests.
   backend creates it on notification list or unread-count access without
   relying on browser storage.
 - Added audit timestamps to the canonical backend schema and migration. That
-  migration is tracked separately until it is folded into the backend
-  aggregate branch.
+  migration is folded into the backend aggregate branch; publication is
+  pending repository access.
 
 ## Intensive UI/UX findings resolved
 
@@ -54,12 +54,10 @@ repositories and are reviewed through their repository-specific pull requests.
   policy reloads, dashboard periods, and notification rendering.
 - Backend handler tests cover settings write failures, notification contracts,
   low-stock generation, per-user thresholds, and release-note idempotency.
-- Existing frontend and backend targeted handler suites pass.
+- Full frontend and backend Go build, vet, and test suites pass after SQLC
+  regeneration.
 
 ## Remaining QA risks
 
-- Full frontend/backend suites and live-browser E2E checks still depend on the
-  development backend being healthy.
-- Browser-level visual regression coverage is not available in the current
-  local test run; the resolved CSS/template findings should be exercised by
-  the existing live-browser checks when the development backend is healthy.
+- Live-browser E2E and visual regression checks remain blocked by the local
+  review server returning HTTP 401 for the configured admin session.

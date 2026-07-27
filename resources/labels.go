@@ -457,6 +457,7 @@ var labels = map[string]Label{
 	"ui.filter.to_date":      {Ar: "إلى التاريخ", En: "To Date"},
 	"ui.filter.period":       {Ar: "الفترة", En: "Period"},
 	"ui.filter.status":       {Ar: "الحالة", En: "Status"},
+	"ui.filter.all_dates":    {Ar: "كل التواريخ", En: "All Dates"},
 	"ui.filter.today":        {Ar: "اليوم", En: "Today"},
 	"ui.filter.this_week":    {Ar: "هذا الأسبوع", En: "This Week"},
 	"ui.filter.this_month":   {Ar: "هذا الشهر", En: "This Month"},

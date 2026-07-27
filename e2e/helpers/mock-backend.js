@@ -30,6 +30,18 @@ const suppliers = [{
   credit_limit: 0,
 }];
 
+let notifications = [{
+  id: 7,
+  user_id: 1,
+  type: 'low_stock',
+  title: 'مخزون منخفض',
+  message: 'فلتر زيت — الكمية المتبقية: 2',
+  resource: 'product',
+  resource_id: '12',
+  read: false,
+  created_at: '2026-02-14T10:00:00+03:00',
+}];
+
 http.createServer((req, res) => {
   if (req.method === 'POST' && req.url === '/api/v2/login') {
     json(res, 200, { access_token: token(), refresh_token: token('admin') });
@@ -47,7 +59,37 @@ http.createServer((req, res) => {
   }
 
   if (req.method === 'GET' && req.url === '/api/v2/notification/unread-count') {
-    json(res, 200, { count: 0 });
+    json(res, 200, { count: notifications.filter((item) => !item.read).length });
+    return;
+  }
+
+  if (req.method === 'GET' && req.url.startsWith('/api/v2/notification?')) {
+    json(res, 200, {
+      items: notifications,
+      data: notifications,
+      next_cursor: '',
+      prev_cursor: '',
+      has_more: false,
+    });
+    return;
+  }
+
+  const markRead = req.url.match(/^\/api\/v2\/notification\/(\d+)\/read$/);
+  if (req.method === 'PUT' && markRead) {
+    const item = notifications.find((notification) => notification.id === Number(markRead[1]));
+    if (!item) {
+      json(res, 404, { detail: 'notification not found' });
+      return;
+    }
+    item.read = true;
+    json(res, 200, { detail: 'success' });
+    return;
+  }
+
+  if (req.method === 'PUT' && req.url === '/api/v2/notification/read-all') {
+    const count = notifications.filter((item) => !item.read).length;
+    notifications = notifications.map((item) => ({ ...item, read: true }));
+    json(res, 200, { detail: 'success', count });
     return;
   }
 

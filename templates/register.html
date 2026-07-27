@@ -22,34 +22,34 @@
 
         <form id="register-form">
             <div class="mb-4">
-                <label class="form-label">{{ L "tpl.auth.full_name" }}</label>
-                <input type="text" name="full_name" placeholder="{{ L "tpl.auth.full_name_placeholder" }}" required class="w-full">
+                <label class="form-label" for="full_name">{{ L "tpl.auth.full_name" }}</label>
+                <input type="text" id="full_name" name="full_name" autocomplete="name" placeholder="{{ L "tpl.auth.full_name_placeholder" }}" required class="w-full">
             </div>
 
             <div class="mb-4">
-                <label class="form-label">{{ L "tpl.user.username" }}</label>
-                <input type="text" name="username" placeholder="{{ L "tpl.user.username_placeholder" }}" required class="w-full">
+                <label class="form-label" for="username">{{ L "tpl.user.username" }}</label>
+                <input type="text" id="username" name="username" autocomplete="username" placeholder="{{ L "tpl.user.username_placeholder" }}" required class="w-full">
             </div>
 
             <div class="mb-4">
-                <label class="form-label">{{ L "tpl.user.email" }}</label>
-                <input type="email" name="email" placeholder="{{ L "tpl.user.email_placeholder" }}" required class="w-full">
+                <label class="form-label" for="email">{{ L "tpl.user.email" }}</label>
+                <input type="email" id="email" name="email" autocomplete="email" placeholder="{{ L "tpl.user.email_placeholder" }}" required class="w-full">
             </div>
 
             <div class="mb-4">
-                <label class="form-label">{{ L "tpl.auth.phone" }}</label>
-                <input type="tel" name="phone" placeholder="05XXXXXXXX" class="w-full" required>
+                <label class="form-label" for="phone">{{ L "tpl.auth.phone" }}</label>
+                <input type="tel" id="phone" name="phone" autocomplete="tel" placeholder="05XXXXXXXX" class="w-full" required>
             </div>
 
             <div class="mb-4">
-                <label class="form-label">{{ L "tpl.user.password" }}</label>
-                <input type="password" name="password" id="password" placeholder="{{ L "tpl.user.password_placeholder" }}" required
+                <label class="form-label" for="password">{{ L "tpl.user.password" }}</label>
+                <input type="password" name="password" id="password" autocomplete="new-password" placeholder="{{ L "tpl.user.password_placeholder" }}" required
                     minlength="8" class="w-full">
             </div>
 
             <div class="mb-5">
-                <label class="form-label">{{ L "tpl.user.confirm_password" }}</label>
-                <input type="password" name="confirm_password" id="confirm_password" placeholder="{{ L "tpl.user.confirm_pw_placeholder" }}"
+                <label class="form-label" for="confirm_password">{{ L "tpl.user.confirm_password" }}</label>
+                <input type="password" name="confirm_password" id="confirm_password" autocomplete="new-password" placeholder="{{ L "tpl.user.confirm_pw_placeholder" }}"
                     required minlength="8" class="w-full">
                 <p id="password-mismatch" class="text-xs mt-1 hidden" style="color: var(--md-sys-color-error)">{{ L "tpl.user.pw_mismatch" }}</p>
             </div>

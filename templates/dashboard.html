@@ -28,12 +28,13 @@
         <div>
             <label class="form-label">{{ L "ui.filter.period" }}</label>
             <select id="period">
-                <option value="today">{{ L "ui.filter.today" }}</option>
-                <option value="week" selected>{{ L "ui.filter.this_week" }}</option>
-                <option value="month">{{ L "ui.filter.this_month" }}</option>
-                <option value="quarter">{{ L "ui.filter.this_quarter" }}</option>
-                <option value="year">{{ L "ui.filter.this_year" }}</option>
-                <option value="custom">{{ L "ui.filter.custom" }}</option>
+                <option value="all" {{ if eq .period "all" }}selected{{ end }}>{{ L "ui.filter.all_dates" }}</option>
+                <option value="today" {{ if eq .period "today" }}selected{{ end }}>{{ L "ui.filter.today" }}</option>
+                <option value="week" {{ if eq .period "week" }}selected{{ end }}>{{ L "ui.filter.this_week" }}</option>
+                <option value="month" {{ if eq .period "month" }}selected{{ end }}>{{ L "ui.filter.this_month" }}</option>
+                <option value="quarter" {{ if eq .period "quarter" }}selected{{ end }}>{{ L "ui.filter.this_quarter" }}</option>
+                <option value="year" {{ if eq .period "year" }}selected{{ end }}>{{ L "ui.filter.this_year" }}</option>
+                <option value="custom" {{ if eq .period "custom" }}selected{{ end }}>{{ L "ui.filter.custom" }}</option>
             </select>
         </div>
         <div>
@@ -924,45 +925,54 @@
         var endInput = document.getElementById('endDate');
         var periodSelect = document.getElementById('period');
 
-        var hasPresetDates = !!(startInput.value || endInput.value);
-        if (!hasPresetDates) {
-            var today = new Date();
-            var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-            endInput.valueAsDate = today;
-            startInput.valueAsDate = lastWeek;
-            startInput.disabled = true;
-            endInput.disabled = true;
-            periodSelect.value = 'week';
+        var selectedPeriod = periodSelect.value || 'week';
+        var setDateInputsEnabled = function (enabled) {
+            startInput.disabled = !enabled;
+            endInput.disabled = !enabled;
+        };
+        if (selectedPeriod === 'all') {
+            startInput.value = '';
+            endInput.value = '';
+            setDateInputsEnabled(false);
+        } else if (selectedPeriod === 'custom') {
+            setDateInputsEnabled(true);
         } else {
-            startInput.disabled = false;
-            endInput.disabled = false;
-            periodSelect.value = 'custom';
+            setDateInputsEnabled(false);
         }
 
         periodSelect.addEventListener('change', function () {
             var period = this.value;
+            if (period === 'all') {
+                startInput.value = '';
+                endInput.value = '';
+                setDateInputsEnabled(false);
+                return;
+            }
             var endDate = new Date();
             var startDate = new Date();
             switch (period) {
                 case 'today': startDate = new Date(endDate); break;
-                case 'week': startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+                case 'week': startDate = new Date(endDate.getTime() - 6 * 24 * 60 * 60 * 1000); break;
                 case 'month': startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1); break;
                 case 'quarter': var qMonth = Math.floor(endDate.getMonth() / 3) * 3; startDate = new Date(endDate.getFullYear(), qMonth, 1); break;
                 case 'year': startDate = new Date(endDate.getFullYear(), 0, 1); break;
-                case 'custom': startInput.disabled = false; endInput.disabled = false; return;
+                case 'custom': setDateInputsEnabled(true); return;
             }
             startInput.valueAsDate = startDate;
             endInput.valueAsDate = endDate;
-            startInput.disabled = true;
-            endInput.disabled = true;
+            setDateInputsEnabled(false);
         });
 
         window.applyFilters = function () {
             var params = new URLSearchParams();
             var status = document.getElementById('statusFilter').value;
             if (status) params.append('state', status);
-            if (startInput.value) params.append('start_date', startInput.value);
-            if (endInput.value) params.append('end_date', endInput.value);
+            var period = periodSelect.value || 'week';
+            params.append('period', period);
+            if (period === 'custom') {
+                if (startInput.value) params.append('start_date', startInput.value);
+                if (endInput.value) params.append('end_date', endInput.value);
+            }
             window.location.href = '/dashboard?' + params.toString();
         };
         window.resetFilters = function () { window.location.href = '/dashboard'; };

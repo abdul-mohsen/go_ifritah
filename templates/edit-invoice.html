@@ -59,7 +59,7 @@
                 <div class="flex gap-2">
                     <input type="text" name="vin" id="vin-input" class="w-full" pattern="^[A-HJ-NPR-Z0-9]{17}$"
                         maxlength="17" title="{{ L "tpl.invoice.form.vin_title" }}">
-                    <button hx-get="/api/vin/verify" hx-include="#vin-input" hx-target="#vin-result"
+                    <button type="button" hx-get="/api/vin/verify" hx-include="#vin-input" hx-target="#vin-result"
                         class="btn btn-tonal btn-sm border">{{ L "tpl.invoice.form.verify" }}</button>
                 </div>
                 <div id="vin-result"></div>

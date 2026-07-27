@@ -86,6 +86,19 @@ func TestFetchNotifications_AcceptsLegacyIsReadKey(t *testing.T) {
 	}
 }
 
+func TestFetchNotifications_AcceptsLegacyDataEnvelope(t *testing.T) {
+	withFakeBackend(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"data":[{"id":2,"read":false}],"has_more":false}`)
+	}))
+	resp, err := helpers.FetchNotifications(context.Background(), "t", helpers.NotificationListParams{})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(resp.Items) != 1 || resp.Items[0].ID != 2 {
+		t.Fatalf("legacy data envelope was not normalized: %#v", resp.Items)
+	}
+}
+
 func TestFetchNotifications_UnauthorizedTyped(t *testing.T) {
 	withFakeBackend(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -144,7 +157,7 @@ func TestFetchUnreadCount(t *testing.T) {
 
 func TestMarkNotificationRead(t *testing.T) {
 	withFakeBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/api/v2/notification/9/read" {
+		if r.Method != http.MethodPut || r.URL.Path != "/api/v2/notification/9/read" {
 			t.Errorf("got %s %s", r.Method, r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
@@ -166,7 +179,7 @@ func TestMarkNotificationRead_NotFoundTyped(t *testing.T) {
 
 func TestMarkAllNotificationsRead(t *testing.T) {
 	withFakeBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/api/v2/notification/read-all" {
+		if r.Method != http.MethodPut || r.URL.Path != "/api/v2/notification/read-all" {
 			t.Errorf("got %s %s", r.Method, r.URL.Path)
 		}
 		_, _ = io.WriteString(w, `{"count": 12}`)

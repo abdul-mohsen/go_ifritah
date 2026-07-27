@@ -14,3 +14,9 @@
   thresholds.
 - Notification listing, unread counts, read actions, and release-note
   delivery now use one consistent contract.
+- Purchase-bill CSV actions now use the shared outlined button style.
+- Smart-search controls now expose a consistent keyboard focus ring.
+- Warning banners use shared theme tokens and remain readable in dark mode.
+- Invoice VIN verification no longer submits the invoice form.
+- Shared form fields, registration fields, and pagination now expose clearer
+  labels and keyboard/screen-reader semantics.

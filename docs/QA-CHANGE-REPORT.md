@@ -30,6 +30,24 @@ repositories and are reviewed through their repository-specific pull requests.
   migration is tracked separately until it is folded into the backend
   aggregate branch.
 
+## Intensive UI/UX findings resolved
+
+- Corrected the purchase-bill CSV import actions to use the shared outlined
+  button variant instead of an undefined class.
+- Restored visible `:focus-visible` rings for smart-search clear, recent,
+  chip, typed-filter, popover, and hint controls.
+- Replaced hardcoded light-theme warning colors in purchase-bill credit
+  warnings and the ZATCA company-name warning with the shared warning alert
+  tokens, including dark-mode support.
+- Replaced the RTL shell's physical sidebar border with a logical border
+  property so the layout remains correct when direction changes.
+- Prevented the invoice VIN verifier from submitting its parent form.
+- Associated shared form-field labels with stable input and textarea IDs.
+- Added label associations and browser autocomplete hints to registration
+  fields.
+- Added accessible previous/next labels and `aria-current` to shared
+  pagination.
+
 ## Regression coverage
 
 - Frontend handler tests cover settings persistence, empty-value saves, PDF
@@ -42,5 +60,6 @@ repositories and are reviewed through their repository-specific pull requests.
 
 - Full frontend/backend suites and live-browser E2E checks still depend on the
   development backend being healthy.
-- The intensive visual pass remains open for cross-page spacing, typography,
-  color, responsive behavior, and accessibility consistency.
+- Browser-level visual regression coverage is not available in the current
+  local test run; the resolved CSS/template findings should be exercised by
+  the existing live-browser checks when the development backend is healthy.

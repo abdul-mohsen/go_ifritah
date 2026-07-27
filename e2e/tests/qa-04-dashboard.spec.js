@@ -27,6 +27,16 @@ test('dashboard accepts ?start_date and ?end_date filters', async ({ page }) => 
 test('dashboard date range "month" loads', async ({ page }) => {
   const resp = await page.goto('/dashboard?period=month');
   expect(resp.status()).toBeLessThan(400);
+  await expect(page.locator('#period')).toHaveValue('month');
+  await expect(page.locator('#startDate')).toHaveValue(/^\d{4}-\d{2}-01$/);
+});
+
+test('dashboard all-dates period clears the date range', async ({ page }) => {
+  const resp = await page.goto('/dashboard?period=all');
+  expect(resp.status()).toBeLessThan(400);
+  await expect(page.locator('#period')).toHaveValue('all');
+  await expect(page.locator('#startDate')).toHaveValue('');
+  await expect(page.locator('#endDate')).toHaveValue('');
 });
 
 test('dashboard compare page loads', async ({ page }) => {

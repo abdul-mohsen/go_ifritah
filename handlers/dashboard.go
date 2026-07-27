@@ -90,6 +90,7 @@ func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 		"state_filter": "",
 		"start_date":   "",
 		"end_date":     "",
+		"period":       "week",
 		"user_role":    "admin",
 		"version":      config.AppVersion,
 
@@ -272,8 +273,23 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	stateFilter := r.URL.Query().Get("state")
+	period := r.URL.Query().Get("period")
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
+
+	if period == "" {
+		if startDate != "" || endDate != "" {
+			period = "custom"
+		} else {
+			period = "week"
+		}
+	} else if period != "custom" {
+		if resolvedStart, resolvedEnd, valid := helpers.ResolveDashboardPeriod(period, time.Now()); valid {
+			startDate, endDate = resolvedStart, resolvedEnd
+		} else {
+			period = "custom"
+		}
+	}
 
 	var (
 		summary                  *helpers.DashboardAPIResponse
@@ -592,6 +608,7 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		"state_filter":       stateFilter,
 		"start_date":         startDate,
 		"end_date":           endDate,
+		"period":             period,
 		"user_role":          helpers.GetUserRole(r),
 		"version":            config.AppVersion,
 

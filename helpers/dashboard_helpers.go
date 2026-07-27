@@ -303,6 +303,34 @@ func ParseFilterDate(value string, isEnd bool) *time.Time {
 	return &parsed
 }
 
+// ResolveDashboardPeriod converts a dashboard period preset into an
+// inclusive Riyadh calendar-date range. An empty range represents all dates.
+func ResolveDashboardPeriod(period string, now time.Time) (string, string, bool) {
+	now = now.In(Riyadh)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, Riyadh)
+
+	var start time.Time
+	switch strings.ToLower(strings.TrimSpace(period)) {
+	case "all":
+		return "", "", true
+	case "today":
+		start = today
+	case "week":
+		start = today.AddDate(0, 0, -6)
+	case "month":
+		start = time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, Riyadh)
+	case "quarter":
+		quarterMonth := (int(today.Month())-1)/3*3 + 1
+		start = time.Date(today.Year(), time.Month(quarterMonth), 1, 0, 0, 0, 0, Riyadh)
+	case "year":
+		start = time.Date(today.Year(), time.January, 1, 0, 0, 0, 0, Riyadh)
+	default:
+		return "", "", false
+	}
+
+	return start.Format("2006-01-02"), today.Format("2006-01-02"), true
+}
+
 func ParseFloatString(value string) (float64, error) {
 	cleaned := strings.ReplaceAll(value, ",", "")
 	return strconvParseFloat(cleaned)

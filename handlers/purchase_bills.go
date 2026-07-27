@@ -74,6 +74,7 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query().Get("q")
 	stateFilter := r.URL.Query().Get("state")
+	typed := helpers.TypedListFilters("purchase_bills", r.URL.Query())
 	page := helpers.ParseIntValue(r.URL.Query().Get("page"))
 	perPage := helpers.ParseIntValue(r.URL.Query().Get("per"))
 	if page < 0 {
@@ -82,7 +83,7 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 
 	// Search + state filter are BE-driven. Sort is FE-only (see
 	// static/js/script.js sortable table init).
-	bills, err := helpers.FetchPurchaseBillsAll(token, 1, query, stateFilter)
+	bills, err := helpers.FetchPurchaseBillsAllWithTyped(token, 1, query, stateFilter, typed)
 	backendErr := ""
 	if err != nil {
 		if helpers.IsUnauthorizedError(err) {

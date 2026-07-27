@@ -346,16 +346,23 @@ func FetchAllInvoicesUnpaginated(token string) ([]models.Invoice, error) {
 }
 
 // FetchPurchaseBillsAll fetches purchase bills with search + state filter.
-//
-// Sort is FE-only (BE returns rows in canonical keyset order). Search and
-// state filter are forwarded to BE; empty values fall through to defaults.
 func FetchPurchaseBillsAll(token string, page int, query, stateFilter string) ([]models.Invoice, error) {
+	return FetchPurchaseBillsAllWithTyped(token, page, query, stateFilter, nil)
+}
+
+// FetchPurchaseBillsAllWithTyped also forwards typed field filters selected by
+// the smart-search UI, such as sequence_number and supplier_sequence_number.
+//
+// Sort is FE-only (BE returns rows in canonical keyset order). Search, typed
+// filters, and state are forwarded to BE; empty values fall through to
+// defaults.
+func FetchPurchaseBillsAllWithTyped(token string, page int, query, stateFilter string, typed map[string]string) ([]models.Invoice, error) {
 	if page < 1 {
 		page = 1
 	}
 
 	// Cache only the default dashboard call (page 1, no params)
-	if page == 1 && query == "" && stateFilter == "" {
+	if page == 1 && query == "" && stateFilter == "" && len(typed) == 0 {
 		if cached, found := APICache.Get("purchase_bills"); found {
 			log.Printf("⚡ [CACHE HIT] purchase_bills")
 			if v, ok := cached.([]models.Invoice); ok {
@@ -368,6 +375,11 @@ func FetchPurchaseBillsAll(token string, page int, query, stateFilter string) ([
 	payload := map[string]interface{}{"page_number": 0, "page_size": 10000}
 	apiLogf(logFmtAPIRequest, config.BackendDomain, "/api/v2/purchase_bill/all")
 	applyListFilters(payload, query, stateFilter)
+	for k, v := range typed {
+		if k != "" && v != "" {
+			payload[k] = v
+		}
+	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload: %w", err)
@@ -399,7 +411,7 @@ func FetchPurchaseBillsAll(token string, page int, query, stateFilter string) ([
 	// Purchase bill list returns numeric fields as strings ("total": "287.5").
 	// Decode into raw maps first, then manually coerce into []Invoice.
 	result, err := decodePurchaseBillList(bodyBytes)
-	if err == nil && page == 1 && query == "" && stateFilter == "" {
+	if err == nil && page == 1 && query == "" && stateFilter == "" && len(typed) == 0 {
 		APICache.Set("purchase_bills", result, CacheTTLPurchBill)
 		log.Printf("💾 [CACHE SET] purchase_bills (TTL %v)", CacheTTLPurchBill)
 	}

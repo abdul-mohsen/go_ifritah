@@ -141,8 +141,10 @@
             <div>
                 <label class="form-label">{{ L "tpl.pb.grand_total" }}</label>
                 <input type="text" id="total_display" class="w-full"
+                    aria-describedby="purchase-total-error"
                     style="background: var(--md-sys-color-surface-variant)" disabled>
                 <input type="hidden" name="total_amount" id="total_amount" value="0">
+                <p id="purchase-total-error" class="text-xs mt-1 text-red-600 hidden" role="alert">{{ L "tpl.pb.zero_total_error" }}</p>
             </div>
         </div>
 
@@ -228,10 +230,19 @@
         return form ? form.querySelector('button[type="submit"]') : null;
     }
 
+    function isPurchaseBillTotalPositive() {
+        var total = parseFloat(document.getElementById('total_amount').value || 0);
+        return isFinite(total) && total > 0;
+    }
+
     function updatePurchaseSubmitState() {
         var submit = getPurchaseSubmitButton();
         if (!submit) return;
-        submit.disabled = purchaseBillDuplicateState.exists;
+        submit.disabled = purchaseBillDuplicateState.exists || !isPurchaseBillTotalPositive();
+        var totalError = document.getElementById('purchase-total-error');
+        if (totalError) {
+            totalError.classList.toggle('hidden', isPurchaseBillTotalPositive());
+        }
     }
 
     function clearPurchaseBillDuplicateMessages() {
@@ -444,6 +455,7 @@
         document.getElementById('total_display').value = total.toFixed(2) + ' {{ L "tpl.currency" }}';
         document.getElementById('total_amount').value = total.toFixed(2);
         checkCreditLimit();
+        updatePurchaseSubmitState();
     }
 
     function checkCreditLimit() {
@@ -649,6 +661,12 @@
             e.preventDefault();
             var sequenceInput = document.getElementById('supplier_sequence_input');
             if (sequenceInput) sequenceInput.focus();
+            return;
+        }
+        if (!isPurchaseBillTotalPositive()) {
+            var totalError = document.getElementById('purchase-total-error');
+            if (totalError) totalError.classList.remove('hidden');
+            e.preventDefault();
             return;
         }
         var pdfRequired = '{{ .pb_pdf_required }}' === 'required';

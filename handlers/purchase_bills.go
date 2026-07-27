@@ -19,7 +19,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const purchaseBillAPIPath = "/api/v2/purchase_bill/"
+const (
+	purchaseBillAPIPath       = "/api/v2/purchase_bill/"
+	purchaseBillZeroTotalText = "You can't submit an invoice with 0"
+)
 
 // purchaseBillCreateLock prevents duplicate purchase bill creation per user session.
 var purchaseBillCreateLock sync.Map
@@ -27,6 +30,14 @@ var purchaseBillCreateLock sync.Map
 type purchaseBillDuplicateCheckRequest struct {
 	SupplierID             int    `json:"supplier_id"`
 	SupplierSequenceNumber uint64 `json:"supplier_sequence_number"`
+}
+
+func validatePurchaseBillTotal(w http.ResponseWriter, payload models.PurchaseBillPayload) bool {
+	if payload.Subtotal > 0 {
+		return true
+	}
+	helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, purchaseBillZeroTotalText)
+	return false
 }
 
 func purchaseBillReceiptEnabled(r *http.Request) bool {
@@ -240,8 +251,7 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	defer purchaseBillCreateLock.Delete(token)
 
 	payload := helpers.BuildPurchaseBillPayload(r)
-	if payload.Subtotal <= 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "You can't submit an invoice with 0")
+	if !validatePurchaseBillTotal(w, payload) {
 		return
 	}
 	jsonPayload, _ := json.Marshal(payload)
@@ -570,6 +580,9 @@ func HandleUpdatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := helpers.BuildPurchaseBillPayload(r)
+	if !validatePurchaseBillTotal(w, payload) {
+		return
+	}
 	body, _ := json.Marshal(payload)
 
 	log.Printf("[UPDATE PURCHASE BILL] ID=%s Payload: %s", id, string(body))

@@ -1082,6 +1082,7 @@ var labels = map[string]Label{
 	"tpl.pb.docs_hint":                      {Ar: "PDF, JPG, PNG — الحد الأقصى 10 ميجا لكل ملف", En: "PDF, JPG, PNG — Max 10MB each"},
 	"tpl.pb.discount_pct":                   {Ar: "خصم %", En: "Discount %"},
 	"tpl.pb.grand_total":                    {Ar: "المجموع الكلي", En: "Grand Total"},
+	"tpl.pb.zero_total_error":               {Ar: "يجب أن يكون إجمالي فاتورة الشراء أكبر من صفر", En: "The purchase bill total must be greater than zero"},
 	"tpl.pb.oem_label":                      {Ar: "القطعة (بحث برقم OEM)", En: "Part (Search by OEM)"},
 	"tpl.pb.oem_placeholder":                {Ar: "ابحث عن القطعة...", En: "Search for part..."},
 	"tpl.pb.purchase_price":                 {Ar: "سعر الشراء", En: "Purchase Price"},

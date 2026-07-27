@@ -575,7 +575,9 @@ func TestAddPurchaseBillDuplicateCheckUIIsRendered(t *testing.T) {
 		`inFlightKey`,
 		`key === purchaseBillDuplicateState.lastCheckedKey || key === purchaseBillDuplicateState.inFlightKey`,
 		`purchaseBillDuplicateState.exists = !!(data && data.exists)`,
-		`submit.disabled = purchaseBillDuplicateState.exists`,
+		`submit.disabled = purchaseBillDuplicateState.exists || !isPurchaseBillTotalPositive()`,
+		`purchase-total-error`,
+		`isPurchaseBillTotalPositive`,
 		`setPurchaseBillDuplicateWarning()`,
 		`e.preventDefault()`,
 	} {
@@ -804,6 +806,10 @@ func TestEditPBManualProductNameField(t *testing.T) {
 	}
 	if !strings.Contains(body, `supplier-search.js`) {
 		t.Error("edit purchase bill page should load supplier-search.js")
+	}
+	if !strings.Contains(body, `id="purchase-total-error"`) ||
+		!strings.Contains(body, `submit.disabled = !isPurchaseBillTotalPositive()`) {
+		t.Error("edit purchase bill page should block and explain non-positive totals")
 	}
 }
 

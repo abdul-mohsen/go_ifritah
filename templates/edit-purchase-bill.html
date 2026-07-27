@@ -159,8 +159,10 @@
             <div>
                 <label class="form-label">{{ L "tpl.pb.grand_total" }}</label>
                 <input type="text" id="total_display" class="w-full"
+                    aria-describedby="purchase-total-error"
                     style="background: var(--md-sys-color-surface-variant)" disabled>
                 <input type="hidden" name="total_amount" id="total_amount" value="{{ .subtotal }}">
+                <p id="purchase-total-error" class="text-xs mt-1 text-red-600 hidden" role="alert">{{ L "tpl.pb.zero_total_error" }}</p>
             </div>
         </div>
 
@@ -171,6 +173,21 @@
 <script>
     var canEditSellingPrice = {{ if or (eq .user_role "admin") (eq .user_role "manager") }}true{{ else }}false{{ end }};
     var purchaseBillLabels = {{ dict "itemLabel" (L "tpl.pb.item_label") "itemPlaceholder" (L "tpl.pb.item_placeholder") "manualItem" (L "tpl.pb.manual_item") "inventoryItem" (L "tpl.pb.inventory_item") "quantity" (L "tpl.pb.quantity") "costPrice" (L "tpl.product.cost_price") "costPriceHint" (L "tpl.pb.cost_price_hint") "shelfNumber" (L "tpl.product.shelf_number") "deleteLabel" (L "tpl.delete") "purchasePrice" (L "tpl.pb.purchase_price") "purchasePriceHint" (L "tpl.pb.purchase_price_hint") "sellingPrice" (L "tpl.product.selling_price") "sellingPriceHint" (L "tpl.pb.selling_price_hint") "sellingPriceAutoHint" (L "tpl.pb.selling_price_auto_hint") "sellingPriceAutoPlaceholder" (L "tpl.pb.selling_price_auto_placeholder") | json }};
+
+    function isPurchaseBillTotalPositive() {
+        var total = parseFloat(document.getElementById('total_amount').value || 0);
+        return isFinite(total) && total > 0;
+    }
+
+    function updatePurchaseSubmitState() {
+        var form = document.getElementById('purchase-form');
+        var submit = form ? form.querySelector('button[type="submit"]') : null;
+        if (submit) submit.disabled = !isPurchaseBillTotalPositive();
+        var totalError = document.getElementById('purchase-total-error');
+        if (totalError) {
+            totalError.classList.toggle('hidden', isPurchaseBillTotalPositive());
+        }
+    }
 
     // Supplier payment data for payment method defaults and credit checks
     var suppliersData = {
@@ -307,6 +324,7 @@
         document.getElementById('total_display').value = total.toFixed(2) + ' {{ L "tpl.currency" }}';
         document.getElementById('total_amount').value = total.toFixed(2);
         checkCreditLimit();
+        updatePurchaseSubmitState();
     }
 
     function checkCreditLimit() {
@@ -494,6 +512,12 @@
 
     // Prevent form submission if bill_pdf required but missing (and no existing PDF)
     document.getElementById('purchase-form').addEventListener('htmx:configRequest', function(e) {
+        if (!isPurchaseBillTotalPositive()) {
+            var totalError = document.getElementById('purchase-total-error');
+            if (totalError) totalError.classList.remove('hidden');
+            e.preventDefault();
+            return;
+        }
         var pdfRequired = '{{ .pb_pdf_required }}' === 'required';
         if (!pdfRequired) return;
         var hasExistingPDF = '{{ .pdf_link }}' !== '';

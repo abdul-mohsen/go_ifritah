@@ -15,31 +15,60 @@
 </div>
 {{ end }}
 <!-- Simple Filter Bar -->
-<div class="section-card mb-4">
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
-        <div>
-            <label class="form-label">{{ L "ui.filter.from_date" }}</label>
-            <input type="date" id="startDate" value="{{ .start_date }}">
+<div id="dashboardFilters" class="section-card mb-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+        <div id="dateRangeFilters" class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:col-span-2 lg:col-span-2 {{ if ne .period "custom" }}hidden{{ end }}">
+            <div class="min-w-0">
+                <label class="form-label" for="startDate">{{ L "ui.filter.from_date" }}</label>
+                <input type="date" id="startDate" class="w-full" value="{{ .start_date }}">
+            </div>
+            <div class="min-w-0">
+                <label class="form-label" for="endDate">{{ L "ui.filter.to_date" }}</label>
+                <input type="date" id="endDate" class="w-full" value="{{ .end_date }}">
+            </div>
         </div>
-        <div>
-            <label class="form-label">{{ L "ui.filter.to_date" }}</label>
-            <input type="date" id="endDate" value="{{ .end_date }}">
+        <div id="quarterFilter" class="min-w-0 {{ if ne .period "quarter" }}hidden{{ end }}">
+            <label class="form-label" for="quarter">{{ L "ui.filter.quarter" }}</label>
+            <select id="quarter" class="w-full">
+                {{ range .quarter_choices }}
+                <option value="{{ .Value }}" {{ if eq .Value $.quarter }}selected{{ end }}>{{ .Label }}</option>
+                {{ end }}
+            </select>
         </div>
-        <div>
-            <label class="form-label">{{ L "ui.filter.period" }}</label>
-            <select id="period">
+        <div id="yearFilter" class="min-w-0 {{ if and (ne .period "quarter") (ne .period "year") }}hidden{{ end }}">
+            <label class="form-label" for="year">{{ L "ui.filter.year" }}</label>
+            <select id="year" class="w-full">
+                {{ if .year_options }}
+                {{ range .year_options }}
+                <option value="{{ .Value }}" {{ if eq .Value $.year }}selected{{ end }}>{{ .Label }}</option>
+                {{ end }}
+                {{ else }}
+                <option value="" selected disabled>{{ L "ui.filter.no_years" }}</option>
+                {{ end }}
+            </select>
+        </div>
+        <div id="quarterDateRangeFilter" class="min-w-0 {{ if and (ne .period "quarter") (ne .period "year") }}hidden{{ end }}">
+            <span class="form-label">{{ L "ui.filter.date_range" }}</span>
+            <output id="quarterDateRange" aria-live="polite" class="block w-full min-h-[2.5rem] px-3 py-2 rounded-lg border text-sm"
+                style="border-color: var(--md-sys-color-outline); color: var(--md-sys-color-on-surface); background: var(--md-sys-color-surface-container-lowest);">
+                {{ if or (eq .period "quarter") (eq .period "year") }}{{ .start_date }} – {{ .end_date }}{{ end }}
+            </output>
+        </div>
+        <div class="min-w-0">
+            <label class="form-label" for="period">{{ L "ui.filter.period" }}</label>
+            <select id="period" class="w-full">
                 <option value="all" {{ if eq .period "all" }}selected{{ end }}>{{ L "ui.filter.all_dates" }}</option>
                 <option value="today" {{ if eq .period "today" }}selected{{ end }}>{{ L "ui.filter.today" }}</option>
                 <option value="week" {{ if eq .period "week" }}selected{{ end }}>{{ L "ui.filter.this_week" }}</option>
                 <option value="month" {{ if eq .period "month" }}selected{{ end }}>{{ L "ui.filter.this_month" }}</option>
                 <option value="quarter" {{ if eq .period "quarter" }}selected{{ end }}>{{ L "ui.filter.this_quarter" }}</option>
-                <option value="year" {{ if eq .period "year" }}selected{{ end }}>{{ L "ui.filter.this_year" }}</option>
+                <option value="year" {{ if eq .period "year" }}selected{{ end }}>{{ L "ui.filter.by_year" }}</option>
                 <option value="custom" {{ if eq .period "custom" }}selected{{ end }}>{{ L "ui.filter.custom" }}</option>
             </select>
         </div>
-        <div>
-            <label class="form-label">{{ L "ui.filter.status" }}</label>
-            <select id="statusFilter">
+        <div class="min-w-0">
+            <label class="form-label" for="statusFilter">{{ L "ui.filter.status" }}</label>
+            <select id="statusFilter" class="w-full">
                 <option value="">{{ L "ui.all" }}</option>
                 <option value="0" {{ if eq .state_filter "0" }}selected{{ end }}>{{ L "invoice_status.draft" }}</option>
                 <option value="1" {{ if eq .state_filter "1" }}selected{{ end }}>{{ L "invoice_status.pending" }}</option>
@@ -47,10 +76,10 @@
                 <option value="3" {{ if eq .state_filter "3" }}selected{{ end }}>{{ L "invoice_status.issued" }}</option>
             </select>
         </div>
-        <div class="flex gap-2">
-            <button onclick="applyFilters()" class="btn btn-filled btn-xs flex-1 font-semibold">{{ L "ui.apply" }}</button>
-            <button onclick="resetFilters()" class="btn btn-tonal btn-xs">&#8635;</button>
-            <a href="/dashboard/export-pdf" class="btn btn-success btn-xs"><svg class="w-4 h-4" fill="none"
+        <div class="flex gap-2 min-w-0">
+            <button id="applyDashboardFilters" onclick="applyFilters()" class="btn btn-filled btn-xs flex-1 min-w-0 font-semibold">{{ L "ui.apply" }}</button>
+            <button onclick="resetFilters()" class="btn btn-tonal btn-xs flex-shrink-0" aria-label="{{ L "ui.reset" }}">&#8635;</button>
+            <a href="/dashboard/export-pdf" class="btn btn-success btn-xs flex-shrink-0" aria-label="PDF"><svg class="w-4 h-4" fill="none"
                     stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round"
                         d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -924,52 +953,98 @@
         var startInput = document.getElementById('startDate');
         var endInput = document.getElementById('endDate');
         var periodSelect = document.getElementById('period');
+        var quarterFilter = document.getElementById('quarterFilter');
+        var yearFilter = document.getElementById('yearFilter');
+        var quarterSelect = document.getElementById('quarter');
+        var yearSelect = document.getElementById('year');
+        var quarterDateRangeFilter = document.getElementById('quarterDateRangeFilter');
+        var quarterDateRange = document.getElementById('quarterDateRange');
+        var dateRangeFilters = document.getElementById('dateRangeFilters');
 
-        var selectedPeriod = periodSelect.value || 'week';
-        var setDateInputsEnabled = function (enabled) {
-            startInput.disabled = !enabled;
-            endInput.disabled = !enabled;
+        var selectedPeriod = periodSelect.value || 'quarter';
+        var formatDate = function (date) {
+            var month = String(date.getMonth() + 1).padStart(2, '0');
+            var day = String(date.getDate()).padStart(2, '0');
+            return date.getFullYear() + '-' + month + '-' + day;
         };
-        if (selectedPeriod === 'all') {
-            startInput.value = '';
-            endInput.value = '';
-            setDateInputsEnabled(false);
-        } else if (selectedPeriod === 'custom') {
-            setDateInputsEnabled(true);
-        } else {
-            setDateInputsEnabled(false);
-        }
+        var updateQuarterOptions = function () {
+            var selectedYear = Number(yearSelect.value);
+            var today = new Date();
+            var currentYear = today.getFullYear();
+            var currentQuarter = Math.floor(today.getMonth() / 3) + 1;
+            Array.prototype.forEach.call(quarterSelect.options, function (option) {
+                option.disabled = selectedYear === currentYear && Number(option.value) > currentQuarter;
+            });
+            var selectedOption = quarterSelect.options[quarterSelect.selectedIndex];
+            if (selectedOption && selectedOption.disabled) {
+                quarterSelect.value = String(currentQuarter);
+            }
+        };
+        var updatePeriodDateRange = function () {
+            var selectedYear = Number(yearSelect.value);
+            if (!selectedYear) {
+                quarterDateRange.textContent = '';
+                return;
+            }
+            var today = new Date();
+            var startDate;
+            var endDate;
+            if (periodSelect.value === 'year') {
+                startDate = new Date(selectedYear, 0, 1);
+                endDate = new Date(selectedYear, 11, 31);
+            } else {
+                var selectedQuarter = Number(quarterSelect.value);
+                if (!selectedQuarter) {
+                    quarterDateRange.textContent = '';
+                    return;
+                }
+                startDate = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
+                endDate = new Date(selectedYear, selectedQuarter * 3, 0);
+            }
+            if (selectedYear === today.getFullYear() && endDate > today) {
+                endDate = today;
+            }
+            quarterDateRange.textContent = formatDate(startDate) + ' – ' + formatDate(endDate);
+        };
+        var setFilterVisibility = function (period) {
+            dateRangeFilters.classList.toggle('hidden', period !== 'custom');
+            quarterFilter.classList.toggle('hidden', period !== 'quarter');
+            yearFilter.classList.toggle('hidden', period !== 'quarter' && period !== 'year');
+            quarterDateRangeFilter.classList.toggle('hidden', period !== 'quarter' && period !== 'year');
+        };
+        updateQuarterOptions();
+        updatePeriodDateRange();
+        setFilterVisibility(selectedPeriod);
 
         periodSelect.addEventListener('change', function () {
             var period = this.value;
+            setFilterVisibility(period);
+            updateQuarterOptions();
+            updatePeriodDateRange();
             if (period === 'all') {
                 startInput.value = '';
                 endInput.value = '';
-                setDateInputsEnabled(false);
                 return;
             }
-            var endDate = new Date();
-            var startDate = new Date();
-            switch (period) {
-                case 'today': startDate = new Date(endDate); break;
-                case 'week': startDate = new Date(endDate.getTime() - 6 * 24 * 60 * 60 * 1000); break;
-                case 'month': startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1); break;
-                case 'quarter': var qMonth = Math.floor(endDate.getMonth() / 3) * 3; startDate = new Date(endDate.getFullYear(), qMonth, 1); break;
-                case 'year': startDate = new Date(endDate.getFullYear(), 0, 1); break;
-                case 'custom': setDateInputsEnabled(true); return;
-            }
-            startInput.valueAsDate = startDate;
-            endInput.valueAsDate = endDate;
-            setDateInputsEnabled(false);
+        });
+        quarterSelect.addEventListener('change', updatePeriodDateRange);
+        yearSelect.addEventListener('change', function () {
+            updateQuarterOptions();
+            updatePeriodDateRange();
         });
 
         window.applyFilters = function () {
             var params = new URLSearchParams();
             var status = document.getElementById('statusFilter').value;
             if (status) params.append('state', status);
-            var period = periodSelect.value || 'week';
+            var period = periodSelect.value || 'quarter';
             params.append('period', period);
-            if (period === 'custom') {
+            if (period === 'quarter' && quarterSelect.value) {
+                params.append('quarter', quarterSelect.value);
+                params.append('year', yearSelect.value);
+            } else if (period === 'year' && yearSelect.value) {
+                params.append('year', yearSelect.value);
+            } else if (period === 'custom') {
                 if (startInput.value) params.append('start_date', startInput.value);
                 if (endInput.value) params.append('end_date', endInput.value);
             }

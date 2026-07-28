@@ -11,7 +11,16 @@ repositories and are reviewed through their repository-specific pull requests.
 - Unified typed search, filter, and pagination state across the dashboard list
   pages, including purchase bills, orders, users, and the dashboard period
   selector.
-- Added an explicit all-dates dashboard option and canonical period handling.
+- Added an explicit all-dates dashboard option, a quarterly default, separate
+  quarter/year selectors, and a read-only resolved date range with canonical
+  period handling.
+- Replaced the dashboard's "This Year" period wording with "By Year" and
+  populated the year selector from distinct sales and purchase-bill data years,
+  excluding empty or future years.
+- Reworked the dashboard filter grid so quarter, year, date range, period,
+  status, and actions remain aligned without horizontal overflow on mobile.
+- Added Date, Total Before VAT, VAT, and Total columns to sales and purchase
+  bill Excel exports without changing the Excel import template contract.
 - Rejected purchase bills whose calculated total is zero.
 - Persisted the purchase-bill PDF policy in the backend settings table and
   reloaded it before rendering add/edit forms.
@@ -54,10 +63,16 @@ repositories and are reviewed through their repository-specific pull requests.
   policy reloads, dashboard periods, and notification rendering.
 - Backend handler tests cover settings write failures, notification contracts,
   low-stock generation, per-user thresholds, and release-note idempotency.
+- Local browser regression coverage verifies the quarterly dashboard selectors,
+  data-backed year options, by-year URL submission, mobile filter layout,
+  date-range display, purchase-bill export response, and import-template
+  contract.
 - Full frontend and backend Go build, vet, and test suites pass after SQLC
   regeneration.
 
 ## Remaining QA risks
 
-- Live-browser E2E and visual regression checks remain blocked by the local
-  review server returning HTTP 401 for the configured admin session.
+- Remote development-browser checks remain dependent on the availability and
+  authentication state of the external development backend. The local
+  Docker-backed review server passes the targeted dashboard and purchase-bill
+  browser checks.

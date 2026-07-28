@@ -83,6 +83,11 @@ func TestHandleDashboardRealData(t *testing.T) {
 		_ = json.NewEncoder(w).Encode([]map[string]interface{}{{"id": 1, "name": "Branch 1"}})
 	})
 
+	mux.HandleFunc("/api/v2/dashboard/available-years", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"years": []int{2026, 2025}})
+	})
+
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
@@ -118,5 +123,49 @@ func TestHandleDashboardRealData(t *testing.T) {
 
 	if !strings.Contains(body, "العملاء") {
 		t.Fatalf("dashboard missing clients card")
+	}
+}
+
+func TestHandleDashboardAvailableYears(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"years": []int{2026, 2025}})
+	}))
+	t.Cleanup(server.Close)
+
+	oldBackend := config.BackendDomain
+	oldClient := helpers.HttpClient
+	config.BackendDomain = server.URL
+	helpers.HttpClient = server.Client()
+	t.Cleanup(func() {
+		config.BackendDomain = oldBackend
+		helpers.HttpClient = oldClient
+	})
+
+	config.SessionTokensMutex.Lock()
+	config.SessionTokens["available-years-session"] = "token"
+	config.SessionTokensMutex.Unlock()
+	t.Cleanup(func() {
+		config.SessionTokensMutex.Lock()
+		delete(config.SessionTokens, "available-years-session")
+		config.SessionTokensMutex.Unlock()
+	})
+
+	req := httptest.NewRequest("GET", "/api/v2/dashboard/available-years", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "available-years-session"})
+	rr := httptest.NewRecorder()
+
+	HandleDashboardAvailableYears(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rr.Code)
+	}
+
+	var response helpers.DashboardAvailableYearsResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode available years response: %v", err)
+	}
+	if len(response.Years) != 2 || response.Years[0] != 2026 || response.Years[1] != 2025 {
+		t.Fatalf("unexpected available years: %#v", response.Years)
 	}
 }

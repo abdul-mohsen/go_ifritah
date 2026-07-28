@@ -10,6 +10,64 @@ test('dashboard loads with sidebar + main content', async ({ page }) => {
   await expect(page.locator('#sidebar-nav')).toBeVisible();
 });
 
+test('dashboard defaults to a quarter selector instead of date pickers', async ({ page }) => {
+  await page.goto('/dashboard');
+  await expect(page.locator('#period')).toHaveValue('quarter');
+  await expect(page.locator('#quarterFilter')).toBeVisible();
+  await expect(page.locator('#yearFilter')).toBeVisible();
+  await expect(page.locator('#quarter')).toHaveValue(/^[1-4]$/);
+  await expect(page.locator('#year')).toHaveValue(/^\d{4}$/);
+  await expect(page.locator('#quarterDateRange')).toHaveText(/^\d{4}-\d{2}-\d{2} – \d{4}-\d{2}-\d{2}$/);
+  await expect(page.locator('#dateRangeFilters')).toBeHidden();
+});
+
+test('dashboard quarterly filters fit the mobile layout', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/dashboard');
+
+  await expect(page.locator('#quarterFilter')).toBeVisible();
+  await expect(page.locator('#yearFilter')).toBeVisible();
+  const overflows = await page.locator('#dashboardFilters').evaluate((element) => element.scrollWidth > element.clientWidth);
+  expect(overflows).toBe(false);
+});
+
+test('dashboard year options come only from the backend data years', async ({ page, request }) => {
+  await page.goto('/dashboard');
+  const cookies = await page.context().cookies();
+  const cookie = cookies.map((item) => `${item.name}=${item.value}`).join('; ');
+  const response = await request.get('/api/v2/dashboard/available-years', { headers: { cookie } });
+  expect(response.ok()).toBeTruthy();
+  const years = (await response.json()).years.map(String);
+  const options = await page.locator('#year option:not([disabled])').evaluateAll((elements) =>
+    elements.map((element) => element.value)
+  );
+  expect(options).toEqual(years);
+});
+
+test('dashboard applies a selected quarter through the URL', async ({ page }) => {
+  await page.goto('/dashboard');
+  const quarter = page.locator('#quarter');
+  const year = page.locator('#year');
+  await quarter.selectOption({ index: 1 });
+  await year.selectOption({ index: 0 });
+  const expectedQuarter = await quarter.inputValue();
+  const expectedYear = await year.inputValue();
+  await page.locator('#applyDashboardFilters').click();
+  await expect(page).toHaveURL(new RegExp(`period=quarter&quarter=${expectedQuarter}&year=${expectedYear}`));
+});
+
+test('dashboard applies a selected report year through the URL', async ({ page }) => {
+  await page.goto('/dashboard');
+  await page.locator('#period').selectOption('year');
+  await expect(page.locator('#yearFilter')).toBeVisible();
+  await expect(page.locator('#quarterFilter')).toBeHidden();
+  await expect(page.locator('#quarterDateRangeFilter')).toBeVisible();
+  await expect(page.locator('#dateRangeFilters')).toBeHidden();
+  const year = await page.locator('#year').inputValue();
+  await page.locator('#applyDashboardFilters').click();
+  await expect(page).toHaveURL(new RegExp(`period=year&year=${year}`));
+});
+
 test('dashboard has KPI cards linking to invoices/products/clients', async ({ page }) => {
   await page.goto('/dashboard');
   await expect(page.locator('a[href="/dashboard/invoices"]').first()).toBeAttached();

@@ -179,6 +179,9 @@ type purchaseBillExportBill struct {
 	Date                  string
 	PaymentMethod         int
 	Discount              float64
+	TotalBeforeVAT        float64
+	VAT                   float64
+	Total                 float64
 }
 
 // HandleExportPurchaseBillsXLSX exports purchase bills and their line items
@@ -208,10 +211,12 @@ func HandleExportPurchaseBillsXLSX(w http.ResponseWriter, r *http.Request) {
 	for index, bill := range bills {
 		detail, products, manualProducts, extra := details[index].detail, details[index].products, details[index].manualProducts, details[index].extra
 		reference := fmt.Sprintf("PB-%d", bill.ID)
+		totalBeforeVAT, vat, total := exportBillTotals(bill, detail)
 		exportBills = append(exportBills, purchaseBillExportBill{
 			Reference: reference, StoreID: exportExtraInt(extra, "store_id"), SupplierID: exportExtraInt(extra, "supplier_id"),
 			SupplierInvoiceNumber: exportExtraInt(extra, "supplier_sequence_number"), Date: detail.EffectiveDate.Time,
 			PaymentMethod: exportExtraInt(extra, "payment_method"), Discount: detail.Discount,
+			TotalBeforeVAT: totalBeforeVAT, VAT: vat, Total: total,
 		})
 		productRows = appendPurchaseBillExportProducts(productRows, reference, products)
 		productRows = appendPurchaseBillExportProducts(productRows, reference, manualProducts)
@@ -326,6 +331,9 @@ func buildPurchaseBillExportWorkbook(bills []purchaseBillExportBill, productRows
 			bill.Date,
 			bill.PaymentMethod,
 			bill.Discount,
+			bill.TotalBeforeVAT,
+			bill.VAT,
+			bill.Total,
 		}
 		if err := writeExcelRow(workbook, "Bills", index+2, values); err != nil {
 			return nil, err
@@ -363,7 +371,7 @@ func buildPurchaseBillExportWorkbook(bills []purchaseBillExportBill, productRows
 }
 
 func purchaseBillWorkbookHeaders(arabic bool) ([]interface{}, []interface{}) {
-	billHeaders, productHeaders := billImportHeaders(billImportPurchase, arabic)
+	billHeaders, productHeaders := billExportHeaders(billImportPurchase, arabic)
 	bills := make([]interface{}, len(billHeaders))
 	products := make([]interface{}, len(productHeaders))
 	for index := range billHeaders {
@@ -417,7 +425,7 @@ func buildSalesBillExportWorkbook(token string, invoices []models.Invoice, arabi
 	if _, err := workbook.NewSheet("Products"); err != nil {
 		return nil, err
 	}
-	billHeaders, productHeaders := billImportHeaders(billImportSales, arabic)
+	billHeaders, productHeaders := billExportHeaders(billImportSales, arabic)
 	if err := writeStringRow(workbook, "Bills", 1, billHeaders); err != nil {
 		return nil, err
 	}
@@ -442,6 +450,7 @@ func buildSalesBillExportWorkbook(token string, invoices []models.Invoice, arabi
 	for index, invoice := range invoices {
 		detail, products, manualProducts, extra := details[index].detail, details[index].products, details[index].manualProducts, details[index].extra
 		reference := fmt.Sprintf("SB-%d", invoice.ID)
+		totalBeforeVAT, vat, total := exportBillTotals(invoice, detail)
 		customerID := exportExtraInt(extra, "client_id")
 		customerName := exportExtraString(extra, "user_name")
 		customerPhone := exportExtraString(extra, "user_phone_number")
@@ -449,7 +458,7 @@ func buildSalesBillExportWorkbook(token string, invoices []models.Invoice, arabi
 		vin := exportExtraString(extra, "vin")
 		if err := writeExcelRow(workbook, "Bills", index+2, []interface{}{
 			reference, exportExtraInt(extra, "store_id"), exportExtraInt(extra, "branch_id"), customerID, customerName, customerPhone,
-			detail.EffectiveDate.Time, detail.Discount, note, vin,
+			detail.EffectiveDate.Time, detail.Discount, note, vin, totalBeforeVAT, vat, total,
 		}); err != nil {
 			return nil, err
 		}
@@ -463,7 +472,7 @@ func buildSalesBillExportWorkbook(token string, invoices []models.Invoice, arabi
 		}
 	}
 	for _, sheet := range []string{"Bills", "Products"} {
-		if err := workbook.SetColWidth(sheet, "A", "I", 20); err != nil {
+		if err := workbook.SetColWidth(sheet, "A", "M", 20); err != nil {
 			return nil, err
 		}
 	}
@@ -519,6 +528,47 @@ func exportedProductName(item models.BillItem) string {
 		return item.PartName
 	}
 	return item.PartNumber
+}
+
+func billExportHeaders(importType string, arabic bool) ([]string, []string) {
+	billHeaders, productHeaders := billImportHeaders(importType, arabic)
+	if arabic {
+		billHeaders = append(billHeaders, "الإجمالي قبل الضريبة", "ضريبة القيمة المضافة", "الإجمالي")
+	} else {
+		billHeaders = append(billHeaders, "Total Before VAT", "VAT", "Total")
+	}
+	return billHeaders, productHeaders
+}
+
+func exportBillTotals(summary, detail models.Invoice) (float64, float64, float64) {
+	totalBeforeVAT := detail.TotalBeforeVAT
+	if totalBeforeVAT == 0 {
+		totalBeforeVAT = summary.TotalBeforeVAT
+	}
+	if totalBeforeVAT == 0 {
+		totalBeforeVAT = detail.Subtotal
+	}
+	if totalBeforeVAT == 0 {
+		totalBeforeVAT = summary.Subtotal
+	}
+
+	vat := detail.TotalVAT
+	if vat == 0 {
+		vat = summary.TotalVAT
+	}
+
+	total := detail.Total
+	if total == 0 {
+		total = summary.Total
+	}
+
+	if totalBeforeVAT == 0 && total != 0 {
+		totalBeforeVAT = total - vat
+	}
+	if vat == 0 && total != 0 && totalBeforeVAT != 0 {
+		vat = total - totalBeforeVAT
+	}
+	return totalBeforeVAT, vat, total
 }
 
 func writeExcelRow(workbook *excelize.File, sheet string, row int, values []interface{}) error {

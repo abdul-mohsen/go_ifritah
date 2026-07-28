@@ -4,7 +4,14 @@
 
 - Search and filters now keep the same typed-query and pagination behavior
   across dashboard list pages.
-- Dashboard date presets include an explicit all-dates option.
+- Dashboard defaults to the current quarter and provides separate quarter and
+  year selectors with a read-only resolved date range; custom date ranges
+  remain available separately.
+- The dashboard now labels the annual period "By Year" and lists only years
+  containing sales or purchase-bill data. Its filter controls also stay aligned
+  on narrow screens.
+- Sales and purchase bill Excel exports now include Date, Total Before VAT, VAT,
+  and Total columns on the Bills sheet.
 - Zero-total purchase bills are rejected before submission.
 - Purchase-bill PDF requirements are saved in the database and applied after
   reloads and service restarts.

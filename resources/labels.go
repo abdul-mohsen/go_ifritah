@@ -462,7 +462,12 @@ var labels = map[string]Label{
 	"ui.filter.this_week":    {Ar: "هذا الأسبوع", En: "This Week"},
 	"ui.filter.this_month":   {Ar: "هذا الشهر", En: "This Month"},
 	"ui.filter.this_quarter": {Ar: "هذا الربع", En: "This Quarter"},
-	"ui.filter.this_year":    {Ar: "هذا العام", En: "This Year"},
+	"ui.filter.quarter":      {Ar: "الربع", En: "Quarter"},
+	"ui.filter.year":         {Ar: "السنة", En: "Year"},
+	"ui.filter.by_year":      {Ar: "حسب السنة", En: "By Year"},
+	"ui.filter.no_years":     {Ar: "لا توجد سنوات ببيانات", En: "No data years"},
+	"ui.filter.date_range":   {Ar: "الفترة الزمنية", En: "Date Range"},
+	"ui.reset":               {Ar: "إعادة تعيين", En: "Reset"},
 	"ui.filter.custom":       {Ar: "مخصص", En: "Custom"},
 
 	// ── UI: Table Headers ────────────────────────────────────────────

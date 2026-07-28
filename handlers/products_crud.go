@@ -218,7 +218,7 @@ func HandleEditProduct(w http.ResponseWriter, r *http.Request) {
 // HandleCreateProduct creates new products (supports multiple at once).
 // Backend expects: {"store_id": int, "products": [{id, quantity, price, shelf_number, cost_price}, ...]}
 func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
+	_ = r.ParseMultipartForm(32 << 20)
 	token, ok := helpers.GetTokenOrRedirect(w, r)
 	if !ok {
 		return
@@ -337,7 +337,7 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 
 // HandleUpdateProduct updates an existing product
 func HandleUpdateProduct(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
+	_ = r.ParseMultipartForm(32 << 20)
 	vars := mux.Vars(r)
 	id := vars["id"]
 	token, ok := helpers.GetTokenOrRedirect(w, r)

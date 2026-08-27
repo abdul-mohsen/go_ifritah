@@ -391,7 +391,10 @@ func setupPBTestSession(sessionID, token string) func() {
 }
 
 func TestPurchaseBillDuplicateCheckProxyForwardsBackendContract(t *testing.T) {
-	var receivedPayload map[string]interface{}
+	var receivedPayload struct {
+		SupplierID             int    `json:"supplier_id"`
+		SupplierSequenceNumber uint64 `json:"supplier_sequence_number"`
+	}
 	var receivedAuth string
 
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -418,7 +421,7 @@ func TestPurchaseBillDuplicateCheckProxyForwardsBackendContract(t *testing.T) {
 	cleanup := setupPBTestSession("pb-duplicate-proxy", "pb-duplicate-token")
 	defer cleanup()
 
-	req := httptest.NewRequest("POST", "/api/purchase-bills/duplicate-check", strings.NewReader(`{"supplier_id":123,"supplier_sequence_number":456}`))
+	req := httptest.NewRequest("POST", "/api/purchase-bills/duplicate-check", strings.NewReader(`{"supplier_id":123,"supplier_sequence_number":18446744073709551615}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-duplicate-proxy"})
 	w := httptest.NewRecorder()
@@ -431,11 +434,11 @@ func TestPurchaseBillDuplicateCheckProxyForwardsBackendContract(t *testing.T) {
 	if receivedAuth != "Bearer pb-duplicate-token" {
 		t.Fatalf("expected bearer auth token to backend, got %q", receivedAuth)
 	}
-	if receivedPayload["supplier_id"] != float64(123) {
-		t.Fatalf("expected supplier_id 123, got %v", receivedPayload["supplier_id"])
+	if receivedPayload.SupplierID != 123 {
+		t.Fatalf("expected supplier_id 123, got %v", receivedPayload.SupplierID)
 	}
-	if receivedPayload["supplier_sequence_number"] != float64(456) {
-		t.Fatalf("expected supplier_sequence_number 456, got %v", receivedPayload["supplier_sequence_number"])
+	if receivedPayload.SupplierSequenceNumber != 18446744073709551615 {
+		t.Fatalf("expected exact supplier_sequence_number, got %v", receivedPayload.SupplierSequenceNumber)
 	}
 	if !strings.Contains(w.Body.String(), `"exists":true`) || !strings.Contains(w.Body.String(), `"purchase_bill_id":789`) {
 		t.Fatalf("expected backend duplicate response to be proxied, got %s", w.Body.String())
@@ -476,7 +479,7 @@ func TestAddPurchaseBillDuplicateCheckUIIsRendered(t *testing.T) {
 	}
 	for _, want := range []string{
 		`<span class="required-mark">*</span>`,
-		`name="supplier_sequance_number" id="supplier_sequence_input" class="w-full" maxlength="50" inputmode="numeric" aria-describedby="supplier-sequence-duplicate-error supplier-sequence-duplicate-warning" required`,
+		`name="supplier_sequance_number" id="supplier_sequence_input" class="w-full" maxlength="20" inputmode="numeric" aria-describedby="supplier-sequence-duplicate-error supplier-sequence-duplicate-warning" required`,
 		`id="supplier_sequence_input"`,
 		`id="supplier-sequence-duplicate-error"`,
 		`id="supplier-sequence-duplicate-warning"`,

@@ -83,11 +83,14 @@ test('submit button disables on click (no double submit)', async ({ page }) => {
 test('supplier invoice duplicate check is debounced and user-friendly', async ({ page }) => {
   const pageErrors = [];
   const duplicateRequests = [];
+  const duplicateRequestBodies = [];
 
   page.on('pageerror', (err) => pageErrors.push(err.message));
 
   await page.route('**/api/purchase-bills/duplicate-check', async (route) => {
-    const payload = JSON.parse(route.request().postData() || '{}');
+    const requestBody = route.request().postData() || '';
+    duplicateRequestBodies.push(requestBody);
+    const payload = JSON.parse(requestBody || '{}');
     duplicateRequests.push(payload);
 
     if (payload.supplier_sequence_number === 123458) {
@@ -164,6 +167,11 @@ test('supplier invoice duplicate check is debounced and user-friendly', async ({
   await expect(duplicateError).toBeHidden();
   await expect(duplicateWarning).toBeVisible();
   await expect(duplicateWarning).toContainText(/تعذر التحقق|Could not check/i);
+  await expect(submitButton).toBeEnabled();
+
+  await sequenceInput.fill('9007199254740993');
+  await expect.poll(() => duplicateRequests.length, { timeout: 2500 }).toBe(4);
+  expect(duplicateRequestBodies[3]).toContain('"supplier_sequence_number":9007199254740993');
   await expect(submitButton).toBeEnabled();
 
   expect(pageErrors).toEqual([]);

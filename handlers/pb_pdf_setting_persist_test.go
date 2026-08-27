@@ -71,3 +71,93 @@ func TestSaveSettingsSendsPBPDFRequiredToBackend(t *testing.T) {
 		t.Fatalf("expected pb_pdf_required=optional to be sent to backend PUT /api/v2/settings under the invoice category, got payloads: %+v", capturedPayloads)
 	}
 }
+
+func TestSaveSettingsSendsExplicitlyClearedTextValue(t *testing.T) {
+	var invoiceSettings map[string]interface{}
+
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/api/v2/settings") {
+			_, _ = w.Write([]byte(`{"data":{}}`))
+			return
+		}
+		if r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/api/v2/settings") {
+			var payload struct {
+				Category string                 `json:"category"`
+				Settings map[string]interface{} `json:"settings"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&payload)
+			if payload.Category == "invoice" {
+				invoiceSettings = payload.Settings
+			}
+			_, _ = w.Write([]byte(`{"detail":"success","updated":1}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	cleanup := setupPBTestSession("settings-clear-test", "settings-clear-token")
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodPost, "/dashboard/settings",
+		strings.NewReader("invoice_footer=&pb_pdf_required=optional"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "settings-clear-test"})
+	w := httptest.NewRecorder()
+
+	HandleSaveSettings(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected redirect (303), got %d. body: %s", w.Code, w.Body.String())
+	}
+	if value, ok := invoiceSettings["invoice_footer"]; !ok || value != "" {
+		t.Fatalf("expected explicit empty invoice_footer to be sent, got %v", invoiceSettings)
+	}
+}
+
+func TestAddPurchaseBillLoadsPDFSettingFromBackend(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v2/settings":
+			_, _ = w.Write([]byte(`{"data":{"invoice":{"pb_pdf_required":"optional"}}}`))
+		case "/api/v2/notification/config":
+			_, _ = w.Write([]byte(`{"data":{"low_stock_alert":true,"low_stock_threshold":5,"pending_invoice_days":7,"new_order_alert":true,"payment_due_alert":true}}`))
+		default:
+			_, _ = w.Write([]byte(`{"data":[]}`))
+		}
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	token := "settings-load-token"
+	settingsByToken.Delete(tokenKey(token))
+	cleanup := setupPBTestSession("settings-load-test", token)
+	defer func() {
+		cleanup()
+		settingsByToken.Delete(tokenKey(token))
+	}()
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard/purchase-bills/add", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "settings-load-test"})
+	w := httptest.NewRecorder()
+
+	HandleAddPurchaseBill(w, req)
+
+	start := strings.Index(w.Body.String(), `name="bill_pdf"`)
+	if start < 0 {
+		t.Fatal("expected purchase-bill PDF input")
+	}
+	field := w.Body.String()[start : start+220]
+	if strings.Contains(field, " required") {
+		t.Fatalf("optional PDF setting from backend must not mark input required: %s", field)
+	}
+}

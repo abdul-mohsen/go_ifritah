@@ -20,6 +20,7 @@ import (
 
 func main() {
 	config.Initialize()
+	config.RegisterFeatureChecker(helpers.IsEnabled)
 	config.LoadTemplates()
 	helpers.LoadPersistedTokens()
 	go helpers.PeriodicTokenCleanup()
@@ -35,6 +36,21 @@ func main() {
 	}
 	managerUp := func(h http.HandlerFunc) http.HandlerFunc {
 		return handlers.RequireRole(models.RoleAdmin, models.RoleManager)(h).ServeHTTP
+	}
+	tenantIDForRequest := func(r *http.Request) string {
+		tenantID := config.TenantID
+		if value, ok := r.Context().Value(config.TenantIDContextKey).(string); ok && value != "" {
+			tenantID = value
+		}
+		return tenantID
+	}
+	requireFeature := func(featureID string, h http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if !helpers.RequireFeature(w, r, tenantIDForRequest(r), featureID) {
+				return
+			}
+			h(w, r)
+		}
 	}
 
 	// Static files
@@ -62,9 +78,28 @@ func main() {
 	router.HandleFunc("/api/forgot-password", handlers.HandleForgotPasswordPost).Methods("POST")
 	router.HandleFunc("/logout", handlers.HandleLogout).Methods("GET")
 	router.HandleFunc("/api/refresh", handlers.HandleRefreshToken).Methods("POST")
+	router.HandleFunc("/upgrade-prompt", func(w http.ResponseWriter, r *http.Request) {
+		featureID := r.URL.Query().Get("feature")
+		feature := config.GetFeature(featureID)
+		if feature == nil {
+			http.Error(w, "Feature not found", http.StatusNotFound)
+			return
+		}
+		helpers.RenderUpgradePrompt(
+			w,
+			r,
+			featureID,
+			helpers.GetTenantPlan(tenantIDForRequest(r)),
+			feature.MinPlan,
+		)
+	}).Methods("GET")
 
 	// Dashboard routes (auth only — no resource-level RBAC)
 	router.HandleFunc("/dashboard", handlers.HandleDashboard).Methods("GET")
+	router.HandleFunc("/api/v2/dashboard/available-years", handlers.HandleDashboardAvailableYears).Methods("GET")
+	router.HandleFunc("/dashboard/onboarding", handlers.HandleOnboarding).Methods("GET")
+	router.HandleFunc("/api/onboarding/state", handlers.HandleOnboardingState).Methods("GET")
+	router.HandleFunc("/api/onboarding/complete", handlers.HandleCompleteOnboarding).Methods("POST")
 	router.HandleFunc("/dashboard/export-pdf", handlers.HandleDashboardExportPDF).Methods("GET")
 	router.HandleFunc("/dashboard/compare", handlers.HandleDashboardCompare).Methods("GET")
 
@@ -97,6 +132,7 @@ func main() {
 	router.HandleFunc("/api/invoices/{id}/submit", protect("invoices", "edit", handlers.HandleSubmitDraftInvoice)).Methods("POST")
 	router.HandleFunc("/api/invoices/{id}/whatsapp", protect("invoices", "view", handlers.HandleSendInvoiceWhatsApp)).Methods("POST")
 	router.HandleFunc("/api/invoices/{id}", protect("invoices", "delete", handlers.HandleDeleteInvoice)).Methods("DELETE")
+	router.HandleFunc("/dashboard/pos", protect("invoices", "add", requireFeature(config.FeaturePOSMode, handlers.HandlePOS))).Methods("GET")
 
 	// Purchase bill routes — RBAC protected
 	router.HandleFunc("/dashboard/purchase-bills", protect("purchase_bills", "view", handlers.HandlePurchaseBills)).Methods("GET")
@@ -111,6 +147,8 @@ func main() {
 	router.HandleFunc("/api/purchase-bills/parse-csv", protect("purchase_bills", "add", handlers.HandleParseCSVItems)).Methods("POST")
 	router.HandleFunc("/api/purchase-bills/{id}", protect("purchase_bills", "view", handlers.HandleGetPurchaseBill)).Methods("GET")
 	router.HandleFunc("/api/purchase-bills/{id}", protect("purchase_bills", "edit", handlers.HandleUpdatePurchaseBill)).Methods("PUT")
+	router.HandleFunc("/api/purchase-bills/{id}/received", protect("purchase_bills", "edit", requireFeature(config.FeaturePurchaseBillReceipt, handlers.HandleMarkPurchaseBillReceived))).Methods("PUT")
+	router.HandleFunc("/api/purchase-bills/{id}/received", protect("purchase_bills", "edit", requireFeature(config.FeaturePurchaseBillReceipt, handlers.HandleUnmarkPurchaseBillReceived))).Methods("DELETE")
 	router.HandleFunc("/api/purchase-bills/{id}", protect("purchase_bills", "delete", handlers.HandleDeletePurchaseBill)).Methods("DELETE")
 	router.HandleFunc("/api/purchase-bills", protect("purchase_bills", "add", handlers.HandleCreatePurchaseBill)).Methods("POST")
 
@@ -168,8 +206,16 @@ func main() {
 	router.HandleFunc("/dashboard/branches/{id}/update", protect("branches", "edit", handlers.HandleUpdateBranch)).Methods("POST")
 	router.HandleFunc("/dashboard/branches/{id}/delete", protect("branches", "delete", handlers.HandleDeleteBranch)).Methods("POST")
 
-	// User routes — backend lacks /api/v2/users CRUD endpoints; mock pages
-	// were removed. Tracked in the backend issue tracker.
+	// User management — admin-only and Business+.
+	userRoute := func(h http.HandlerFunc) http.HandlerFunc {
+		return adminOnly(requireFeature(config.FeatureUserManagement, h))
+	}
+	router.HandleFunc("/dashboard/users", userRoute(handlers.HandleUsers)).Methods("GET")
+	router.HandleFunc("/dashboard/users/add", userRoute(handlers.HandleAddUser)).Methods("GET")
+	router.HandleFunc("/dashboard/users/create", userRoute(handlers.HandleCreateUser)).Methods("POST")
+	router.HandleFunc("/dashboard/users/{id}/edit", userRoute(handlers.HandleEditUser)).Methods("GET")
+	router.HandleFunc("/dashboard/users/{id}/update", userRoute(handlers.HandleUpdateUser)).Methods("POST")
+	router.HandleFunc("/dashboard/users/{id}/delete", userRoute(handlers.HandleDeleteUser)).Methods("POST")
 
 	// Settings routes — Admin only
 	router.HandleFunc("/dashboard/settings", adminOnly(handlers.HandleSettingsPage)).Methods("GET")
@@ -191,7 +237,7 @@ func main() {
 
 	// ZATCA Monitor page (mock data — backend has no /api/v2/zatca/monitor/*
 	// endpoints yet; tracked in the backend issue tracker). Admin only.
-	router.HandleFunc("/dashboard/zatca-monitor", adminOnly(handlers.HandleZatcaMonitor)).Methods("GET")
+	router.HandleFunc("/dashboard/zatca-monitor", adminOnly(requireFeature(config.FeatureZATCAMonitor, handlers.HandleZatcaMonitor))).Methods("GET")
 
 	// Notification routes
 	router.HandleFunc("/dashboard/notifications", handlers.HandleNotifications).Methods("GET")
@@ -235,10 +281,10 @@ func main() {
 	router.HandleFunc("/dashboard/suppliers/create", protect("suppliers", "add", handlers.HandleCreateSupplier)).Methods("POST")
 	// Multi-supplier ledger statement — registered before /{id} so the
 	// literal "statement" path segment isn't captured as a supplier ID.
-	router.HandleFunc("/dashboard/suppliers/statement", protect("suppliers", "view", handlers.HandleSupplierStatement)).Methods("GET")
-	router.HandleFunc("/dashboard/suppliers/statement/export-csv", protect("suppliers", "view", handlers.HandleExportSupplierStatementCSV)).Methods("GET")
-	router.HandleFunc("/dashboard/suppliers/statement/export-excel", protect("suppliers", "view", handlers.HandleExportSupplierStatementExcel)).Methods("GET")
-	router.HandleFunc("/dashboard/suppliers/statement/export-pdf", protect("suppliers", "view", handlers.HandleExportSupplierStatementPDF)).Methods("GET")
+	router.HandleFunc("/dashboard/suppliers/statement", protect("suppliers", "view", requireFeature(config.FeatureSupplierLedger, handlers.HandleSupplierStatement))).Methods("GET")
+	router.HandleFunc("/dashboard/suppliers/statement/export-csv", protect("suppliers", "view", requireFeature(config.FeatureSupplierLedger, handlers.HandleExportSupplierStatementCSV))).Methods("GET")
+	router.HandleFunc("/dashboard/suppliers/statement/export-excel", protect("suppliers", "view", requireFeature(config.FeatureSupplierLedger, handlers.HandleExportSupplierStatementExcel))).Methods("GET")
+	router.HandleFunc("/dashboard/suppliers/statement/export-pdf", protect("suppliers", "view", requireFeature(config.FeatureSupplierLedger, handlers.HandleExportSupplierStatementPDF))).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}", protect("suppliers", "view", handlers.HandleSupplierDetail)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/edit", protect("suppliers", "edit", handlers.HandleEditSupplier)).Methods("GET")
 	router.HandleFunc("/dashboard/suppliers/{id}/get", protect("suppliers", "view", handlers.HandleGetSupplier)).Methods("GET")

@@ -11,10 +11,8 @@ import "net/url"
 // "suppliers", "orders", "cash_vouchers", "branches", "users".
 //
 // Returns a (param-name → value) map limited to non-empty values whose key is
-// known for that resource. Caller passes this to MatchTypedListFilters along
-// with the row's already-extracted field map. This keeps the BE wire contract
-// happy — the BE may eventually receive the same params and short-circuit,
-// but until then we narrow client-side here.
+// known for that resource. Callers forward the result to the matching backend
+// list endpoint using the canonical JSON field names.
 func TypedListFilters(resource string, q url.Values) map[string]string {
 	allowed := typedFilterFields(resource)
 	if len(allowed) == 0 {
@@ -96,7 +94,6 @@ func digitsOnly(s string) string {
 	return string(out)
 }
 
-
 func startsWith(s, prefix string) bool {
 	if len(prefix) > len(s) {
 		return false
@@ -124,7 +121,7 @@ func typedFilterFields(resource string) []string {
 	case "clients", "suppliers":
 		return []string{"phone", "vat_number", "commercial_registration"}
 	case "orders":
-		return []string{"sequence_number", "phone", "vin"}
+		return []string{"sequence_number", "phone"}
 	case "cash_vouchers":
 		return []string{"sequence_number"}
 	case "branches":

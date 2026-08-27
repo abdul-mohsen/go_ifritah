@@ -4,8 +4,10 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"bytes"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -298,6 +300,40 @@ func TestHandleCreateBranchSuccess(t *testing.T) {
 	}
 	if rr.Header().Get("HX-Redirect") != "/dashboard/branches" {
 		t.Errorf("Expected HX-Redirect to /dashboard/branches, got '%s'", rr.Header().Get("HX-Redirect"))
+	}
+}
+
+func TestHandleCreateBranchAcceptsMultipartForm(t *testing.T) {
+	seedTestSession()
+	setupBranchBackend(t)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for key, value := range map[string]string{
+		"name":     "فرع أبها متعدد",
+		"location": "شارع الملك عبدالعزيز، أبها",
+		"phone":    "0512345678",
+	} {
+		if err := writer.WriteField(key, value); err != nil {
+			t.Fatalf("write %s: %v", key, err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart form: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/dashboard/branches/create", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "test-session"})
+
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(HandleCreateBranch).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d. Body: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	if rr.Header().Get("HX-Redirect") != "/dashboard/branches" {
+		t.Errorf("Expected HX-Redirect to /dashboard/branches, got %q", rr.Header().Get("HX-Redirect"))
 	}
 }
 

@@ -21,6 +21,9 @@ const statPlaceholder = "\u2014"
 // HandleDashboardTest renders the dashboard with mock data for testing.
 func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	mockNow := time.Now()
+	mockQuarter, mockYear := helpers.CurrentDashboardQuarterSelection(mockNow)
+	mockQuarterStart, mockQuarterEnd, _, _, _ := helpers.ResolveDashboardQuarterSelection(mockQuarter, mockYear, mockNow)
 
 	stats := map[string]interface{}{
 		"invoices":             "156",
@@ -87,11 +90,18 @@ func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 			{"id": 102, "price": "120.00", "quantity": "0"},
 			{"id": 103, "price": "78.50", "quantity": "3"},
 		},
-		"state_filter": "",
-		"start_date":   "",
-		"end_date":     "",
-		"user_role":    "admin",
-		"version":      config.AppVersion,
+		"state_filter":    "",
+		"start_date":      mockQuarterStart,
+		"end_date":        mockQuarterEnd,
+		"period":          "quarter",
+		"quarter":         mockQuarter,
+		"year":            mockYear,
+		"quarter_start":   mockQuarterStart,
+		"quarter_end":     mockQuarterEnd,
+		"quarter_choices": helpers.DashboardQuarterChoices(),
+		"year_options":    helpers.DashboardYearOptions([]int{mockNow.Year()}),
+		"user_role":       "admin",
+		"version":         config.AppVersion,
 
 		// Analytics — AR / AP Aging
 		"ar_aging": []map[string]interface{}{
@@ -265,9 +275,78 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := loadSettingsFromBackend(token); err == nil &&
+		GetSettingValue(token, "onboarding_completed") != "true" {
+		http.Redirect(w, r, "/dashboard/onboarding", http.StatusSeeOther)
+		return
+	}
+
 	stateFilter := r.URL.Query().Get("state")
+	period := r.URL.Query().Get("period")
+	quarter := r.URL.Query().Get("quarter")
+	year := r.URL.Query().Get("year")
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
+	now := time.Now()
+	availableYears, availableYearsErr := helpers.FetchDashboardAvailableYears(token)
+	if availableYearsErr != nil {
+		log.Printf("dashboard available years unavailable: %v", availableYearsErr)
+	}
+	yearOptions := helpers.DashboardYearOptions(availableYears)
+	normalizeYear := func() {
+		year = helpers.NormalizeDashboardYearSelection(year, availableYears, now)
+	}
+	resolveQuarter := func() {
+		resolvedStart, resolvedEnd, normalizedQuarter, normalizedYear, valid :=
+			helpers.ResolveDashboardQuarterSelection(quarter, year, now)
+		if valid {
+			startDate, endDate = resolvedStart, resolvedEnd
+			quarter, year = normalizedQuarter, normalizedYear
+			return
+		}
+
+		log.Printf("invalid dashboard quarter selection %q/%q; using current quarter", quarter, year)
+		quarter, year = helpers.CurrentDashboardQuarterSelection(now)
+		startDate, endDate, _, _, _ = helpers.ResolveDashboardQuarterSelection(quarter, year, now)
+	}
+
+	if period == "" {
+		if startDate != "" || endDate != "" {
+			period = "custom"
+			quarter = ""
+			year = ""
+		} else {
+			period = "quarter"
+			normalizeYear()
+			resolveQuarter()
+		}
+	} else if period == "quarter" {
+		normalizeYear()
+		resolveQuarter()
+	} else if period == "year" {
+		normalizeYear()
+		resolvedStart, resolvedEnd, normalizedYear, valid :=
+			helpers.ResolveDashboardYearSelection(year, now)
+		if valid {
+			startDate, endDate, year = resolvedStart, resolvedEnd, normalizedYear
+		} else {
+			log.Printf("invalid dashboard year selection %q; using current year", year)
+			year = helpers.NormalizeDashboardYearSelection("", availableYears, now)
+			startDate, endDate, _, _ = helpers.ResolveDashboardYearSelection(year, now)
+		}
+		quarter = ""
+	} else if period != "custom" {
+		quarter = ""
+		year = ""
+		if resolvedStart, resolvedEnd, valid := helpers.ResolveDashboardPeriod(period, now); valid {
+			startDate, endDate = resolvedStart, resolvedEnd
+		} else {
+			period = "custom"
+		}
+	} else {
+		quarter = ""
+		year = ""
+	}
 
 	var (
 		summary                  *helpers.DashboardAPIResponse
@@ -586,8 +665,25 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		"state_filter":       stateFilter,
 		"start_date":         startDate,
 		"end_date":           endDate,
-		"user_role":          helpers.GetUserRole(r),
-		"version":            config.AppVersion,
+		"period":             period,
+		"quarter":            quarter,
+		"year":               year,
+		"quarter_start": func() string {
+			if period == "quarter" {
+				return startDate
+			}
+			return ""
+		}(),
+		"quarter_end": func() string {
+			if period == "quarter" {
+				return endDate
+			}
+			return ""
+		}(),
+		"quarter_choices": helpers.DashboardQuarterChoices(),
+		"year_options":    yearOptions,
+		"user_role":       helpers.GetUserRole(r),
+		"version":         config.AppVersion,
 
 		// Aging
 		"ar_aging": arAging,
@@ -849,6 +945,26 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := config.DashboardTemplate.ExecuteTemplate(w, "base.html", data); err != nil {
 		log.Printf("Template execution error: %v", err)
+	}
+}
+
+// HandleDashboardAvailableYears returns the report years available to the
+// authenticated tenant from the backend dashboard data.
+func HandleDashboardAvailableYears(w http.ResponseWriter, r *http.Request) {
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return
+	}
+
+	years, err := helpers.FetchDashboardAvailableYears(token)
+	if err != nil {
+		http.Error(w, "Failed to load available dashboard years", http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(helpers.DashboardAvailableYearsResponse{Years: years}); err != nil {
+		log.Printf("Dashboard available years response error: %v", err)
 	}
 }
 

@@ -19,6 +19,22 @@ func TestTypedListFilters_DropsUnknownKeys(t *testing.T) {
 	}
 }
 
+func TestTypedListFiltersOrdersMatchesBackendFields(t *testing.T) {
+	q := url.Values{
+		"sequence_number": {"1001"},
+		"phone":           {"050"},
+		"vin":             {"VIN-123"},
+	}
+
+	got := TypedListFilters("orders", q)
+	if len(got) != 2 || got["sequence_number"] != "1001" || got["phone"] != "050" {
+		t.Fatalf("order filters = %v, want sequence_number and phone only", got)
+	}
+	if _, ok := got["vin"]; ok {
+		t.Fatalf("unsupported order filter leaked: %v", got)
+	}
+}
+
 func TestMatchTypedListFilters_PhoneStripsNonDigitsBothSides(t *testing.T) {
 	row := map[string]string{"phone": "+966 50 123-4567"}
 	if !MatchTypedListFilters(map[string]string{"phone": "050"}, row) {

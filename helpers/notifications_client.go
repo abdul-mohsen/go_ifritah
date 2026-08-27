@@ -41,6 +41,7 @@ var ErrNotifNotFound = errors.New("notification: not found")
 // the backend's GET /api/v2/notification endpoint.
 type NotificationListResponse struct {
 	Items      []models.Notification `json:"items"`
+	LegacyData []models.Notification `json:"data"`
 	NextCursor string                `json:"next_cursor"`
 	PrevCursor string                `json:"prev_cursor"`
 	HasMore    bool                  `json:"has_more"`
@@ -92,6 +93,9 @@ func FetchNotifications(ctx context.Context, token string, p NotificationListPar
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return NotificationListResponse{}, fmt.Errorf("notification: decode list: %w", err)
 	}
+	if out.Items == nil && out.LegacyData != nil {
+		out.Items = out.LegacyData
+	}
 	return out, nil
 }
 
@@ -122,7 +126,7 @@ func FetchUnreadCount(ctx context.Context, token string) (int, error) {
 // MarkNotificationRead marks a single notification as read.
 func MarkNotificationRead(ctx context.Context, token string, id int) error {
 	u := fmt.Sprintf("%s%s/%d/read", config.BackendDomain, notifBasePath, id)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, u, nil)
 	if err != nil {
 		return fmt.Errorf(errFmtBuildRequest, err)
 	}
@@ -138,7 +142,7 @@ func MarkNotificationRead(ctx context.Context, token string, id int) error {
 // Returns the count marked when the backend reports it; otherwise 0.
 func MarkAllNotificationsRead(ctx context.Context, token string) (int, error) {
 	u := config.BackendDomain + notifBasePath + "/read-all"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, u, nil)
 	if err != nil {
 		return 0, fmt.Errorf(errFmtBuildRequest, err)
 	}

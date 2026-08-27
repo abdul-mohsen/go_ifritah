@@ -9,26 +9,29 @@ Required context fields:
 
 Optional:
 .extra_params string — additional URL params like "&state=2&stock=low"
+.pagination_query string — encoded current query without page/per
 
 Usage:
 {{ template "pagination" . }}
 */}}
 {{ define "pagination" }}
+{{ $params := .pagination_query }}
+{{ if not $params }}{{ $params = printf "q=%s%s" .query (safeURL .extra_params) }}{{ end }}
 <div class="mt-6 flex items-center justify-center gap-3">
     {{ if ge .prev_page 0 }}
-    <a class="pagination-btn"
-        href="?q={{ .query }}{{ safeURL .extra_params }}&per={{ .pagination.PerPage }}&page={{ .prev_page }}">
+    <a class="pagination-btn" aria-label="{{ L "tpl.comp.prev" }}"
+        href="?{{ safeURL $params }}&per={{ .pagination.PerPage }}&page={{ .prev_page }}">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
         </svg>
         <span>{{ L "tpl.comp.prev" }}</span>
     </a>
     {{ end }}
-    <span class="text-sm px-4 py-1"
+    <span class="text-sm px-4 py-1" aria-current="page"
         style="color: var(--md-sys-color-on-surface-variant); background: var(--md-sys-color-surface-container); border-radius: var(--md-sys-shape-full)">{{ L "tpl.comp.page" }} {{ add .pagination.Page 1 }} {{ L "tpl.comp.of" }} {{ .pagination.TotalPages }}</span>
     {{ if ge .next_page 0 }}
-    <a class="pagination-btn"
-        href="?q={{ .query }}{{ safeURL .extra_params }}&per={{ .pagination.PerPage }}&page={{ .next_page }}">
+    <a class="pagination-btn" aria-label="{{ L "tpl.comp.next" }}"
+        href="?{{ safeURL $params }}&per={{ .pagination.PerPage }}&page={{ .next_page }}">
         <span>{{ L "tpl.comp.next" }}</span>
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />

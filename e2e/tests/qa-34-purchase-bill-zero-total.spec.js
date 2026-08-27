@@ -28,18 +28,7 @@ test.describe('Purchase bill zero-total guard', () => {
     await row.locator('[name="products_cost_price"]').fill('0');
 
     await expect(page.locator('#total_amount')).toHaveValue('0.00');
-
-    const submitResponse = page.waitForResponse((response) =>
-      response.url().includes('/api/purchase-bills') &&
-      response.request().method() === 'POST'
-    );
-
-    await page.locator('#purchase-form button[type="submit"]').click();
-    expect((await submitResponse).status()).toBe(400);
-
-    await expect(page).toHaveURL(/\/dashboard\/purchase-bills\/add$/);
-    const errorToast = page.locator('.toast').filter({ hasText: "You can't submit an invoice with 0" });
-    await expect(errorToast).toHaveCount(1);
-    await expect(errorToast.first()).toBeVisible();
+    await expect(page.locator('#purchase-total-error')).toBeVisible();
+    await expect(page.locator('#purchase-form button[type="submit"]')).toBeDisabled();
   });
 });

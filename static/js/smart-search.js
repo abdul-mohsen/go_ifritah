@@ -17,8 +17,8 @@
  *     search by phone" suggestion promotes the value to a phone chip.
  *   • keyboard shortcuts: "/" and Ctrl/Cmd-K focus, Esc clears, Enter submits
  *
- * Purely additive: no changes to handlers, HTMX attributes, or templates
- * other than loading this file + smart-search.css from base.html.
+ * Search behavior remains compatible with the existing HTMX handlers and
+ * templates; typed filters are represented as hidden form inputs.
  */
 (function () {
   'use strict';
@@ -58,7 +58,6 @@
     '/dashboard/orders': [
       { param: 'sequence_number', label: 'رقم الطلب', icon: '#', kind: 'digits' },
       { param: 'phone', label: 'رقم الهاتف', icon: '☎', kind: 'digits' },
-      { param: 'vin', label: 'رقم الهيكل', icon: '🚗', kind: 'alnum' },
     ],
     '/dashboard/cash-vouchers': [
       { param: 'sequence_number', label: 'رقم السند', icon: '#', kind: 'digits' },
@@ -315,11 +314,20 @@
       }
     }
     var submitTimer = null;
-    function onInput(e) {
+    var dispatchingInput = false;
+    function onInput() {
+      if (dispatchingInput) return;
       var v = input.value.trim();
       if (v) {
         addTypedFilter(form, fieldDef.param, v, fieldDef.kind);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
+        // Notify the normal search listeners without re-entering this live
+        // typed-filter listener.
+        dispatchingInput = true;
+        try {
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        } finally {
+          dispatchingInput = false;
+        }
         // Debounce form submission: cancel previous timer, set new one
         if (submitTimer) clearTimeout(submitTimer);
         submitTimer = setTimeout(function () {

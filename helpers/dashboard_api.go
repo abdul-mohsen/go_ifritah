@@ -32,6 +32,10 @@ type DashboardAPIResponse struct {
 	Filters            DashboardAPIFilters      `json:"filters"`
 }
 
+type DashboardAvailableYearsResponse struct {
+	Years []int `json:"years"`
+}
+
 type DashboardAPIStats struct {
 	TotalInvoices       int64  `json:"total_invoices"`
 	TotalRevenue        string `json:"total_revenue"`
@@ -354,6 +358,14 @@ func FetchDashboardSummary(token, stateFilter, startDate, endDate string, months
 		return nil, err
 	}
 	return &out, nil
+}
+
+func FetchDashboardAvailableYears(token string) ([]int, error) {
+	var out DashboardAvailableYearsResponse
+	if err := dashboardGet(token, "/api/v2/dashboard/available-years", nil, &out); err != nil {
+		return nil, err
+	}
+	return out.Years, nil
 }
 
 // FetchDashboardAnalytics calls GET /api/v2/dashboard/analytics.

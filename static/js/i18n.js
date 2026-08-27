@@ -15,10 +15,40 @@
             'nav.stores': 'المخازن',
             'nav.branches': 'الفروع',
             'nav.users': 'إدارة المستخدمين',
+            'nav.premium_section': 'الميزات المتقدمة',
+            'nav.pos': 'نقطة البيع',
+            'nav.reports': 'التقارير',
+            'nav.accounting': 'المحاسبة',
+            'nav.supplier_ledger': 'كشف حساب الموردين',
+            'nav.zatca_monitor': 'مراقبة زاتكا',
             'nav.settings': 'الإعدادات',
             'nav.logout': 'تسجيل خروج',
             'nav.cash_vouchers': 'سندات القبض والصرف',
             'nav.stock_adjustments': 'تعديل المخزون',
+
+            // POS
+            'pos.title': 'نقطة البيع',
+            'pos.store': 'المخزن',
+            'pos.no_stores': 'لا توجد مخازن متاحة',
+            'pos.store_load_error': 'تعذر تحميل المخازن',
+            'pos.search_label': 'البحث عن منتج',
+            'pos.search_placeholder': 'ابحث عن اسم المنتج أو رقمه...',
+            'pos.no_products': 'لا توجد منتجات مطابقة',
+            'pos.product_load_error': 'تعذر تحميل المنتجات',
+            'pos.in_stock': 'متوفر',
+            'pos.out_of_stock': 'غير متوفر',
+            'pos.current_order': 'الطلب الحالي',
+            'pos.empty_order': 'أضف منتجات إلى الطلب للبدء',
+            'pos.subtotal': 'المجموع الفرعي',
+            'pos.vat': 'ضريبة القيمة المضافة (15%)',
+            'pos.total': 'الإجمالي',
+            'pos.checkout': 'إتمام الدفع',
+            'pos.close': 'إغلاق نقطة البيع',
+            'pos.remove_item': 'حذف المنتج',
+            'pos.decrease_quantity': 'تقليل الكمية',
+            'pos.increase_quantity': 'زيادة الكمية',
+            'pos.quantity': 'الكمية',
+            'pos.checkout_coming': 'سيتم تفعيل الدفع في الخطوة التالية',
 
             // Settings sidebar
             'settings.dark_mode': 'الوضع الداكن',
@@ -142,6 +172,13 @@
             'settings.low_stock_alerts': 'تنبيهات المخزون المنخفض',
             'settings.save_success': 'تم حفظ الإعدادات بنجاح',
 
+            // Upgrade prompt
+            'upgrade.title': 'الترقية مطلوبة',
+            'upgrade.message': 'هذه الميزة غير متاحة في خطتك الحالية.',
+            'upgrade.current_plan': 'الخطة الحالية',
+            'upgrade.required_plan': 'الخطة المطلوبة',
+            'upgrade.close': 'إغلاق',
+
             // Search
             'search.parts_title': 'البحث عن قطع غيار',
             'search.cars_title': 'البحث عن سيارات',
@@ -188,10 +225,40 @@
             'nav.stores': 'Stores',
             'nav.branches': 'Branches',
             'nav.users': 'User Management',
+            'nav.premium_section': 'Advanced Features',
             'nav.settings': 'Settings',
             'nav.logout': 'Logout',
             'nav.cash_vouchers': 'Cash Vouchers',
             'nav.stock_adjustments': 'Stock Adjustments',
+            'nav.pos': 'Point of Sale',
+            'nav.reports': 'Reports',
+            'nav.accounting': 'Accounting',
+            'nav.supplier_ledger': 'Supplier Ledger',
+            'nav.zatca_monitor': 'ZATCA Monitor',
+
+            // POS
+            'pos.title': 'Point of Sale',
+            'pos.store': 'Store',
+            'pos.no_stores': 'No stores available',
+            'pos.store_load_error': 'Unable to load stores',
+            'pos.search_label': 'Search products',
+            'pos.search_placeholder': 'Search by product name or number...',
+            'pos.no_products': 'No matching products',
+            'pos.product_load_error': 'Unable to load products',
+            'pos.in_stock': 'In stock',
+            'pos.out_of_stock': 'Out of stock',
+            'pos.current_order': 'Current order',
+            'pos.empty_order': 'Add products to start an order',
+            'pos.subtotal': 'Subtotal',
+            'pos.vat': 'VAT (15%)',
+            'pos.total': 'Total',
+            'pos.checkout': 'Checkout',
+            'pos.close': 'Close POS',
+            'pos.remove_item': 'Remove item',
+            'pos.decrease_quantity': 'Decrease quantity',
+            'pos.increase_quantity': 'Increase quantity',
+            'pos.quantity': 'Quantity',
+            'pos.checkout_coming': 'Checkout will be enabled in the next step',
 
             // Settings sidebar
             'settings.dark_mode': 'Dark Mode',
@@ -315,6 +382,13 @@
             'settings.low_stock_alerts': 'Low Stock Alerts',
             'settings.save_success': 'Settings saved successfully',
 
+            // Upgrade prompt
+            'upgrade.title': 'Upgrade Required',
+            'upgrade.message': 'This feature is not available on your current plan.',
+            'upgrade.current_plan': 'Current plan',
+            'upgrade.required_plan': 'Required plan',
+            'upgrade.close': 'Close',
+
             // Search
             'search.parts_title': 'Parts Search',
             'search.cars_title': 'Cars Search',
@@ -368,6 +442,13 @@
 
     // Apply language to all elements with data-i18n
     function applyLang(lang) {
+        setDocumentDirection(lang);
+        translateElements(lang);
+        updatePlanLabels(lang);
+        updateLangLabel(lang);
+    }
+
+    function setDocumentDirection(lang) {
         var html = document.documentElement;
         if (lang === 'en') {
             html.setAttribute('dir', 'ltr');
@@ -380,21 +461,32 @@
             document.body.classList.remove('text-left');
             document.body.classList.add('text-right');
         }
+    }
 
-        var els = document.querySelectorAll('[data-i18n]');
-        for (var i = 0; i < els.length; i++) {
-            var key = els[i].getAttribute('data-i18n');
-            var text = translations[lang] && translations[lang][key];
-            if (text) {
-                if (els[i].tagName === 'INPUT' || els[i].tagName === 'TEXTAREA') {
-                    els[i].setAttribute('placeholder', text);
-                } else {
-                    els[i].textContent = text;
-                }
+    function translateElements(lang) {
+        const els = document.querySelectorAll('[data-i18n]');
+        for (const element of els) {
+            const key = element.dataset.i18n;
+            const text = translations[lang]?.[key];
+            if (!text) continue;
+            if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+                element.setAttribute('placeholder', text);
+            } else {
+                element.textContent = text;
             }
         }
+    }
 
-        // Update lang toggle label
+    function updatePlanLabels(lang) {
+        const planEls = document.querySelectorAll('[data-plan-ar]');
+        for (const element of planEls) {
+            element.textContent = lang === 'en'
+                ? element.dataset.planEn
+                : element.dataset.planAr;
+        }
+    }
+
+    function updateLangLabel(lang) {
         var langLabel = document.getElementById('lang-label');
         if (langLabel) {
             langLabel.textContent = lang === 'ar' ? 'English' : 'العربية';

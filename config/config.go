@@ -18,7 +18,13 @@ import (
 
 // templateFuncs provides custom functions available in all templates.
 var templateFuncs = template.FuncMap{
-	"L":   resources.L,
+	"L": resources.L,
+	"isEnabled": func(tenantID, featureID string) bool {
+		if featureChecker == nil {
+			return false
+		}
+		return featureChecker(tenantID, featureID)
+	},
 	"add": func(a, b int) int { return a + b },
 	"sub": func(a, b int) int { return a - b },
 	"mul": func(a, b interface{}) float64 {
@@ -212,7 +218,25 @@ var (
 	BackendDomain string
 	AppVersion    string
 	BaseDir       string // Project root directory (defaults to ".")
+	TenantID      string
 )
+
+// ContextKey identifies values shared between middleware and render helpers.
+type ContextKey string
+
+const (
+	TenantIDContextKey  ContextKey = "tenantID"
+	PlanContextKey      ContextKey = "plan"
+	PlanLevelContextKey ContextKey = "planLevel"
+)
+
+var featureChecker func(tenantID, featureID string) bool
+
+// RegisterFeatureChecker wires the plan gate into the template function map
+// without creating a config/helpers import cycle.
+func RegisterFeatureChecker(checker func(tenantID, featureID string) bool) {
+	featureChecker = checker
+}
 
 // Templates holds all pre-parsed templates keyed by name.
 // Parsed once at startup — never re-read from disk on each request.
@@ -255,7 +279,9 @@ func Initialize() {
 		AppPort = "8000"
 	}
 
+	TenantID = os.Getenv("TENANT_ID")
 	AppVersion = loadAppVersion()
+	initializeMasterDB()
 
 	log.Printf("Frontend: %s | Backend: %s | Version: %s", AppDomain, BackendDomain, AppVersion)
 
@@ -353,6 +379,10 @@ func LoadTemplates() {
 		"stock-adjustments":     filepath.Join(BaseDir, "templates/stock-adjustments.html"),
 		"notifications":         filepath.Join(BaseDir, "templates/notifications.html"),
 		"zatca-monitor":         filepath.Join(BaseDir, "templates/zatca-monitor.html"),
+		"users":                 filepath.Join(BaseDir, "templates/users.html"),
+		"add-user":              filepath.Join(BaseDir, "templates/add-user.html"),
+		"edit-user":             filepath.Join(BaseDir, "templates/edit-user.html"),
+		"onboarding":            filepath.Join(BaseDir, "templates/onboarding.html"),
 	}
 
 	for name, page := range layoutPages {
@@ -378,6 +408,8 @@ func LoadTemplates() {
 		"invoice-preview": filepath.Join(BaseDir, "templates/invoice-preview.html"),
 		"invoice-print":   filepath.Join(BaseDir, "templates/invoice-print.html"),
 		"error-page":      filepath.Join(BaseDir, "templates/error-page.html"),
+		"upgrade-prompt":  filepath.Join(BaseDir, "templates/upgrade-prompt.html"),
+		"pos":             filepath.Join(BaseDir, "templates/pos.html"),
 	}
 
 	for name, page := range standalonePages {
@@ -396,10 +428,11 @@ func LoadTemplates() {
 
 	// ── Partials (HTMX fragments) ─────────────────────────────────
 	partials := map[string]string{
-		"vin-result":      filepath.Join(BaseDir, "templates/partials/vin-result.html"),
-		"parts-results":   filepath.Join(BaseDir, "templates/partials/parts-results.html"),
-		"cars-results":    filepath.Join(BaseDir, "templates/partials/cars-results.html"),
-		"stock-movements": filepath.Join(BaseDir, "templates/partials/stock-movements.html"),
+		"vin-result":           filepath.Join(BaseDir, "templates/partials/vin-result.html"),
+		"parts-results":        filepath.Join(BaseDir, "templates/partials/parts-results.html"),
+		"cars-results":         filepath.Join(BaseDir, "templates/partials/cars-results.html"),
+		"stock-movements":      filepath.Join(BaseDir, "templates/partials/stock-movements.html"),
+		"purchase-bill-header": filepath.Join(BaseDir, "templates/components/purchase-bill-header.html"),
 	}
 
 	for name, page := range partials {

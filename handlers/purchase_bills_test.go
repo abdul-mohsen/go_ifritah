@@ -3,6 +3,7 @@ package handlers
 import (
 	"afrita/config"
 	"afrita/helpers"
+	"afrita/models"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -239,6 +240,95 @@ func TestPurchaseBillsEmptyStateAddLinkUsesRegisteredRoute(t *testing.T) {
 	}
 	if strings.Contains(body, `/dashboard/purchases/add`) {
 		t.Fatalf("empty state still contains removed 404 route /dashboard/purchases/add")
+	}
+}
+
+func TestPurchaseBillsSearchForwardsTypedFilters(t *testing.T) {
+	var receivedPayload map[string]interface{}
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/purchase_bill/all" {
+			t.Fatalf("unexpected backend path: %s", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&receivedPayload); err != nil {
+			t.Fatalf("decode purchase-bill list payload: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":12345,"sequence_number":67890,"supplier_sequence_number":456,"state":0,"total":"100","effective_date":"2026-04-10T00:00:00Z"}]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	helpers.APICache.Delete("purchase_bills")
+	helpers.APICache.Set("purchase_bills", []models.Invoice{{ID: 999}}, helpers.CacheTTLPurchBill)
+	defer helpers.APICache.Delete("purchase_bills")
+	cleanup := setupPBTestSession("pb-typed-search", "pb-typed-search-token")
+	defer cleanup()
+
+	req := httptest.NewRequest(
+		"GET",
+		"/dashboard/purchase-bills?sequence_number=12345&supplier_sequence_number=456",
+		nil,
+	)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-typed-search"})
+	w := httptest.NewRecorder()
+
+	HandlePurchaseBills(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200; body: %s", w.Code, w.Body.String())
+	}
+	if got, ok := receivedPayload["sequence_number"].(string); !ok || got != "12345" {
+		t.Fatalf("sequence_number payload = %#v, want %q", receivedPayload["sequence_number"], "12345")
+	}
+	if got, ok := receivedPayload["supplier_sequence_number"].(string); !ok || got != "456" {
+		t.Fatalf("supplier_sequence_number payload = %#v, want %q", receivedPayload["supplier_sequence_number"], "456")
+	}
+	if !strings.Contains(w.Body.String(), "12345") {
+		t.Error("expected the filtered purchase bill to remain visible after server search")
+	}
+}
+
+func TestPurchaseBillsSearchByBillIDForwardsQuery(t *testing.T) {
+	var receivedPayload map[string]interface{}
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/purchase_bill/all" {
+			t.Fatalf("unexpected backend path: %s", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&receivedPayload); err != nil {
+			t.Fatalf("decode purchase-bill list payload: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":12345,"sequence_number":67890,"supplier_sequence_number":456,"state":0,"total":"100","effective_date":"2026-04-10T00:00:00Z"}]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	helpers.APICache.Delete("purchase_bills")
+	helpers.APICache.Set("purchase_bills", []models.Invoice{{ID: 999}}, helpers.CacheTTLPurchBill)
+	defer helpers.APICache.Delete("purchase_bills")
+	cleanup := setupPBTestSession("pb-bill-id-search", "pb-bill-id-search-token")
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/dashboard/purchase-bills?q=12345", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-bill-id-search"})
+	w := httptest.NewRecorder()
+
+	HandlePurchaseBills(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200; body: %s", w.Code, w.Body.String())
+	}
+	if got, ok := receivedPayload["query"].(string); !ok || got != "12345" {
+		t.Fatalf("query payload = %#v, want %q", receivedPayload["query"], "12345")
+	}
+	if !strings.Contains(w.Body.String(), "12345") {
+		t.Error("expected the bill ID search result to remain visible after server search")
 	}
 }
 
@@ -485,7 +575,9 @@ func TestAddPurchaseBillDuplicateCheckUIIsRendered(t *testing.T) {
 		`inFlightKey`,
 		`key === purchaseBillDuplicateState.lastCheckedKey || key === purchaseBillDuplicateState.inFlightKey`,
 		`purchaseBillDuplicateState.exists = !!(data && data.exists)`,
-		`submit.disabled = purchaseBillDuplicateState.exists`,
+		`submit.disabled = purchaseBillDuplicateState.exists || !isPurchaseBillTotalPositive()`,
+		`purchase-total-error`,
+		`isPurchaseBillTotalPositive`,
 		`setPurchaseBillDuplicateWarning()`,
 		`e.preventDefault()`,
 	} {
@@ -714,6 +806,10 @@ func TestEditPBManualProductNameField(t *testing.T) {
 	}
 	if !strings.Contains(body, `supplier-search.js`) {
 		t.Error("edit purchase bill page should load supplier-search.js")
+	}
+	if !strings.Contains(body, `id="purchase-total-error"`) ||
+		!strings.Contains(body, `submit.disabled = !isPurchaseBillTotalPositive()`) {
+		t.Error("edit purchase bill page should block and explain non-positive totals")
 	}
 }
 

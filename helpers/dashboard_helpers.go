@@ -303,6 +303,200 @@ func ParseFilterDate(value string, isEnd bool) *time.Time {
 	return &parsed
 }
 
+// ResolveDashboardPeriod converts a dashboard period preset into an
+// inclusive Riyadh calendar-date range. An empty range represents all dates.
+func ResolveDashboardPeriod(period string, now time.Time) (string, string, bool) {
+	now = now.In(Riyadh)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, Riyadh)
+
+	var start time.Time
+	switch strings.ToLower(strings.TrimSpace(period)) {
+	case "all":
+		return "", "", true
+	case "today":
+		start = today
+	case "week":
+		start = today.AddDate(0, 0, -6)
+	case "month":
+		start = time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, Riyadh)
+	case "quarter":
+		quarterMonth := (int(today.Month())-1)/3*3 + 1
+		start = time.Date(today.Year(), time.Month(quarterMonth), 1, 0, 0, 0, 0, Riyadh)
+	case "year":
+		start = time.Date(today.Year(), time.January, 1, 0, 0, 0, 0, Riyadh)
+	default:
+		return "", "", false
+	}
+
+	return start.Format("2006-01-02"), today.Format("2006-01-02"), true
+}
+
+// DashboardQuarterOption is a quarter value and its localized display label.
+// Value is kept URL-safe so it can be submitted directly as a query parameter.
+type DashboardQuarterOption struct {
+	Value string
+	Label string
+}
+
+// CurrentDashboardQuarter returns the current Riyadh calendar quarter in the
+// canonical YYYY-QN format used by the dashboard selector.
+func CurrentDashboardQuarter(now time.Time) string {
+	now = now.In(Riyadh)
+	quarter := (int(now.Month())-1)/3 + 1
+	return fmt.Sprintf("%04d-Q%d", now.Year(), quarter)
+}
+
+// DashboardQuarterChoices returns the four calendar quarter choices.
+func DashboardQuarterChoices() []DashboardQuarterOption {
+	quarterNames := []string{"", "الأول", "الثاني", "الثالث", "الرابع"}
+	options := make([]DashboardQuarterOption, 0, 4)
+	for quarter := 1; quarter <= 4; quarter++ {
+		options = append(options, DashboardQuarterOption{
+			Value: strconv.Itoa(quarter),
+			Label: fmt.Sprintf("الربع %s", quarterNames[quarter]),
+		})
+	}
+	return options
+}
+
+// DashboardYearOption is a selectable report year.
+type DashboardYearOption struct {
+	Value string
+	Label string
+}
+
+// DashboardYearOptions returns only years that contain dashboard data.
+func DashboardYearOptions(years []int) []DashboardYearOption {
+	if len(years) == 0 {
+		return []DashboardYearOption{}
+	}
+
+	unique := make(map[int]struct{}, len(years))
+	for _, year := range years {
+		if year > 0 {
+			unique[year] = struct{}{}
+		}
+	}
+	sortedYears := make([]int, 0, len(unique))
+	for year := range unique {
+		sortedYears = append(sortedYears, year)
+	}
+	sort.Sort(sort.Reverse(sort.IntSlice(sortedYears)))
+
+	options := make([]DashboardYearOption, 0, len(sortedYears))
+	for _, year := range sortedYears {
+		value := strconv.Itoa(year)
+		options = append(options, DashboardYearOption{Value: value, Label: value})
+	}
+	return options
+}
+
+func NormalizeDashboardYearSelection(selected string, availableYears []int, now time.Time) string {
+	selected = strings.TrimSpace(selected)
+	options := DashboardYearOptions(availableYears)
+	for _, option := range options {
+		if option.Value == selected {
+			return selected
+		}
+	}
+	if len(options) > 0 {
+		return options[0].Value
+	}
+	return strconv.Itoa(now.In(Riyadh).Year())
+}
+
+// CurrentDashboardQuarterSelection returns the current quarter number and
+// year as separate selector values.
+func CurrentDashboardQuarterSelection(now time.Time) (string, string) {
+	now = now.In(Riyadh)
+	quarter := (int(now.Month())-1)/3 + 1
+	return strconv.Itoa(quarter), strconv.Itoa(now.Year())
+}
+
+// ResolveDashboardQuarter converts a YYYY-QN selector value into an inclusive
+// Riyadh calendar-date range. The current quarter ends today; completed
+// quarters end on their calendar quarter's final day.
+func ResolveDashboardQuarter(value string, now time.Time) (string, string, bool) {
+	parts := strings.Split(strings.ToUpper(strings.TrimSpace(value)), "-Q")
+	if len(parts) != 2 || len(parts[0]) != 4 || len(parts[1]) != 1 {
+		return "", "", false
+	}
+
+	year, yearErr := strconv.Atoi(parts[0])
+	quarter, quarterErr := strconv.Atoi(parts[1])
+	if yearErr != nil || quarterErr != nil || year < 1 || quarter < 1 || quarter > 4 {
+		return "", "", false
+	}
+
+	now = now.In(Riyadh)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, Riyadh)
+	start := time.Date(year, time.Month((quarter-1)*3+1), 1, 0, 0, 0, 0, Riyadh)
+	if start.After(today) {
+		return "", "", false
+	}
+
+	end := start.AddDate(0, 3, -1)
+	if end.After(today) {
+		end = today
+	}
+	return start.Format("2006-01-02"), end.Format("2006-01-02"), true
+}
+
+// ResolveDashboardQuarterSelection converts separate quarter and year
+// selector values into the canonical date range used by the dashboard API.
+// It also accepts the older combined YYYY-QN value for existing links.
+func ResolveDashboardQuarterSelection(quarter, year string, now time.Time) (string, string, string, string, bool) {
+	quarter = strings.ToUpper(strings.TrimSpace(quarter))
+	year = strings.TrimSpace(year)
+	if strings.Contains(quarter, "-Q") {
+		parts := strings.Split(quarter, "-Q")
+		if len(parts) != 2 {
+			return "", "", "", "", false
+		}
+		if year == "" {
+			year = parts[0]
+		}
+		quarter = parts[1]
+	}
+	quarter = strings.TrimPrefix(quarter, "Q")
+	if len(year) != 4 || len(quarter) != 1 {
+		return "", "", "", "", false
+	}
+	quarterNumber, quarterErr := strconv.Atoi(quarter)
+	yearNumber, yearErr := strconv.Atoi(year)
+	if quarterErr != nil || yearErr != nil || quarterNumber < 1 || quarterNumber > 4 {
+		return "", "", "", "", false
+	}
+
+	quarterValue := fmt.Sprintf("%04d-Q%d", yearNumber, quarterNumber)
+	start, end, valid := ResolveDashboardQuarter(quarterValue, now)
+	if !valid {
+		return "", "", "", "", false
+	}
+	return start, end, strconv.Itoa(quarterNumber), strconv.Itoa(yearNumber), true
+}
+
+func ResolveDashboardYearSelection(year string, now time.Time) (string, string, string, bool) {
+	year = strings.TrimSpace(year)
+	yearNumber, err := strconv.Atoi(year)
+	if err != nil || yearNumber < 1 || yearNumber > 9999 {
+		return "", "", "", false
+	}
+
+	now = now.In(Riyadh)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, Riyadh)
+	start := time.Date(yearNumber, time.January, 1, 0, 0, 0, 0, Riyadh)
+	if start.After(today) {
+		return "", "", "", false
+	}
+
+	end := time.Date(yearNumber, time.December, 31, 0, 0, 0, 0, Riyadh)
+	if end.After(today) {
+		end = today
+	}
+	return start.Format("2006-01-02"), end.Format("2006-01-02"), strconv.Itoa(yearNumber), true
+}
+
 func ParseFloatString(value string) (float64, error) {
 	cleaned := strings.ReplaceAll(value, ",", "")
 	return strconvParseFloat(cleaned)

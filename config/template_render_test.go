@@ -33,12 +33,13 @@ func TestAllTemplatesParse(t *testing.T) {
 		"settings", "parts-search", "cars-search", "import-bills",
 		"cash-vouchers", "add-cash-voucher", "cash-voucher-detail", "edit-cash-voucher",
 		"stock-adjustments", "notifications", "supplier-report", "supplier-statement",
-		"zatca-monitor",
+		"zatca-monitor", "users", "add-user", "edit-user",
+		"onboarding",
 		// Standalone pages
 		"login", "register", "forgot-password",
-		"invoice-preview", "invoice-print", "error-page",
+		"invoice-preview", "invoice-print", "error-page", "upgrade-prompt", "pos",
 		// Partials
-		"vin-result", "parts-results", "cars-results", "stock-movements",
+		"vin-result", "parts-results", "cars-results", "stock-movements", "purchase-bill-header",
 	}
 
 	for _, name := range expected {
@@ -66,8 +67,9 @@ func TestAllTemplatesExecute(t *testing.T) {
 	// in map[string]interface{}, so we only need to supply data that templates
 	// iterate over (range) or call methods on.
 	minimalData := map[string]interface{}{
-		"title":   "Test",
-		"version": "0.0.0-test",
+		"title":    "Test",
+		"version":  "0.0.0-test",
+		"tenantID": "test-tenant",
 
 		// Common page data
 		"invoices":        []interface{}{},
@@ -80,6 +82,7 @@ func TestAllTemplatesExecute(t *testing.T) {
 		"users":           []interface{}{},
 		"all_products":    []interface{}{},
 		"manual_products": []interface{}{},
+		"zatca":           []interface{}{},
 
 		// Pagination
 		"pagination": map[string]interface{}{
@@ -114,6 +117,8 @@ func TestAllTemplatesExecute(t *testing.T) {
 		"effective_date":      "",
 		"payment_due_date":    "",
 		"deliver_date":        "",
+		"received_date":       "",
+		"receipt_enabled":     false,
 		"bill_payment_method": "",
 		"store_name":          "",
 		"company_name":        "",
@@ -181,6 +186,9 @@ func TestAllTemplatesExecute(t *testing.T) {
 			"Role":        "",
 			"Active":      true,
 			"Permissions": []interface{}{},
+		},
+		"User": map[string]interface{}{
+			"ID": 0, "Username": "", "Role": "employee", "Active": true,
 		},
 
 		// Dashboard specific

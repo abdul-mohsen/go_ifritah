@@ -2,8 +2,9 @@
 form-field — M3 form field with label, input, and inline error.
 
 Required: .label, .name, .errors, .value
-Optional: .type (default "text"), .required (bool), .placeholder, .minlength,
-          .maxlength, .pattern, .title, .min, .max, .step, .readonly
+Optional: .id (defaults to .name), .type (default "text"), .required (bool),
+          .placeholder, .minlength, .maxlength, .pattern, .title, .min, .max,
+          .step, .readonly
 
 Usage (add form):
 {{ template "form-field" dict "label" "اسم المورد" "name" "name" "required" true
@@ -14,9 +15,10 @@ Usage (edit form):
    "errors" .errors "value" .supplier.Name }}
 */}}
 {{ define "form-field" }}
+{{ $fieldID := .name }}{{ if .id }}{{ $fieldID = .id }}{{ end }}
 <div class="form-group">
-    <label class="form-label">{{ .label }}{{ if .required }}<span class="required-mark">*</span>{{ end }}</label>
-    <input type="{{ if .type }}{{ .type }}{{ else }}text{{ end }}" name="{{ .name }}"
+    <label class="form-label" for="{{ $fieldID }}">{{ .label }}{{ if .required }}<span class="required-mark">*</span>{{ end }}</label>
+    <input id="{{ $fieldID }}" type="{{ if .type }}{{ .type }}{{ else }}text{{ end }}" name="{{ .name }}"
         class="w-full{{ if and .errors (hasError .errors .name) }} input-error{{ end }}"
         {{ if .required }}required{{ end }}
         {{ if .placeholder }}placeholder="{{ .placeholder }}"{{ end }}
@@ -37,15 +39,17 @@ Usage (edit form):
 form-textarea — M3 textarea field with label and inline error.
 
 Required: .label, .name, .errors, .value
-Optional: .required, .rows (default "3"), .placeholder, .maxlength
+Optional: .id (defaults to .name), .required, .rows (default "3"),
+          .placeholder, .maxlength
 
 Usage:
 {{ template "form-textarea" dict "label" "ملاحظات" "name" "note" "errors" .errors "value" "" "rows" "3" }}
 */}}
 {{ define "form-textarea" }}
+{{ $fieldID := .name }}{{ if .id }}{{ $fieldID = .id }}{{ end }}
 <div class="form-group">
-    <label class="form-label">{{ .label }}{{ if .required }}<span class="required-mark">*</span>{{ end }}</label>
-    <textarea name="{{ .name }}"
+    <label class="form-label" for="{{ $fieldID }}">{{ .label }}{{ if .required }}<span class="required-mark">*</span>{{ end }}</label>
+    <textarea id="{{ $fieldID }}" name="{{ .name }}"
         class="w-full{{ if and .errors (hasError .errors .name) }} input-error{{ end }}"
         {{ if .required }}required{{ end }}
         {{ if .placeholder }}placeholder="{{ .placeholder }}"{{ end }}

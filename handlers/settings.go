@@ -69,6 +69,7 @@ var settingsDefaults = map[string]string{
 	"company_description":          "",
 	"company_address":              "",
 	"company_phone":                "",
+	"onboarding_completed":         "",
 	"whatsapp_enabled":             "false",
 	"whatsapp_business_account_id": "",
 	"whatsapp_phone_number_id":     "",
@@ -131,7 +132,7 @@ var settingsCategoryMap = map[string]string{
 	"company_name": "company", "company_email": "company",
 	"company_vat": "company", "company_cr": "company",
 	"company_description": "company", "company_address": "company",
-	"company_phone": "company",
+	"company_phone": "company", "onboarding_completed": "company",
 	// inventory
 	"low_stock_threshold": "inventory", "default_unit": "inventory",
 	"stock_enforcement": "inventory", "track_inventory": "inventory",
@@ -173,24 +174,28 @@ var allSettingsKeys = []string{
 	"default_unit", "stock_enforcement", "track_inventory", "allow_negative_stock",
 	"show_cost_price", "company_name", "company_email", "company_vat",
 	"company_cr", "company_description", "company_address", "company_phone",
+	"onboarding_completed",
 	"whatsapp_enabled", "whatsapp_business_account_id", "whatsapp_phone_number_id",
 	"whatsapp_access_token", "whatsapp_api_version", "whatsapp_invoice_message",
 }
 
 // loadSettingsFromBackend fetches settings from GET /api/v2/settings
 // and merges them into the in-memory store.
-func loadSettingsFromBackend(token string) {
-	req, _ := http.NewRequest("GET", config.BackendDomain+"/api/v2/settings", nil)
+func loadSettingsFromBackend(token string) error {
+	req, err := http.NewRequest("GET", config.BackendDomain+"/api/v2/settings", nil)
+	if err != nil {
+		return err
+	}
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
 		log.Printf("[SETTINGS] Failed to fetch from backend: %v", err)
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("[SETTINGS] Backend returned %d", resp.StatusCode)
-		return
+		return fmt.Errorf("backend status %d", resp.StatusCode)
 	}
 
 	var result struct {
@@ -198,21 +203,27 @@ func loadSettingsFromBackend(token string) {
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		log.Printf("[SETTINGS] Failed to decode backend response: %v", err)
-		return
+		return err
 	}
 
-	ts := storeFor(token)
-	ts.mu.Lock()
+	values := make(map[string]string, len(settingsDefaults))
+	for key, value := range settingsDefaults {
+		values[key] = value
+	}
 	for _, categorySettings := range result.Data {
 		for key, value := range categorySettings {
-			ts.values[key] = normalizeSettingsValue(key, value)
+			values[key] = normalizeSettingsValue(key, value)
 		}
 	}
+	ts := storeFor(token)
+	ts.mu.Lock()
+	ts.values = values
 	ts.mu.Unlock()
 	log.Printf("[SETTINGS] Loaded %d categories from backend", len(result.Data))
 
 	// Also load notification config (separate endpoint, structured payload).
 	overlayNotificationConfigIntoSettings(token)
+	return nil
 }
 
 // overlayNotificationConfigIntoSettings calls /api/v2/notification/config and
@@ -289,8 +300,15 @@ func saveSettingsToBackend(token string, settings map[string]string) error {
 
 	// Mirror notification-relevant keys into the structured /notification/config
 	// endpoint so the low-stock generator sees them.
+	if firstErr != nil {
+		return firstErr
+	}
 	mirrorNotificationConfig(token, settings)
-	return firstErr
+
+	// Treat the backend as the source of truth. Refresh the per-request cache
+	// from the saved response so a successful redirect cannot display values
+	// that were only staged in process memory.
+	return loadSettingsFromBackend(token)
 }
 
 // mirrorNotificationConfig forwards the subset of the saved settings that
@@ -339,8 +357,11 @@ func HandleSettingsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Cache-Control", "no-store")
 	// Load settings from backend on first access (or refresh)
-	loadSettingsFromBackend(token)
+	if err := loadSettingsFromBackend(token); err != nil {
+		log.Printf("[SETTINGS] page refresh failed: %v", err)
+	}
 
 	branches, _ := helpers.FetchBranches(token)
 	stores, _ := helpers.FetchStores(token)
@@ -397,24 +418,25 @@ func HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	// Build the new settings map
 	newSettings := make(map[string]string, len(allSettingsKeys))
 
-	ts := storeFor(token)
-	ts.mu.Lock()
-	for _, k := range checkboxKeys {
-		ts.values[k] = "false" // default unchecked
-	}
 	for _, key := range allSettingsKeys {
+		_, submitted := r.Form[key]
+		if checkboxSet[key] {
+			val := "false"
+			if submitted {
+				val = r.FormValue(key)
+			}
+			newSettings[key] = val
+			continue
+		}
+		if !submitted {
+			continue
+		}
 		val := r.FormValue(key)
 		if key == "whatsapp_access_token" && preserveWhatsAppTokenValue(val) {
 			continue
 		}
-		if val != "" {
-			ts.values[key] = val
-			newSettings[key] = val
-		} else if checkboxSet[key] {
-			newSettings[key] = "false"
-		}
+		newSettings[key] = val
 	}
-	ts.mu.Unlock()
 
 	// Persist to backend SYNCHRONOUSLY — a fire-and-forget goroutine would let
 	// us flash "saved" even when every PUT returns 500. Surface the failure

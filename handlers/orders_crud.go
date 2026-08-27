@@ -72,11 +72,13 @@ func HandleOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("q")
+	typed := helpers.TypedListFilters("orders", r.URL.Query())
 
 	orders, err := helpers.FetchOrdersList(token, helpers.ListOpts{
 		Page:    0,
 		PerPage: 10000,
 		Query:   query,
+		Typed:   typed,
 	})
 	if err != nil {
 		orders = []map[string]interface{}{}

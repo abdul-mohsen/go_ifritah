@@ -147,7 +147,7 @@ func HandleEditStore(w http.ResponseWriter, r *http.Request) {
 
 // HandleCreateStore creates a new store
 func HandleCreateStore(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
+	_ = r.ParseMultipartForm(32 << 20)
 	token, ok := helpers.GetTokenOrRedirect(w, r)
 	if !ok {
 		return
@@ -177,13 +177,18 @@ func HandleCreateStore(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		helpers.WriteErrorResponse(w, resp.StatusCode, resp, "فشل في إنشاء المتجر")
+		return
+	}
+
 	helpers.APICache.Delete("stores")
 	helpers.WriteSuccessRedirect(w, "/dashboard/stores", "تم إنشاء المتجر بنجاح")
 }
 
 // HandleUpdateStore updates an existing store
 func HandleUpdateStore(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
+	_ = r.ParseMultipartForm(32 << 20)
 	vars := mux.Vars(r)
 	id := vars["id"]
 	token, ok := helpers.GetTokenOrRedirect(w, r)

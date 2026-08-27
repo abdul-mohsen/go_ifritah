@@ -1,0 +1,39 @@
+<dialog id="upgrade-modal" open class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    aria-labelledby="upgrade-modal-title"
+    style="background: rgba(0, 0, 0, 0.42)">
+    <div class="w-full max-w-md p-6 text-right"
+        style="background: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface); border-radius: var(--md-sys-shape-lg); box-shadow: var(--md-sys-elevation-3)">
+        <div class="flex items-start gap-3">
+            <div class="flex-1">
+                <h2 id="upgrade-modal-title" class="text-lg font-bold" data-i18n="upgrade.title">{{ L "upgrade.title" }}</h2>
+                <p class="mt-2 text-sm" style="color: var(--md-sys-color-on-surface-variant)"
+                    data-i18n="upgrade.message">{{ L "upgrade.message" }}</p>
+            </div>
+            <button type="button" data-upgrade-close onclick="closeUpgradeModal()"
+                class="shrink-0 p-1 rounded-full transition"
+                style="color: var(--md-sys-color-on-surface-variant)"
+                aria-label="{{ L "upgrade.close" }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18" />
+                </svg>
+            </button>
+        </div>
+        <div class="mt-5 space-y-2 text-sm">
+            <p>
+                <span style="color: var(--md-sys-color-on-surface-variant)" data-i18n="upgrade.current_plan">{{ L "upgrade.current_plan" }}</span>:
+                <strong data-plan-ar="{{ .currentPlanLabelAR }}" data-plan-en="{{ .currentPlanLabelEN }}">{{ .currentPlanLabelAR }}</strong>
+            </p>
+            <p>
+                <span style="color: var(--md-sys-color-on-surface-variant)" data-i18n="upgrade.required_plan">{{ L "upgrade.required_plan" }}</span>:
+                <strong style="color: var(--md-sys-color-primary)"
+                    data-plan-ar="{{ .requiredPlanLabelAR }}" data-plan-en="{{ .requiredPlanLabelEN }}">{{ .requiredPlanLabelAR }}</strong>
+            </p>
+        </div>
+        <div class="mt-6 flex justify-end">
+            <button type="button" data-upgrade-close onclick="closeUpgradeModal()"
+                class="px-4 py-2 text-sm font-semibold rounded-full transition"
+                style="background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary)"
+                data-i18n="upgrade.close">{{ L "upgrade.close" }}</button>
+        </div>
+    </div>
+</dialog>

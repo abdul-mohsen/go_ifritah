@@ -11,8 +11,10 @@ type Label struct {
 // Common bilingual literals reused by multiple keys. Centralizing them
 // avoids the SonarCloud S1192 "string literal duplicated" warning.
 const (
-	arCity = "المدينة"
-	enCity = "City"
+	arCity     = "المدينة"
+	enCity     = "City"
+	arStore    = "المخزن"
+	arSubtotal = "المجموع الفرعي"
 )
 
 // labels is the master map of all user-facing strings.
@@ -455,11 +457,17 @@ var labels = map[string]Label{
 	"ui.filter.to_date":      {Ar: "إلى التاريخ", En: "To Date"},
 	"ui.filter.period":       {Ar: "الفترة", En: "Period"},
 	"ui.filter.status":       {Ar: "الحالة", En: "Status"},
+	"ui.filter.all_dates":    {Ar: "كل التواريخ", En: "All Dates"},
 	"ui.filter.today":        {Ar: "اليوم", En: "Today"},
 	"ui.filter.this_week":    {Ar: "هذا الأسبوع", En: "This Week"},
 	"ui.filter.this_month":   {Ar: "هذا الشهر", En: "This Month"},
 	"ui.filter.this_quarter": {Ar: "هذا الربع", En: "This Quarter"},
-	"ui.filter.this_year":    {Ar: "هذا العام", En: "This Year"},
+	"ui.filter.quarter":      {Ar: "الربع", En: "Quarter"},
+	"ui.filter.year":         {Ar: "السنة", En: "Year"},
+	"ui.filter.by_year":      {Ar: "حسب السنة", En: "By Year"},
+	"ui.filter.no_years":     {Ar: "لا توجد سنوات ببيانات", En: "No data years"},
+	"ui.filter.date_range":   {Ar: "الفترة الزمنية", En: "Date Range"},
+	"ui.reset":               {Ar: "إعادة تعيين", En: "Reset"},
 	"ui.filter.custom":       {Ar: "مخصص", En: "Custom"},
 
 	// ── UI: Table Headers ────────────────────────────────────────────
@@ -650,10 +658,39 @@ var labels = map[string]Label{
 	"nav.stores":            {Ar: "المخازن", En: "Stores"},
 	"nav.branches":          {Ar: "الفروع", En: "Branches"},
 	"nav.admin_section":     {Ar: "الإدارة", En: "Administration"},
+	"nav.premium_section":   {Ar: "الميزات المتقدمة", En: "Advanced Features"},
 	"nav.users":             {Ar: "إدارة المستخدمين", En: "User Management"},
+	"nav.pos":               {Ar: "نقطة البيع", En: "Point of Sale"},
+	"nav.reports":           {Ar: "التقارير", En: "Reports"},
+	"nav.accounting":        {Ar: "المحاسبة", En: "Accounting"},
+	"nav.supplier_ledger":   {Ar: "كشف حساب الموردين", En: "Supplier Ledger"},
 	"nav.settings":          {Ar: "الإعدادات", En: "Settings"},
 	"nav.zatca_monitor":     {Ar: "مراقبة زاتكا", En: "ZATCA Monitor"},
 	"nav.logout":            {Ar: "تسجيل خروج", En: "Logout"},
+
+	// ── POS ──────────────────────────────────────────────────────────
+	"pos.title":              {Ar: "نقطة البيع", En: "Point of Sale"},
+	"pos.store":              {Ar: arStore, En: "Store"},
+	"pos.no_stores":          {Ar: "لا توجد مخازن متاحة", En: "No stores available"},
+	"pos.store_load_error":   {Ar: "تعذر تحميل المخازن", En: "Unable to load stores"},
+	"pos.search_label":       {Ar: "البحث عن منتج", En: "Search products"},
+	"pos.search_placeholder": {Ar: "ابحث عن اسم المنتج أو رقمه...", En: "Search by product name or number..."},
+	"pos.no_products":        {Ar: "لا توجد منتجات مطابقة", En: "No matching products"},
+	"pos.product_load_error": {Ar: "تعذر تحميل المنتجات", En: "Unable to load products"},
+	"pos.in_stock":           {Ar: "متوفر", En: "In stock"},
+	"pos.out_of_stock":       {Ar: "غير متوفر", En: "Out of stock"},
+	"pos.current_order":      {Ar: "الطلب الحالي", En: "Current order"},
+	"pos.empty_order":        {Ar: "أضف منتجات إلى الطلب للبدء", En: "Add products to start an order"},
+	"pos.subtotal":           {Ar: arSubtotal, En: "Subtotal"},
+	"pos.vat":                {Ar: "ضريبة القيمة المضافة (15%)", En: "VAT (15%)"},
+	"pos.total":              {Ar: "الإجمالي", En: "Total"},
+	"pos.checkout":           {Ar: "إتمام الدفع", En: "Checkout"},
+	"pos.close":              {Ar: "إغلاق نقطة البيع", En: "Close POS"},
+	"pos.remove_item":        {Ar: "حذف المنتج", En: "Remove item"},
+	"pos.decrease_quantity":  {Ar: "تقليل الكمية", En: "Decrease quantity"},
+	"pos.increase_quantity":  {Ar: "زيادة الكمية", En: "Increase quantity"},
+	"pos.quantity":           {Ar: "الكمية", En: "Quantity"},
+	"pos.checkout_coming":    {Ar: "سيتم تفعيل الدفع في الخطوة التالية", En: "Checkout will be enabled in the next step"},
 
 	// ── Layout (base.html) ───────────────────────────────────────────
 	"layout.brand":         {Ar: "عفريته", En: "Afrita"},
@@ -664,6 +701,12 @@ var labels = map[string]Label{
 	"layout.notifications": {Ar: "الإشعارات", En: "Notifications"},
 	"layout.dark_mode":     {Ar: "الوضع الداكن", En: "Dark Mode"},
 	"layout.all_rights":    {Ar: "جميع الحقوق محفوظة.", En: "All rights reserved."},
+
+	"upgrade.title":         {Ar: "الترقية مطلوبة", En: "Upgrade Required"},
+	"upgrade.message":       {Ar: "هذه الميزة غير متاحة في خطتك الحالية.", En: "This feature is not available on your current plan."},
+	"upgrade.current_plan":  {Ar: "الخطة الحالية", En: "Current plan"},
+	"upgrade.required_plan": {Ar: "الخطة المطلوبة", En: "Required plan"},
+	"upgrade.close":         {Ar: "إغلاق", En: "Close"},
 
 	// ── Common Template Labels (shared across pages) ─────────────────
 	"tpl.search":         {Ar: "بحث", En: "Search"},
@@ -741,7 +784,7 @@ var labels = map[string]Label{
 	"tpl.invoice.discount":             {Ar: "الخصم", En: "Discount"},
 	"tpl.invoice.subtotal":             {Ar: "المجموع", En: "Subtotal"},
 	"tpl.invoice.financial_summary":    {Ar: "الملخص المالي", En: "Financial Summary"},
-	"tpl.invoice.sub_total":            {Ar: "المجموع الفرعي", En: "Subtotal"},
+	"tpl.invoice.sub_total":            {Ar: arSubtotal, En: "Subtotal"},
 	"tpl.invoice.maintenance_cost":     {Ar: "تكلفة الصيانة", En: "Maintenance Cost"},
 	"tpl.invoice.before_vat":           {Ar: "المبلغ قبل الضريبة", En: "Amount Before VAT"},
 	"tpl.invoice.vat_label":            {Ar: "ضريبة القيمة المضافة", En: "VAT"},
@@ -845,7 +888,7 @@ var labels = map[string]Label{
 	"tpl.product.loading_history":    {Ar: "جاري تحميل سجل الحركة...", En: "Loading movement history..."},
 	"tpl.product.edit":               {Ar: "تعديل منتج", En: "Edit Product"},
 	"tpl.product.update":             {Ar: "تحديث", En: "Update"},
-	"tpl.product.store_label":        {Ar: "المخزن", En: "Store"},
+	"tpl.product.store_label":        {Ar: arStore, En: "Store"},
 	"tpl.product.select_store":       {Ar: "اختر المخزن", En: "Select Store"},
 	"tpl.product.products_section":   {Ar: "المنتجات", En: "Products"},
 	"tpl.product.add_row":            {Ar: "+ إضافة منتج", En: "+ Add Product"},
@@ -998,7 +1041,7 @@ var labels = map[string]Label{
 	"tpl.pb.items_subtotal":                 {Ar: "إجمالي الأصناف", En: "Items Subtotal"},
 	"tpl.pb.item_type":                      {Ar: "النوع", En: "Type"},
 	"tpl.pb.financial_summary":              {Ar: "الملخص المالي", En: "Financial Summary"},
-	"tpl.pb.sub_total":                      {Ar: "المجموع الفرعي", En: "Subtotal"},
+	"tpl.pb.sub_total":                      {Ar: arSubtotal, En: "Subtotal"},
 	"tpl.pb.discount":                       {Ar: "الخصم", En: "Discount"},
 	"tpl.pb.vat":                            {Ar: "ضريبة القيمة المضافة", En: "VAT"},
 	"tpl.pb.attachments":                    {Ar: "المرفقات", En: "Attachments"},
@@ -1045,6 +1088,7 @@ var labels = map[string]Label{
 	"tpl.pb.docs_hint":                      {Ar: "PDF, JPG, PNG — الحد الأقصى 10 ميجا لكل ملف", En: "PDF, JPG, PNG — Max 10MB each"},
 	"tpl.pb.discount_pct":                   {Ar: "خصم %", En: "Discount %"},
 	"tpl.pb.grand_total":                    {Ar: "المجموع الكلي", En: "Grand Total"},
+	"tpl.pb.zero_total_error":               {Ar: "يجب أن يكون إجمالي فاتورة الشراء أكبر من صفر", En: "The purchase bill total must be greater than zero"},
 	"tpl.pb.oem_label":                      {Ar: "القطعة (بحث برقم OEM)", En: "Part (Search by OEM)"},
 	"tpl.pb.oem_placeholder":                {Ar: "ابحث عن القطعة...", En: "Search for part..."},
 	"tpl.pb.purchase_price":                 {Ar: "سعر الشراء", En: "Purchase Price"},
@@ -1075,6 +1119,10 @@ var labels = map[string]Label{
 	"tpl.pb.cash":                           {Ar: "نقدي", En: "Cash"},
 	"tpl.deliver_date":                      {Ar: "تاريخ التسليم", En: "Deliver Date"},
 	"tpl.pb.received_date":                  {Ar: "تاريخ الاستلام", En: "Received Date"},
+	"tpl.pb.received_on":                    {Ar: "تم الاستلام في", En: "Received on"},
+	"tpl.pb.mark_received":                  {Ar: "تأكيد الاستلام", En: "Mark Received"},
+	"tpl.pb.unmark_received":                {Ar: "إلغاء تأكيد الاستلام", En: "Unmark"},
+	"tpl.pb.confirm_unmark_received":        {Ar: "هل تريد إلغاء تأكيد استلام هذه الفاتورة؟", En: "Remove the receipt confirmation for this bill?"},
 	"tpl.payment_method":                    {Ar: "طريقة الدفع", En: "Payment Method"},
 	"tpl.payment_method.cash":               {Ar: "نقدي", En: "Cash"},
 	"tpl.payment_method.credit":             {Ar: "آجل (دفع لاحق)", En: "Credit (Post-paid)"},
@@ -1239,6 +1287,8 @@ var labels = map[string]Label{
 	"tpl.user.connection_error": {Ar: "حدث خطأ في الاتصال", En: "Connection error"},
 	"tpl.user.updated_success":  {Ar: "تم حفظ التعديلات بنجاح", En: "Changes saved successfully"},
 	"tpl.user.save_changes":     {Ar: "حفظ التعديلات", En: "Save Changes"},
+	"tpl.user.reset_password":  {Ar: "إعادة تعيين كلمة المرور", En: "Reset Password"},
+	"tpl.user.new_password":    {Ar: "كلمة المرور الجديدة", En: "New Password"},
 	"tpl.user.res_branches":     {Ar: "الفروع", En: "Branches"},
 	"tpl.user.res_reports":      {Ar: "التقارير", En: "Reports"},
 	"tpl.user.res_warehouses":   {Ar: "المستودعات", En: "Warehouses"},
@@ -1321,7 +1371,7 @@ var labels = map[string]Label{
 	"tpl.settings.import_type_bills":              {Ar: "فواتير المبيعات", En: "Sales Invoices"},
 	"tpl.settings.import_type_purchase_bills":     {Ar: "فواتير المشتريات", En: "Purchase Bills"},
 	"tpl.settings.import_type_products":           {Ar: "المنتجات", En: "Products"},
-	"tpl.settings.import_store":                   {Ar: "المخزن", En: "Store"},
+	"tpl.settings.import_store":                   {Ar: arStore, En: "Store"},
 	"tpl.settings.import_file":                    {Ar: "اختر ملف CSV", En: "Choose CSV File"},
 	"tpl.settings.import_available_fields":        {Ar: "الحقول المتاحة للتعيين:", En: "Available fields for mapping:"},
 	"tpl.settings.import_preview":                 {Ar: "معاينة", En: "Preview"},
@@ -1583,6 +1633,7 @@ var labels = map[string]Label{
 	"zatca_monitor.type_simplified":    {Ar: "مبسطة", En: "Simplified"},
 	"zatca_monitor.retry":              {Ar: "إعادة إرسال", En: "Retry"},
 	"zatca_monitor.details":            {Ar: "التفاصيل", En: "Details"},
+	"zatca_monitor.load_error":         {Ar: "تعذر تحميل بيانات مراقبة زاتكا من الخادم حالياً", En: "Unable to load ZATCA monitor data from the server"},
 
 	// ── Import Bills / Purchase Bills ────────────────────────
 	// Page titles & navigation

@@ -48,7 +48,7 @@ type User struct {
 	Role        Role         `json:"role"`
 	ManagerID   *int         `json:"manager_id,omitempty"`
 	Permissions []Permission `json:"permissions"`
-	Active      bool         `json:"active"`
+	Active      bool         `json:"is_active"`
 	CreatedAt   time.Time    `json:"created_at"`
 	LastLogin   *time.Time   `json:"last_login,omitempty"`
 }

@@ -69,10 +69,10 @@
             </div>
         </div>
         <!-- Credit Limit Warning -->
-        <div id="credit-warning-banner" class="mt-3 p-3 rounded-lg border border-amber-300 hidden" style="background: #fffbeb">
+        <div id="credit-warning-banner" class="mt-3 alert alert-warning hidden">
             <div class="flex items-center gap-2">
-                <svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                <span class="text-sm text-amber-800 font-medium">{{ L "tpl.pb.credit_warning" }}</span>
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77-.833.192-2.5 1.732-2.5z"/></svg>
+                <span class="text-sm font-medium">{{ L "tpl.pb.credit_warning" }}</span>
             </div>
         </div>
 
@@ -85,11 +85,11 @@
         <div class="mt-6">
             <h4 class="section-card-title">{{ L "tpl.pb.csv_import" }}</h4>
             <div class="flex gap-2 mb-4">
-                <button type="button" onclick="downloadImportTemplate()" class="btn btn-outline btn-xs">
+                <button type="button" onclick="downloadImportTemplate()" class="btn btn-outlined btn-xs">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     {{ L "tpl.pb.download_template" }}
                 </button>
-                <label class="btn btn-outline btn-xs cursor-pointer">
+                <label class="btn btn-outlined btn-xs cursor-pointer">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     {{ L "tpl.pb.upload_csv" }}
                     <input type="file" accept=".csv,text/csv" onchange="handleImportUpload(this)" style="display:none">
@@ -141,8 +141,10 @@
             <div>
                 <label class="form-label">{{ L "tpl.pb.grand_total" }}</label>
                 <input type="text" id="total_display" class="w-full"
+                    aria-describedby="purchase-total-error"
                     style="background: var(--md-sys-color-surface-variant)" disabled>
                 <input type="hidden" name="total_amount" id="total_amount" value="0">
+                <p id="purchase-total-error" class="text-xs mt-1 text-red-600 hidden" role="alert">{{ L "tpl.pb.zero_total_error" }}</p>
             </div>
         </div>
 
@@ -228,10 +230,19 @@
         return form ? form.querySelector('button[type="submit"]') : null;
     }
 
+    function isPurchaseBillTotalPositive() {
+        var total = parseFloat(document.getElementById('total_amount').value || 0);
+        return isFinite(total) && total > 0;
+    }
+
     function updatePurchaseSubmitState() {
         var submit = getPurchaseSubmitButton();
         if (!submit) return;
-        submit.disabled = purchaseBillDuplicateState.exists;
+        submit.disabled = purchaseBillDuplicateState.exists || !isPurchaseBillTotalPositive();
+        var totalError = document.getElementById('purchase-total-error');
+        if (totalError) {
+            totalError.classList.toggle('hidden', isPurchaseBillTotalPositive());
+        }
     }
 
     function clearPurchaseBillDuplicateMessages() {
@@ -444,6 +455,7 @@
         document.getElementById('total_display').value = total.toFixed(2) + ' {{ L "tpl.currency" }}';
         document.getElementById('total_amount').value = total.toFixed(2);
         checkCreditLimit();
+        updatePurchaseSubmitState();
     }
 
     function checkCreditLimit() {
@@ -649,6 +661,12 @@
             e.preventDefault();
             var sequenceInput = document.getElementById('supplier_sequence_input');
             if (sequenceInput) sequenceInput.focus();
+            return;
+        }
+        if (!isPurchaseBillTotalPositive()) {
+            var totalError = document.getElementById('purchase-total-error');
+            if (totalError) totalError.classList.remove('hidden');
+            e.preventDefault();
             return;
         }
         var pdfRequired = '{{ .pb_pdf_required }}' === 'required';

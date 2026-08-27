@@ -3214,6 +3214,12 @@ select {
     border: 1px solid var(--md-sys-color-error);
 }
 
+.alert-warning {
+    background: var(--md-sys-color-warning-container);
+    color: var(--md-sys-color-on-warning-container);
+    border: 1px solid var(--md-sys-color-warning);
+}
+
 /* ── H8: Print styles ───────────────────────────────────────── */
 @media print {
 

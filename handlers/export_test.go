@@ -33,11 +33,15 @@ func TestHandleExportPurchaseBillsXLSXIncludesBillsAndProductsWorksheets(t *test
 				"total_vat": "15",
 				"discount": "5",
 				"total": "110",
+				"total_before_vat": "95",
 				"state": 3
 			}]`))
 		case "/api/v2/purchase_bill/12":
 			_, _ = w.Write([]byte(`{
 				"id": 12,
+				"total_before_vat": "95",
+				"total_vat": "15",
+				"total": "110",
 				"products": [{
 					"product_id": 9,
 					"name": "Brake Pad",
@@ -105,6 +109,18 @@ func TestHandleExportPurchaseBillsXLSXIncludesBillsAndProductsWorksheets(t *test
 	if got, err := workbook.GetCellValue("Bills", "A1"); err != nil || got != "مرجع الفاتورة" {
 		t.Fatalf("expected Bills header, got %q (%v)", got, err)
 	}
+	for cell, want := range map[string]string{
+		"H1": "الإجمالي قبل الضريبة",
+		"I1": "ضريبة القيمة المضافة",
+		"J1": "الإجمالي",
+		"H2": "95",
+		"I2": "15",
+		"J2": "110",
+	} {
+		if got, err := workbook.GetCellValue("Bills", cell); err != nil || got != want {
+			t.Fatalf("Bills %s = %q (%v), want %q", cell, got, err, want)
+		}
+	}
 	if got, err := workbook.GetCellValue("Products", "A1"); err != nil || got != "مرجع الفاتورة" {
 		t.Fatalf("expected Products header, got %q (%v)", got, err)
 	}
@@ -133,6 +149,7 @@ func TestBuildSalesBillExportWorkbookUsesImportContract(t *testing.T) {
 		_, _ = w.Write([]byte(`{
 			"id": 44, "store_id": 1, "client_id": 7, "user_name": "Customer",
 			"effective_date": "2026-05-01T00:00:00Z", "discount": "2",
+			"total_before_vat": "100", "total_vat": "15", "total": "115",
 			"products": [{"name":"Brake Pad","price":"50","quantity":"2","total_before_vat":"0"}],
 			"manual_products": []
 		}`))
@@ -147,6 +164,18 @@ func TestBuildSalesBillExportWorkbookUsesImportContract(t *testing.T) {
 	defer workbook.Close()
 	if got, _ := workbook.GetCellValue("Bills", "A1"); got != "Bill Reference" {
 		t.Fatalf("Bills header = %q", got)
+	}
+	for cell, want := range map[string]string{
+		"K1": "Total Before VAT",
+		"L1": "VAT",
+		"M1": "Total",
+		"K2": "100",
+		"L2": "15",
+		"M2": "115",
+	} {
+		if got, err := workbook.GetCellValue("Bills", cell); err != nil || got != want {
+			t.Fatalf("Bills %s = %q (%v), want %q", cell, got, err, want)
+		}
 	}
 	if got, _ := workbook.GetCellValue("Products", "B1"); got != "Product Name" {
 		t.Fatalf("Products header = %q", got)

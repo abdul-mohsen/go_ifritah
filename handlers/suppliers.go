@@ -201,7 +201,7 @@ func HandleAddSupplier(w http.ResponseWriter, r *http.Request) {
 
 // HandleCreateSupplier creates a new supplier
 func HandleCreateSupplier(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
+	_ = r.ParseMultipartForm(32 << 20)
 
 	token, ok := helpers.GetTokenOrRedirect(w, r)
 	if !ok {
@@ -314,7 +314,7 @@ func HandleGetSupplier(w http.ResponseWriter, r *http.Request) {
 
 // HandleUpdateSupplier updates an existing supplier
 func HandleUpdateSupplier(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
+	_ = r.ParseMultipartForm(32 << 20)
 	vars := mux.Vars(r)
 	id := vars["id"]
 

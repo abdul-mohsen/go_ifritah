@@ -72,7 +72,6 @@
 .smart-search-clear:focus-visible {
   background: var(--md-sys-color-surface-container-high);
   color: var(--md-sys-color-on-surface);
-  outline: none;
 }
 
 /* ── Recent searches dropdown ───────────────────────────────────── */
@@ -117,7 +116,6 @@
 .smart-recent-item:hover,
 .smart-recent-item:focus-visible {
   background: var(--md-sys-color-surface-container-high);
-  outline: none;
 }
 
 /* ── Below-bar meta row (chips + counter) ───────────────────────── */
@@ -156,7 +154,6 @@
 .smart-chip:focus-visible {
   background: var(--md-sys-color-secondary);
   color: var(--md-sys-color-on-secondary);
-  outline: none;
 }
 
 .smart-chip-x {
@@ -217,7 +214,6 @@
   background: var(--md-sys-color-primary-container);
   color: var(--md-sys-color-on-primary-container);
   border-color: var(--md-sys-color-primary);
-  outline: none;
 }
 
 /* ── Typed-field popover ────────────────────────────────────────── */
@@ -249,7 +245,6 @@
 .smart-filter-pop-item:focus-visible {
   background: var(--md-sys-color-secondary-container);
   color: var(--md-sys-color-on-secondary-container);
-  outline: none;
 }
 
 .smart-filter-pop-empty {
@@ -304,5 +299,14 @@
 .smart-search-hint-btn:focus-visible {
   background: var(--md-sys-color-primary);
   color: var(--md-sys-color-on-primary);
-  outline: none;
+}
+
+.smart-search-clear:focus-visible,
+.smart-recent-item:focus-visible,
+.smart-chip:focus-visible,
+.smart-filter-btn:focus-visible,
+.smart-filter-pop-item:focus-visible,
+.smart-search-hint-btn:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
 }

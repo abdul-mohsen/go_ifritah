@@ -7,6 +7,8 @@
 </nav>
 
 <div class="space-y-6">
+    {{ template "error-alert" . }}
+
     <!-- ═══ Header + Refresh ═══ -->
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold" style="color: var(--md-sys-color-on-surface)">{{ L "zatca_monitor.title" }}</h1>
@@ -129,8 +131,10 @@
                         <td class="px-4 py-3" style="color: var(--md-sys-color-on-surface-variant)">
                             {{ if eq .InvoiceType "standard" }}
                             <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{{ L "zatca_monitor.type_standard" }}</span>
-                            {{ else }}
+                            {{ else if eq .InvoiceType "simplified" }}
                             <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{{ L "zatca_monitor.type_simplified" }}</span>
+                            {{ else }}
+                            <span class="text-xs" style="color: var(--md-sys-color-on-surface-variant)">—</span>
                             {{ end }}
                         </td>
                         <td class="px-4 py-3 text-xs" style="color: var(--md-sys-color-on-surface-variant)">{{ .BranchName }}</td>

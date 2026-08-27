@@ -136,6 +136,15 @@ func FetchSuppliersList(token string, opts ListOpts) ([]models.Supplier, error) 
 	return decodeSupplierList(body)
 }
 
+// FetchUsersList — backend-driven users list page.
+func FetchUsersList(token string, opts ListOpts) ([]models.User, error) {
+	body, err := postListBytes(token, "/api/v2/user/all", opts)
+	if err != nil {
+		return nil, err
+	}
+	return decodeListResponse[models.User](body)
+}
+
 // FetchStoresList — backend-driven stores list page. The /stores/all endpoint
 // is GET-only today; pass page_number / page_size / query as URL params.
 func FetchStoresList(token string, opts ListOpts) ([]models.Store, error) {

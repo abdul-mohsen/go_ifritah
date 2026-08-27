@@ -98,6 +98,26 @@ func TestHandleNotificationUnreadCount_BackendDownReturnsZero(t *testing.T) {
 	}
 }
 
+func TestHandleNotificationsRendersBackendItems(t *testing.T) {
+	b := newNotifTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/notification" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		_, _ = io.WriteString(w, `{"items":[{"id":7,"type":"system","title":"تنبيه","message":"تم الحفظ","read":false,"created_at":"2026-02-14T10:00:00Z"}]}`)
+	}))
+	req := b.authedRequest(http.MethodGet, "/dashboard/notifications", "")
+	w := httptest.NewRecorder()
+	HandleNotifications(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "تم الحفظ") || !strings.Contains(body, "تنبيه") {
+		t.Fatalf("notification item not rendered: %s", body[:min(len(body), 500)])
+	}
+}
+
 func TestHandleMarkNotificationRead_HappyPath(t *testing.T) {
 	var hit string
 	b := newNotifTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -112,7 +132,7 @@ func TestHandleMarkNotificationRead_HappyPath(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
 	}
-	if hit != "POST /api/v2/notification/42/read" {
+	if hit != "PUT /api/v2/notification/42/read" {
 		t.Errorf("backend hit = %q", hit)
 	}
 }

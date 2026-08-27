@@ -139,7 +139,7 @@ func HandleEditBranch(w http.ResponseWriter, r *http.Request) {
 
 // HandleCreateBranch creates a new branch
 func HandleCreateBranch(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
+	_ = r.ParseMultipartForm(32 << 20)
 	token, ok := helpers.GetTokenOrRedirect(w, r)
 	if !ok {
 		return
@@ -191,7 +191,7 @@ func HandleCreateBranch(w http.ResponseWriter, r *http.Request) {
 
 // HandleUpdateBranch updates an existing branch
 func HandleUpdateBranch(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
+	_ = r.ParseMultipartForm(32 << 20)
 	vars := mux.Vars(r)
 	id := vars["id"]
 	token, ok := helpers.GetTokenOrRedirect(w, r)

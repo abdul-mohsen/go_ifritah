@@ -25,7 +25,7 @@
             </div>
             <div>
                 <label class="form-label" for="supplier_sequence_input">{{ L "tpl.pb.supplier_bill_number" }} <span class="required-mark">*</span></label>
-                <input type="text" name="supplier_sequance_number" id="supplier_sequence_input" class="w-full" maxlength="50" inputmode="numeric" aria-describedby="supplier-sequence-duplicate-error supplier-sequence-duplicate-warning" required>
+                <input type="text" name="supplier_sequance_number" id="supplier_sequence_input" class="w-full" maxlength="20" inputmode="numeric" aria-describedby="supplier-sequence-duplicate-error supplier-sequence-duplicate-warning" required>
                 <p id="supplier-sequence-duplicate-error" class="text-xs mt-1 text-red-600 hidden" role="alert"></p>
                 <p id="supplier-sequence-duplicate-warning" class="text-xs mt-1 text-amber-700 hidden"></p>
             </div>
@@ -265,17 +265,25 @@
         warningEl.classList.remove('hidden');
     }
 
+    function validSupplierSequenceNumber(value) {
+        var number = value.trim();
+        var max = '18446744073709551615';
+        return /^[1-9]\d*$/.test(number) &&
+            (number.length < max.length ||
+                (number.length === max.length && number <= max));
+    }
+
     function readPurchaseBillDuplicateValues() {
         var supplierEl = document.querySelector('[name="supplier_id"]');
         var sequenceEl = document.getElementById('supplier_sequence_input');
         var supplierId = parseInt(supplierEl ? supplierEl.value : '', 10);
         var sequenceValue = sequenceEl ? sequenceEl.value.trim() : '';
-        if (!supplierId || !/^\d+$/.test(sequenceValue)) {
+        if (!supplierId || !validSupplierSequenceNumber(sequenceValue)) {
             return null;
         }
         return {
             supplier_id: supplierId,
-            supplier_sequence_number: parseInt(sequenceValue, 10)
+            supplier_sequence_number: sequenceValue
         };
     }
 
@@ -309,7 +317,10 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-Token': getCsrfCookie()
             },
-            body: JSON.stringify(payload)
+            // Keep the supplier bill number as its original decimal string.
+            // Converting it to Number silently rounds values above 2^53.
+            body: '{"supplier_id":' + JSON.stringify(payload.supplier_id) +
+                ',"supplier_sequence_number":' + payload.supplier_sequence_number + '}'
         })
             .then(function (response) {
                 if (!response.ok) throw new Error('duplicate check failed');

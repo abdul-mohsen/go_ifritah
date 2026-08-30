@@ -2,13 +2,12 @@ package handlers
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/json"
 	"io"
 	"log"
-	"math/big"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"afrita/config"
 	"afrita/helpers"
@@ -216,7 +215,7 @@ func HandleEditProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleCreateProduct creates new products (supports multiple at once).
-// Backend expects: {"store_id": int, "products": [{id, quantity, price, shelf_number, cost_price}, ...]}
+// Backend accepts a linked product_id or a free-text name for each row.
 func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	token, ok := helpers.GetTokenOrRedirect(w, r)
@@ -245,13 +244,14 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate each product row has quantity, price, and part name
+	// Validate each product row has quantity, price, and a free-text name.
 	for i := range quantities {
 		partName := ""
 		if i < len(partNames) {
-			partName = partNames[i]
+			partName = strings.TrimSpace(partNames[i])
 		}
-		if quantities[i] == "" || (i < len(prices) && prices[i] == "") || partName == "" {
+		if strings.TrimSpace(quantities[i]) == "" || i >= len(prices) ||
+			strings.TrimSpace(prices[i]) == "" || partName == "" {
 			stores, _ := helpers.FetchStores(token)
 			if stores == nil {
 				stores = []models.Store{}
@@ -259,7 +259,7 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 			data := helpers.RenderFormWithErrors(map[string]interface{}{
 				"title":  "إضافة منتج",
 				"stores": stores,
-			}, map[string]string{"products": "يرجى اختيار القطعة وتعبئة الكمية والسعر لكل منتج"}, nil)
+			}, map[string]string{"products": "يرجى إدخال اسم القطعة وتعبئة الكمية والسعر لكل منتج"}, nil)
 			helpers.Render(w, r, "add-product", data)
 			return
 		}
@@ -270,8 +270,6 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 	// Build products array
 	products := make([]map[string]interface{}, 0, len(quantities))
 	for i := range quantities {
-		bigN, _ := rand.Int(rand.Reader, big.NewInt(900000))
-		id := int(bigN.Int64()) + 100000 // cryptographically random 6-digit ID
 		qty := 0
 		price := 0
 		costPrice := 0
@@ -290,15 +288,13 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 		}
 		partName := ""
 		if i < len(partNames) {
-			partName = partNames[i]
+			partName = strings.TrimSpace(partNames[i])
 		}
 		products = append(products, map[string]interface{}{
-			"product_id":   id,
 			"quantity":     qty,
 			"price":        price,
 			"cost_price":   costPrice,
 			"shelf_number": shelfNum,
-			"part_name":    partName,
 			"name":         partName,
 		})
 	}
@@ -312,7 +308,7 @@ func HandleCreateProduct(w http.ResponseWriter, r *http.Request) {
 	for i, p := range partNames {
 		sanitizedPartNames[i] = helpers.SanitizeForLog(p)
 	}
-	log.Printf("[CREATE PRODUCT] OEM parts: %v", sanitizedPartNames)
+	log.Printf("[CREATE PRODUCT] Product names: %v", sanitizedPartNames)
 	log.Printf("[CREATE PRODUCT] Payload: %s", helpers.SanitizeForLog(string(jsonPayload)))
 
 	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/product", bytes.NewBuffer(jsonPayload))

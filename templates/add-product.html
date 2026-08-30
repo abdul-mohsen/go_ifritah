@@ -67,6 +67,7 @@
                 '</div>';
             container.appendChild(div);
             updateRemoveButtons();
+            return div;
         }
 
         function updateRemoveButtons() {
@@ -85,7 +86,16 @@
             }
         });
 
-        addBtn.addEventListener('click', createRow);
+        // Clicking "Add Row" focuses the new row's name input so the user
+        // can type immediately (parity with add-purchase-bill's Alt+N /
+        // addItem() flow). The initial row on page load is left unfocused
+        // so the store selector above it can still receive the default
+        // focus target.
+        addBtn.addEventListener('click', function () {
+            var row = createRow();
+            var nameInput = row.querySelector('input[name="part_name[]"]');
+            if (nameInput) nameInput.focus();
+        });
         createRow();
     })();
 </script>

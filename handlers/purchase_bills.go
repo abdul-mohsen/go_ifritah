@@ -191,6 +191,19 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse and validate the payload BEFORE acquiring the duplicate-submission
+	// lock. The lock is keyed on the session token to protect against a real
+	// user double-clicking submit; it must not swallow a structurally invalid
+	// request (e.g. zero-total) with a 204. Rejecting invalid requests up
+	// front also keeps parallel test workers (which share the same session
+	// cookies via storageState) from turning zero-total assertions into 204
+	// flakes when another worker's valid submit is still in flight.
+	payload := helpers.BuildPurchaseBillPayload(r)
+	if payload.Subtotal <= 0 {
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "You can't submit an invoice with 0")
+		return
+	}
+
 	// Prevent duplicate submissions: only one in-flight create per user session
 	if _, loaded := purchaseBillCreateLock.LoadOrStore(token, true); loaded {
 		log.Printf("[CREATE PURCHASE BILL] Duplicate request blocked for token=%s…", token[:8])
@@ -200,11 +213,6 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	}
 	defer purchaseBillCreateLock.Delete(token)
 
-	payload := helpers.BuildPurchaseBillPayload(r)
-	if payload.Subtotal <= 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "You can't submit an invoice with 0")
-		return
-	}
 	jsonPayload, _ := json.Marshal(payload)
 
 	log.Printf("[CREATE PURCHASE BILL] Payload: %s", helpers.SanitizeForLog(string(jsonPayload)))
@@ -356,18 +364,18 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "purchase-bill-detail", map[string]interface{}{
-		"title":                    "تفاصيل فاتورة المشتريات",
-		"bill":                     invoice,
-		"bill_id":                  id,
-		"catalog_products":         products,
-		"manual_products":          manualProducts,
-		"products_subtotal":        helpers.SumBillItemsTotal(products),
-		"manual_subtotal":          helpers.SumBillItemsTotal(manualProducts),
+		"title":             "تفاصيل فاتورة المشتريات",
+		"bill":              invoice,
+		"bill_id":           id,
+		"catalog_products":  products,
+		"manual_products":   manualProducts,
+		"products_subtotal": helpers.SumBillItemsTotal(products),
+		"manual_subtotal":   helpers.SumBillItemsTotal(manualProducts),
 		// Detail view merges catalog+manual into one items table (a single
 		// per-row badge distinguishes the two, matching add/edit's item
 		// list) - needs one combined subtotal rather than the two separate
 		// per-table ones above (kept for back-compat, no longer rendered).
-		"items_subtotal": helpers.SumBillItemsTotal(append(append([]models.BillItem{}, products...), manualProducts...)),
+		"items_subtotal":           helpers.SumBillItemsTotal(append(append([]models.BillItem{}, products...), manualProducts...)),
 		"store_name":               storeName,
 		"supplier_name":            supplierName,
 		"supplier":                 matchedSupplier,

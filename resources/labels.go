@@ -1039,6 +1039,7 @@ var labels = map[string]Label{
 	"tpl.pb.drag_pdf":                       {Ar: "اسحب وأفلت ملف PDF هنا", En: "Drag and drop PDF file here"},
 	"tpl.pb.browse_file":                    {Ar: "أو اضغط لاختيار ملف", En: "Or click to browse"},
 	"tpl.pb.pdf_hint":                       {Ar: "PDF فقط — الحد الأقصى 5 ميجا", En: "PDF only — Max 5MB"},
+	"tpl.pb.pdf_required_notice":            {Ar: "* مطلوب — لا يمكن الحفظ بدون ملف PDF", En: "* Required — cannot save without a PDF"},
 	"tpl.pb.extra_docs":                     {Ar: "مستندات إضافية", En: "Additional Documents"},
 	"tpl.pb.drag_files":                     {Ar: "اسحب وأفلت الملفات هنا", En: "Drag and drop files here"},
 	"tpl.pb.browse_files":                   {Ar: "أو اضغط لاختيار ملفات", En: "Or click to browse files"},

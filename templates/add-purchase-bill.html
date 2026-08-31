@@ -109,13 +109,16 @@
                         {{ L "tpl.pb.purchase_pdf_label" }}{{ if eq .pb_pdf_required "required" }}<span class="required-mark">*</span>{{ end }}
                     </label>
                     <span class="pba-hint">{{ L "tpl.pb.pdf_hint" }}</span>
+                    {{ if eq .pb_pdf_required "required" }}
+                    <p class="pba-required-hint">{{ L "tpl.pb.pdf_required_notice" }}</p>
+                    {{ end }}
                     <div class="pba-chip" id="bill_pdf_preview">
                         <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" style="flex-shrink:0;color:#ef4444"><path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         <span class="pba-chip-name" id="bill_pdf_name"></span>
                         <span class="pba-chip-size" id="bill_pdf_size"></span>
                         <button type="button" class="pba-chip-remove" onclick="clearFileInput('bill_pdf')" title="{{ L "tpl.pb.remove" }}">&times;</button>
                     </div>
-                    <p id="bill_pdf_error" class="pba-error hidden"></p>
+                    <p id="bill_pdf_error" class="pba-error hidden" role="alert"></p>
                 </div>
                 <!-- Extra documents attachment -->
                 <div class="pba-row" id="documents_zone">
@@ -648,7 +651,10 @@
         if (purchaseBillDuplicateState.exists) {
             e.preventDefault();
             var sequenceInput = document.getElementById('supplier_sequence_input');
-            if (sequenceInput) sequenceInput.focus();
+            if (sequenceInput) {
+                sequenceInput.focus();
+                sequenceInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
             return;
         }
         var pdfRequired = '{{ .pb_pdf_required }}' === 'required';
@@ -657,13 +663,21 @@
         var pdfError = document.getElementById('bill_pdf_error');
         var pdfZone = document.getElementById('bill_pdf_zone');
         if (!pdfInput.files || pdfInput.files.length === 0) {
-            pdfError.textContent = '{{ L "tpl.pb.upload_required" }}';
-            pdfError.classList.remove('hidden');
-            pdfZone.classList.add('has-error');
+            // The PDF is required but not attached. Without an explicit
+            // visible error the click looks like a no-op, which is what
+            // led to the "Save does nothing" bug reported on hockun2.
+            if (pdfError) {
+                pdfError.textContent = '{{ L "tpl.pb.upload_required" }}';
+                pdfError.classList.remove('hidden');
+            }
+            if (pdfZone) {
+                pdfZone.classList.add('has-error');
+                pdfZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
             e.preventDefault();
             return;
         }
-        if (!pdfError.classList.contains('hidden')) {
+        if (pdfError && !pdfError.classList.contains('hidden')) {
             e.preventDefault();
         }
     });

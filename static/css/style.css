@@ -2278,6 +2278,14 @@ aside nav a.nav-link svg {
     margin-top: 0;
 }
 
+.pba-required-hint {
+    font-size: 0.75rem;
+    color: var(--md-sys-color-error);
+    width: 100%;
+    margin-top: 0.25rem;
+    font-weight: 500;
+}
+
 /* ── Supplier cross-page select-all banner ──────────────────── */
 .supplier-select-banner {
     display: flex;

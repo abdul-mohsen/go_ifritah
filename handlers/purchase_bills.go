@@ -174,6 +174,21 @@ func HandlePurchaseBillDuplicateCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	// Fail open on 404 — the backend endpoint may not be deployed yet
+	// (mismatched image tag between frontend and backend). The DB UNIQUE
+	// constraint uq_pb_supplier_seq still catches actual duplicates
+	// atomically at INSERT time, so it is safe to say "no duplicate found"
+	// here and let the create call be the source of truth. Returning the
+	// raw 404 causes a scary "تعذر التحقق من التكرار" banner even though
+	// the create flow itself is unaffected.
+	if resp.StatusCode == http.StatusNotFound {
+		log.Printf("[PURCHASE BILL DUPLICATE CHECK] backend endpoint missing (404) — failing open")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]bool{"exists": false})
+		return
+	}
+
 	respBody, _ := io.ReadAll(resp.Body)
 	contentType := resp.Header.Get("Content-Type")
 	if contentType == "" {
@@ -356,18 +371,18 @@ func HandleGetPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "purchase-bill-detail", map[string]interface{}{
-		"title":                    "تفاصيل فاتورة المشتريات",
-		"bill":                     invoice,
-		"bill_id":                  id,
-		"catalog_products":         products,
-		"manual_products":          manualProducts,
-		"products_subtotal":        helpers.SumBillItemsTotal(products),
-		"manual_subtotal":          helpers.SumBillItemsTotal(manualProducts),
+		"title":             "تفاصيل فاتورة المشتريات",
+		"bill":              invoice,
+		"bill_id":           id,
+		"catalog_products":  products,
+		"manual_products":   manualProducts,
+		"products_subtotal": helpers.SumBillItemsTotal(products),
+		"manual_subtotal":   helpers.SumBillItemsTotal(manualProducts),
 		// Detail view merges catalog+manual into one items table (a single
 		// per-row badge distinguishes the two, matching add/edit's item
 		// list) - needs one combined subtotal rather than the two separate
 		// per-table ones above (kept for back-compat, no longer rendered).
-		"items_subtotal": helpers.SumBillItemsTotal(append(append([]models.BillItem{}, products...), manualProducts...)),
+		"items_subtotal":           helpers.SumBillItemsTotal(append(append([]models.BillItem{}, products...), manualProducts...)),
 		"store_name":               storeName,
 		"supplier_name":            supplierName,
 		"supplier":                 matchedSupplier,

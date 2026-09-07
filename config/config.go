@@ -211,6 +211,8 @@ var (
 	AppPort       string
 	BackendDomain string
 	AppVersion    string
+	AppChannel    string
+	AppCommit     string
 	BaseDir       string // Project root directory (defaults to ".")
 )
 
@@ -256,6 +258,8 @@ func Initialize() {
 	}
 
 	AppVersion = loadAppVersion()
+	AppChannel = loadAppChannel()
+	AppCommit = loadAppCommit()
 
 	log.Printf("Frontend: %s | Backend: %s | Version: %s", AppDomain, BackendDomain, AppVersion)
 
@@ -288,6 +292,22 @@ func loadAppVersion() string {
 	}
 
 	return "v0.0.0"
+}
+
+func loadAppChannel() string {
+	if channel := strings.TrimSpace(os.Getenv("APP_CHANNEL")); channel != "" {
+		return channel
+	}
+
+	return "dev"
+}
+
+func loadAppCommit() string {
+	if commit := strings.TrimSpace(os.Getenv("APP_COMMIT")); commit != "" {
+		return commit
+	}
+
+	return "unknown"
 }
 
 // LoadTemplates pre-parses every template at startup into the Templates map.

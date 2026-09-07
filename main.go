@@ -62,6 +62,7 @@ func main() {
 	router.HandleFunc("/api/forgot-password", handlers.HandleForgotPasswordPost).Methods("POST")
 	router.HandleFunc("/logout", handlers.HandleLogout).Methods("GET")
 	router.HandleFunc("/api/refresh", handlers.HandleRefreshToken).Methods("POST")
+	router.HandleFunc("/version", handlers.HandleVersion).Methods("GET")
 
 	// Dashboard routes (auth only — no resource-level RBAC)
 	router.HandleFunc("/dashboard", handlers.HandleDashboard).Methods("GET")

@@ -37,6 +37,38 @@ func TestLoadAppVersionFallback(t *testing.T) {
 	}
 }
 
+func TestLoadAppChannel(t *testing.T) {
+	t.Setenv("APP_CHANNEL", "release")
+
+	if got := loadAppChannel(); got != "release" {
+		t.Fatalf("loadAppChannel() = %q, want release", got)
+	}
+}
+
+func TestLoadAppChannelFallback(t *testing.T) {
+	t.Setenv("APP_CHANNEL", "")
+
+	if got := loadAppChannel(); got != "dev" {
+		t.Fatalf("loadAppChannel() = %q, want dev", got)
+	}
+}
+
+func TestLoadAppCommit(t *testing.T) {
+	t.Setenv("APP_COMMIT", "abc123")
+
+	if got := loadAppCommit(); got != "abc123" {
+		t.Fatalf("loadAppCommit() = %q, want abc123", got)
+	}
+}
+
+func TestLoadAppCommitFallback(t *testing.T) {
+	t.Setenv("APP_COMMIT", "")
+
+	if got := loadAppCommit(); got != "unknown" {
+		t.Fatalf("loadAppCommit() = %q, want unknown", got)
+	}
+}
+
 func chdir(t *testing.T, dir string) {
 	t.Helper()
 

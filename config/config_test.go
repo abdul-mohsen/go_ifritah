@@ -32,8 +32,8 @@ func TestLoadAppVersionFallback(t *testing.T) {
 	t.Setenv("APP_VERSION", "")
 	chdir(t, t.TempDir())
 
-	if got := loadAppVersion(); got != "v0.0.0" {
-		t.Fatalf("loadAppVersion() = %q, want v0.0.0", got)
+	if got := loadAppVersion(); got != "dev" {
+		t.Fatalf("loadAppVersion() = %q, want dev", got)
 	}
 }
 
@@ -66,6 +66,34 @@ func TestLoadAppCommitFallback(t *testing.T) {
 
 	if got := loadAppCommit(); got != "unknown" {
 		t.Fatalf("loadAppCommit() = %q, want unknown", got)
+	}
+}
+
+func TestLoadAppCommitShortDerivesFromCommit(t *testing.T) {
+	t.Setenv("APP_COMMIT_SHORT", "")
+	t.Setenv("APP_COMMIT", "abcdef0123456789")
+
+	if got := loadAppCommitShort(); got != "abcdef0" {
+		t.Fatalf("loadAppCommitShort() = %q, want abcdef0", got)
+	}
+}
+
+func TestLoadAppDeploymentAliases(t *testing.T) {
+	t.Setenv("APP_CHANNEL", "")
+	t.Setenv("APP_BUILD_CHANNEL", "release")
+	t.Setenv("APP_WORKFLOW_RUN", "")
+	t.Setenv("APP_BUILD_WORKFLOW_RUN", "https://github.com/acme/ifritah/actions/runs/42")
+	t.Setenv("APP_CREATED", "")
+	t.Setenv("APP_BUILT_AT", "2026-09-07T12:00:00Z")
+
+	if got := loadAppChannel(); got != "release" {
+		t.Fatalf("loadAppChannel() = %q, want release", got)
+	}
+	if got := loadAppWorkflowRun(); got != "https://github.com/acme/ifritah/actions/runs/42" {
+		t.Fatalf("loadAppWorkflowRun() = %q, want workflow URL", got)
+	}
+	if got := loadAppBuiltAt(); got != "2026-09-07T12:00:00Z" {
+		t.Fatalf("loadAppBuiltAt() = %q, want build timestamp", got)
 	}
 }
 

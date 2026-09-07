@@ -63,6 +63,10 @@ func main() {
 	router.HandleFunc("/logout", handlers.HandleLogout).Methods("GET")
 	router.HandleFunc("/api/refresh", handlers.HandleRefreshToken).Methods("POST")
 	router.HandleFunc("/version", handlers.HandleVersion).Methods("GET")
+	router.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write([]byte("ok\n"))
+	}).Methods("GET")
 
 	// Dashboard routes (auth only — no resource-level RBAC)
 	router.HandleFunc("/dashboard", handlers.HandleDashboard).Methods("GET")

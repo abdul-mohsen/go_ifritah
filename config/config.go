@@ -220,6 +220,7 @@ var (
 	AppCommit      string
 	AppCommitShort string
 	AppWorkflowRun string
+	AppWorkflowURL string
 	AppSource      string
 	AppBuiltAt     string
 	AppImageRef    string
@@ -273,6 +274,7 @@ func Initialize() {
 	AppCommit = loadAppCommit()
 	AppCommitShort = loadAppCommitShort()
 	AppWorkflowRun = loadAppWorkflowRun()
+	AppWorkflowURL = loadAppWorkflowURL()
 	AppSource = loadAppSource()
 	AppBuiltAt = loadAppBuiltAt()
 	AppImageRef = loadAppImageRef()
@@ -297,7 +299,7 @@ func Initialize() {
 }
 
 func loadAppVersion() string {
-	if version := strings.TrimSpace(os.Getenv("APP_VERSION")); version != "" {
+	if version := firstNonEmptyEnv("APP_IMAGE_VERSION", "APP_VERSION"); version != "" {
 		if version != defaultAppVersion {
 			return version
 		}
@@ -314,7 +316,7 @@ func loadAppVersion() string {
 }
 
 func loadAppChannel() string {
-	if channel := firstNonEmptyEnv("APP_CHANNEL", "APP_BUILD_CHANNEL"); channel != "" {
+	if channel := firstNonEmptyEnv("APP_IMAGE_CHANNEL", "APP_CHANNEL", "APP_BUILD_CHANNEL"); channel != "" {
 		return channel
 	}
 
@@ -322,7 +324,7 @@ func loadAppChannel() string {
 }
 
 func loadAppCommit() string {
-	if commit := strings.TrimSpace(os.Getenv("APP_COMMIT")); commit != "" {
+	if commit := firstNonEmptyEnv("APP_IMAGE_COMMIT", "APP_COMMIT"); commit != "" {
 		return commit
 	}
 
@@ -330,14 +332,18 @@ func loadAppCommit() string {
 }
 
 func loadAppCommitShort() string {
-	if commit := firstNonEmptyEnv("APP_COMMIT_SHORT", "APP_BUILD_COMMIT_SHORT"); commit != "" {
+	if commit := firstNonEmptyEnv("APP_IMAGE_COMMIT_SHORT", "APP_COMMIT_SHORT", "APP_BUILD_COMMIT_SHORT"); commit != "" {
 		return commit
 	}
 	return shortCommit(loadAppCommit())
 }
 
 func loadAppWorkflowRun() string {
-	return firstNonEmptyEnv("APP_WORKFLOW_RUN", "APP_BUILD_WORKFLOW_RUN")
+	return firstNonEmptyEnv("APP_WORKFLOW_RUN_ID", "APP_WORKFLOW_RUN", "APP_BUILD_WORKFLOW_RUN")
+}
+
+func loadAppWorkflowURL() string {
+	return firstNonEmptyEnv("APP_WORKFLOW_RUN_URL", "APP_BUILD_WORKFLOW_URL", "APP_WORKFLOW_URL")
 }
 
 func loadAppSource() string {
@@ -345,7 +351,7 @@ func loadAppSource() string {
 }
 
 func loadAppBuiltAt() string {
-	return firstNonEmptyEnv("APP_CREATED", "APP_BUILT_AT", "APP_BUILD_AT")
+	return firstNonEmptyEnv("APP_BUILT_AT", "APP_CREATED", "APP_BUILD_AT")
 }
 
 func loadAppImageRef() string {

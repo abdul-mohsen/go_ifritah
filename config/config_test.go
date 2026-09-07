@@ -7,6 +7,7 @@ import (
 )
 
 func TestLoadAppVersionPrefersEnv(t *testing.T) {
+	t.Setenv("APP_IMAGE_VERSION", "")
 	t.Setenv("APP_VERSION", "v2.3.4")
 
 	if got := loadAppVersion(); got != "v2.3.4" {
@@ -15,6 +16,7 @@ func TestLoadAppVersionPrefersEnv(t *testing.T) {
 }
 
 func TestLoadAppVersionReadsVersionFile(t *testing.T) {
+	t.Setenv("APP_IMAGE_VERSION", "")
 	t.Setenv("APP_VERSION", "")
 
 	tempDir := t.TempDir()
@@ -29,6 +31,7 @@ func TestLoadAppVersionReadsVersionFile(t *testing.T) {
 }
 
 func TestLoadAppVersionFallback(t *testing.T) {
+	t.Setenv("APP_IMAGE_VERSION", "")
 	t.Setenv("APP_VERSION", "")
 	chdir(t, t.TempDir())
 
@@ -38,6 +41,7 @@ func TestLoadAppVersionFallback(t *testing.T) {
 }
 
 func TestLoadAppChannel(t *testing.T) {
+	t.Setenv("APP_IMAGE_CHANNEL", "")
 	t.Setenv("APP_CHANNEL", "release")
 
 	if got := loadAppChannel(); got != "release" {
@@ -46,6 +50,7 @@ func TestLoadAppChannel(t *testing.T) {
 }
 
 func TestLoadAppChannelFallback(t *testing.T) {
+	t.Setenv("APP_IMAGE_CHANNEL", "")
 	t.Setenv("APP_CHANNEL", "")
 
 	if got := loadAppChannel(); got != "dev" {
@@ -54,6 +59,7 @@ func TestLoadAppChannelFallback(t *testing.T) {
 }
 
 func TestLoadAppCommit(t *testing.T) {
+	t.Setenv("APP_IMAGE_COMMIT", "")
 	t.Setenv("APP_COMMIT", "abc123")
 
 	if got := loadAppCommit(); got != "abc123" {
@@ -62,6 +68,7 @@ func TestLoadAppCommit(t *testing.T) {
 }
 
 func TestLoadAppCommitFallback(t *testing.T) {
+	t.Setenv("APP_IMAGE_COMMIT", "")
 	t.Setenv("APP_COMMIT", "")
 
 	if got := loadAppCommit(); got != "unknown" {
@@ -70,6 +77,7 @@ func TestLoadAppCommitFallback(t *testing.T) {
 }
 
 func TestLoadAppCommitShortDerivesFromCommit(t *testing.T) {
+	t.Setenv("APP_IMAGE_COMMIT_SHORT", "")
 	t.Setenv("APP_COMMIT_SHORT", "")
 	t.Setenv("APP_COMMIT", "abcdef0123456789")
 
@@ -79,6 +87,7 @@ func TestLoadAppCommitShortDerivesFromCommit(t *testing.T) {
 }
 
 func TestLoadAppDeploymentAliases(t *testing.T) {
+	t.Setenv("APP_IMAGE_CHANNEL", "")
 	t.Setenv("APP_CHANNEL", "")
 	t.Setenv("APP_BUILD_CHANNEL", "release")
 	t.Setenv("APP_WORKFLOW_RUN", "")
@@ -94,6 +103,29 @@ func TestLoadAppDeploymentAliases(t *testing.T) {
 	}
 	if got := loadAppBuiltAt(); got != "2026-09-07T12:00:00Z" {
 		t.Fatalf("loadAppBuiltAt() = %q, want build timestamp", got)
+	}
+}
+
+func TestLoadAppCanonicalIdentity(t *testing.T) {
+	t.Setenv("APP_IMAGE_VERSION", "v9.8.7")
+	t.Setenv("APP_IMAGE_CHANNEL", "release")
+	t.Setenv("APP_IMAGE_COMMIT", "canonical-commit")
+	t.Setenv("APP_IMAGE_COMMIT_SHORT", "canonic")
+	t.Setenv("APP_WORKFLOW_RUN_ID", "456")
+	t.Setenv("APP_WORKFLOW_RUN_URL", "https://example.test/actions/runs/456")
+	t.Setenv("APP_BUILT_AT", "2026-09-07T12:00:00Z")
+
+	if got := loadAppVersion(); got != "v9.8.7" {
+		t.Fatalf("loadAppVersion() = %q, want canonical version", got)
+	}
+	if got := loadAppChannel(); got != "release" {
+		t.Fatalf("loadAppChannel() = %q, want canonical channel", got)
+	}
+	if got := loadAppCommit(); got != "canonical-commit" || loadAppCommitShort() != "canonic" {
+		t.Fatalf("canonical commit identity = %q/%q", loadAppCommit(), loadAppCommitShort())
+	}
+	if got := loadAppWorkflowRun(); got != "456" || loadAppWorkflowURL() == "" {
+		t.Fatalf("canonical workflow identity = %q/%q", got, loadAppWorkflowURL())
 	}
 }
 

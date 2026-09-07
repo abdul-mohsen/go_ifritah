@@ -11,7 +11,7 @@ import (
 
 func TestHandleVersionReturnsBuildIdentity(t *testing.T) {
 	oldVersion, oldChannel, oldCommit := config.AppVersion, config.AppChannel, config.AppCommit
-	oldCommitShort, oldWorkflowRun := config.AppCommitShort, config.AppWorkflowRun
+	oldCommitShort, oldWorkflowRun, oldWorkflowURL := config.AppCommitShort, config.AppWorkflowRun, config.AppWorkflowURL
 	oldSource, oldBuiltAt := config.AppSource, config.AppBuiltAt
 	oldImageRef, oldImageDigest := config.AppImageRef, config.AppImageDigest
 	t.Cleanup(func() {
@@ -20,6 +20,7 @@ func TestHandleVersionReturnsBuildIdentity(t *testing.T) {
 		config.AppCommit = oldCommit
 		config.AppCommitShort = oldCommitShort
 		config.AppWorkflowRun = oldWorkflowRun
+		config.AppWorkflowURL = oldWorkflowURL
 		config.AppSource = oldSource
 		config.AppBuiltAt = oldBuiltAt
 		config.AppImageRef = oldImageRef
@@ -29,7 +30,8 @@ func TestHandleVersionReturnsBuildIdentity(t *testing.T) {
 	config.AppChannel = "dev"
 	config.AppCommit = "abcdef0123456789"
 	config.AppCommitShort = "abcdef0"
-	config.AppWorkflowRun = "https://github.com/acme/ifritah/actions/runs/42"
+	config.AppWorkflowRun = "42"
+	config.AppWorkflowURL = "https://github.com/acme/ifritah/actions/runs/42"
 	config.AppSource = "https://github.com/acme/ifritah"
 	config.AppBuiltAt = "2026-09-07T12:00:00Z"
 	config.AppImageRef = "docker.io/acme/ifritah-web:dev"
@@ -56,7 +58,8 @@ func TestHandleVersionReturnsBuildIdentity(t *testing.T) {
 		Channel:     "dev",
 		Commit:      "abcdef0123456789",
 		CommitShort: "abcdef0",
-		WorkflowRun: "https://github.com/acme/ifritah/actions/runs/42",
+		WorkflowRun: "42",
+		WorkflowURL: "https://github.com/acme/ifritah/actions/runs/42",
 		Source:      "https://github.com/acme/ifritah",
 		BuiltAt:     "2026-09-07T12:00:00Z",
 		ImageRef:    "docker.io/acme/ifritah-web:dev",

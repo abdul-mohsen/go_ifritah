@@ -58,6 +58,9 @@ func TestHandleVersionReturnsBuildIdentity(t *testing.T) {
 	want := versionResponse{
 		Version:     "v1.2.3",
 		Channel:     "dev",
+		Tag:         "dev",
+		Ref:         "docker.io/acme/ifritah-web:dev",
+		Digest:      "sha256:" + "a" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Commit:      "abcdef0123456789",
 		CommitShort: "abcdef0",
 		WorkflowRun: "42",

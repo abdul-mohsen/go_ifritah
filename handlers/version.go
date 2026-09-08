@@ -10,6 +10,9 @@ import (
 type versionResponse struct {
 	Version     string `json:"version"`
 	Channel     string `json:"channel"`
+	Tag         string `json:"tag,omitempty"`
+	Ref         string `json:"ref,omitempty"`
+	Digest      string `json:"digest,omitempty"`
 	Commit      string `json:"commit"`
 	CommitShort string `json:"commit_short"`
 	WorkflowRun string `json:"workflow_run,omitempty"`
@@ -27,6 +30,9 @@ func HandleVersion(w http.ResponseWriter, _ *http.Request) {
 	_ = json.NewEncoder(w).Encode(versionResponse{
 		Version:     config.AppVersion,
 		Channel:     config.AppChannel,
+		Tag:         config.AppImageTag,
+		Ref:         config.AppImageRef,
+		Digest:      config.AppImageDigest,
 		Commit:      config.AppCommit,
 		CommitShort: config.AppCommitShort,
 		WorkflowRun: config.AppWorkflowRun,

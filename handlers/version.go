@@ -14,6 +14,7 @@ type versionResponse struct {
 	Ref         string `json:"ref,omitempty"`
 	Digest      string `json:"digest,omitempty"`
 	Commit      string `json:"commit"`
+	ShortCommit string `json:"short_commit"`
 	CommitShort string `json:"commit_short"`
 	WorkflowRun string `json:"workflow_run,omitempty"`
 	WorkflowID  string `json:"workflow_run_id,omitempty"`
@@ -34,6 +35,7 @@ func HandleVersion(w http.ResponseWriter, _ *http.Request) {
 		Ref:         config.AppImageRef,
 		Digest:      config.AppImageDigest,
 		Commit:      config.AppCommit,
+		ShortCommit: config.AppCommitShort,
 		CommitShort: config.AppCommitShort,
 		WorkflowRun: config.AppWorkflowRun,
 		WorkflowID:  config.AppWorkflowRun,

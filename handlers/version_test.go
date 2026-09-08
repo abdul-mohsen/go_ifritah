@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -51,8 +52,9 @@ func TestHandleVersionReturnsBuildIdentity(t *testing.T) {
 		t.Fatalf("Content-Type = %q, want application/json", got)
 	}
 
+	body := rr.Body.Bytes()
 	var got versionResponse
-	if err := json.NewDecoder(rr.Body).Decode(&got); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&got); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
 	want := versionResponse{
@@ -62,6 +64,7 @@ func TestHandleVersionReturnsBuildIdentity(t *testing.T) {
 		Ref:         "docker.io/acme/ifritah-web:dev",
 		Digest:      "sha256:" + "a" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Commit:      "abcdef0123456789",
+		ShortCommit: "abcdef0",
 		CommitShort: "abcdef0",
 		WorkflowRun: "42",
 		WorkflowID:  "42",
@@ -74,5 +77,23 @@ func TestHandleVersionReturnsBuildIdentity(t *testing.T) {
 	}
 	if got != want {
 		t.Fatalf("response = %+v, want %+v", got, want)
+	}
+
+	var raw map[string]string
+	if err := json.Unmarshal(body, &raw); err != nil {
+		t.Fatalf("decode raw response: %v", err)
+	}
+	for canonical, legacy := range map[string]string{
+		"tag":          "image_tag",
+		"ref":          "image_ref",
+		"digest":       "image_digest",
+		"short_commit": "commit_short",
+	} {
+		if raw[canonical] == "" {
+			t.Fatalf("canonical field %q is empty or missing", canonical)
+		}
+		if raw[canonical] != raw[legacy] {
+			t.Fatalf("canonical field %q = %q, legacy field %q = %q", canonical, raw[canonical], legacy, raw[legacy])
+		}
 	}
 }

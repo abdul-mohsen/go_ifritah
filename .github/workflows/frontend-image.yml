@@ -43,11 +43,13 @@ jobs:
             channel=dev
             image_ref="${FRONTEND_IMAGE}:${short_sha}"
           fi
+          docker_tag="${image_ref##*:}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
           echo "channel=${channel}" >> "$GITHUB_OUTPUT"
           echo "image_ref=${image_ref}" >> "$GITHUB_OUTPUT"
+          echo "docker_tag=${docker_tag}" >> "$GITHUB_OUTPUT"
           echo "source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" >> "$GITHUB_OUTPUT"
           echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
           echo "workflow_run=${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
@@ -59,6 +61,7 @@ jobs:
             --build-arg APP_VERSION='${{ steps.version.outputs.version }}' \
             --build-arg APP_COMMIT='${{ steps.version.outputs.sha }}' \
             --build-arg APP_IMAGE_VERSION='${{ steps.version.outputs.version }}' \
+            --build-arg APP_IMAGE_TAG='${{ steps.version.outputs.docker_tag }}' \
             --build-arg APP_IMAGE_COMMIT='${{ steps.version.outputs.sha }}' \
             --build-arg APP_IMAGE_CHANNEL='${{ steps.version.outputs.channel }}' \
             --build-arg APP_COMMIT_SHORT='${{ steps.version.outputs.short_sha }}' \
@@ -70,7 +73,6 @@ jobs:
             --build-arg APP_WORKFLOW_RUN_URL='${{ steps.version.outputs.workflow_run_url }}' \
             --build-arg APP_BUILT_AT='${{ steps.version.outputs.created }}' \
             --build-arg APP_IMAGE_REF='${{ steps.version.outputs.image_ref }}' \
-            --build-arg APP_IMAGE_DIGEST='' \
             -t '${{ env.FRONTEND_IMAGE }}:${{ steps.version.outputs.short_sha }}' \
             -t '${{ env.FRONTEND_IMAGE }}:${{ steps.version.outputs.sha }}' \
             -t '${{ env.FRONTEND_IMAGE }}:${{ steps.version.outputs.version }}' \

@@ -10,7 +10,14 @@ import (
 func TestDeployWorkflowPublishesDevAndImmutableTags(t *testing.T) {
 	workflow := readRepoFile(t, ".github", "workflows", "deploy.yml")
 
-	assertContains(t, workflow, "IMAGE_NAME: ssdawweq/ifritah-web")
+	assertContains(t, workflow, "EXPECTED_IMAGE_NAME: ssdawweq/ifritah-web")
+	assertContains(t, workflow, "DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}")
+	assertContains(t, workflow, "image_name=\"${DOCKERHUB_USERNAME}/ifritah-web\"")
+	assertContains(t, workflow, "if [[ \"${image_name}\" != \"${EXPECTED_IMAGE_NAME}\" ]]; then")
+	assertContains(t, workflow, "echo \"image_name=${image_name}\"")
+	assertContains(t, workflow, "images: ${{ steps.build.outputs.image_name }}")
+	assertBefore(t, workflow, "name: Set build metadata", "uses: docker/login-action")
+	assertBefore(t, workflow, "name: Set build metadata", "uses: docker/build-push-action")
 	assertContains(t, workflow, "type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}")
 	assertContains(t, workflow, "type=raw,value=${{ steps.build.outputs.short_sha }}")
 	assertContains(t, workflow, "type=raw,value=${{ github.sha }}")
@@ -21,8 +28,11 @@ func TestDeployWorkflowPublishesDevAndImmutableTags(t *testing.T) {
 	assertContains(t, workflow, "APP_WORKFLOW_RUN_ID=${{ steps.build.outputs.workflow_run_id }}")
 	assertContains(t, workflow, "APP_WORKFLOW_RUN_URL=${{ steps.build.outputs.workflow_run_url }}")
 	assertContains(t, workflow, "if [[ \"${version}\" == \"v0.0.0\" ]]; then")
+	assertNotContains(t, workflow, "\n  IMAGE_NAME: ssdawweq/ifritah-web")
 	assertNotContains(t, workflow, "APP_WORKFLOW_RUN_ID=${{ steps.build.outputs.workflow_run }}")
 	assertNotContains(t, workflow, "com.ifritah.build.workflow_run_id=${{ steps.build.outputs.workflow_run }}")
+	assertNotContains(t, workflow, "APP_IMAGE_DIGEST=")
+	assertNotContains(t, workflow, "com.ifritah.build.digest=")
 }
 
 func TestDockerfileCarriesSemanticVersionAndRuntimeImageTag(t *testing.T) {
@@ -37,7 +47,21 @@ func TestDockerfileCarriesSemanticVersionAndRuntimeImageTag(t *testing.T) {
 	assertContains(t, dockerfile, "LABEL org.opencontainers.image.title=\"ifritah-web\"")
 	assertContains(t, dockerfile, "LABEL com.ifritah.build.version=${APP_VERSION}")
 	assertContains(t, dockerfile, "LABEL com.ifritah.build.image_tag=${APP_IMAGE_TAG}")
+	assertContains(t, dockerfile, "ENV APP_IMAGE_DIGEST=${APP_IMAGE_DIGEST}")
 	assertNotContains(t, dockerfile, "ENV APP_VERSION=${APP_IMAGE_VERSION}")
+	assertNotContains(t, dockerfile, "LABEL com.ifritah.build.digest=")
+}
+
+func TestFrontendWorkflowsDoNotInjectEmptyImageDigest(t *testing.T) {
+	for _, workflowName := range []string{"deploy.yml", "frontend-image.yml"} {
+		t.Run(workflowName, func(t *testing.T) {
+			workflow := readRepoFile(t, ".github", "workflows", workflowName)
+
+			assertNotContains(t, workflow, "APP_IMAGE_DIGEST=")
+			assertNotContains(t, workflow, "APP_IMAGE_DIGEST=''")
+			assertNotContains(t, workflow, "com.ifritah.build.digest=")
+		})
+	}
 }
 
 func readRepoFile(t *testing.T, pathParts ...string) string {
@@ -64,5 +88,21 @@ func assertNotContains(t *testing.T, haystack, needle string) {
 
 	if strings.Contains(haystack, needle) {
 		t.Fatalf("expected file not to contain %q", needle)
+	}
+}
+
+func assertBefore(t *testing.T, haystack, before, after string) {
+	t.Helper()
+
+	beforeIndex := strings.Index(haystack, before)
+	if beforeIndex < 0 {
+		t.Fatalf("expected file to contain %q", before)
+	}
+	afterIndex := strings.Index(haystack, after)
+	if afterIndex < 0 {
+		t.Fatalf("expected file to contain %q", after)
+	}
+	if beforeIndex >= afterIndex {
+		t.Fatalf("expected %q to appear before %q", before, after)
 	}
 }

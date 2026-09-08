@@ -140,7 +140,6 @@ LABEL com.ifritah.build.workflow_run_id=${APP_WORKFLOW_RUN_ID}
 LABEL com.ifritah.build.workflow_run_url=${APP_WORKFLOW_RUN_URL}
 LABEL com.ifritah.build.image_ref=${APP_IMAGE_REF}
 LABEL com.ifritah.build.built_at=${APP_BUILT_AT}
-LABEL com.ifritah.build.digest=${APP_IMAGE_DIGEST}
 
 WORKDIR /app
 

@@ -70,7 +70,6 @@ jobs:
             --build-arg APP_WORKFLOW_RUN_URL='${{ steps.version.outputs.workflow_run_url }}' \
             --build-arg APP_BUILT_AT='${{ steps.version.outputs.created }}' \
             --build-arg APP_IMAGE_REF='${{ steps.version.outputs.image_ref }}' \
-            --build-arg APP_IMAGE_DIGEST='' \
             -t '${{ env.FRONTEND_IMAGE }}:${{ steps.version.outputs.short_sha }}' \
             -t '${{ env.FRONTEND_IMAGE }}:${{ steps.version.outputs.sha }}' \
             -t '${{ env.FRONTEND_IMAGE }}:${{ steps.version.outputs.version }}' \

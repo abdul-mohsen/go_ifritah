@@ -16,6 +16,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	defaultAppVersion = "dev"
+	defaultAppChannel = "dev"
+)
+
 // templateFuncs provides custom functions available in all templates.
 var templateFuncs = template.FuncMap{
 	"L":   resources.L,
@@ -207,11 +212,20 @@ func formatSAR(amount float64) string {
 
 // Global configuration variables
 var (
-	AppDomain     string
-	AppPort       string
-	BackendDomain string
-	AppVersion    string
-	BaseDir       string // Project root directory (defaults to ".")
+	AppDomain      string
+	AppPort        string
+	BackendDomain  string
+	AppVersion     string
+	AppChannel     string
+	AppCommit      string
+	AppCommitShort string
+	AppWorkflowRun string
+	AppWorkflowURL string
+	AppSource      string
+	AppBuiltAt     string
+	AppImageRef    string
+	AppImageDigest string
+	BaseDir        string // Project root directory (defaults to ".")
 )
 
 // Templates holds all pre-parsed templates keyed by name.
@@ -256,6 +270,15 @@ func Initialize() {
 	}
 
 	AppVersion = loadAppVersion()
+	AppChannel = loadAppChannel()
+	AppCommit = loadAppCommit()
+	AppCommitShort = loadAppCommitShort()
+	AppWorkflowRun = loadAppWorkflowRun()
+	AppWorkflowURL = loadAppWorkflowURL()
+	AppSource = loadAppSource()
+	AppBuiltAt = loadAppBuiltAt()
+	AppImageRef = loadAppImageRef()
+	AppImageDigest = loadAppImageDigest()
 
 	log.Printf("Frontend: %s | Backend: %s | Version: %s", AppDomain, BackendDomain, AppVersion)
 
@@ -276,8 +299,10 @@ func Initialize() {
 }
 
 func loadAppVersion() string {
-	if version := strings.TrimSpace(os.Getenv("APP_VERSION")); version != "" {
-		return version
+	if version := firstNonEmptyEnv("APP_IMAGE_VERSION", "APP_VERSION"); version != "" {
+		if version != defaultAppVersion {
+			return version
+		}
 	}
 
 	versionBytes, err := os.ReadFile("VERSION")
@@ -287,7 +312,70 @@ func loadAppVersion() string {
 		}
 	}
 
-	return "v0.0.0"
+	return defaultAppVersion
+}
+
+func loadAppChannel() string {
+	if channel := firstNonEmptyEnv("APP_IMAGE_CHANNEL", "APP_CHANNEL", "APP_BUILD_CHANNEL"); channel != "" {
+		return channel
+	}
+
+	return defaultAppChannel
+}
+
+func loadAppCommit() string {
+	if commit := firstNonEmptyEnv("APP_IMAGE_COMMIT", "APP_COMMIT"); commit != "" {
+		return commit
+	}
+
+	return "unknown"
+}
+
+func loadAppCommitShort() string {
+	if commit := firstNonEmptyEnv("APP_IMAGE_COMMIT_SHORT", "APP_COMMIT_SHORT", "APP_BUILD_COMMIT_SHORT"); commit != "" {
+		return commit
+	}
+	return shortCommit(loadAppCommit())
+}
+
+func loadAppWorkflowRun() string {
+	return firstNonEmptyEnv("APP_WORKFLOW_RUN_ID", "APP_WORKFLOW_RUN", "APP_BUILD_WORKFLOW_RUN")
+}
+
+func loadAppWorkflowURL() string {
+	return firstNonEmptyEnv("APP_WORKFLOW_RUN_URL", "APP_BUILD_WORKFLOW_URL", "APP_WORKFLOW_URL")
+}
+
+func loadAppSource() string {
+	return strings.TrimSpace(os.Getenv("APP_SOURCE"))
+}
+
+func loadAppBuiltAt() string {
+	return firstNonEmptyEnv("APP_BUILT_AT", "APP_CREATED", "APP_BUILD_AT")
+}
+
+func loadAppImageRef() string {
+	return strings.TrimSpace(os.Getenv("APP_IMAGE_REF"))
+}
+
+func loadAppImageDigest() string {
+	return strings.TrimSpace(os.Getenv("APP_IMAGE_DIGEST"))
+}
+
+func firstNonEmptyEnv(names ...string) string {
+	for _, name := range names {
+		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func shortCommit(commit string) string {
+	if len(commit) > 7 {
+		return commit[:7]
+	}
+	return commit
 }
 
 // LoadTemplates pre-parses every template at startup into the Templates map.

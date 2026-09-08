@@ -64,6 +64,22 @@ func TestFrontendWorkflowsDoNotInjectEmptyImageDigest(t *testing.T) {
 	}
 }
 
+func TestBranchWorkflowPublishesCanonicalIdentity(t *testing.T) {
+	workflow := readRepoFile(t, ".github", "workflows", "branch-image.yml")
+
+	for _, needle := range []string{
+		"APP_IMAGE_VERSION=${{ steps.branch_tag.outputs.version }}",
+		"APP_IMAGE_TAG=${{ steps.branch_tag.outputs.tag }}",
+		"APP_IMAGE_REF=${{ env.IMAGE_NAME }}:${{ steps.branch_tag.outputs.tag }}",
+		"com.ifritah.build.channel=dev",
+		"com.ifritah.build.tag=${{ steps.branch_tag.outputs.tag }}",
+		"com.ifritah.build.image_ref=${{ env.IMAGE_NAME }}:${{ steps.branch_tag.outputs.tag }}",
+		"com.ifritah.build.workflow_run_id=${{ github.run_id }}",
+	} {
+		assertContains(t, workflow, needle)
+	}
+}
+
 func readRepoFile(t *testing.T, pathParts ...string) string {
 	t.Helper()
 

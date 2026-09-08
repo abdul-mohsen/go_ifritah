@@ -58,22 +58,23 @@ func TestHandleVersionReturnsBuildIdentity(t *testing.T) {
 		t.Fatalf("decode response: %v", err)
 	}
 	want := versionResponse{
-		Version:     "v1.2.3",
-		Channel:     "dev",
-		Tag:         "dev",
-		Ref:         "docker.io/acme/ifritah-web:dev",
-		Digest:      "sha256:" + "a" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Commit:      "abcdef0123456789",
-		ShortCommit: "abcdef0",
-		CommitShort: "abcdef0",
-		WorkflowRun: "42",
-		WorkflowID:  "42",
-		WorkflowURL: "https://github.com/acme/ifritah/actions/runs/42",
-		Source:      "https://github.com/acme/ifritah",
-		BuiltAt:     "2026-09-07T12:00:00Z",
-		ImageRef:    "docker.io/acme/ifritah-web:dev",
-		ImageTag:    "dev",
-		ImageDigest: "sha256:" + "a" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Version:         "v1.2.3",
+		SemanticVersion: "v1.2.3",
+		Channel:         "dev",
+		Tag:             "dev",
+		Ref:             "docker.io/acme/ifritah-web:dev",
+		Digest:          "sha256:" + "a" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Commit:          "abcdef0123456789",
+		ShortCommit:     "abcdef0",
+		CommitShort:     "abcdef0",
+		WorkflowRun:     "42",
+		WorkflowID:      "42",
+		WorkflowURL:     "https://github.com/acme/ifritah/actions/runs/42",
+		Source:          "https://github.com/acme/ifritah",
+		BuiltAt:         "2026-09-07T12:00:00Z",
+		ImageRef:        "docker.io/acme/ifritah-web:dev",
+		ImageTag:        "dev",
+		ImageDigest:     "sha256:" + "a" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	}
 	if got != want {
 		t.Fatalf("response = %+v, want %+v", got, want)
@@ -95,5 +96,8 @@ func TestHandleVersionReturnsBuildIdentity(t *testing.T) {
 		if raw[canonical] != raw[legacy] {
 			t.Fatalf("canonical field %q = %q, legacy field %q = %q", canonical, raw[canonical], legacy, raw[legacy])
 		}
+	}
+	if raw["semantic_version"] != "v1.2.3" {
+		t.Fatalf("semantic_version = %q, want v1.2.3", raw["semantic_version"])
 	}
 }

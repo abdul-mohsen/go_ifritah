@@ -6,12 +6,27 @@ import (
 	"testing"
 )
 
+const releaseChannel = "release"
+
 func TestLoadAppVersionPrefersEnv(t *testing.T) {
 	t.Setenv("APP_IMAGE_VERSION", "")
 	t.Setenv("APP_VERSION", "v2.3.4")
 
 	if got := loadAppVersion(); got != "v2.3.4" {
 		t.Fatalf("loadAppVersion() = %q, want v2.3.4", got)
+	}
+}
+
+func TestLoadAppVersionSeparatesImageTag(t *testing.T) {
+	t.Setenv("APP_VERSION", "v2.3.4")
+	t.Setenv("APP_IMAGE_VERSION", defaultAppChannel)
+	t.Setenv("APP_IMAGE_TAG", defaultAppChannel)
+
+	if got := loadAppVersion(); got != "v2.3.4" {
+		t.Fatalf("loadAppVersion() = %q, want semantic version", got)
+	}
+	if got := loadAppImageTag(); got != defaultAppChannel {
+		t.Fatalf("loadAppImageTag() = %q, want selected Docker tag", got)
 	}
 }
 
@@ -35,16 +50,16 @@ func TestLoadAppVersionFallback(t *testing.T) {
 	t.Setenv("APP_VERSION", "")
 	chdir(t, t.TempDir())
 
-	if got := loadAppVersion(); got != "dev" {
-		t.Fatalf("loadAppVersion() = %q, want dev", got)
+	if got := loadAppVersion(); got != defaultAppVersion {
+		t.Fatalf("loadAppVersion() = %q, want %s", got, defaultAppVersion)
 	}
 }
 
 func TestLoadAppChannel(t *testing.T) {
 	t.Setenv("APP_IMAGE_CHANNEL", "")
-	t.Setenv("APP_CHANNEL", "release")
+	t.Setenv("APP_CHANNEL", releaseChannel)
 
-	if got := loadAppChannel(); got != "release" {
+	if got := loadAppChannel(); got != releaseChannel {
 		t.Fatalf("loadAppChannel() = %q, want release", got)
 	}
 }
@@ -53,8 +68,8 @@ func TestLoadAppChannelFallback(t *testing.T) {
 	t.Setenv("APP_IMAGE_CHANNEL", "")
 	t.Setenv("APP_CHANNEL", "")
 
-	if got := loadAppChannel(); got != "dev" {
-		t.Fatalf("loadAppChannel() = %q, want dev", got)
+	if got := loadAppChannel(); got != defaultAppChannel {
+		t.Fatalf("loadAppChannel() = %q, want %s", got, defaultAppChannel)
 	}
 }
 
@@ -89,17 +104,21 @@ func TestLoadAppCommitShortDerivesFromCommit(t *testing.T) {
 func TestLoadAppDeploymentAliases(t *testing.T) {
 	t.Setenv("APP_IMAGE_CHANNEL", "")
 	t.Setenv("APP_CHANNEL", "")
-	t.Setenv("APP_BUILD_CHANNEL", "release")
-	t.Setenv("APP_WORKFLOW_RUN", "")
-	t.Setenv("APP_BUILD_WORKFLOW_RUN", "https://github.com/acme/ifritah/actions/runs/42")
+	t.Setenv("APP_BUILD_CHANNEL", releaseChannel)
+	t.Setenv("APP_WORKFLOW_RUN_ID", "")
+	t.Setenv("APP_WORKFLOW_RUN", "https://github.com/acme/ifritah/actions/runs/42")
+	t.Setenv("APP_WORKFLOW_RUN_URL", "")
 	t.Setenv("APP_CREATED", "")
 	t.Setenv("APP_BUILT_AT", "2026-09-07T12:00:00Z")
 
-	if got := loadAppChannel(); got != "release" {
+	if got := loadAppChannel(); got != releaseChannel {
 		t.Fatalf("loadAppChannel() = %q, want release", got)
 	}
-	if got := loadAppWorkflowRun(); got != "https://github.com/acme/ifritah/actions/runs/42" {
-		t.Fatalf("loadAppWorkflowRun() = %q, want workflow URL", got)
+	if got := loadAppWorkflowRun(); got != "42" {
+		t.Fatalf("loadAppWorkflowRun() = %q, want numeric workflow ID", got)
+	}
+	if got := loadAppWorkflowURL(); got != "https://github.com/acme/ifritah/actions/runs/42" {
+		t.Fatalf("loadAppWorkflowURL() = %q, want workflow URL", got)
 	}
 	if got := loadAppBuiltAt(); got != "2026-09-07T12:00:00Z" {
 		t.Fatalf("loadAppBuiltAt() = %q, want build timestamp", got)
@@ -107,10 +126,12 @@ func TestLoadAppDeploymentAliases(t *testing.T) {
 }
 
 func TestLoadAppCanonicalIdentity(t *testing.T) {
-	t.Setenv("APP_IMAGE_VERSION", "v9.8.7")
-	t.Setenv("APP_IMAGE_CHANNEL", "release")
+	t.Setenv("APP_VERSION", "v9.8.7")
+	t.Setenv("APP_IMAGE_VERSION", defaultAppChannel)
+	t.Setenv("APP_IMAGE_CHANNEL", releaseChannel)
 	t.Setenv("APP_IMAGE_COMMIT", "canonical-commit")
 	t.Setenv("APP_IMAGE_COMMIT_SHORT", "canonic")
+	t.Setenv("APP_IMAGE_TAG", defaultAppChannel)
 	t.Setenv("APP_WORKFLOW_RUN_ID", "456")
 	t.Setenv("APP_WORKFLOW_RUN_URL", "https://example.test/actions/runs/456")
 	t.Setenv("APP_BUILT_AT", "2026-09-07T12:00:00Z")
@@ -118,7 +139,7 @@ func TestLoadAppCanonicalIdentity(t *testing.T) {
 	if got := loadAppVersion(); got != "v9.8.7" {
 		t.Fatalf("loadAppVersion() = %q, want canonical version", got)
 	}
-	if got := loadAppChannel(); got != "release" {
+	if got := loadAppChannel(); got != releaseChannel {
 		t.Fatalf("loadAppChannel() = %q, want canonical channel", got)
 	}
 	if got := loadAppCommit(); got != "canonical-commit" || loadAppCommitShort() != "canonic" {
@@ -126,6 +147,19 @@ func TestLoadAppCanonicalIdentity(t *testing.T) {
 	}
 	if got := loadAppWorkflowRun(); got != "456" || loadAppWorkflowURL() == "" {
 		t.Fatalf("canonical workflow identity = %q/%q", got, loadAppWorkflowURL())
+	}
+	if got := loadAppImageTag(); got != defaultAppChannel {
+		t.Fatalf("loadAppImageTag() = %q, want canonical image tag", got)
+	}
+}
+
+func TestLoadAppImageTagFromImageRef(t *testing.T) {
+	t.Setenv("APP_IMAGE_TAG", "")
+	t.Setenv("APP_DOCKER_TAG", "")
+	t.Setenv("APP_IMAGE_REF", "ssdawweq/ifritah-web:"+defaultAppChannel)
+
+	if got := loadAppImageTag(); got != defaultAppChannel {
+		t.Fatalf("loadAppImageTag() = %q, want %s", got, defaultAppChannel)
 	}
 }
 

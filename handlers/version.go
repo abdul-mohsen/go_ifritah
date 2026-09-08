@@ -13,10 +13,12 @@ type versionResponse struct {
 	Commit      string `json:"commit"`
 	CommitShort string `json:"commit_short"`
 	WorkflowRun string `json:"workflow_run,omitempty"`
+	WorkflowID  string `json:"workflow_run_id,omitempty"`
 	WorkflowURL string `json:"workflow_run_url,omitempty"`
 	Source      string `json:"source,omitempty"`
 	BuiltAt     string `json:"built_at,omitempty"`
 	ImageRef    string `json:"image_ref,omitempty"`
+	ImageTag    string `json:"image_tag,omitempty"`
 	ImageDigest string `json:"image_digest,omitempty"`
 }
 
@@ -28,10 +30,12 @@ func HandleVersion(w http.ResponseWriter, _ *http.Request) {
 		Commit:      config.AppCommit,
 		CommitShort: config.AppCommitShort,
 		WorkflowRun: config.AppWorkflowRun,
+		WorkflowID:  config.AppWorkflowRun,
 		WorkflowURL: config.AppWorkflowURL,
 		Source:      config.AppSource,
 		BuiltAt:     config.AppBuiltAt,
 		ImageRef:    config.AppImageRef,
+		ImageTag:    config.AppImageTag,
 		ImageDigest: config.AppImageDigest,
 	})
 }

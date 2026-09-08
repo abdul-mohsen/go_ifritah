@@ -224,6 +224,7 @@ var (
 	AppSource      string
 	AppBuiltAt     string
 	AppImageRef    string
+	AppImageTag    string
 	AppImageDigest string
 	BaseDir        string // Project root directory (defaults to ".")
 )
@@ -278,6 +279,7 @@ func Initialize() {
 	AppSource = loadAppSource()
 	AppBuiltAt = loadAppBuiltAt()
 	AppImageRef = loadAppImageRef()
+	AppImageTag = loadAppImageTag()
 	AppImageDigest = loadAppImageDigest()
 
 	log.Printf("Frontend: %s | Backend: %s | Version: %s", AppDomain, BackendDomain, AppVersion)
@@ -299,7 +301,7 @@ func Initialize() {
 }
 
 func loadAppVersion() string {
-	if version := firstNonEmptyEnv("APP_IMAGE_VERSION", "APP_VERSION"); version != "" {
+	if version := firstNonEmptyEnv("APP_VERSION", "APP_BUILD_VERSION"); version != "" {
 		if version != defaultAppVersion {
 			return version
 		}
@@ -339,11 +341,26 @@ func loadAppCommitShort() string {
 }
 
 func loadAppWorkflowRun() string {
-	return firstNonEmptyEnv("APP_WORKFLOW_RUN_ID", "APP_WORKFLOW_RUN", "APP_BUILD_WORKFLOW_RUN")
+	return workflowRunID(firstNonEmptyEnv(
+		"APP_WORKFLOW_RUN_ID",
+		"APP_BUILD_WORKFLOW_RUN_ID",
+		"APP_WORKFLOW_RUN",
+		"APP_BUILD_WORKFLOW_RUN",
+	))
 }
 
 func loadAppWorkflowURL() string {
-	return firstNonEmptyEnv("APP_WORKFLOW_RUN_URL", "APP_BUILD_WORKFLOW_URL", "APP_WORKFLOW_URL")
+	if workflowURL := firstNonEmptyEnv("APP_WORKFLOW_RUN_URL", "APP_BUILD_WORKFLOW_URL", "APP_WORKFLOW_URL"); workflowURL != "" {
+		return workflowURL
+	}
+
+	for _, name := range []string{"APP_WORKFLOW_RUN", "APP_BUILD_WORKFLOW_RUN"} {
+		if workflowURL := strings.TrimSpace(os.Getenv(name)); isWorkflowRunURL(workflowURL) {
+			return workflowURL
+		}
+	}
+
+	return ""
 }
 
 func loadAppSource() string {
@@ -356,6 +373,21 @@ func loadAppBuiltAt() string {
 
 func loadAppImageRef() string {
 	return strings.TrimSpace(os.Getenv("APP_IMAGE_REF"))
+}
+
+func loadAppImageTag() string {
+	if imageTag := firstNonEmptyEnv("APP_IMAGE_TAG", "APP_DOCKER_TAG"); imageTag != "" {
+		return imageTag
+	}
+
+	imageRef := loadAppImageRef()
+	lastSlash := strings.LastIndex(imageRef, "/")
+	lastColon := strings.LastIndex(imageRef, ":")
+	if lastColon > lastSlash {
+		return imageRef[lastColon+1:]
+	}
+
+	return ""
 }
 
 func loadAppImageDigest() string {
@@ -376,6 +408,32 @@ func shortCommit(commit string) string {
 		return commit[:7]
 	}
 	return commit
+}
+
+func workflowRunID(workflowRun string) string {
+	workflowRun = strings.TrimSpace(workflowRun)
+	const marker = "/actions/runs/"
+	markerIndex := strings.Index(workflowRun, marker)
+	if markerIndex < 0 {
+		return workflowRun
+	}
+
+	remainder := workflowRun[markerIndex+len(marker):]
+	end := len(remainder)
+	for i, r := range remainder {
+		if r < '0' || r > '9' {
+			end = i
+			break
+		}
+	}
+	if end == 0 {
+		return workflowRun
+	}
+	return remainder[:end]
+}
+
+func isWorkflowRunURL(workflowRun string) bool {
+	return strings.Contains(workflowRun, "://") && strings.Contains(workflowRun, "/actions/runs/")
 }
 
 // LoadTemplates pre-parses every template at startup into the Templates map.

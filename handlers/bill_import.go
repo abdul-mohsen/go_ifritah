@@ -515,8 +515,8 @@ func submitPurchaseImport(token string, bill spreadsheetBill, products []spreads
 		SupplierSequenceNumber: parsePositiveUint(bill.values["supplier_invoice_number"]),
 		State:                  1,
 		EffectiveDate:          effective,
-		Products:               []models.BillProductItem{},
-		ManualProducts:         items,
+		Products:               items,
+		ManualProducts:         []models.BillManualItem{},
 		Discount:               importNumber(bill.values["discount"]),
 		Subtotal:               total,
 		PaymentMethod:          importPaymentMethod(bill.values["payment_method"]),
@@ -542,8 +542,8 @@ func importSalesItems(products []spreadsheetProduct) ([]models.BillManualItem, f
 	return items, total
 }
 
-func importPurchaseItems(products []spreadsheetProduct) ([]models.BillManualItem, float64) {
-	items := make([]models.BillManualItem, 0, len(products))
+func importPurchaseItems(products []spreadsheetProduct) ([]models.BillProductItem, float64) {
+	items := make([]models.BillProductItem, 0, len(products))
 	total := 0.0
 	for _, product := range products {
 		quantity := parsePositiveInt(product.values["quantity"])
@@ -553,10 +553,19 @@ func importPurchaseItems(products []spreadsheetProduct) ([]models.BillManualItem
 			lineTotal = price * float64(quantity)
 		}
 		total += lineTotal
-		items = append(items, models.BillManualItem{
-			PartName: product.values["product_name"], Price: importNumber(product.values["purchase_price"]),
-			Quantity: strconv.Itoa(quantity), CostPrice: importNumber(product.values["cost_price"]),
-			ShelfNumber: product.values["shelf_number"], Discount: importNumber(product.values["discount"]),
+		costPrice := importNumber(product.values["cost_price"])
+		if costPrice == "0" {
+			costPrice = importNumber(product.values["purchase_price"])
+		}
+		items = append(items, models.BillProductItem{
+			ID:          0,
+			PartName:    product.values["product_name"],
+			Price:       importNumber(product.values["purchase_price"]),
+			Quantity:    strconv.Itoa(quantity),
+			CostPrice:   costPrice,
+			ShelfNumber: product.values["shelf_number"],
+			TrackStock:  true,
+			Discount:    importNumber(product.values["discount"]),
 		})
 	}
 	return items, total

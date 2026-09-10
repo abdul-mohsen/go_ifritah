@@ -80,9 +80,9 @@ func TestBuildPurchaseBillPayload_ManualProducts(t *testing.T) {
 	}
 }
 
-// TestBuildPurchaseBillPayload_UnselectedItemIsManual verifies that a typed
-// item becomes a manual line unless the user chooses an inventory result.
-func TestBuildPurchaseBillPayload_UnselectedItemIsManual(t *testing.T) {
+// TestBuildPurchaseBillPayload_TypedItemIsInventoryCandidate verifies that a
+// typed item is sent through the backend product resolver even without an ID.
+func TestBuildPurchaseBillPayload_TypedItemIsInventoryCandidate(t *testing.T) {
 	form := url.Values{
 		"store_id":              {"1"},
 		"supplier_id":           {"2"},
@@ -104,28 +104,31 @@ func TestBuildPurchaseBillPayload_UnselectedItemIsManual(t *testing.T) {
 	jsonBytes, _ := json.MarshalIndent(payload, "", "  ")
 	t.Logf("Payload JSON:\n%s", string(jsonBytes))
 
-	if len(payload.Products) != 0 {
-		t.Errorf("expected no stock products, got %d", len(payload.Products))
+	if len(payload.Products) != 1 {
+		t.Fatalf("expected one inventory candidate, got %d", len(payload.Products))
 	}
-	if len(payload.ManualProducts) != 1 {
-		t.Errorf("expected 1 manual product, got %d", len(payload.ManualProducts))
+	if len(payload.ManualProducts) != 0 {
+		t.Fatalf("expected no manual products, got %d", len(payload.ManualProducts))
 	}
-	if got := payload.ManualProducts[0]; got.PartName != "فلتر زيت" {
-		t.Errorf("unexpected manual product: %+v", got)
+	if got := payload.Products[0]; got.PartName != "فلتر زيت" {
+		t.Errorf("unexpected inventory candidate: %+v", got)
 	}
-	if got := payload.ManualProducts[0]; got.CostPrice != "20" || got.ShelfNumber != "A1" {
-		t.Errorf("manual item should retain cost price and shelf number, got %+v", got)
+	if got := payload.Products[0]; got.CostPrice != "20" || got.ShelfNumber != "A1" {
+		t.Errorf("inventory candidate should retain cost price and shelf number, got %+v", got)
+	}
+	if !payload.Products[0].TrackStock {
+		t.Error("typed item must be marked for stock tracking")
 	}
 }
 
-// TestBuildPurchaseBillPayload_MixedSelectedAndManual verifies that the
-// unified rows separate a selected inventory item from an unselected item.
-func TestBuildPurchaseBillPayload_MixedSelectedAndManual(t *testing.T) {
+// TestBuildPurchaseBillPayload_MixedRowsAreInventoryCandidates verifies that
+// selected and typed rows share the same backend product-sync path.
+func TestBuildPurchaseBillPayload_MixedRowsAreInventoryCandidates(t *testing.T) {
 	form := url.Values{
 		"store_id":              {"1"},
 		"supplier_id":           {"2"},
 		"products_product_id":   {"100", "0"},
-		"products_track_stock":  {"true", "false"},
+		"products_track_stock":  {"true", "true"},
 		"products_price":        {"50", "30"},
 		"products_quantity":     {"2", "1"},
 		"products_part_name":    {"فلتر مخزون", "فلتر يدوي"},
@@ -143,26 +146,75 @@ func TestBuildPurchaseBillPayload_MixedSelectedAndManual(t *testing.T) {
 	jsonBytes, _ := json.MarshalIndent(payload, "", "  ")
 	t.Logf("Payload JSON:\n%s", string(jsonBytes))
 
-	if len(payload.Products) != 1 {
-		t.Errorf("expected exactly 1 stock product, got %d", len(payload.Products))
+	if len(payload.Products) != 2 {
+		t.Errorf("expected exactly 2 inventory candidates, got %d", len(payload.Products))
 	}
 
-	// Exactly 1 manual product
-	if len(payload.ManualProducts) != 1 {
-		t.Errorf("expected exactly 1 manual product, got %d", len(payload.ManualProducts))
+	if len(payload.ManualProducts) != 0 {
+		t.Errorf("expected no manual products, got %d", len(payload.ManualProducts))
 	}
 
-	if len(payload.Products) > 0 && !payload.Products[0].TrackStock {
-		t.Error("store product must be marked for stock tracking")
+	for i, product := range payload.Products {
+		if !product.TrackStock {
+			t.Errorf("products[%d] must be marked for stock tracking", i)
+		}
 	}
-	if len(payload.ManualProducts) > 0 {
-		mp := payload.ManualProducts[0]
-		if mp.PartName != "فلتر يدوي" {
-			t.Errorf("expected manual part name 'فلتر يدوي', got '%s'", mp.PartName)
-		}
-		if mp.CostPrice != "20" || mp.ShelfNumber != "B2" {
-			t.Errorf("manual item should preserve cost and shelf data, got %+v", mp)
-		}
+	if got := payload.Products[1]; got.PartName != "فلتر يدوي" {
+		t.Errorf("expected typed part name in second inventory candidate, got '%s'", got.PartName)
+	}
+	if got := payload.Products[1]; got.CostPrice != "20" || got.ShelfNumber != "B2" {
+		t.Errorf("typed item should preserve cost and shelf data, got %+v", got)
+	}
+}
+
+func TestBuildPurchaseBillPayload_ExplicitLegacyManualRowStaysManual(t *testing.T) {
+	form := url.Values{
+		"store_id":              {"1"},
+		"supplier_id":           {"2"},
+		"products_product_id":   {"0"},
+		"products_track_stock":  {"false"},
+		"products_part_name":    {"Service charge"},
+		"products_price":        {"30"},
+		"products_quantity":     {"1"},
+		"products_cost_price":   {"30"},
+		"products_shelf_number": {"A1"},
+	}
+
+	req, _ := http.NewRequest("POST", "/api/purchase-bills", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	payload := BuildPurchaseBillPayload(req)
+	if len(payload.Products) != 0 || len(payload.ManualProducts) != 1 {
+		t.Fatalf("explicit legacy manual row was not preserved: products=%d manual=%d",
+			len(payload.Products), len(payload.ManualProducts))
+	}
+	if payload.ManualProducts[0].PartName != "Service charge" {
+		t.Errorf("manual row name = %q, want %q", payload.ManualProducts[0].PartName, "Service charge")
+	}
+}
+
+func TestBuildPurchaseBillPayloadFallsBackToCostPricePerRow(t *testing.T) {
+	form := url.Values{
+		"store_id":             {"1"},
+		"supplier_id":          {"2"},
+		"products_product_id":  {"100", "0"},
+		"products_track_stock": {"true", "true"},
+		"products_price":       {"50", ""},
+		"products_quantity":    {"2", "1"},
+		"products_part_name":   {"Existing item", "Typed item"},
+		"products_cost_price":  {"40", "20"},
+		"total_amount":         {"120"},
+	}
+
+	req, _ := http.NewRequest("POST", "/api/purchase-bills", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	payload := BuildPurchaseBillPayload(req)
+	if len(payload.Products) != 2 {
+		t.Fatalf("expected 2 products, got %d", len(payload.Products))
+	}
+	if payload.Products[1].Price != "20" {
+		t.Errorf("legacy row without products_price should use cost price, got %q", payload.Products[1].Price)
 	}
 }
 

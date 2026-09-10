@@ -462,8 +462,9 @@ type BillItem struct {
 	TotalBeforeVAT float64 `json:"total_before_vat"`
 }
 
-// BillProductItem represents a linked product in a bill payload.
-// Backend requires "product_id" (number), "name" (string), "price" (string), "quantity" (string).
+// BillProductItem represents an inventory candidate in a bill payload.
+// Purchase-bill rows may use product_id=0; the backend resolves the item by
+// store/name and creates the catalog product when no match exists.
 type BillProductItem struct {
 	ID          int    `json:"product_id"`
 	PartName    string `json:"name,omitempty"`
@@ -480,7 +481,7 @@ type BillProductItem struct {
 	SellingPrice *string `json:"selling_price,omitempty"`
 }
 
-// BillManualItem represents a manual (text-based) product in a bill payload.
+// BillManualItem represents an explicit manual (text-based) line in a bill payload.
 // Backend requires "product_id": null, "name" (string), "price" (string), "quantity" (string).
 type BillManualItem struct {
 	ProductID  *int   `json:"product_id"`

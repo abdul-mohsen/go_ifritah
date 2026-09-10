@@ -356,20 +356,15 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 			partName = "بند"
 		}
 
-		manualItem := models.BillManualItem{
-			PartName: partName,
-			Price:    formatPrice(price),
-			Quantity: strconv.Itoa(qty),
-		}
-
-		// Generate a random product for the products array (backend requires it)
-		bigN, _ := rand.Int(rand.Reader, big.NewInt(900000))
-		randID := int(bigN.Int64()) + 100000
+		// A purchase-bill item is an inventory candidate. The backend resolves
+		// the name in the selected store and creates the product when needed.
 		productItem := models.BillProductItem{
-			ID:       randID,
-			PartName: partName,
-			Price:    formatPrice(price),
-			Quantity: strconv.Itoa(qty),
+			ID:         0,
+			PartName:   partName,
+			Price:      formatPrice(price),
+			Quantity:   strconv.Itoa(qty),
+			CostPrice:  formatPrice(price),
+			TrackStock: true,
 		}
 
 		effectiveDate := ""
@@ -386,7 +381,7 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 			SupplierID:     supplierID,
 			EffectiveDate:  effectiveDate,
 			Products:       []models.BillProductItem{productItem},
-			ManualProducts: []models.BillManualItem{manualItem},
+			ManualProducts: []models.BillManualItem{},
 			Discount:       discount,
 			Subtotal:       price * float64(qty),
 			PaymentMethod:  10,

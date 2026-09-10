@@ -379,7 +379,10 @@
     function itemRow(product) {
         var rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         var productId = product ? (product.id || product.product_id || product.productId || 0) : 0;
-        var trackStock = productId > 0 && (!product || product.track_stock !== false);
+        // Every unified purchase-bill row is an inventory candidate. The
+        // backend resolves a typed/imported name to an existing product or
+        // creates it when no match exists.
+        var trackStock = !product || product.track_stock !== false;
         var name = product ? (product.name || product.partName || product.part_name || '') : '';
         var quantity = product ? (product.quantity || 1) : 1;
         // purchasePrice (what was paid to supplier) and costPrice (inventory
@@ -730,11 +733,9 @@
         });
     }
 
-    // For each imported row: if it carries a productId, fetch that catalog
-    // product's current shelf location + selling price so the user can
-    // review/adjust them before saving. If it doesn't, check by name and
-    // warn (without auto-linking) when a product with the same name
-    // already exists — importers commonly forget to fill the id column.
+    // For each imported row, hydrate an exact existing catalog match when
+    // possible. Rows without a match remain inventory candidates; the
+    // backend creates them transactionally when the bill is saved.
     function resolveImportedItemLookup(row, item) {
         var storeSelect = document.querySelector('[name="store_id"]');
         var storeID = parseInt(storeSelect ? storeSelect.value : '', 10);
@@ -758,13 +759,17 @@
         var name = (item.partName || '').trim();
         if (!name) return;
         fetchStoreProducts(name).then(function (products) {
-            var existsByName = (products || []).some(function (p) {
-                return p.store_id === storeID && (
-                    (p.name || '').trim().toLowerCase() === name.toLowerCase() ||
-                    (p.shelf_number || '').trim().toLowerCase() === name.toLowerCase()
-                );
+            var match = (products || []).find(function (p) {
+                return p.store_id === storeID &&
+                    (p.name || '').trim().toLowerCase() === name.toLowerCase();
             });
-            if (existsByName) showExistingItemWarning(row);
+            if (!match) return;
+            row.querySelector('[name="products_product_id"]').value = match.id;
+            var shelfInput = row.querySelector('[name="products_shelf_number"]');
+            if (shelfInput && !shelfInput.value) shelfInput.value = match.shelf_number || '';
+            var sellingPriceInput = row.querySelector('[name="products_selling_price"]');
+            if (sellingPriceInput && !sellingPriceInput.value) sellingPriceInput.value = match.price || '';
+            setInventoryState(row, true);
         });
     }
 

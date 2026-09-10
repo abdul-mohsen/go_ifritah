@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { login } = require('../helpers/qa');
 
-test('purchase bill items distinguish dropdown inventory from manual and CSV rows', async ({ page }) => {
+test('purchase bill items resolve typed and CSV rows into inventory products', async ({ page }) => {
   await login(page);
   await page.goto('/dashboard/purchase-bills/add');
   await page.waitForLoadState('domcontentloaded');
@@ -11,8 +11,8 @@ test('purchase bill items distinguish dropdown inventory from manual and CSV row
 
   await page.locator('button[onclick^="addItem"]').click();
   const typedRow = page.locator('#products-container .item-row').last();
-  await expect(typedRow.locator('.item-state')).toContainText(/مضاف يدوياً|Manually Added/);
-  await expect(typedRow.locator('[name="products_track_stock"]')).toHaveValue('false');
+  await expect(typedRow.locator('.item-state')).toContainText(/من المخزن|From Store/);
+  await expect(typedRow.locator('[name="products_track_stock"]')).toHaveValue('true');
   await expect(typedRow.locator('[name="products_cost_price"]')).toBeVisible();
   await expect(typedRow.locator('[name="products_shelf_number"]')).toBeVisible();
 
@@ -56,8 +56,8 @@ test('purchase bill items distinguish dropdown inventory from manual and CSV row
   });
 
   const importedRow = page.locator('#products-container .item-row').last();
-  await expect(importedRow.locator('.item-state')).toContainText(/مضاف يدوياً|Manually Added/);
-  await expect(importedRow.locator('[name="products_track_stock"]')).toHaveValue('false');
+  await expect(importedRow.locator('.item-state')).toContainText(/من المخزن|From Store/);
+  await expect(importedRow.locator('[name="products_track_stock"]')).toHaveValue('true');
   await expect(importedRow.locator('.store-product-search')).toHaveValue('QA Imported Manual Item');
   await expect(importedRow.locator('[name="products_cost_price"]')).toHaveValue('18');
   await expect(importedRow.locator('[name="products_shelf_number"]')).toHaveValue('B-2');

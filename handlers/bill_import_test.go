@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/json"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,34 @@ import (
 
 	"github.com/xuri/excelize/v2"
 )
+
+func TestImportPurchaseItemsCreatesInventoryCandidates(t *testing.T) {
+	items, total := importPurchaseItems([]spreadsheetProduct{{
+		values: map[string]string{
+			"product_name":   "Filter",
+			"quantity":       "2",
+			"purchase_price": "25",
+			"cost_price":     "",
+			"line_total":     "",
+			"discount":       "0",
+			"shelf_number":   "A1",
+		},
+	}})
+
+	if len(items) != 1 {
+		t.Fatalf("importPurchaseItems returned %d items, want 1", len(items))
+	}
+	item := items[0]
+	if item.ID != 0 || !item.TrackStock {
+		t.Fatalf("imported item should be an unresolved inventory candidate: %+v", item)
+	}
+	if item.CostPrice != "25" {
+		t.Errorf("missing cost price should fall back to purchase price, got %q", item.CostPrice)
+	}
+	if total != 50 {
+		t.Errorf("total = %v, want 50", total)
+	}
+}
 
 // TestBuildBillImportTemplateAppliesOverrides is a regression test for a
 // real e2e failure: the generated template's example Store ID/Supplier ID/
@@ -153,6 +182,19 @@ func TestHandleImportBillsXLSXCreatesEachPurchaseBill(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v2/purchase_bill" || r.Method != http.MethodPost {
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		var payload struct {
+			Products       []json.RawMessage `json:"products"`
+			ManualProducts []json.RawMessage `json:"manual_products"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode purchase payload: %v", err)
+		}
+		if len(payload.Products) == 0 {
+			t.Fatal("purchase import should submit inventory products")
+		}
+		if len(payload.ManualProducts) != 0 {
+			t.Fatalf("purchase import duplicated rows as manual products: %d", len(payload.ManualProducts))
 		}
 		created++
 		w.WriteHeader(http.StatusCreated)

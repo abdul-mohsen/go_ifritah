@@ -290,8 +290,9 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 	// ParseForm does NOT parse multipart bodies, leaving r.Form empty.
 	_ = r.ParseMultipartForm(32 << 20)
 
-	// Every UI item uses products_* fields. Only a dropdown-selected item is
-	// stock-tracked; typed and CSV-imported items remain manual purchase lines.
+	// Every UI item uses products_* fields. A typed or CSV-imported item is an
+	// inventory candidate too: the backend matches it by store/name or creates
+	// the catalog product during the purchase-bill transaction.
 	// products_price was removed from the UI — the single cost price the user
 	// enters is products_cost_price, which maps to both Price (backend subtotal
 	// field) and CostPrice (inventory cost basis).
@@ -312,36 +313,42 @@ func BuildPurchaseBillPayload(r *http.Request) models.PurchaseBillPayload {
 	var products []models.BillProductItem
 	var manualProducts []models.BillManualItem
 
-	max := productRowMaxLen(ids, prices, quantities)
+	max := productRowMaxLen(ids, prices, quantities, names, costPrices, shelfNumbers, trackStocks, sellingPrices)
 	for i := 0; i < max; i++ {
 		row := readProductRow(i, ids, prices, quantities, names, costPrices)
+		if row.price == "0" && row.costPrice != "0" {
+			row.price = row.costPrice
+		}
 		if row.name == "" && row.price == "0" {
 			continue
 		}
-		trackStock := i < len(trackStocks) && trackStocks[i] == "true"
 		shelfNumber := ""
 		if i < len(shelfNumbers) {
 			shelfNumber = shelfNumbers[i]
 		}
-		if trackStock && row.id > 0 {
-			products = append(products, models.BillProductItem{
-				ID:           row.id,
-				PartName:     row.name,
-				Price:        row.price,
-				Quantity:     row.quantity,
-				CostPrice:    row.costPrice,
-				ShelfNumber:  shelfNumber,
-				TrackStock:   true,
-				SellingPrice: optionalSellingPrice(sellingPrices, i),
+		trackStock := true
+		if i < len(trackStocks) {
+			trackStock = trackStocks[i] == "true"
+		}
+		if !trackStock {
+			manualProducts = append(manualProducts, models.BillManualItem{
+				PartName:    row.name,
+				Price:       row.price,
+				Quantity:    row.quantity,
+				CostPrice:   row.costPrice,
+				ShelfNumber: shelfNumber,
 			})
 			continue
 		}
-		manualProducts = append(manualProducts, models.BillManualItem{
-			PartName:    row.name,
-			Price:       row.price,
-			Quantity:    row.quantity,
-			CostPrice:   row.costPrice,
-			ShelfNumber: shelfNumber,
+		products = append(products, models.BillProductItem{
+			ID:           row.id,
+			PartName:     row.name,
+			Price:        row.price,
+			Quantity:     row.quantity,
+			CostPrice:    row.costPrice,
+			ShelfNumber:  shelfNumber,
+			TrackStock:   true,
+			SellingPrice: optionalSellingPrice(sellingPrices, i),
 		})
 	}
 

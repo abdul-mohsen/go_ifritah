@@ -39,11 +39,8 @@ async function createStoreProduct(page, { storeId, name, price, costPrice, shelf
   });
   expect(createResponse.ok(), `create product failed with ${createResponse.status()}`).toBeTruthy();
 
-  // The backend's AddProduct handler never stores the free-text name we supply
-  // (its AddProduct JSON struct has no name field), so p.name is always NULL and
-  // searching by name never returns the product.  Shelf number IS stored and the
-  // backend's GetAllProduct SQL searches COALESCE(shelf_number,'') LIKE '%query%',
-  // so poll by shelfNumber instead.
+  // Poll by shelf number because it is unique for this fixture and is indexed
+  // by the backend search contract.
   const searchForm = { query: shelfNumber };
   let productId = null;
   for (let attempt = 0; attempt < 10 && productId === null; attempt++) {
@@ -99,8 +96,8 @@ test.describe('Purchase-bill selling price visibility', () => {
 
     await page.locator('button[onclick^="addItem"]').first().click();
     const row = page.locator('#products-container .item-row').last();
-    await row.locator('.store-product-search').fill(shelfNumber);
-    const dropdownItem = row.locator('[id^="dropdown_"] div').filter({ hasText: shelfNumber }).first();
+    await row.locator('.store-product-search').fill(name);
+    const dropdownItem = row.locator('[id^="dropdown_"] div').filter({ hasText: name }).first();
     await expect(dropdownItem).toBeVisible({ timeout: 10000 });
     await dropdownItem.click();
 

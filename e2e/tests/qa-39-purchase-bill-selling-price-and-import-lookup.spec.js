@@ -9,8 +9,7 @@
 //      for the logged-in admin.
 //   2. An imported row that carries a product_id fetches that product's
 //      shelf/selling price for review; a row with a blank id but a name
-//      that already exists in the catalog gets a non-blocking warning
-//      instead of silently duplicating the item.
+//      is resolved by the backend during purchase-bill submission.
 
 const { test, expect } = require('@playwright/test');
 const { login, appURL, uniqueTag } = require('../helpers/qa');
@@ -165,7 +164,7 @@ test.describe('Purchase-bill Excel/CSV import existing-product lookup', () => {
     await expect(importedRow.locator('.item-state')).toContainText(/من المخزن|From Store/);
   });
 
-  test('imported row without a product id warns when a same-named item already exists', async ({ page }) => {
+  test('imported row without a product id remains an inventory candidate', async ({ page }) => {
     await login(page);
     await page.goto('/dashboard/purchase-bills/add');
     await page.waitForLoadState('domcontentloaded');
@@ -175,9 +174,10 @@ test.describe('Purchase-bill Excel/CSV import existing-product lookup', () => {
     const shelfNumber = 'WARN-' + name.slice(-6);
     await createStoreProduct(page, { storeId, name, price: 90, costPrice: 60, shelfNumber });
 
-    // partName is the unique shelfNumber so fetchStoreProducts() finds the product
-    // via shelf_number search; the updated existsByName check in the template then
-    // matches p.shelf_number === partName and shows the warning.
+    // Use the unique shelf number so the search endpoint can return the
+    // existing product even though this legacy create endpoint does not store
+    // the free-text name. The backend still resolves the submitted name when
+    // the bill is saved.
     const item = { partName: shelfNumber, quantity: 2, purchasePrice: 50, costPrice: 40, shelfNumber: '' };
     await page.evaluate((it) => {
       const container = document.getElementById('products-container');
@@ -188,9 +188,9 @@ test.describe('Purchase-bill Excel/CSV import existing-product lookup', () => {
     }, item);
 
     const importedRow = page.locator('#products-container .item-row').last();
-    await expect(importedRow.locator('.existing-item-warning')).toBeVisible({ timeout: 10000 });
-    await expect(importedRow.locator('.existing-item-warning')).toContainText(/يوجد|already exists/);
-    // The row must still be manual (never auto-linked from a name match alone).
+    await expect(importedRow.locator('.existing-item-warning')).toBeHidden();
     await expect(importedRow.locator('[name="products_product_id"]')).toHaveValue('0');
+    await expect(importedRow.locator('[name="products_track_stock"]')).toHaveValue('true');
+    await expect(importedRow.locator('.item-state')).toContainText(/من المخزن|From Store/);
   });
 });

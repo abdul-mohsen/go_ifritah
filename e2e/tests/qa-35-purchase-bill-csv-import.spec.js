@@ -144,15 +144,10 @@ test.describe('Purchase-bill CSV import flow', () => {
 
     await page.waitForURL(/\/dashboard\/purchase-bills\/\d+$/);
 
-    // Imported rows never resolve to a real catalog product_id (the CSV
-    // import only types free-text names - it doesn't match against
-    // inventory), so the unified item form classifies all three as manual
-    // products, not catalog products. This mirrors the same
-    // product_id-driven catalog/manual split already covered for manual
-    // form entry by TestCreatePBManualItemsOnlyInManualProducts.
-    // The detail page renders one merged items table (catalog + manual)
-    // with a per-row type badge instead of two separately-grouped tables -
-    // all 3 imported rows should show the "manually added" badge.
+    // Imported rows are inventory candidates even when they do not carry a
+    // product_id. The backend resolves each name against the selected store
+    // and creates a catalog product when no match exists.
+    // The detail page renders one merged items table with a per-row type badge.
     const itemsSection = page
       .locator('.section-card')
       .filter({
@@ -161,8 +156,8 @@ test.describe('Purchase-bill CSV import flow', () => {
       .first();
     await expect(itemsSection).toBeVisible();
     await expect(itemsSection.locator('tbody tr')).toHaveCount(3);
-    await expect(itemsSection.locator('.pbi-state-badge.is-manual')).toHaveCount(3);
-    await expect(itemsSection.locator('.pbi-state-badge.is-stock')).toHaveCount(0);
+    await expect(itemsSection.locator('.pbi-state-badge.is-manual')).toHaveCount(0);
+    await expect(itemsSection.locator('.pbi-state-badge.is-stock')).toHaveCount(3);
     await expect(itemsSection).toContainText('فلتر زيت E2E');
     await expect(itemsSection).toContainText('بواجي E2E');
     await expect(itemsSection).toContainText('سير مكينة E2E');

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"afrita/config"
+	"afrita/helpers"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -69,5 +70,45 @@ func TestSaveSettingsSendsPBPDFRequiredToBackend(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected pb_pdf_required=optional to be sent to backend PUT /api/v2/settings under the invoice category, got payloads: %+v", capturedPayloads)
+	}
+}
+
+func TestAddPurchaseBillLoadsPersistedPDFSettingAfterFrontendRestart(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v2/settings":
+			_, _ = w.Write([]byte(`{"data":{"invoice":{"pb_pdf_required":"disabled"}}}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v2/notification/config":
+			_, _ = w.Write([]byte(`{"data":{"low_stock_alert":true,"low_stock_threshold":5,"new_order_alert":true,"payment_due_alert":true}}`))
+		default:
+			_, _ = w.Write([]byte(`{"data":[]}`))
+		}
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	helpers.APICache.Delete("stores")
+	helpers.APICache.Delete("suppliers")
+	token := "pb-pdf-reload-token"
+	settingsByToken.Delete(tokenKey(token))
+	cleanup := setupPBTestSession("pb-pdf-reload-session", token)
+	defer cleanup()
+	defer settingsByToken.Delete(tokenKey(token))
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard/purchase-bills/add", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-pdf-reload-session"})
+	w := httptest.NewRecorder()
+
+	HandleAddPurchaseBill(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d. body: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `<div class="mt-6" style="display:none">`) {
+		t.Fatal("expected add purchase bill page to use the persisted disabled PDF setting after frontend cache reset")
 	}
 }

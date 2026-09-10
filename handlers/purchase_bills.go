@@ -112,6 +112,8 @@ func HandleAddPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	loadSettingsFromBackend(token)
+
 	stores, _ := helpers.FetchStores(token)
 	suppliers, _ := helpers.FetchSuppliers(token)
 	today := time.Now().Format("2006-01-02")
@@ -412,6 +414,8 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+
+	loadSettingsFromBackend(token)
 
 	req, _ := http.NewRequest("GET", config.BackendDomain+"/api/v2/purchase_bill/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)

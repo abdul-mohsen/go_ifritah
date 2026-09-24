@@ -86,6 +86,23 @@ func TestWriteErrorResponseFromBytes_UsesBackendMessage(t *testing.T) {
 	}
 }
 
+func TestWriteErrorResponseFromBytesPreservesBackendCodeHeader(t *testing.T) {
+	w := httptest.NewRecorder()
+	WriteErrorResponseFromBytes(w, 400, []byte(`{"code":"PURCHASE_BILL_PDF_REQUIRED","detail":"يرجى رفع ملف فاتورة الشراء (PDF)"}`), "")
+	if got := w.Header().Get("X-Error-Code"); got != "PURCHASE_BILL_PDF_REQUIRED" {
+		t.Fatalf("X-Error-Code = %q, want PURCHASE_BILL_PDF_REQUIRED", got)
+	}
+}
+
+func TestExtractErrorCodeFromBytes(t *testing.T) {
+	if got := ExtractErrorCodeFromBytes([]byte(`{"error_code":"UPLOAD_REJECTED"}`)); got != "UPLOAD_REJECTED" {
+		t.Fatalf("error_code = %q, want UPLOAD_REJECTED", got)
+	}
+	if got := ExtractErrorCodeFromBytes([]byte(`{"detail":"no code"}`)); got != "" {
+		t.Fatalf("code = %q, want empty", got)
+	}
+}
+
 func TestTranslateBackendMessage(t *testing.T) {
 	tests := []struct {
 		input    string

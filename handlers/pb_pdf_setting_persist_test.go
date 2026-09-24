@@ -13,8 +13,8 @@ import (
 // where "pb_pdf_required" (whether a PDF attachment is required on purchase
 // bills) was treated as a frontend-only setting - excluded from
 // settingsCategoryMap and therefore never sent to the backend at all. It
-// only ever lived in the process-local settingsByToken map, which is wiped
-// on every restart/rebuild, making the setting appear to silently reset.
+// only ever lived in a process-local settings cache, which is wiped on every
+// restart/rebuild, making the setting appear to silently reset.
 func TestSaveSettingsSendsPBPDFRequiredToBackend(t *testing.T) {
 	var capturedPayloads []map[string]interface{}
 

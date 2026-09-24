@@ -3,8 +3,11 @@ package handlers
 import (
 	"afrita/config"
 	"afrita/helpers"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -280,8 +283,9 @@ func TestAddPurchaseBillTotalUsesUnifiedItems(t *testing.T) {
 	}
 }
 
-// TestAddPurchaseBillPageHasFileUpload verifies the add form has
-// mandatory PDF upload and optional documents upload fields.
+// TestAddPurchaseBillPageHasFileUpload verifies the add form exposes the PDF
+// and optional document inputs. The backend, not the cached frontend setting,
+// is authoritative for whether the PDF is required.
 func TestAddPurchaseBillPageHasFileUpload(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -310,9 +314,9 @@ func TestAddPurchaseBillPageHasFileUpload(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Must have mandatory bill_pdf file input
+	// Must have bill_pdf file input
 	if !strings.Contains(body, `name="bill_pdf"`) {
-		t.Error("expected mandatory bill_pdf file input in add-purchase-bill page")
+		t.Error("expected bill_pdf file input in add-purchase-bill page")
 	}
 
 	// Must have optional documents file input
@@ -325,9 +329,12 @@ func TestAddPurchaseBillPageHasFileUpload(t *testing.T) {
 		t.Error("expected hx-encoding='multipart/form-data' on the form")
 	}
 
-	// Must have required attribute on bill_pdf
+	// The cached setting must not add a browser-blocking required attribute.
 	if !strings.Contains(body, "accept=\".pdf\"") {
 		t.Error("expected accept='.pdf' on bill_pdf input")
+	}
+	if strings.Contains(body, `accept=".pdf" required`) {
+		t.Error("bill_pdf must not be browser-required; backend owns enforcement")
 	}
 
 	// Arabic label for mandatory PDF
@@ -338,6 +345,74 @@ func TestAddPurchaseBillPageHasFileUpload(t *testing.T) {
 	// Arabic label for optional documents
 	if !strings.Contains(body, "مستندات إضافية") {
 		t.Error("expected Arabic label for optional documents upload")
+	}
+}
+
+func TestAddPurchaseBillKeepsPDFSettingAfterAccessTokenRefresh(t *testing.T) {
+	settingsRequests := 0
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v2/settings":
+			settingsRequests++
+			_, _ = w.Write([]byte(`{"data":{"invoice":{"pb_pdf_required":"disabled"}}}`))
+		default:
+			_, _ = w.Write([]byte(`{"data":[]}`))
+		}
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	const sessionID = "pb-setting-refresh-session"
+	config.SessionTokensMutex.Lock()
+	config.SessionTokens[sessionID] = "old-access-token"
+	config.SessionTokensMutex.Unlock()
+	defer func() {
+		config.SessionTokensMutex.Lock()
+		delete(config.SessionTokens, sessionID)
+		config.SessionTokensMutex.Unlock()
+	}()
+
+	// Reproduce the pre-fix state: the old access token had the saved value,
+	// but a refreshed token would create a new cache entry with defaults.
+	oldTokenSettings := storeFor("old-access-token")
+	oldTokenSettings.mu.Lock()
+	oldTokenSettings.values["pb_pdf_required"] = "disabled"
+	oldTokenSettings.loaded = true
+	oldTokenSettings.mu.Unlock()
+
+	render := func() string {
+		req := httptest.NewRequest(http.MethodGet, "/dashboard/purchase-bills/add", nil)
+		req.AddCookie(&http.Cookie{Name: "session_id", Value: sessionID})
+		w := httptest.NewRecorder()
+		HandleAddPurchaseBill(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+		return w.Body.String()
+	}
+
+	firstBody := render()
+	if !strings.Contains(firstBody, `id="bill_pdf_zone"`) {
+		t.Fatal("expected PDF attachment section to remain available")
+	}
+
+	config.SessionTokensMutex.Lock()
+	config.SessionTokens[sessionID] = "refreshed-access-token"
+	config.SessionTokensMutex.Unlock()
+
+	secondBody := render()
+	if !strings.Contains(secondBody, `id="bill_pdf_zone"`) {
+		t.Fatal("expected PDF attachment section to remain available after refresh")
+	}
+	if strings.Contains(secondBody, `accept=".pdf" required`) {
+		t.Fatal("PDF input must not become required after access-token refresh")
+	}
+	if settingsRequests != 1 {
+		t.Fatalf("expected one settings request per session, got %d", settingsRequests)
 	}
 }
 
@@ -530,6 +605,126 @@ func TestCreatePurchaseBillConflictPreservesBackendMessage(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "رقم فاتورة المورد مكرر لهذا المورد") {
 		t.Fatalf("expected translated backend conflict message, got %q", w.Body.String())
+	}
+}
+
+func TestCreatePurchaseBillForwardsBackendPDFErrorCode(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v2/purchase_bill" && r.Method == http.MethodPost {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"code":"PURCHASE_BILL_PDF_REQUIRED","detail":"يرجى رفع ملف فاتورة الشراء (PDF)","field":"pdf_link"}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer backend.Close()
+
+	originalDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = originalDomain }()
+
+	cleanup := setupPBTestSession("pb-pdf-error-forward", "pb-pdf-error-token")
+	defer cleanup()
+
+	form := "store_id=4&supplier_id=251&supplier_sequance_number=456&payment_date=2026-04-10&payment_method=10" +
+		"&manual_part_name=%D9%81%D9%84%D8%AA%D8%B1+%D8%B2%D9%8A%D8%AA" +
+		"&manual_quantity=2&manual_price=50&discount=0&total_amount=115"
+	req := httptest.NewRequest(http.MethodPost, "/api/purchase-bills", strings.NewReader(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-pdf-error-forward"})
+	w := httptest.NewRecorder()
+
+	HandleCreatePurchaseBill(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d. body: %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("X-Error-Code"); got != "PURCHASE_BILL_PDF_REQUIRED" {
+		t.Fatalf("X-Error-Code = %q, want PURCHASE_BILL_PDF_REQUIRED", got)
+	}
+	if !strings.Contains(w.Body.String(), "يرجى رفع ملف فاتورة الشراء") {
+		t.Fatalf("expected backend PDF message, got %q", w.Body.String())
+	}
+}
+
+func TestCreatePurchaseBillUploadsSelectedFilesBeforeCreate(t *testing.T) {
+	var createPayload map[string]interface{}
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v2/upload":
+			file, header, err := r.FormFile("file")
+			if err != nil {
+				t.Fatalf("upload FormFile: %v", err)
+			}
+			defer file.Close()
+			w.WriteHeader(http.StatusOK)
+			_, _ = fmt.Fprintf(w, `{"download_url":"/api/v2/files/%s","file_key":"%s"}`, header.Filename, header.Filename)
+		case "/api/v2/purchase_bill":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read create body: %v", err)
+			}
+			if err := json.Unmarshal(body, &createPayload); err != nil {
+				t.Fatalf("decode create body: %v", err)
+			}
+			w.WriteHeader(http.StatusCreated)
+		default:
+			_, _ = w.Write([]byte(`{"data":[]}`))
+		}
+	}))
+	defer backend.Close()
+
+	originalDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = originalDomain }()
+
+	cleanup := setupPBTestSession("pb-file-forward", "pb-file-forward-token")
+	defer cleanup()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for key, value := range map[string]string{
+		"store_id":                 "4",
+		"supplier_id":              "251",
+		"supplier_sequance_number": "456",
+		"payment_date":             "2026-04-10",
+		"payment_method":           "10",
+		"manual_part_name":         "فلتر زيت",
+		"manual_quantity":          "2",
+		"manual_price":             "50",
+		"discount":                 "0",
+		"total_amount":             "115",
+	} {
+		if err := writer.WriteField(key, value); err != nil {
+			t.Fatalf("WriteField(%s): %v", key, err)
+		}
+	}
+	part, err := writer.CreateFormFile("bill_pdf", "invoice.pdf")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := part.Write([]byte("%PDF-test")); err != nil {
+		t.Fatalf("write PDF: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close form: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/purchase-bills", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-file-forward"})
+	w := httptest.NewRecorder()
+
+	HandleCreatePurchaseBill(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected redirect response, got %d. body: %s", w.Code, w.Body.String())
+	}
+	if got, ok := createPayload["pdf_link"].(string); !ok || got != "/api/v2/files/invoice.pdf" {
+		t.Fatalf("pdf_link = %#v, want uploaded reference", createPayload["pdf_link"])
 	}
 }
 

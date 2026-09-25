@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -112,6 +113,8 @@ func HandleAddPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionID := helpers.GetSessionIDFromRequest(r)
+	ensureSettingsLoaded(sessionID, token)
 	stores, _ := helpers.FetchStores(token)
 	suppliers, _ := helpers.FetchSuppliers(token)
 	today := time.Now().Format("2006-01-02")
@@ -120,7 +123,7 @@ func HandleAddPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		"title":           "إضافة فاتورة مشتريات",
 		"stores":          stores,
 		"suppliers":       suppliers,
-		"pb_pdf_required": GetSettingValue(token, "pb_pdf_required"),
+		"pb_pdf_required": GetSettingValueForSession(sessionID, token, "pb_pdf_required"),
 		"today":           today,
 	})
 }
@@ -220,6 +223,25 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "You can't submit an invoice with 0")
 		return
 	}
+
+	pdfLink, uploadedAttachments, err := helpers.UploadPurchaseBillFiles(r, token)
+	if err != nil {
+		var uploadErr *helpers.FileUploadError
+		if errors.As(err, &uploadErr) {
+			helpers.WriteErrorResponseFromBytes(w, uploadErr.StatusCode, uploadErr.Body, "فشل في رفع مرفق فاتورة الشراء")
+		} else {
+			log.Printf("[CREATE PURCHASE BILL] File upload failed: %v", err)
+			helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "فشل في رفع مرفق فاتورة الشراء")
+		}
+		return
+	}
+	if pdfLink != nil {
+		payload.PDFLink = pdfLink
+	}
+	if len(uploadedAttachments) > 0 {
+		payload.Attachments = append(payload.Attachments, uploadedAttachments...)
+	}
+
 	jsonPayload, _ := json.Marshal(payload)
 
 	log.Printf("[CREATE PURCHASE BILL] Payload: %s", helpers.SanitizeForLog(string(jsonPayload)))
@@ -412,6 +434,8 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	sessionID := helpers.GetSessionIDFromRequest(r)
+	ensureSettingsLoaded(sessionID, token)
 
 	req, _ := http.NewRequest("GET", config.BackendDomain+"/api/v2/purchase_bill/"+id, nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
@@ -489,7 +513,7 @@ func HandleEditPurchaseBill(w http.ResponseWriter, r *http.Request) {
 		"subtotal":                 subtotal,
 		"bill_products":            billProducts,
 		"bill_manual":              billManual,
-		"pb_pdf_required":          GetSettingValue(token, "pb_pdf_required"),
+		"pb_pdf_required":          GetSettingValueForSession(sessionID, token, "pb_pdf_required"),
 	})
 }
 

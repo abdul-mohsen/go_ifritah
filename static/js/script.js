@@ -249,7 +249,23 @@ document.addEventListener("htmx:beforeSwap", function (evt) {
             msg = statusMessages[xhr.status] || 'حدث خطأ، يرجى المحاولة مرة أخرى';
         }
 
-        window.showToast(msg, 'error');
+        const isPDFRequiredError = xhr.getResponseHeader('X-Error-Code') === 'PURCHASE_BILL_PDF_REQUIRED';
+        if (isPDFRequiredError) {
+            const pdfError = document.getElementById('bill_pdf_error');
+            const pdfZone = document.getElementById('bill_pdf_zone');
+            const pdfInput = document.getElementById('bill_pdf_input');
+            if (pdfError) {
+                pdfError.textContent = msg;
+                pdfError.classList.remove('hidden');
+            }
+            if (pdfZone) {
+                pdfZone.classList.add('has-error');
+                pdfZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            if (pdfInput) pdfInput.setAttribute('aria-invalid', 'true');
+        }
+
+        window.showToast(msg, isPDFRequiredError ? 'warning' : 'error');
 
         // Auto-redirect to login on 401
         if (xhr.status === 401) {

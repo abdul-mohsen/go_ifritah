@@ -123,25 +123,25 @@ func extractBackendMessage(resp *http.Response) string {
 // backendMsgTranslations maps common backend English error messages to Arabic.
 // Keys are lowercased for case-insensitive matching.
 var backendMsgTranslations = map[string]string{
-	"not found":                    "العنصر غير موجود",
-	"not authenticated":            "غير مصرح، يرجى تسجيل الدخول",
-	"unauthorized":                 "غير مصرح، يرجى تسجيل الدخول",
-	"forbidden":                    "ليس لديك صلاحية لهذا الإجراء",
-	"internal server error":        "خطأ في الخادم، يرجى المحاولة لاحقاً",
-	"bad request":                  "البيانات المرسلة غير صالحة",
-	"validation error":             "خطأ في التحقق من البيانات",
-	"method not allowed":           "الطريقة غير مسموحة",
-	"conflict":                     "تعارض في البيانات، العنصر موجود بالفعل",
-	"too many requests":            "طلبات كثيرة، يرجى الانتظار",
-	"service unavailable":          "الخدمة غير متوفرة حالياً",
-	"gateway timeout":              "انتهت مهلة الاتصال بالخادم",
-	"connection refused":           "تعذر الاتصال بالخادم",
-	"timeout":                      "انتهت مهلة الطلب",
-	"invalid credentials":          "بيانات الدخول غير صحيحة",
-	"invalid token":                "الجلسة منتهية، يرجى تسجيل الدخول مجدداً",
-	"token expired":                "انتهت صلاحية الجلسة",
-	"duplicate entry":              "هذا العنصر موجود بالفعل",
-	"already exists":               "هذا العنصر موجود بالفعل",
+	"not found":             "العنصر غير موجود",
+	"not authenticated":     "غير مصرح، يرجى تسجيل الدخول",
+	"unauthorized":          "غير مصرح، يرجى تسجيل الدخول",
+	"forbidden":             "ليس لديك صلاحية لهذا الإجراء",
+	"internal server error": "خطأ في الخادم، يرجى المحاولة لاحقاً",
+	"bad request":           "البيانات المرسلة غير صالحة",
+	"validation error":      "خطأ في التحقق من البيانات",
+	"method not allowed":    "الطريقة غير مسموحة",
+	"conflict":              "تعارض في البيانات، العنصر موجود بالفعل",
+	"too many requests":     "طلبات كثيرة، يرجى الانتظار",
+	"service unavailable":   "الخدمة غير متوفرة حالياً",
+	"gateway timeout":       "انتهت مهلة الاتصال بالخادم",
+	"connection refused":    "تعذر الاتصال بالخادم",
+	"timeout":               "انتهت مهلة الطلب",
+	"invalid credentials":   "بيانات الدخول غير صحيحة",
+	"invalid token":         "الجلسة منتهية، يرجى تسجيل الدخول مجدداً",
+	"token expired":         "انتهت صلاحية الجلسة",
+	"duplicate entry":       "هذا العنصر موجود بالفعل",
+	"already exists":        "هذا العنصر موجود بالفعل",
 	"supplier bill number already exists for this supplier": "رقم فاتورة المورد مكرر لهذا المورد، يرجى استخدام رقم مختلف",
 	"record not found":             "السجل غير موجود",
 	"no data found":                "لا توجد بيانات",
@@ -233,9 +233,31 @@ func WriteErrorResponseFromBytes(w http.ResponseWriter, statusCode int, body []b
 	}
 
 	triggerToast(w, msg, "error")
+	if code := ExtractErrorCodeFromBytes(body); code != "" {
+		w.Header().Set("X-Error-Code", code)
+	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(statusCode)
 	_, _ = w.Write([]byte(msg))
+}
+
+// ExtractErrorCodeFromBytes extracts a stable machine-readable error code
+// from a backend JSON response so browser code can render field-specific UI.
+func ExtractErrorCodeFromBytes(body []byte) string {
+	if len(body) == 0 {
+		return ""
+	}
+	var jsonBody struct {
+		Code      string `json:"code"`
+		ErrorCode string `json:"error_code"`
+	}
+	if err := json.Unmarshal(body, &jsonBody); err != nil {
+		return ""
+	}
+	if jsonBody.Code != "" {
+		return jsonBody.Code
+	}
+	return jsonBody.ErrorCode
 }
 
 // EscapeNonASCII replaces non-ASCII runes with \uXXXX escape sequences.

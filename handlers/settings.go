@@ -21,9 +21,9 @@ import (
 	"afrita/models"
 )
 
-// settingsDefaults holds the seed values used to initialise a per-token cache
-// entry the first time we see a session. The actual cache is per-token (see
-// settingsByToken) — there is NO global mutable map shared across users.
+// settingsDefaults holds the seed values used to initialise a per-session cache
+// entry the first time we see a session. The cache is scoped to the stable
+// frontend session, not the rotating access token.
 var settingsDefaults = map[string]string{
 	"vat_rate":                     "15",
 	"currency":                     "SAR",
@@ -91,25 +91,26 @@ func normalizeSettingsValue(key string, value string) string {
 	return value
 }
 
-// tenantSettings is the per-token cache cell. mu protects values.
+// tenantSettings is the per-session cache cell. mu protects values.
 type tenantSettings struct {
 	mu     sync.RWMutex
 	values map[string]string
+	loaded bool
 }
 
-// settingsByToken keys on sha256(token) so we never keep raw tokens in memory
-// for cache identity. Each entry is independent — settings written for user A
-// are never visible to user B (different tenant / branch / role).
-var settingsByToken sync.Map // map[string]*tenantSettings
+// settingsByScope keys on sha256(scope) so we never keep raw session IDs or
+// tokens in memory for cache identity. Access tokens rotate during refresh;
+// using one as the cache key would recreate the defaults after every rotation.
+var settingsByScope sync.Map // map[string]*tenantSettings
 
-func tokenKey(token string) string {
-	h := sha256.Sum256([]byte(token))
+func settingsScopeKey(scope string) string {
+	h := sha256.Sum256([]byte(scope))
 	return hex.EncodeToString(h[:])
 }
 
-func storeFor(token string) *tenantSettings {
-	k := tokenKey(token)
-	if v, ok := settingsByToken.Load(k); ok {
+func storeForScope(scope string) *tenantSettings {
+	k := settingsScopeKey(scope)
+	if v, ok := settingsByScope.Load(k); ok {
 		return v.(*tenantSettings)
 	}
 	values := make(map[string]string, len(settingsDefaults))
@@ -117,8 +118,32 @@ func storeFor(token string) *tenantSettings {
 		values[kk] = vv
 	}
 	ts := &tenantSettings{values: values}
-	actual, _ := settingsByToken.LoadOrStore(k, ts)
+	actual, _ := settingsByScope.LoadOrStore(k, ts)
 	return actual.(*tenantSettings)
+}
+
+// storeFor remains token-scoped for callers that do not have an HTTP session
+// (for example package-level tests). Request handlers should use
+// storeForSession so access-token refreshes do not reset cached settings.
+func storeFor(token string) *tenantSettings {
+	return storeForScope("token:" + token)
+}
+
+func storeForSession(sessionID, token string) *tenantSettings {
+	if strings.TrimSpace(sessionID) == "" {
+		return storeFor(token)
+	}
+	return storeForScope("session:" + sessionID)
+}
+
+func settingsStores(sessionID, token string) []*tenantSettings {
+	sessionStore := storeForSession(sessionID, token)
+	if strings.TrimSpace(sessionID) == "" {
+		return []*tenantSettings{sessionStore}
+	}
+	// Keep the token-scoped compatibility cache in sync for legacy helpers
+	// that still receive only an access token.
+	return []*tenantSettings{sessionStore, storeFor(token)}
 }
 
 // settingsCategoryMap maps each settings key to the backend category
@@ -179,7 +204,7 @@ var allSettingsKeys = []string{
 
 // loadSettingsFromBackend fetches settings from GET /api/v2/settings
 // and merges them into the in-memory store.
-func loadSettingsFromBackend(token string) {
+func loadSettingsFromBackend(sessionID, token string) {
 	req, _ := http.NewRequest("GET", config.BackendDomain+"/api/v2/settings", nil)
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
@@ -201,24 +226,26 @@ func loadSettingsFromBackend(token string) {
 		return
 	}
 
-	ts := storeFor(token)
-	ts.mu.Lock()
-	for _, categorySettings := range result.Data {
-		for key, value := range categorySettings {
-			ts.values[key] = normalizeSettingsValue(key, value)
+	for _, ts := range settingsStores(sessionID, token) {
+		ts.mu.Lock()
+		for _, categorySettings := range result.Data {
+			for key, value := range categorySettings {
+				ts.values[key] = normalizeSettingsValue(key, value)
+			}
 		}
+		ts.loaded = true
+		ts.mu.Unlock()
 	}
-	ts.mu.Unlock()
 	log.Printf("[SETTINGS] Loaded %d categories from backend", len(result.Data))
 
 	// Also load notification config (separate endpoint, structured payload).
-	overlayNotificationConfigIntoSettings(token)
+	overlayNotificationConfigIntoSettings(sessionID, token)
 }
 
 // overlayNotificationConfigIntoSettings calls /api/v2/notification/config and
 // projects its fields onto the flat settings map so the settings page renders
 // the same source of truth as the notification system.
-func overlayNotificationConfigIntoSettings(token string) {
+func overlayNotificationConfigIntoSettings(sessionID, token string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cfg, err := helpers.GetNotificationConfig(ctx, token)
@@ -226,13 +253,26 @@ func overlayNotificationConfigIntoSettings(token string) {
 		log.Printf("[SETTINGS] notification config fetch failed: %v", err)
 		return
 	}
-	ts := storeFor(token)
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-	ts.values["low_stock_threshold"] = strconv.Itoa(cfg.LowStockThreshold)
-	ts.values["notif_stock"] = strconv.FormatBool(cfg.LowStockAlert)
-	ts.values["notif_orders"] = strconv.FormatBool(cfg.NewOrderAlert)
-	ts.values["notif_payments"] = strconv.FormatBool(cfg.PaymentDueAlert)
+	for _, ts := range settingsStores(sessionID, token) {
+		ts.mu.Lock()
+		ts.values["low_stock_threshold"] = strconv.Itoa(cfg.LowStockThreshold)
+		ts.values["notif_stock"] = strconv.FormatBool(cfg.LowStockAlert)
+		ts.values["notif_orders"] = strconv.FormatBool(cfg.NewOrderAlert)
+		ts.values["notif_payments"] = strconv.FormatBool(cfg.PaymentDueAlert)
+		ts.mu.Unlock()
+	}
+}
+
+// ensureSettingsLoaded loads persisted settings once for the current frontend
+// session. The session key remains stable when the access token is refreshed.
+func ensureSettingsLoaded(sessionID, token string) {
+	ts := storeForSession(sessionID, token)
+	ts.mu.RLock()
+	loaded := ts.loaded
+	ts.mu.RUnlock()
+	if !loaded {
+		loadSettingsFromBackend(sessionID, token)
+	}
 }
 
 // saveSettingsToBackend sends changed settings to PUT /api/v2/settings
@@ -321,8 +361,8 @@ func mirrorNotificationConfig(token string, settings map[string]string) {
 	}
 }
 
-func getSettings(token string) map[string]string {
-	ts := storeFor(token)
+func getSettingsForSession(sessionID, token string) map[string]string {
+	ts := storeForSession(sessionID, token)
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 	cp := make(map[string]string, len(ts.values))
@@ -330,6 +370,10 @@ func getSettings(token string) map[string]string {
 		cp[k] = v
 	}
 	return cp
+}
+
+func getSettings(token string) map[string]string {
+	return getSettingsForSession("", token)
 }
 
 // HandleSettingsPage displays the settings page.
@@ -340,14 +384,14 @@ func HandleSettingsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load settings from backend on first access (or refresh)
-	loadSettingsFromBackend(token)
+	sessionID := helpers.GetSessionIDFromRequest(r)
+	loadSettingsFromBackend(sessionID, token)
 
 	branches, _ := helpers.FetchBranches(token)
 	stores, _ := helpers.FetchStores(token)
-	settings := getSettings(token)
+	settings := getSettingsForSession(sessionID, token)
 
 	// Load ZATCA config per branch
-	sessionID := helpers.GetSessionIDFromRequest(r)
 	zatcaByBranch := map[int]map[string]string{}
 	zatcaStatusByBranch := map[int]int{}
 	for _, b := range branches {
@@ -397,33 +441,41 @@ func HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	// Build the new settings map
 	newSettings := make(map[string]string, len(allSettingsKeys))
 
-	ts := storeFor(token)
-	ts.mu.Lock()
-	for _, k := range checkboxKeys {
-		ts.values[k] = "false" // default unchecked
-	}
+	sessionID := helpers.GetSessionIDFromRequest(r)
 	for _, key := range allSettingsKeys {
 		val := r.FormValue(key)
 		if key == "whatsapp_access_token" && preserveWhatsAppTokenValue(val) {
 			continue
 		}
 		if val != "" {
-			ts.values[key] = val
 			newSettings[key] = val
 		} else if checkboxSet[key] {
 			newSettings[key] = "false"
 		}
 	}
-	ts.mu.Unlock()
 
 	// Persist to backend SYNCHRONOUSLY — a fire-and-forget goroutine would let
 	// us flash "saved" even when every PUT returns 500. Surface the failure
 	// to the user instead of lying to them.
 	if err := saveSettingsToBackend(token, newSettings); err != nil {
 		log.Printf("[SETTINGS] save failed: %v", err)
+		for _, cached := range settingsStores(sessionID, token) {
+			cached.mu.Lock()
+			cached.loaded = false
+			cached.mu.Unlock()
+		}
 		writeFlashCookie(w, `{"message":"فشل حفظ الإعدادات","type":"error"}`)
 		http.Redirect(w, r, "/dashboard/settings", http.StatusSeeOther)
 		return
+	}
+
+	for _, cached := range settingsStores(sessionID, token) {
+		cached.mu.Lock()
+		for key, value := range newSettings {
+			cached.values[key] = value
+		}
+		cached.loaded = true
+		cached.mu.Unlock()
 	}
 
 	log.Printf("[SETTINGS] Settings saved successfully")
@@ -454,6 +506,16 @@ func writeFlashCookie(w http.ResponseWriter, payload string) {
 // they already have a session token.
 func GetSettingValue(token, key string) string {
 	ts := storeFor(token)
+	ts.mu.RLock()
+	defer ts.mu.RUnlock()
+	return ts.values[key]
+}
+
+// GetSettingValueForSession returns a setting from the stable frontend session
+// cache. Request handlers should prefer this over token-scoped compatibility
+// accessors because access tokens rotate.
+func GetSettingValueForSession(sessionID, token, key string) string {
+	ts := storeForSession(sessionID, token)
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 	return ts.values[key]

@@ -323,7 +323,8 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	loadSettingsFromBackend(token)
+	sessionID := helpers.GetSessionIDFromRequest(r)
+	loadSettingsFromBackend(sessionID, token)
 
 	// Fetch the full raw bill data from backend
 	raw, err := helpers.FetchBillRaw(token, id)
@@ -404,7 +405,7 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 		"is_credit":        false,
 		"is_standard":      invoice.Type,
 		"bill_type_label":  helpers.InvoiceTypeLabel(invoice),
-		"whatsapp_enabled": GetSettingValue(token, "whatsapp_enabled") == "true",
+		"whatsapp_enabled": GetSettingValueForSession(sessionID, token, "whatsapp_enabled") == "true",
 	}
 	helpers.Render(w, r, "invoice-detail", data)
 }

@@ -97,12 +97,12 @@
             </div>
         </div>
 
-        <div class="mt-6"{{ if eq .pb_pdf_required "disabled" }} style="display:none"{{ end }}>
+        <div class="mt-6">
             <h4 class="section-card-title">{{ L "tpl.pb.attachments" }}</h4>
             <div class="pba-list">
                 <!-- PDF invoice attachment -->
                 <div class="pba-row" id="bill_pdf_zone">
-                    <input type="file" name="bill_pdf" id="bill_pdf_input" accept=".pdf"{{ if eq .pb_pdf_required "required" }} required{{ end }}
+                    <input type="file" name="bill_pdf" id="bill_pdf_input" accept=".pdf"
                         style="display:none" onchange="validateBillPDF(this)">
                     <label for="bill_pdf_input" class="pba-trigger">
                         <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
@@ -646,7 +646,9 @@
         setupDragDrop('documents_zone', 'documents_input', validateDocuments);
     })();
 
-    // Prevent form submission if bill_pdf has validation errors
+    // Duplicate detection remains a client-side UX guard. PDF requirement is
+    // authoritative on the backend, so the cached setting must never cancel
+    // this request.
     document.getElementById('purchase-form').addEventListener('htmx:configRequest', function(e) {
         if (purchaseBillDuplicateState.exists) {
             e.preventDefault();
@@ -656,29 +658,6 @@
                 sequenceInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
             return;
-        }
-        var pdfRequired = '{{ .pb_pdf_required }}' === 'required';
-        if (!pdfRequired) return; // optional or disabled — skip PDF validation
-        var pdfInput = document.querySelector('[name="bill_pdf"]');
-        var pdfError = document.getElementById('bill_pdf_error');
-        var pdfZone = document.getElementById('bill_pdf_zone');
-        if (!pdfInput.files || pdfInput.files.length === 0) {
-            // The PDF is required but not attached. Without an explicit
-            // visible error the click looks like a no-op, which is what
-            // led to the "Save does nothing" bug reported on hockun2.
-            if (pdfError) {
-                pdfError.textContent = '{{ L "tpl.pb.upload_required" }}';
-                pdfError.classList.remove('hidden');
-            }
-            if (pdfZone) {
-                pdfZone.classList.add('has-error');
-                pdfZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-            e.preventDefault();
-            return;
-        }
-        if (pdfError && !pdfError.classList.contains('hidden')) {
-            e.preventDefault();
         }
     });
 

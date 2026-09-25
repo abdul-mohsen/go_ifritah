@@ -16,6 +16,7 @@ import (
 	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
+	"afrita/resources"
 
 	"github.com/gorilla/mux"
 )
@@ -61,7 +62,7 @@ func HandlePurchaseBills(w http.ResponseWriter, r *http.Request) {
 	for i, inv := range bills {
 		status, statusClass := helpers.InvoiceStatus(inv)
 		status = helpers.TranslateInvoiceStatus(status)
-		invoiceType := helpers.InvoiceTypeLabel(inv)
+		invoiceType := resources.L("purchase_bill.type_label")
 		// Format date: re-localize to Riyadh before display. The backend may
 		// return this as a UTC-offset timestamp; naively slicing the first 10
 		// characters (as this used to do) silently shifts the calendar date

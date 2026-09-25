@@ -245,6 +245,53 @@ func TestPurchaseBillsEmptyStateAddLinkUsesRegisteredRoute(t *testing.T) {
 	}
 }
 
+func TestPurchaseBillsListUsesPurchaseBillType(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/v2/purchase_bill/all" {
+			_, _ = w.Write([]byte(`[{"id":12,"total":"100.00","effective_date":{"Time":"2026-09-25T00:00:00Z","Valid":true},"state":3}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer backend.Close()
+
+	origDomain := config.BackendDomain
+	config.BackendDomain = backend.URL
+	defer func() { config.BackendDomain = origDomain }()
+
+	helpers.APICache.Delete("purchase_bills")
+
+	config.SessionTokensMutex.Lock()
+	config.SessionTokens["pb-type-label-session"] = "pb-type-label-token"
+	config.SessionTokensMutex.Unlock()
+	defer func() {
+		config.SessionTokensMutex.Lock()
+		delete(config.SessionTokens, "pb-type-label-session")
+		config.SessionTokensMutex.Unlock()
+	}()
+
+	req := httptest.NewRequest("GET", "/dashboard/purchase-bills", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "pb-type-label-session"})
+	w := httptest.NewRecorder()
+
+	HandlePurchaseBills(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200\nBody: %.300s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "فاتورة مشتريات") {
+		t.Fatalf("purchase-bill list should display the purchase-bill type\nBody: %.1200s", body)
+	}
+	if !strings.Contains(body, `data-i18n="purchase_bills.type"`) {
+		t.Fatalf("purchase-bill type should use the client-side localization key\nBody: %.1200s", body)
+	}
+	if strings.Contains(body, "فاتورة مبسطة") {
+		t.Fatalf("purchase-bill list must not display the simplified-invoice type\nBody: %.1200s", body)
+	}
+}
+
 // TestAddPurchaseBillTotalUsesUnifiedItems verifies the JS total uses the
 // single purchase-item list.
 func TestAddPurchaseBillTotalUsesUnifiedItems(t *testing.T) {

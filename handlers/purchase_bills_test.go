@@ -281,6 +281,9 @@ func TestPurchaseBillsListUsesPurchaseBillType(t *testing.T) {
 	if !strings.Contains(body, "فاتورة مشتريات") {
 		t.Fatalf("purchase-bill list should display the purchase-bill type\nBody: %.1200s", body)
 	}
+	if !strings.Contains(body, `data-i18n="purchase_bills.type"`) {
+		t.Fatalf("purchase-bill type should use the client-side localization key\nBody: %.1200s", body)
+	}
 	if strings.Contains(body, "فاتورة مبسطة") {
 		t.Fatalf("purchase-bill list must not display the simplified-invoice type\nBody: %.1200s", body)
 	}

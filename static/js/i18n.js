@@ -91,6 +91,7 @@
             'purchase_bills.title': 'فواتير الشراء',
             'purchase_bills.add': 'إضافة فاتورة شراء',
             'purchase_bills.supplier': 'المورد',
+            'purchase_bills.type': 'فاتورة مشتريات',
 
             // Suppliers
             'suppliers.title': 'الموردين',
@@ -264,6 +265,7 @@
             'purchase_bills.title': 'Purchase Bills',
             'purchase_bills.add': 'Add Purchase Bill',
             'purchase_bills.supplier': 'Supplier',
+            'purchase_bills.type': 'Purchase Bill',
 
             // Suppliers
             'suppliers.title': 'Suppliers',

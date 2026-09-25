@@ -216,6 +216,7 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 	defer purchaseBillCreateLock.Delete(token)
 
 	payload := helpers.BuildPurchaseBillPayload(r)
+	payload.State = 3
 	if payload.Subtotal <= 0 {
 		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "You can't submit an invoice with 0")
 		return

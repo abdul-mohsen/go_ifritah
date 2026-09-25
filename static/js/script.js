@@ -249,11 +249,11 @@ document.addEventListener("htmx:beforeSwap", function (evt) {
             msg = statusMessages[xhr.status] || 'حدث خطأ، يرجى المحاولة مرة أخرى';
         }
 
-        var isPDFRequiredError = xhr.getResponseHeader('X-Error-Code') === 'PURCHASE_BILL_PDF_REQUIRED';
+        const isPDFRequiredError = xhr.getResponseHeader('X-Error-Code') === 'PURCHASE_BILL_PDF_REQUIRED';
         if (isPDFRequiredError) {
-            var pdfError = document.getElementById('bill_pdf_error');
-            var pdfZone = document.getElementById('bill_pdf_zone');
-            var pdfInput = document.getElementById('bill_pdf_input');
+            const pdfError = document.getElementById('bill_pdf_error');
+            const pdfZone = document.getElementById('bill_pdf_zone');
+            const pdfInput = document.getElementById('bill_pdf_input');
             if (pdfError) {
                 pdfError.textContent = msg;
                 pdfError.classList.remove('hidden');

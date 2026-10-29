@@ -180,6 +180,27 @@ func main() {
 	router.HandleFunc("/api/zatca/branch/{id}", adminOnly(handlers.HandleSaveZatcaConfig)).Methods("PUT")
 	router.HandleFunc("/api/zatca/branch/{id}/onboard", adminOnly(handlers.HandleZatcaOnboard)).Methods("POST")
 
+	// Signed-UBL import lane — authenticated and separate from outbound ZATCA
+	// submission state. T031 owns persistence and lifecycle transitions.
+	router.HandleFunc("/dashboard/zatca/imports", handlers.HandleZatcaImports).Methods("GET")
+	router.HandleFunc("/dashboard/zatca/imports/{id}", handlers.HandleZatcaImportDetail).Methods("GET")
+	router.HandleFunc("/dashboard/zatca/import", handlers.HandleZatcaImports).Methods("GET")
+	router.HandleFunc("/dashboard/zatca/import/{id}", handlers.HandleZatcaImportDetail).Methods("GET")
+	router.HandleFunc("/api/zatca/import", handlers.HandleZatcaImportList).Methods("GET")
+	router.HandleFunc("/api/zatca/import", handlers.HandleZatcaImportCreate).Methods("POST")
+	router.HandleFunc("/api/zatca/import/{id}", handlers.HandleZatcaImportDetailAPI).Methods("GET")
+	router.HandleFunc("/api/zatca/import/{id}/review", handlers.HandleZatcaImportReview).Methods("POST")
+	router.HandleFunc("/api/zatca/import/{id}/post", handlers.HandleZatcaImportPost).Methods("POST")
+	router.HandleFunc("/api/zatca/import/{id}/reject", handlers.HandleZatcaImportReject).Methods("POST")
+	// Backend-compatible plural aliases are useful to integrations that use
+	// the collection name while the browser uses the singular API path.
+	router.HandleFunc("/api/zatca/imports", handlers.HandleZatcaImportList).Methods("GET")
+	router.HandleFunc("/api/zatca/imports", handlers.HandleZatcaImportCreate).Methods("POST")
+	router.HandleFunc("/api/zatca/imports/{id}", handlers.HandleZatcaImportDetailAPI).Methods("GET")
+	router.HandleFunc("/api/zatca/imports/{id}/review", handlers.HandleZatcaImportReview).Methods("POST")
+	router.HandleFunc("/api/zatca/imports/{id}/post", handlers.HandleZatcaImportPost).Methods("POST")
+	router.HandleFunc("/api/zatca/imports/{id}/reject", handlers.HandleZatcaImportReject).Methods("POST")
+
 	// Company info (proxy to backend `/api/v2/company`) — Admin only
 	router.HandleFunc("/api/company", adminOnly(handlers.HandleGetCompany)).Methods("GET")
 	router.HandleFunc("/api/company", adminOnly(handlers.HandleUpdateCompany)).Methods("PUT")

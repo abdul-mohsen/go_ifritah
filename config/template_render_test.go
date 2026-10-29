@@ -33,7 +33,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"settings", "parts-search", "cars-search", "import-bills",
 		"cash-vouchers", "add-cash-voucher", "cash-voucher-detail", "edit-cash-voucher",
 		"stock-adjustments", "notifications", "supplier-report", "supplier-statement",
-		"zatca-monitor",
+		"zatca-monitor", "zatca-imports", "zatca-import-detail",
 		// Standalone pages
 		"login", "register", "forgot-password",
 		"invoice-preview", "invoice-print", "error-page",

@@ -1,0 +1,195 @@
+{{ define "content" }}
+<nav class="flex items-center gap-2 text-sm mb-4" style="color: var(--md-sys-color-on-surface-variant)">
+    <a href="/dashboard" class="hover:underline">{{ L "nav.dashboard" }}</a>
+    <span>/</span>
+    <span style="color: var(--md-sys-color-on-surface)">{{ L "zatca_import.title" }}</span>
+</nav>
+
+<div class="space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h1 class="text-2xl font-bold" style="color: var(--md-sys-color-on-surface)">{{ L "zatca_import.title" }}</h1>
+            <p class="text-sm mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "zatca_import.subtitle" }}</p>
+        </div>
+        <a href="/dashboard/zatca/imports" class="btn btn-tonal btn-sm">{{ L "zatca_import.refresh" }}</a>
+    </div>
+
+    {{ if .error }}
+    <div class="rounded-lg p-4 text-sm" role="alert"
+        style="background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container)">
+        {{ .error }}
+    </div>
+    {{ end }}
+
+    <section class="section-card">
+        <div class="flex items-start gap-3 mb-4">
+            <div class="rounded-full p-2" style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L7 9m5-5l5 5M5 20h14" />
+                </svg>
+            </div>
+            <div>
+                <h2 class="section-card-title" style="margin-bottom:0">{{ L "zatca_import.upload_title" }}</h2>
+                <p class="text-sm mt-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "zatca_import.upload_help" }}</p>
+            </div>
+        </div>
+
+        <form id="zatca-import-upload-form" onsubmit="uploadSignedUBL(event)" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <label class="form-field md:col-span-2">
+                    <span class="form-label">{{ L "zatca_import.file_label" }}</span>
+                    <input id="zatca-import-file" name="file" type="file" accept=".xml,application/xml,text/xml"
+                        required class="form-input" aria-describedby="zatca-import-file-help">
+                    <span id="zatca-import-file-help" class="text-xs" style="color: var(--md-sys-color-on-surface-variant)">
+                        {{ L "zatca_import.file_help" }}
+                    </span>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">{{ L "zatca_import.provenance_label" }}</span>
+                    <input id="zatca-import-provenance" name="provenance" value="supplier_xml"
+                        maxlength="128" class="form-input">
+                </label>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <button id="zatca-import-upload-button" type="submit" class="btn btn-filled">
+                    {{ L "zatca_import.upload_button" }}
+                </button>
+                <span id="zatca-import-upload-status" class="text-sm" role="status" aria-live="polite"></span>
+            </div>
+            <div id="zatca-import-messages" hidden
+                data-required="{{ L "zatca_import.file_required" }}"
+                data-too-large="{{ L "zatca_import.file_too_large" }}"
+                data-failed="{{ L "zatca_import.upload_failed" }}"></div>
+        </form>
+    </section>
+
+    <section class="section-card">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 class="section-card-title" style="margin-bottom:0">{{ L "zatca_import.list_title" }}</h2>
+            <form method="get" action="/dashboard/zatca/imports" class="flex items-center gap-2">
+                <label for="zatca-import-status-filter" class="text-sm">{{ L "zatca_import.filter_label" }}</label>
+                <select id="zatca-import-status-filter" name="status" class="form-input" onchange="this.form.submit()">
+                    <option value="" {{ if not .status_filter }}selected{{ end }}>{{ L "zatca_import.filter_all" }}</option>
+                    <option value="review" {{ if eq .status_filter "review" }}selected{{ end }}>{{ L "zatca_import.status_pending" }}</option>
+                    <option value="approved" {{ if eq .status_filter "approved" }}selected{{ end }}>{{ L "zatca_import.status_approved" }}</option>
+                    <option value="posted" {{ if eq .status_filter "posted" }}selected{{ end }}>{{ L "zatca_import.status_posted" }}</option>
+                    <option value="rejected" {{ if eq .status_filter "rejected" }}selected{{ end }}>{{ L "zatca_import.status_rejected" }}</option>
+                </select>
+            </form>
+        </div>
+
+        <div class="data-table-wrapper">
+            <table aria-label="{{ L "zatca_import.table_label" }}">
+                <thead>
+                    <tr>
+                        <th>{{ L "zatca_import.id" }}</th>
+                        <th>{{ L "zatca_import.status" }}</th>
+                        <th>{{ L "zatca_import.hash" }}</th>
+                        <th>{{ L "zatca_import.workflow_version" }}</th>
+                        <th>{{ L "zatca_import.created_at" }}</th>
+                        <th>{{ L "tpl.actions" }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ if not .Imports }}
+                    <tr>
+                        <td colspan="6" class="text-center py-8" style="color: var(--md-sys-color-on-surface-variant)">
+                            {{ L "zatca_import.empty" }}
+                        </td>
+                    </tr>
+                    {{ end }}
+                    {{ range .Imports }}
+                    <tr data-import-state="{{ .DisplayStatus }}">
+                        <td class="font-semibold">#{{ .ID }}</td>
+                        <td>{{ template "zatca-import-status" . }}</td>
+                        <td class="font-mono text-xs max-w-xs truncate" title="{{ .SourceContentHash }}">{{ .SourceContentHash }}</td>
+                        <td>{{ .WorkflowVersion }}</td>
+                        <td class="text-xs">{{ .CreatedAt }}</td>
+                        <td>
+                            <a class="action-link action-view" href="/dashboard/zatca/imports/{{ .ID }}">{{ L "zatca_import.open" }}</a>
+                        </td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<script>
+    async function readSignedUBLFile(file) {
+        if (typeof file.text === 'function') {
+            return file.text();
+        }
+        return new Promise(function (resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function () { resolve(reader.result); };
+            reader.onerror = reject;
+            reader.readAsText(file);
+        });
+    }
+
+    function zatcaImportCSRFToken() {
+        var match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    async function uploadSignedUBL(event) {
+        event.preventDefault();
+        var form = document.getElementById('zatca-import-upload-form');
+        var fileInput = document.getElementById('zatca-import-file');
+        var button = document.getElementById('zatca-import-upload-button');
+        var status = document.getElementById('zatca-import-upload-status');
+        var messages = document.getElementById('zatca-import-messages').dataset;
+        var file = fileInput.files && fileInput.files[0];
+
+        if (!file) {
+            status.textContent = messages.required;
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            status.textContent = messages.tooLarge;
+            return;
+        }
+
+        button.disabled = true;
+        status.textContent = '{{ L "zatca_import.uploading" }}';
+        try {
+            var xmlContent = await readSignedUBLFile(file);
+            var payload = {
+                xml_content: xmlContent,
+                source: {
+                    original_name: file.name,
+                    mime_type: file.type || 'application/xml',
+                    size: file.size,
+                    provenance: document.getElementById('zatca-import-provenance').value.trim() || 'supplier_xml'
+                },
+                signature: { present: true, status: 'unverified' },
+                validation: { signature_status: 'unverified', review_required: true },
+                idempotency_key: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('frontend-' + Date.now())
+            };
+            var response = await fetch('/api/zatca/import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': zatcaImportCSRFToken()
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+            var result = {};
+            try { result = await response.json(); } catch (_) {}
+            if (!response.ok) {
+                throw new Error(result.detail || messages.failed);
+            }
+            if (!result.id) {
+                throw new Error(messages.failed);
+            }
+            window.location.assign('/dashboard/zatca/imports/' + encodeURIComponent(result.id));
+        } catch (error) {
+            status.textContent = error && error.message ? error.message : messages.failed;
+            button.disabled = false;
+        }
+    }
+</script>
+{{ end }}

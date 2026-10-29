@@ -1,0 +1,253 @@
+{{ define "content" }}
+{{ with .Import }}
+<nav class="flex items-center gap-2 text-sm mb-4" style="color: var(--md-sys-color-on-surface-variant)">
+    <a href="/dashboard/zatca/imports" class="hover:underline">{{ L "zatca_import.title" }}</a>
+    <span>/</span>
+    <span style="color: var(--md-sys-color-on-surface)">#{{ .ID }}</span>
+</nav>
+
+<div class="space-y-6">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold" style="color: var(--md-sys-color-on-surface)">
+                {{ L "zatca_import.detail_title" }} #{{ .ID }}
+            </h1>
+            <p class="text-sm mt-1" style="color: var(--md-sys-color-on-surface-variant)">
+                {{ L "zatca_import.review_subtitle" }}
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            {{ template "zatca-import-status" . }}
+            <span class="text-xs" style="color: var(--md-sys-color-on-surface-variant)">
+                {{ L "zatca_import.workflow_version" }}: {{ .WorkflowVersion }}
+            </span>
+        </div>
+    </div>
+
+    {{ if eq .DisplayStatus "pending" }}
+    <div class="rounded-lg p-4 text-sm bg-blue-50 text-blue-800" role="status">{{ L "zatca_import.pending_notice" }}</div>
+    {{ else if eq .DisplayStatus "failed" }}
+    <div class="rounded-lg p-4 text-sm bg-red-50 text-red-800" role="alert">{{ L "zatca_import.failed_notice" }}</div>
+    {{ else if eq .DisplayStatus "rejected" }}
+    <div class="rounded-lg p-4 text-sm bg-red-50 text-red-800" role="status">{{ L "zatca_import.rejected_notice" }}</div>
+    {{ else if eq .DisplayStatus "posted" }}
+    <div class="rounded-lg p-4 text-sm bg-purple-50 text-purple-800" role="status">{{ L "zatca_import.posted_notice" }}</div>
+    {{ end }}
+
+    <section class="section-card">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 class="section-card-title" style="margin-bottom:0">{{ L "zatca_import.actions_title" }}</h2>
+            <a href="/dashboard/zatca/imports" class="btn btn-outlined btn-sm">{{ L "tpl.back" }}</a>
+        </div>
+        <div id="zatca-import-action-status" class="text-sm mb-3" role="status" aria-live="polite"></div>
+        <div class="flex flex-wrap gap-2">
+            {{ if .CanApprove }}
+            <button type="button" class="btn btn-success btn-sm" onclick="reviewZatcaImport('approve')">
+                {{ L "zatca_import.approve" }}
+            </button>
+            {{ end }}
+            {{ if .CanRequestChanges }}
+            <button type="button" class="btn btn-warning btn-sm" onclick="reviewZatcaImport('request_changes')">
+                {{ L "zatca_import.request_changes" }}
+            </button>
+            {{ end }}
+            {{ if .CanPost }}
+            <button type="button" class="btn btn-filled btn-sm" onclick="postZatcaImport()">
+                {{ L "zatca_import.post" }}
+            </button>
+            {{ end }}
+            {{ if .CanReject }}
+            <button type="button" class="btn btn-error btn-sm" onclick="rejectZatcaImport()">
+                {{ L "zatca_import.reject" }}
+            </button>
+            {{ end }}
+        </div>
+        {{ if or .CanRequestChanges .CanReject }}
+        <label class="form-field mt-4 max-w-2xl">
+            <span class="form-label">{{ L "zatca_import.reason_label" }}</span>
+            <textarea id="zatca-import-reason" class="form-input" rows="3" maxlength="1024"
+                placeholder="{{ L "zatca_import.reason_placeholder" }}"></textarea>
+        </label>
+        {{ end }}
+    </section>
+
+    <section class="section-card">
+        <h2 class="section-card-title">{{ L "zatca_import.provenance_title" }}</h2>
+        {{ with .Evidence }}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="detail-field"><span class="detail-label">{{ L "zatca_import.source_reference" }}</span><span class="detail-value break-all">{{ .SourceReference }}</span></div>
+            <div class="detail-field"><span class="detail-label">{{ L "zatca_import.original_name" }}</span><span class="detail-value">{{ derefStr .SourceOriginalName }}</span></div>
+            <div class="detail-field"><span class="detail-label">{{ L "zatca_import.mime_type" }}</span><span class="detail-value">{{ .SourceMIMEType }}</span></div>
+            <div class="detail-field"><span class="detail-label">{{ L "zatca_import.provenance" }}</span><span class="detail-value">{{ .SourceProvenance }}</span></div>
+            <div class="detail-field"><span class="detail-label">{{ L "zatca_import.hash" }}</span><span class="detail-value font-mono text-xs break-all">{{ .SourceContentHash }}</span></div>
+            <div class="detail-field"><span class="detail-label">{{ L "zatca_import.source_size" }}</span><span class="detail-value">{{ .SourceSize }} bytes</span></div>
+        </div>
+        {{ if .FailureClass }}
+        <div class="mt-4 rounded-lg p-3 text-sm bg-red-50 text-red-800">
+            <strong>{{ L "zatca_import.failure_class" }}:</strong> {{ derefStr .FailureClass }}
+            {{ if .FailureMessage }} — {{ derefStr .FailureMessage }}{{ end }}
+        </div>
+        {{ end }}
+        {{ else }}
+        <p class="text-sm" style="color: var(--md-sys-color-on-surface-variant)">{{ L "zatca_import.no_evidence" }}</p>
+        {{ end }}
+    </section>
+
+    {{ with .Evidence }}
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="section-card">
+            <h2 class="section-card-title">{{ L "zatca_import.signature_title" }}</h2>
+            <pre class="text-xs whitespace-pre-wrap break-words overflow-auto" dir="ltr">{{ printf "%s" .SignatureData }}</pre>
+        </div>
+        <div class="section-card">
+            <h2 class="section-card-title">{{ L "zatca_import.validation_title" }}</h2>
+            <pre class="text-xs whitespace-pre-wrap break-words overflow-auto" dir="ltr">{{ printf "%s" .ValidationData }}</pre>
+        </div>
+        <div class="section-card">
+            <h2 class="section-card-title">{{ L "zatca_import.canonical_title" }}</h2>
+            <pre class="text-xs whitespace-pre-wrap break-words overflow-auto" dir="ltr">{{ printf "%s" .CanonicalData }}</pre>
+        </div>
+        <div class="section-card">
+            <h2 class="section-card-title">{{ L "zatca_import.parsed_title" }}</h2>
+            <pre class="text-xs whitespace-pre-wrap break-words overflow-auto" dir="ltr">{{ printf "%s" .ParsedData }}</pre>
+        </div>
+    </section>
+    {{ end }}
+
+    <section class="section-card">
+        <h2 class="section-card-title">{{ L "zatca_import.validation_errors_title" }}</h2>
+        {{ if .ValidationErrors }}
+        <div class="data-table-wrapper">
+            <table aria-label="{{ L "zatca_import.validation_errors_title" }}">
+                <thead><tr><th>{{ L "zatca_import.severity" }}</th><th>{{ L "zatca_import.error_code" }}</th><th>{{ L "zatca_import.field" }}</th><th>{{ L "zatca_import.message" }}</th><th>{{ L "zatca_import.details" }}</th></tr></thead>
+                <tbody>
+                    {{ range .ValidationErrors }}
+                    <tr>
+                        <td><span class="badge {{ if eq .Severity "error" }}bg-red-100 text-red-700{{ else }}bg-amber-100 text-amber-700{{ end }}">{{ .Severity }}</span></td>
+                        <td class="font-mono text-xs">{{ .ErrorCode }}</td>
+                        <td>{{ derefStr .FieldKey }}</td>
+                        <td>{{ .Message }}</td>
+                        <td><pre class="text-xs whitespace-pre-wrap break-words">{{ printf "%s" .Details }}</pre></td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+        {{ else }}
+        <p class="text-sm" style="color: var(--md-sys-color-on-surface-variant)">{{ L "zatca_import.no_validation_errors" }}</p>
+        {{ end }}
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="section-card">
+            <h2 class="section-card-title">{{ L "zatca_import.reviews_title" }}</h2>
+            {{ if .Reviews }}
+            <div class="space-y-3">
+                {{ range .Reviews }}
+                <div class="border-b pb-3 last:border-b-0">
+                    <div class="font-semibold">{{ .Decision }}</div>
+                    <div class="text-sm">{{ derefStr .Reason }}</div>
+                    <div class="text-xs" style="color: var(--md-sys-color-on-surface-variant)">{{ .CreatedAt }}</div>
+                </div>
+                {{ end }}
+            </div>
+            {{ else }}
+            <p class="text-sm" style="color: var(--md-sys-color-on-surface-variant)">{{ L "zatca_import.no_reviews" }}</p>
+            {{ end }}
+        </div>
+        <div class="section-card">
+            <h2 class="section-card-title">{{ L "zatca_import.history_title" }}</h2>
+            {{ if .StatusHistory }}
+            <div class="space-y-3">
+                {{ range .StatusHistory }}
+                <div class="border-b pb-3 last:border-b-0">
+                    <div class="font-semibold">{{ if .FromStatus }}{{ derefStr .FromStatus }} → {{ end }}{{ .ToStatus }}</div>
+                    <div class="text-sm">{{ derefStr .Reason }}</div>
+                    <div class="text-xs" style="color: var(--md-sys-color-on-surface-variant)">{{ .CreatedAt }}</div>
+                </div>
+                {{ end }}
+            </div>
+            {{ else }}
+            <p class="text-sm" style="color: var(--md-sys-color-on-surface-variant)">{{ L "zatca_import.no_history" }}</p>
+            {{ end }}
+        </div>
+    </section>
+</div>
+
+<script>
+    var zatcaImportID = {{ .ID }};
+    var zatcaImportWorkflowVersion = {{ .WorkflowVersion }};
+
+    function zatcaImportActionCSRFToken() {
+        var match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    async function callZatcaImportAction(path, payload) {
+        var response = await fetch(path, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': zatcaImportActionCSRFToken()
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload || {})
+        });
+        var result = {};
+        try { result = await response.json(); } catch (_) {}
+        if (!response.ok) {
+            throw new Error(result.detail || '{{ L "zatca_import.action_failed" }}');
+        }
+        return result;
+    }
+
+    function showZatcaImportActionError(error) {
+        document.getElementById('zatca-import-action-status').textContent =
+            error && error.message ? error.message : '{{ L "zatca_import.action_failed" }}';
+    }
+
+    async function reviewZatcaImport(decision) {
+        var reason = document.getElementById('zatca-import-reason');
+        try {
+            await callZatcaImportAction('/api/zatca/import/' + zatcaImportID + '/review', {
+                decision: decision,
+                reason: reason ? reason.value.trim() : '',
+                expected_workflow_version: zatcaImportWorkflowVersion
+            });
+            window.location.reload();
+        } catch (error) {
+            showZatcaImportActionError(error);
+        }
+    }
+
+    async function postZatcaImport() {
+        try {
+            await callZatcaImportAction('/api/zatca/import/' + zatcaImportID + '/post', {
+                expected_workflow_version: zatcaImportWorkflowVersion
+            });
+            window.location.reload();
+        } catch (error) {
+            showZatcaImportActionError(error);
+        }
+    }
+
+    async function rejectZatcaImport() {
+        var reason = document.getElementById('zatca-import-reason');
+        var value = reason ? reason.value.trim() : '';
+        if (!value) {
+            showZatcaImportActionError(new Error('{{ L "zatca_import.reason_required" }}'));
+            return;
+        }
+        try {
+            await callZatcaImportAction('/api/zatca/import/' + zatcaImportID + '/reject', {
+                reason: value,
+                expected_workflow_version: zatcaImportWorkflowVersion
+            });
+            window.location.reload();
+        } catch (error) {
+            showZatcaImportActionError(error);
+        }
+    }
+</script>
+{{ end }}
+{{ end }}

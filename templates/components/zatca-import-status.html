@@ -1,0 +1,17 @@
+{{ define "zatca-import-status" }}
+<span class="badge {{ .StatusClass }}" data-import-state="{{ .DisplayStatus }}">
+    {{ if eq .DisplayStatus "pending" }}
+    {{ L "zatca_import.status_pending" }}
+    {{ else if eq .DisplayStatus "failed" }}
+    {{ L "zatca_import.status_failed" }}
+    {{ else if eq .DisplayStatus "approved" }}
+    {{ L "zatca_import.status_approved" }}
+    {{ else if eq .DisplayStatus "posted" }}
+    {{ L "zatca_import.status_posted" }}
+    {{ else if eq .DisplayStatus "rejected" }}
+    {{ L "zatca_import.status_rejected" }}
+    {{ else }}
+    {{ L "zatca_import.status_unknown" }}
+    {{ end }}
+</span>
+{{ end }}

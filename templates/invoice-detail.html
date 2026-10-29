@@ -15,6 +15,68 @@
                         <span class="badge {{ .status_class }}">{{ .status }}</span>
                 </div>
 
+                {{ if .submission_state }}
+                <div class="rounded-lg border p-3 mb-4" data-testid="zatca-submission-outcome">
+                        <div class="flex flex-wrap items-center gap-2 text-sm">
+                                <span class="font-semibold">{{ L "tpl.invoice.submission_state" }}:</span>
+                                <span class="badge {{ .status_class }}">{{ .status }}</span>
+                        </div>
+                        {{ if .provider_code }}
+                        <div class="text-xs mt-2">
+                                <span class="detail-label">{{ L "tpl.invoice.provider_code" }}:</span>
+                                <span class="font-mono">{{ .provider_code }}</span>
+                        </div>
+                        {{ end }}
+                        {{ if .provider_reference }}
+                        <div class="text-xs mt-1">
+                                <span class="detail-label">{{ L "tpl.invoice.provider_reference" }}:</span>
+                                <span class="font-mono">{{ .provider_reference }}</span>
+                        </div>
+                        {{ end }}
+                        {{ if .submission_warning }}
+                        <div class="text-xs mt-1 text-amber-700">
+                                <span class="detail-label">{{ L "tpl.invoice.warning" }}:</span>
+                                <span>{{ .submission_warning }}</span>
+                        </div>
+                        {{ end }}
+                        {{ if .retry_count }}
+                        <div class="text-xs mt-1">
+                                <span class="detail-label">{{ L "tpl.invoice.retry_count" }}:</span>
+                                <span>{{ .retry_count }}</span>
+                        </div>
+                        {{ end }}
+                        {{ if .retryability_known }}
+                        <div class="text-xs mt-1">
+                                <span class="detail-label">{{ if .retryable }}{{ L "tpl.invoice.retryable" }}{{ else }}{{ L "tpl.invoice.not_retryable" }}{{ end }}</span>
+                        </div>
+                        {{ end }}
+                        {{ if .next_retry_at }}
+                        <div class="text-xs mt-1">
+                                <span class="detail-label">{{ L "tpl.invoice.next_retry" }}:</span>
+                                <span>{{ .next_retry_at }}</span>
+                        </div>
+                        {{ end }}
+                        {{ if .artifact_reference }}
+                        <div class="text-xs mt-1">
+                                <span class="detail-label">{{ L "tpl.invoice.artifact_reference" }}:</span>
+                                <span class="font-mono break-all">{{ .artifact_reference }}</span>
+                        </div>
+                        {{ end }}
+                        {{ if .request_xml_path }}
+                        <div class="text-xs mt-1">
+                                <span class="detail-label">{{ L "tpl.invoice.request_artifact" }}:</span>
+                                <span class="font-mono break-all">{{ .request_xml_path }}</span>
+                        </div>
+                        {{ end }}
+                        {{ if .cleared_xml_path }}
+                        <div class="text-xs mt-1">
+                                <span class="detail-label">{{ L "tpl.invoice.cleared_artifact" }}:</span>
+                                <span class="font-mono break-all">{{ .cleared_xml_path }}</span>
+                        </div>
+                        {{ end }}
+                </div>
+                {{ end }}
+
                 <!-- Quick Actions -->
                 <div class="detail-actions" style="margin-top:0">
                         {{ if .is_credit }}

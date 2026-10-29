@@ -71,31 +71,50 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Fetched %d invoices from backend (page %d)", len(invoices), page)
 
+	submissionOutcomes, submissionErr := FetchZatcaSubmissionOutcomes(token)
+	logZatcaSubmissionFallback(submissionErr)
+
 	// Transform to display format
 	displayInvoices := make([]map[string]interface{}, 0, len(invoices))
 	for _, inv := range invoices {
 		totalDisplay := fmt.Sprintf("%.2f", inv.Total)
-		status, statusClass := helpers.InvoiceStatus(inv)
-		status = helpers.TranslateInvoiceStatus(status)
+		var outcome *ZatcaSubmissionOutcome
+		if resolved, ok := submissionOutcomes[inv.ID]; ok {
+			outcome = &resolved
+		}
+		submission := resolveInvoiceSubmissionView(inv, outcome)
 		invoiceType := helpers.InvoiceTypeLabel(inv)
 		if inv.State == 0 {
 			invoiceType = fmt.Sprintf("%s (مسودة)", invoiceType)
 		}
 
 		displayInvoices = append(displayInvoices, map[string]interface{}{
-			"id":              inv.ID,
-			"sequence_number": inv.SequenceNumber,
-			"total":           totalDisplay,
-			"subtotal":        fmt.Sprintf("%.2f", inv.TotalBeforeVAT),
-			"vat":             fmt.Sprintf("%.2f", inv.TotalVAT),
-			"discount":        fmt.Sprintf("%.2f", inv.Discount),
-			"date":            helpers.ToDisplayDate(inv.EffectiveDate.Time),
-			"type":            invoiceType,
-			"status":          status,
-			"status_class":    statusClass,
-			"state":           inv.State,
-			"credit_state":    inv.CreditState,
-			"is_credit":       inv.CreditState > 0,
+			"id":                 inv.ID,
+			"sequence_number":    inv.SequenceNumber,
+			"total":              totalDisplay,
+			"subtotal":           fmt.Sprintf("%.2f", inv.TotalBeforeVAT),
+			"vat":                fmt.Sprintf("%.2f", inv.TotalVAT),
+			"discount":           fmt.Sprintf("%.2f", inv.Discount),
+			"date":               helpers.ToDisplayDate(inv.EffectiveDate.Time),
+			"type":               invoiceType,
+			"status":             submission.Status,
+			"status_class":       submission.StatusClass,
+			"state":              inv.State,
+			"credit_state":       inv.CreditState,
+			"is_credit":          inv.CreditState > 0,
+			"is_issued":          submission.IsIssued,
+			"submission_state":   submission.State,
+			"provider_code":      submission.ProviderCode,
+			"provider_reference": submission.ProviderReference,
+			"submission_warning": firstNonEmpty(submission.WarningCode, submission.Warning),
+			"retryable":          submission.Retryable,
+			"retryability_known": submission.RetryabilityKnown,
+			"retry_count":        submission.RetryCount,
+			"next_retry_at":      submission.NextRetryAt,
+			"request_xml_path":   submission.RequestXMLPath,
+			"cleared_xml_path":   submission.ClearedXMLPath,
+			"artifact_reference": submission.ArtifactReference,
+			"outcome_at":         submission.OutcomeAt,
 		})
 	}
 
@@ -339,7 +358,13 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 	// Also parse into Invoice for status/type helpers
 	invoice, products, manualProducts, extra, _ := helpers.ParseBillRaw(raw, id)
 
-	status, statusClass := helpers.InvoiceStatus(invoice)
+	submissionOutcomes, submissionErr := FetchZatcaSubmissionOutcomes(token)
+	logZatcaSubmissionFallback(submissionErr)
+	var outcome *ZatcaSubmissionOutcome
+	if resolved, ok := submissionOutcomes[invoice.ID]; ok {
+		outcome = &resolved
+	}
+	submission := resolveInvoiceSubmissionView(invoice, outcome)
 	invoiceType := helpers.InvoiceTypeLabel(invoice)
 	if invoice.State == 0 {
 		invoiceType = fmt.Sprintf("%s (مسودة)", invoiceType)
@@ -378,33 +403,46 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]interface{}{
-		"title":            "تفاصيل الفاتورة",
-		"invoice":          invoice,
-		"invoice_id":       id,
-		"total_display":    fmt.Sprintf("%.2f", invoice.Total),
-		"status":           status,
-		"status_class":     statusClass,
-		"type":             invoiceType,
-		"products":         products,
-		"manual_products":  manualProducts,
-		"effective_date":   effectiveDate,
-		"payment_due_date": paymentDueDate,
-		"store_name":       helpers.SafeString(extra["store_name"]),
-		"branch_name":      branchName,
-		"company_name":     helpers.SafeString(extra["company_name"]),
-		"address":          helpers.SafeString(extra["address"]),
-		"vat_registration": helpers.SafeString(extra["vat_registration"]),
-		"commercial_reg":   helpers.SafeString(extra["CommercialRegistrationNumber"]),
-		"user_name":        helpers.SafeString(extra["user_name"]),
-		"user_phone":       helpers.SafeString(extra["user_phone_number"]),
-		"note":             helpers.SafeString(extra["note"]),
-		"maintenance_cost": maintenanceCost,
-		"url":              helpers.SafeString(extra["url"]),
-		"is_draft":         invoice.State == 0,
-		"is_credit":        false,
-		"is_standard":      invoice.Type,
-		"bill_type_label":  helpers.InvoiceTypeLabel(invoice),
-		"whatsapp_enabled": GetSettingValue(token, "whatsapp_enabled") == "true",
+		"title":              "تفاصيل الفاتورة",
+		"invoice":            invoice,
+		"invoice_id":         id,
+		"total_display":      fmt.Sprintf("%.2f", invoice.Total),
+		"status":             submission.Status,
+		"status_class":       submission.StatusClass,
+		"type":               invoiceType,
+		"products":           products,
+		"manual_products":    manualProducts,
+		"effective_date":     effectiveDate,
+		"payment_due_date":   paymentDueDate,
+		"store_name":         helpers.SafeString(extra["store_name"]),
+		"branch_name":        branchName,
+		"company_name":       helpers.SafeString(extra["company_name"]),
+		"address":            helpers.SafeString(extra["address"]),
+		"vat_registration":   helpers.SafeString(extra["vat_registration"]),
+		"commercial_reg":     helpers.SafeString(extra["CommercialRegistrationNumber"]),
+		"user_name":          helpers.SafeString(extra["user_name"]),
+		"user_phone":         helpers.SafeString(extra["user_phone_number"]),
+		"note":               helpers.SafeString(extra["note"]),
+		"maintenance_cost":   maintenanceCost,
+		"url":                helpers.SafeString(extra["url"]),
+		"is_draft":           invoice.State == 0,
+		"is_issued":          submission.IsIssued,
+		"is_credit":          false,
+		"is_standard":        invoice.Type,
+		"bill_type_label":    helpers.InvoiceTypeLabel(invoice),
+		"submission_state":   submission.State,
+		"provider_code":      submission.ProviderCode,
+		"provider_reference": submission.ProviderReference,
+		"submission_warning": firstNonEmpty(submission.WarningCode, submission.Warning),
+		"retryable":          submission.Retryable,
+		"retryability_known": submission.RetryabilityKnown,
+		"retry_count":        submission.RetryCount,
+		"next_retry_at":      submission.NextRetryAt,
+		"request_xml_path":   submission.RequestXMLPath,
+		"cleared_xml_path":   submission.ClearedXMLPath,
+		"artifact_reference": submission.ArtifactReference,
+		"outcome_at":         submission.OutcomeAt,
+		"whatsapp_enabled":   GetSettingValue(token, "whatsapp_enabled") == "true",
 	}
 	helpers.Render(w, r, "invoice-detail", data)
 }

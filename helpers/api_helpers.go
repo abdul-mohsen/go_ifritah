@@ -1553,6 +1553,7 @@ func ParseBillRaw(raw map[string]interface{}, id string) (models.Invoice, []mode
 		"address", "vat_registration", "CommercialRegistrationNumber",
 		"user_name", "user_phone_number", "note",
 		"maintenance_cost", "url", "credit_note", "qr_code",
+		"invoice_uuid", "invoice_hash", "invoice_xml_path",
 		"supplier_id", "supplier_sequence_number",
 		"payment_method", "branch_id", "branch_name", "deliver_date",
 		"client_id", "vin", "pdf_link", "attachments",

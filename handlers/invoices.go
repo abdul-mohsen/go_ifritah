@@ -377,6 +377,8 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	qrCode := invoiceDetailString(extra["qr_code"])
+
 	data := map[string]interface{}{
 		"title":            "تفاصيل الفاتورة",
 		"invoice":          invoice,
@@ -400,6 +402,11 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 		"note":             helpers.SafeString(extra["note"]),
 		"maintenance_cost": maintenanceCost,
 		"url":              helpers.SafeString(extra["url"]),
+		"qr_code":          qrCode,
+		"qr_pending":       qrCode == "",
+		"invoice_uuid":     invoiceDetailString(extra["invoice_uuid"]),
+		"invoice_hash":     invoiceDetailString(extra["invoice_hash"]),
+		"invoice_xml_path": invoiceDetailString(extra["invoice_xml_path"]),
 		"is_draft":         invoice.State == 0,
 		"is_credit":        false,
 		"is_standard":      invoice.Type,
@@ -407,6 +414,21 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 		"whatsapp_enabled": GetSettingValue(token, "whatsapp_enabled") == "true",
 	}
 	helpers.Render(w, r, "invoice-detail", data)
+}
+
+func invoiceDetailString(value interface{}) string {
+	if stringValue := strings.TrimSpace(helpers.SafeString(value)); stringValue != "" {
+		return stringValue
+	}
+
+	objectValue, ok := value.(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	if valid, exists := objectValue["Valid"].(bool); exists && !valid {
+		return ""
+	}
+	return strings.TrimSpace(helpers.SafeString(objectValue["String"]))
 }
 
 // HandleSendInvoiceWhatsApp proxies invoice PDF WhatsApp sending to the backend.

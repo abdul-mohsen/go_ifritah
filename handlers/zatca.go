@@ -18,16 +18,44 @@ import (
 
 // ZatcaBranchStatus holds the ZATCA status for a branch.
 // zatca_status: 0=deleted, 1=active, 2=expired, 3=not_active, 4=expiring_soon
-// onboard_state (async worker progress): not_started|csr|compliance|invoices|done|failed
+// onboard_state (async worker progress): not_started|queued|compliance|production|done|failed
 type ZatcaBranchStatus struct {
-	BranchID     int               `json:"branch_id"`
-	BranchName   string            `json:"branch_name"`
-	Config       map[string]string `json:"config"`
-	ZatcaStatus  int               `json:"zatca_status"`
-	HasCSR       bool              `json:"has_csr"`
-	HasProd      bool              `json:"has_production"`
-	OnboardState string            `json:"onboard_state,omitempty"`
-	LastError    string            `json:"last_error,omitempty"`
+	BranchID           int               `json:"branch_id"`
+	BranchName         string            `json:"branch_name"`
+	Config             map[string]string `json:"config"`
+	ZatcaStatus        int               `json:"zatca_status"`
+	HasCSR             bool              `json:"has_csr"`
+	HasProd            bool              `json:"has_production"`
+	OnboardState       string            `json:"onboard_state,omitempty"`
+	OnboardStep        string            `json:"onboard_step,omitempty"`
+	OnboardAttempt     uint64            `json:"onboard_attempt"`
+	OnboardRetryCount  uint32            `json:"onboard_retry_count"`
+	OnboardErrorCode   string            `json:"onboard_error_code,omitempty"`
+	OnboardError       string            `json:"onboard_error,omitempty"`
+	OnboardQueuedAt    interface{}       `json:"onboard_queued_at,omitempty"`
+	OnboardStartedAt   interface{}       `json:"onboard_started_at,omitempty"`
+	OnboardCompletedAt interface{}       `json:"onboard_completed_at,omitempty"`
+	ZatcaOnboardedAt   interface{}       `json:"zatca_onboarded_at,omitempty"`
+	LastError          string            `json:"last_error,omitempty"`
+	LastAttemptAt      interface{}       `json:"last_attempt_at,omitempty"`
+}
+
+// ZatcaOnboardingState is the non-secret onboarding metadata rendered into the
+// settings page. Keeping it separate from the numeric status map preserves the
+// T028 settings contract while exposing the T010/T011 durable state.
+type ZatcaOnboardingState struct {
+	State            string      `json:"onboard_state,omitempty"`
+	Step             string      `json:"onboard_step,omitempty"`
+	Attempt          uint64      `json:"onboard_attempt"`
+	RetryCount       uint32      `json:"onboard_retry_count"`
+	ErrorCode        string      `json:"onboard_error_code,omitempty"`
+	Error            string      `json:"onboard_error,omitempty"`
+	LastError        string      `json:"last_error,omitempty"`
+	QueuedAt         interface{} `json:"onboard_queued_at,omitempty"`
+	StartedAt        interface{} `json:"onboard_started_at,omitempty"`
+	CompletedAt      interface{} `json:"onboard_completed_at,omitempty"`
+	ZatcaOnboardedAt interface{} `json:"zatca_onboarded_at,omitempty"`
+	LastAttemptAt    interface{} `json:"last_attempt_at,omitempty"`
 }
 
 // backendZatcaGetResponse maps the aliased fields returned by
@@ -54,8 +82,17 @@ type backendZatcaGetResponse struct {
 	// Async onboarding-worker progress (added in dev schema). Backend may
 	// not yet expose these in older builds; in that case they decode as
 	// zero-values and are dropped from the response by `omitempty`.
-	OnboardState string `json:"onboard_state,omitempty"`
-	LastError    string `json:"last_error,omitempty"`
+	OnboardState       string      `json:"onboard_state,omitempty"`
+	OnboardStep        string      `json:"onboard_step,omitempty"`
+	OnboardAttempt     uint64      `json:"onboard_attempt"`
+	OnboardRetryCount  uint32      `json:"onboard_retry_count"`
+	OnboardErrorCode   string      `json:"onboard_error_code,omitempty"`
+	OnboardError       string      `json:"onboard_error,omitempty"`
+	OnboardQueuedAt    interface{} `json:"onboard_queued_at,omitempty"`
+	OnboardStartedAt   interface{} `json:"onboard_started_at,omitempty"`
+	OnboardCompletedAt interface{} `json:"onboard_completed_at,omitempty"`
+	LastError          string      `json:"last_error,omitempty"`
+	LastAttemptAt      interface{} `json:"last_attempt_at,omitempty"`
 }
 
 // FetchZatcaConfigForBranch loads ZATCA config for a branch from the backend.
@@ -76,9 +113,12 @@ func FetchZatcaConfigForBranch(sessionID string, branchID int) (*ZatcaBranchStat
 	// 404 = no config row yet → return empty defaults
 	if resp.StatusCode == http.StatusNotFound {
 		return &ZatcaBranchStatus{
-			BranchID:    branchID,
-			Config:      map[string]string{},
-			ZatcaStatus: 3, // not_active
+			BranchID:       branchID,
+			Config:         map[string]string{},
+			ZatcaStatus:    3, // not_active
+			OnboardState:   "not_started",
+			OnboardStep:    "none",
+			OnboardAttempt: 0,
 		}, nil
 	}
 
@@ -110,14 +150,24 @@ func FetchZatcaConfigForBranch(sessionID string, branchID int) (*ZatcaBranchStat
 	}
 
 	return &ZatcaBranchStatus{
-		BranchID:     branchID,
-		BranchName:   br.Name,
-		Config:       cfg,
-		ZatcaStatus:  br.ZatcaStatus,
-		HasCSR:       br.CsrLen > 0,
-		HasProd:      br.ProdLen > 0,
-		OnboardState: br.OnboardState,
-		LastError:    br.LastError,
+		BranchID:           branchID,
+		BranchName:         br.Name,
+		Config:             cfg,
+		ZatcaStatus:        br.ZatcaStatus,
+		HasCSR:             br.CsrLen > 0,
+		HasProd:            br.ProdLen > 0,
+		OnboardState:       br.OnboardState,
+		OnboardStep:        br.OnboardStep,
+		OnboardAttempt:     br.OnboardAttempt,
+		OnboardRetryCount:  br.OnboardRetryCount,
+		OnboardErrorCode:   br.OnboardErrorCode,
+		OnboardError:       br.OnboardError,
+		OnboardQueuedAt:    br.OnboardQueuedAt,
+		OnboardStartedAt:   br.OnboardStartedAt,
+		OnboardCompletedAt: br.OnboardCompletedAt,
+		ZatcaOnboardedAt:   br.ZatcaOnboardedAt,
+		LastError:          br.LastError,
+		LastAttemptAt:      br.LastAttemptAt,
 	}, nil
 }
 
@@ -250,7 +300,8 @@ func HandleSaveZatcaConfig(w http.ResponseWriter, r *http.Request) {
 // Frontend sends POST → backend POST /api/v2/branch/:id/zatca/onboard
 // Backend performs: validate config → generate CSR → compliance CSID → production CSID → save.
 // Returns: {"detail":"success","zatca_status":1} on success,
-//          {"detail":"error reason"} on failure (400/500/502).
+//
+//	{"detail":"error reason"} on failure (400/500/502).
 func HandleZatcaOnboard(w http.ResponseWriter, r *http.Request) {
 	sessionID := helpers.GetSessionIDFromRequest(r)
 	if sessionID == "" {

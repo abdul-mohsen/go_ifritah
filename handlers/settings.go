@@ -350,21 +350,37 @@ func HandleSettingsPage(w http.ResponseWriter, r *http.Request) {
 	sessionID := helpers.GetSessionIDFromRequest(r)
 	zatcaByBranch := map[int]map[string]string{}
 	zatcaStatusByBranch := map[int]int{}
+	zatcaOnboardingByBranch := map[int]ZatcaOnboardingState{}
 	for _, b := range branches {
 		status, err := FetchZatcaConfigForBranch(sessionID, b.ID)
 		if err == nil {
 			zatcaByBranch[b.ID] = status.Config
 			zatcaStatusByBranch[b.ID] = status.ZatcaStatus
+			zatcaOnboardingByBranch[b.ID] = ZatcaOnboardingState{
+				State:            status.OnboardState,
+				Step:             status.OnboardStep,
+				Attempt:          status.OnboardAttempt,
+				RetryCount:       status.OnboardRetryCount,
+				ErrorCode:        status.OnboardErrorCode,
+				Error:            status.OnboardError,
+				LastError:        status.LastError,
+				QueuedAt:         status.OnboardQueuedAt,
+				StartedAt:        status.OnboardStartedAt,
+				CompletedAt:      status.OnboardCompletedAt,
+				ZatcaOnboardedAt: status.ZatcaOnboardedAt,
+				LastAttemptAt:    status.LastAttemptAt,
+			}
 		}
 	}
 
 	helpers.Render(w, r, "settings", map[string]interface{}{
-		"title":               "الإعدادات",
-		"Settings":            settings,
-		"Branches":            branches,
-		"Stores":              stores,
-		"ZatcaByBranch":       zatcaByBranch,
-		"ZatcaStatusByBranch": zatcaStatusByBranch,
+		"title":                   "الإعدادات",
+		"Settings":                settings,
+		"Branches":                branches,
+		"Stores":                  stores,
+		"ZatcaByBranch":           zatcaByBranch,
+		"ZatcaStatusByBranch":     zatcaStatusByBranch,
+		"ZatcaOnboardingByBranch": zatcaOnboardingByBranch,
 	})
 }
 

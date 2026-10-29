@@ -575,6 +575,26 @@
                 </div>
             </div>
 
+            <!-- ── Durable onboarding status ───────────────────────────── -->
+            <div id="zatca-onboarding-feedback" class="hidden mb-5 p-4 rounded-xl border"
+                 role="status" aria-live="polite"
+                 style="border-color: var(--md-sys-color-outline-variant); background: var(--md-sys-color-surface-container-low)">
+                <div class="flex items-start gap-3">
+                    <div id="zatca-onboarding-feedback-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                         style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container)">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2"></path>
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <p id="zatca-onboarding-feedback-title" class="text-sm font-semibold"></p>
+                        <p id="zatca-onboarding-feedback-step" class="text-xs mt-1"></p>
+                        <p id="zatca-onboarding-feedback-error" class="hidden text-xs mt-2"></p>
+                        <p id="zatca-onboarding-feedback-retry" class="hidden text-xs mt-2"></p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Branch reference info (read-only, from branch data) -->
             <div class="mb-5 p-4 rounded-xl border" style="background: var(--md-sys-color-surface-container-low); border-color: var(--md-sys-color-outline-variant)">
                 <div class="flex items-center gap-2 mb-3">
@@ -842,8 +862,14 @@
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                         </svg>
                     </div>
-                    <h3 class="text-lg font-bold mb-1" style="color: var(--md-sys-color-on-surface)">{{ L "tpl.settings.zatca_processing_title" }}</h3>
-                    <p class="text-sm" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.zatca_processing_desc" }}</p>
+                    <h3 id="zatca-otp-progress-title" class="text-lg font-bold mb-1" style="color: var(--md-sys-color-on-surface)">{{ L "tpl.settings.zatca_processing_title" }}</h3>
+                    <p id="zatca-otp-progress-step" class="text-sm" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.zatca_processing_desc" }}</p>
+                    <p id="zatca-otp-progress-error" class="hidden text-sm mt-2" style="color: var(--md-sys-color-error)"></p>
+                    <p id="zatca-otp-progress-retry" class="hidden text-xs mt-2" style="color: var(--md-sys-color-on-surface-variant)">{{ L "tpl.settings.zatca_retry_desc" }}</p>
+                    <button type="button" id="zatca-otp-retry" onclick="retryZatcaOnboarding()"
+                            class="hidden mt-4 px-6 py-2 rounded-xl text-white font-medium" style="background: var(--md-sys-color-primary)">
+                        {{ L "tpl.settings.zatca_retry" }}
+                    </button>
                     <button type="button" onclick="closeZatcaOtpModal()" class="mt-4 px-6 py-2 rounded-xl text-white font-medium" style="background: var(--md-sys-color-primary)">
                         {{ L "ui.done" }}
                     </button>
@@ -1073,6 +1099,12 @@
         zatcaStatusByBranch[{{ $id }}] = {{ $status }};
         {{ end }}
 
+        // Durable onboarding metadata from the T010/T011 contract. Keep this
+        // separate from the numeric status map so the T028 save-order lane
+        // remains compatible with older settings data.
+        var zatcaOnboardingByBranch = {{ if .ZatcaOnboardingByBranch }}{{ json .ZatcaOnboardingByBranch }}{{ else }}{}{{ end }};
+        var zatcaOnboardPolls = {};
+
         var zatcaFieldNames = [
             "csr_org_identifier", "csr_org_unit", "csr_org_name",
             "csr_country", "csr_location", "csr_business_category",
@@ -1088,11 +1120,31 @@
 
         // Status map: 0=deleted, 1=active, 2=expired, 3=not_active
         var zatcaStatusMap = {
-            0: { text: "محذوف",     dot: "bg-gray-400",  bg: "bg-gray-100 text-gray-600" },
-            1: { text: "متصل ✓",   dot: "bg-green-500", bg: "bg-green-100 text-green-700" },
-            2: { text: "منتهي ⚠",  dot: "bg-amber-500", bg: "bg-amber-100 text-amber-700" },
-            3: { text: "غير متصل", dot: "bg-red-500",   bg: "bg-red-100 text-red-600" },
-            4: { text: "ينتهي قريباً ⏰", dot: "bg-orange-500", bg: "bg-orange-100 text-orange-700" }
+            0: { text: "{{ L "tpl.settings.zatca_status_deleted" }}", dot: "bg-gray-400", bg: "bg-gray-100 text-gray-600" },
+            1: { text: "{{ L "tpl.settings.zatca_status_active" }} ✓", dot: "bg-green-500", bg: "bg-green-100 text-green-700" },
+            2: { text: "{{ L "tpl.settings.zatca_status_expired" }} ⚠", dot: "bg-amber-500", bg: "bg-amber-100 text-amber-700" },
+            3: { text: "{{ L "tpl.settings.zatca_status_inactive" }}", dot: "bg-red-500", bg: "bg-red-100 text-red-600" },
+            4: { text: "{{ L "tpl.settings.zatca_status_expiring_soon" }} ⏰", dot: "bg-orange-500", bg: "bg-orange-100 text-orange-700" }
+        };
+
+        var zatcaOnboardingStateLabels = {
+            queued: "{{ L "tpl.settings.zatca_state_queued" }}",
+            csr: "{{ L "tpl.settings.zatca_state_csr" }}",
+            compliance: "{{ L "tpl.settings.zatca_state_compliance" }}",
+            invoices: "{{ L "tpl.settings.zatca_state_invoices" }}",
+            production: "{{ L "tpl.settings.zatca_step_production" }}",
+            done: "{{ L "tpl.settings.zatca_connected_title" }}",
+            failed: "{{ L "tpl.settings.zatca_step_failed" }}"
+        };
+
+        var zatcaOnboardingStepLabels = {
+            queued: "{{ L "tpl.settings.zatca_state_queued" }}",
+            csr: "{{ L "tpl.settings.zatca_step_csr" }}",
+            compliance: "{{ L "tpl.settings.zatca_step_compliance" }}",
+            invoices: "{{ L "tpl.settings.zatca_step_invoices" }}",
+            production: "{{ L "tpl.settings.zatca_state_production" }}",
+            done: "{{ L "tpl.settings.zatca_step_done" }}",
+            failed: "{{ L "tpl.settings.zatca_step_failed" }}"
         };
 
         // Required fields for enabling Connect button (ALL fields must be filled)
@@ -1186,8 +1238,111 @@
             }
         }
 
-        function updateZatcaStatusBadge(status) {
-            var info = zatcaStatusMap[status] || zatcaStatusMap[3];
+        function getZatcaOnboarding(branchId, override) {
+            var raw = override || (zatcaOnboardingByBranch && zatcaOnboardingByBranch[branchId]) || {};
+            return {
+                state: String(raw.onboard_state || '').trim().toLowerCase(),
+                step: String(raw.onboard_step || '').trim().toLowerCase(),
+                attempt: Number(raw.onboard_attempt || 0),
+                retryCount: Number(raw.onboard_retry_count || 0),
+                errorCode: String(raw.onboard_error_code || '').trim().toLowerCase(),
+                error: String(raw.onboard_error || raw.last_error || '').trim(),
+                completedAt: raw.onboard_completed_at || ''
+            };
+        }
+
+        function isZatcaOnboardingPending(state) {
+            return state === 'queued' || state === 'csr' || state === 'compliance' ||
+                state === 'invoices' || state === 'production';
+        }
+
+        function effectiveZatcaStatus(status, onboardingState) {
+            var numericStatus = Number(status);
+            if (!Number.isFinite(numericStatus)) numericStatus = 3;
+            // An explicit durable state wins over a stale numeric status. A
+            // branch is not active until the daemon has written done.
+            if (onboardingState && onboardingState !== 'done') return 3;
+            return numericStatus;
+        }
+
+        function getZatcaOnboardingErrorMessage(onboarding) {
+            if (onboarding.errorCode === 'invalid_otp') {
+                return '{{ L "tpl.settings.zatca_invalid_otp" }}';
+            }
+            if (onboarding.errorCode === 'provider_unavailable') {
+                return '{{ L "tpl.settings.zatca_provider_unavailable" }}';
+            }
+            if (onboarding.errorCode) {
+                return '{{ L "tpl.settings.zatca_onboarding_error" }}';
+            }
+            return onboarding.error || '{{ L "tpl.settings.zatca_onboarding_error" }}';
+        }
+
+        function stopZatcaOnboardPolling(branchId) {
+            if (zatcaOnboardPolls[branchId]) {
+                clearInterval(zatcaOnboardPolls[branchId]);
+                delete zatcaOnboardPolls[branchId];
+            }
+        }
+
+        function updateZatcaOnboardingFeedback(branchId) {
+            var onboarding = getZatcaOnboarding(branchId);
+            var panel = document.getElementById('zatca-onboarding-feedback');
+            var title = document.getElementById('zatca-onboarding-feedback-title');
+            var step = document.getElementById('zatca-onboarding-feedback-step');
+            var error = document.getElementById('zatca-onboarding-feedback-error');
+            var retry = document.getElementById('zatca-onboarding-feedback-retry');
+            if (!panel || !title || !step || !error || !retry) return;
+
+            var state = onboarding.state;
+            if (!state || state === 'not_started') {
+                panel.classList.add('hidden');
+                return;
+            }
+
+            panel.classList.remove('hidden');
+            title.textContent = zatcaOnboardingStateLabels[state] || '{{ L "tpl.settings.zatca_processing_title" }}';
+            step.textContent = zatcaOnboardingStepLabels[onboarding.step || state] ||
+                '{{ L "tpl.settings.zatca_processing_desc" }}';
+            error.classList.add('hidden');
+            retry.classList.add('hidden');
+
+            if (state === 'failed') {
+                panel.style.borderColor = 'var(--md-sys-color-error, #dc2626)';
+                title.style.color = 'var(--md-sys-color-error, #dc2626)';
+                error.textContent = getZatcaOnboardingErrorMessage(onboarding);
+                error.classList.remove('hidden');
+                retry.textContent = '{{ L "tpl.settings.zatca_retry_desc" }}' +
+                    (onboarding.retryCount > 0 ? ' ({{ L "tpl.settings.zatca_retry_count" }}: ' + onboarding.retryCount + ')' : '');
+                retry.classList.remove('hidden');
+            } else if (state === 'done') {
+                panel.style.borderColor = 'var(--md-sys-color-primary, #16a34a)';
+                title.style.color = 'var(--md-sys-color-primary, #16a34a)';
+            } else {
+                panel.style.borderColor = 'var(--md-sys-color-outline-variant)';
+                title.style.color = 'var(--md-sys-color-on-surface)';
+            }
+        }
+
+        function updateZatcaStatusBadge(status, onboardingOverride) {
+            var branchId = document.getElementById('zatca-branch-id').value;
+            var onboarding = getZatcaOnboarding(branchId, onboardingOverride);
+            var state = onboarding.state;
+            var displayStatus = effectiveZatcaStatus(status, state);
+            var info = zatcaStatusMap[displayStatus] || zatcaStatusMap[3];
+            if (isZatcaOnboardingPending(state)) {
+                info = {
+                    text: zatcaOnboardingStateLabels[state] || '{{ L "tpl.settings.zatca_processing_title" }}',
+                    dot: "bg-blue-500",
+                    bg: "bg-blue-100 text-blue-700"
+                };
+            } else if (state === 'failed') {
+                info = {
+                    text: zatcaOnboardingStateLabels.failed,
+                    dot: "bg-red-500",
+                    bg: "bg-red-100 text-red-700"
+                };
+            }
             var dot = document.getElementById('zatca-status-dot');
             var text = document.getElementById('zatca-status-text');
             var badge = document.getElementById('zatca-status-badge');
@@ -1199,8 +1354,11 @@
             var btn = document.getElementById('zatca-connect-btn');
             var btnIcon = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ';
             if (btn) {
-                if (status === 1) {
+                if (Number(status) === 1 && (!state || state === 'done')) {
                     btn.innerHTML = '{{ L "tpl.settings.zatca_status_active" }} ✓';
+                    btn.disabled = true;
+                } else if (isZatcaOnboardingPending(state)) {
+                    btn.innerHTML = btnIcon + '{{ L "tpl.settings.zatca_onboarding" }}';
                     btn.disabled = true;
                 } else if (status === 2 || status === 4) {
                     btn.innerHTML = btnIcon + '{{ L "tpl.settings.zatca_renew" }}';
@@ -1211,11 +1369,14 @@
                     checkZatcaConnectReady();
                 }
             }
+            updateZatcaOnboardingFeedback(branchId);
         }
 
         function checkZatcaConnectReady() {
             var branchId = document.getElementById('zatca-branch-id').value;
             var status = zatcaStatusByBranch[branchId];
+            var onboarding = getZatcaOnboarding(branchId);
+            var onboardingState = onboarding.state;
 
             // Count filled fields for progress
             var filledCount = 0;
@@ -1276,9 +1437,19 @@
             }
 
             // Update stepper icons
-            updateStepperIcons(filledCount === totalFields, zatcaConfigSaved, status);
+            updateStepperIcons(filledCount === totalFields, zatcaConfigSaved,
+                effectiveZatcaStatus(status, onboardingState));
 
-            if (status === 1) return; // already connected
+            if (Number(status) === 1 && (!onboardingState || onboardingState === 'done')) {
+                var connectedBtn = document.getElementById('zatca-connect-btn');
+                if (connectedBtn) connectedBtn.disabled = true;
+                return;
+            }
+            if (isZatcaOnboardingPending(onboardingState)) {
+                var pendingBtn = document.getElementById('zatca-connect-btn');
+                if (pendingBtn) pendingBtn.disabled = true;
+                return;
+            }
 
             // Validate VAT and CRN formats
             var vatVal = (document.getElementById('zatca_seller_vat').value || '').trim();
@@ -1289,7 +1460,8 @@
             showFieldError('zatca_seller_crn', crnErr);
 
             var allFilled = filledCount === totalFields;
-            var valid = allFilled && !vatErr && !crnErr && zatcaConfigSaved && !zatcaSavePending;
+            var valid = allFilled && !vatErr && !crnErr && zatcaConfigSaved && !zatcaSavePending &&
+                !isZatcaOnboardingPending(onboardingState);
             var btn = document.getElementById('zatca-connect-btn');
             if (btn) btn.disabled = !valid;
         }
@@ -1472,6 +1644,10 @@
         };
 
         window.switchZatcaBranch = function(branchId) {
+            var previousBranchId = document.getElementById('zatca-branch-id').value;
+            if (previousBranchId && previousBranchId !== String(branchId)) {
+                stopZatcaOnboardPolling(previousBranchId);
+            }
             document.getElementById('zatca-branch-id').value = branchId;
             // Update the "create store" deep link so the new store is
             // pre-linked to this branch (fixes: user adds a store but
@@ -1609,7 +1785,7 @@
             var otp = document.getElementById('zatca-otp-input').value.trim();
             var errEl = document.getElementById('zatca-otp-error');
             if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
-                errEl.textContent = 'OTP يجب أن يكون 6 أرقام';
+                errEl.textContent = '{{ L "tpl.settings.zatca_invalid_otp" }}';
                 errEl.classList.remove('hidden');
                 return;
             }
@@ -1641,7 +1817,25 @@
             .then(function(result) {
                 btn.disabled = false;
                 btn.innerHTML = origHtml;
-                if (result.status === 200) {
+                if (result.status >= 200 && result.status < 300) {
+                    if (result.data && typeof result.data === 'object') {
+                        if (result.data.zatca_status !== undefined) {
+                            zatcaStatusByBranch[branchId] = result.data.zatca_status;
+                        }
+                        for (var key in result.data) {
+                            if (Object.prototype.hasOwnProperty.call(result.data, key)) {
+                                if (!zatcaOnboardingByBranch[branchId]) zatcaOnboardingByBranch[branchId] = {};
+                                if (key.indexOf('onboard_') === 0 || key === 'last_error' || key === 'last_attempt_at') {
+                                    zatcaOnboardingByBranch[branchId][key] = result.data[key];
+                                }
+                            }
+                        }
+                    }
+                    var queuedState = getZatcaOnboarding(branchId);
+                    if (queuedState.state === 'failed') {
+                        showZatcaOnboardingFailure(branchId, result.data, result.status);
+                        return;
+                    }
                     // Backend has accepted the OTP and queued onboarding for
                     // async processing. The DB row's zatca_status will only
                     // flip to 1 (active) once the worker finishes generating
@@ -1650,29 +1844,121 @@
                     // poll the GET endpoint until terminal state is reached.
                     document.getElementById('zatca-otp-form-state').classList.add('hidden');
                     document.getElementById('zatca-otp-success-state').classList.remove('hidden');
+                    updateZatcaStatusBadge(zatcaStatusByBranch[branchId] || 3);
                     if (typeof showToast === 'function') {
                         showToast(result.data.detail || '{{ L "tpl.settings.zatca_processing_desc" }}', 'info');
                     }
-                    pollZatcaOnboardStatus(branchId);
+                    if (queuedState.state === 'done') {
+                        stopZatcaOnboardPolling(branchId);
+                    } else {
+                        pollZatcaOnboardStatus(branchId);
+                    }
                 } else {
-                    var errMsg = (result.data && (result.data.detail || result.data.error)) || 'فشل الربط';
-                    errEl.textContent = errMsg;
-                    errEl.classList.remove('hidden');
-                    if (typeof showToast === 'function') showToast(errMsg, 'error');
+                    showZatcaOnboardingFailure(branchId, result.data, result.status);
                 }
             })
-            .catch(function() {
+            .catch(function(err) {
                 btn.disabled = false;
                 btn.innerHTML = origHtml;
-                errEl.textContent = 'خطأ في الاتصال بالخادم';
+                errEl.textContent = (err && err.message) || '{{ L "tpl.settings.zatca_onboarding_error" }}';
                 errEl.classList.remove('hidden');
             });
         };
 
+        function rememberZatcaOnboarding(branchId, payload) {
+            if (!payload || typeof payload !== 'object') return;
+            if (!zatcaOnboardingByBranch[branchId]) zatcaOnboardingByBranch[branchId] = {};
+            for (var key in payload) {
+                if (Object.prototype.hasOwnProperty.call(payload, key)) {
+                    if (key.indexOf('onboard_') === 0 || key === 'last_error' || key === 'last_attempt_at') {
+                        zatcaOnboardingByBranch[branchId][key] = payload[key];
+                    }
+                }
+            }
+        }
+
+        function showZatcaOnboardingFailure(branchId, payload, responseStatus) {
+            var data = payload && typeof payload === 'object' ? payload : {};
+            var detail = String(data.onboard_error || data.last_error || data.detail || data.error || '').trim();
+            var errorCode = String(data.onboard_error_code || data.error_code || '').trim().toLowerCase();
+            if (!errorCode && responseStatus === 400 && /otp/i.test(detail)) {
+                errorCode = 'invalid_otp';
+            }
+            rememberZatcaOnboarding(branchId, {
+                onboard_state: 'failed',
+                onboard_step: 'failed',
+                onboard_error_code: errorCode,
+                onboard_error: detail
+            });
+            stopZatcaOnboardPolling(branchId);
+            updateZatcaStatusBadge(zatcaStatusByBranch[branchId] || 3);
+            updateZatcaOtpProgress(getZatcaOnboarding(branchId));
+
+            var errEl = document.getElementById('zatca-otp-error');
+            var formState = document.getElementById('zatca-otp-form-state');
+            var successState = document.getElementById('zatca-otp-success-state');
+            var modal = document.getElementById('zatca-otp-modal');
+            var message = getZatcaOnboardingErrorMessage(getZatcaOnboarding(branchId));
+            if (errEl && formState && !formState.classList.contains('hidden')) {
+                errEl.textContent = message;
+                errEl.classList.remove('hidden');
+            } else if (successState && modal && !modal.classList.contains('hidden')) {
+                formState.classList.add('hidden');
+                successState.classList.remove('hidden');
+            }
+            if (typeof showToast === 'function') showToast(message, 'error');
+        }
+
+        function updateZatcaOtpProgress(onboarding) {
+            var title = document.getElementById('zatca-otp-progress-title');
+            var step = document.getElementById('zatca-otp-progress-step');
+            var error = document.getElementById('zatca-otp-progress-error');
+            var retryText = document.getElementById('zatca-otp-progress-retry');
+            var retryBtn = document.getElementById('zatca-otp-retry');
+            if (!title || !step || !error || !retryText || !retryBtn) return;
+
+            var state = onboarding && onboarding.state ? onboarding.state : 'queued';
+            var stepName = onboarding && onboarding.step ? onboarding.step : state;
+            title.textContent = zatcaOnboardingStateLabels[state] || '{{ L "tpl.settings.zatca_processing_title" }}';
+            step.textContent = zatcaOnboardingStepLabels[stepName] || '{{ L "tpl.settings.zatca_processing_desc" }}';
+            error.classList.add('hidden');
+            retryText.classList.add('hidden');
+            retryBtn.classList.add('hidden');
+            if (state === 'failed') {
+                error.textContent = getZatcaOnboardingErrorMessage(onboarding);
+                error.classList.remove('hidden');
+                retryText.classList.remove('hidden');
+                retryBtn.classList.remove('hidden');
+            } else if (state === 'done') {
+                title.textContent = '{{ L "tpl.settings.zatca_connected_title" }}';
+                step.textContent = '{{ L "tpl.settings.zatca_step_done" }}';
+            }
+        }
+
+        window.retryZatcaOnboarding = function() {
+            var branchId = document.getElementById('zatca-branch-id').value;
+            stopZatcaOnboardPolling(branchId);
+            var formState = document.getElementById('zatca-otp-form-state');
+            var successState = document.getElementById('zatca-otp-success-state');
+            var otpInput = document.getElementById('zatca-otp-input');
+            var errEl = document.getElementById('zatca-otp-error');
+            if (formState) formState.classList.remove('hidden');
+            if (successState) successState.classList.add('hidden');
+            if (otpInput) {
+                otpInput.value = '';
+                otpInput.focus();
+            }
+            if (errEl) {
+                errEl.textContent = '';
+                errEl.classList.add('hidden');
+            }
+        };
+
         // Poll backend GET /api/zatca/branch/:id every 3s for up to 2 minutes
-        // looking for a terminal onboard_state (done|failed) or zatca_status
-        // change away from 3 (not_active). Stops on first terminal signal.
+        // looking for a terminal durable onboard_state (done|failed). Numeric
+        // status alone is not terminal while a durable state is present.
         function pollZatcaOnboardStatus(branchId) {
+            stopZatcaOnboardPolling(branchId);
             var attempts = 0;
             var maxAttempts = 40; // 40 * 3s = 120s
             var iv = setInterval(function() {
@@ -1683,25 +1969,32 @@
                         if (!payload || !payload.detail) return;
                         var s = payload.detail;
                         var status = s.zatca_status;
-                        var state = s.onboard_state || '';
+                        rememberZatcaOnboarding(branchId, s);
+                        var onboarding = getZatcaOnboarding(branchId);
+                        var state = onboarding.state;
                         zatcaStatusByBranch[branchId] = status;
                         updateZatcaStatusBadge(status);
-                        if (state === 'failed' || (status && status !== 3)) {
-                            clearInterval(iv);
-                            if (state === 'failed') {
-                                if (typeof showToast === 'function') {
-                                    showToast(s.last_error || '{{ L "tpl.settings.zatca_step_failed" }}', 'error');
-                                }
-                            } else if (status === 1) {
-                                if (typeof showToast === 'function') {
-                                    showToast('{{ L "tpl.settings.zatca_connected_desc" }}', 'success');
-                                }
+                        if (state === 'failed') {
+                            stopZatcaOnboardPolling(branchId);
+                            updateZatcaOtpProgress(onboarding);
+                            if (typeof showToast === 'function') {
+                                showToast(getZatcaOnboardingErrorMessage(onboarding), 'error');
                             }
+                            return;
                         }
-                        if (attempts >= maxAttempts) clearInterval(iv);
+                        if (state === 'done' || (!state && Number(status) === 1)) {
+                            stopZatcaOnboardPolling(branchId);
+                            updateZatcaOtpProgress(state === 'done' ? onboarding : { state: 'done', step: 'done' });
+                            if (typeof showToast === 'function') {
+                                showToast('{{ L "tpl.settings.zatca_connected_desc" }}', 'success');
+                            }
+                            return;
+                        }
+                        if (attempts >= maxAttempts) stopZatcaOnboardPolling(branchId);
                     })
                     .catch(function() {});
             }, 3000);
+            zatcaOnboardPolls[branchId] = iv;
         }
 
         // Close modal on Escape key

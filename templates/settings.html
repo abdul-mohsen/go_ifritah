@@ -828,7 +828,7 @@
                         </button>
                         <button type="button" id="zatca-otp-submit" onclick="submitZatcaOtp()"
                                 class="flex-1 px-4 py-2.5 rounded-xl text-white font-medium transition flex items-center justify-center gap-2"
-                                style="background: var(--md-sys-color-primary)">
+                                style="background: var(--md-sys-color-primary)" disabled>
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                             {{ L "tpl.settings.zatca_connect" }}
                         </button>
@@ -1103,6 +1103,8 @@
             'zatca_street', 'zatca_building', 'zatca_district', 'zatca_postal_code'
         ];
         var zatcaConfigSaved = false; // tracks whether config has been saved for current branch
+        var zatcaSavePending = false; // keeps onboarding disabled until both saves finish
+        var zatcaSavePromise = null;
 
         // Validation rules for specific fields
         function validateVat(val) {
@@ -1287,7 +1289,7 @@
             showFieldError('zatca_seller_crn', crnErr);
 
             var allFilled = filledCount === totalFields;
-            var valid = allFilled && !vatErr && !crnErr && zatcaConfigSaved;
+            var valid = allFilled && !vatErr && !crnErr && zatcaConfigSaved && !zatcaSavePending;
             var btn = document.getElementById('zatca-connect-btn');
             if (btn) btn.disabled = !valid;
         }
@@ -1363,14 +1365,15 @@
             var branchId = document.getElementById('zatca-branch-id').value;
             if (!branchId) {
                 if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_select_branch" }}', 'error');
-                return;
+                return Promise.resolve(false);
             }
             // Block if no store is linked — address must come from a store.
             var noStorePanel = document.getElementById('zatca-address-no-store');
             if (noStorePanel && !noStorePanel.classList.contains('hidden')) {
                 if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_no_store" }}', 'error');
-                return;
+                return Promise.resolve(false);
             }
+            if (zatcaSavePending && zatcaSavePromise) return zatcaSavePromise;
 
             // NOTE: city + OrgUnit/OrgName regex pre-flight checks live on
             // the OTP modal (openZatcaOtpModal) where they are actually
@@ -1384,11 +1387,17 @@
             });
 
             // Default country to SA if empty
-            if (!config['csr_country']) config['csr_country'] = 'SA';            var btn = document.getElementById('zatca-save-btn');
+            if (!config['csr_country']) config['csr_country'] = 'SA';
+            var btn = document.getElementById('zatca-save-btn');
             var statusEl = document.getElementById('zatca-save-status');
             var origHtml = btn.innerHTML;
+            var otpSubmitBtn = document.getElementById('zatca-otp-submit');
+            zatcaSavePending = true;
+            zatcaConfigSaved = false;
             btn.disabled = true;
             btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> {{ L "ui.saving" }}...';
+            if (otpSubmitBtn) otpSubmitBtn.disabled = true;
+            checkZatcaConnectReady();
 
             // Disable form fields during save
             var formFields = [];
@@ -1398,65 +1407,68 @@
             });
             formFields.forEach(function(f) { f.disabled = true; });
 
-            fetch('/api/zatca/branch/' + branchId, {
+            var savePromise = fetch('/api/zatca/branch/' + branchId, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfValue },
                 body: JSON.stringify(config)
             })
             .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, status: r.status, data: data }; }); })
             .then(function(result) {
-                btn.disabled = false;
-                btn.innerHTML = origHtml;
-                formFields.forEach(function(f) { f.disabled = false; });
-                if (result.ok) {
-                    zatcaConfigSaved = true;
-                    // Update local cache
-                    zatcaBranchData[branchId] = config;
-                    if (statusEl) {
-                        statusEl.textContent = '✓ {{ L "tpl.settings.zatca_saved_at" }} ' + new Date().toLocaleTimeString('ar-SA');
-                        statusEl.classList.remove('hidden');
-                        statusEl.style.color = 'var(--md-sys-color-primary)';
-                    }
-                    checkZatcaConnectReady();
-                    if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_config_saved" }}', 'success');
-                    // Persist city + co-located address fields to the
-                    // branch's first store. The daemon reads `store.city`
-                    // with NO fallback — branch_zatca_config has no city.
-                    var cityInput = document.getElementById('zatca_city');
-                    var city = cityInput ? (cityInput.value || '').trim() : '';
-                    saveBranchStoreCity(branchId, {
-                        street_name:     config.street     || '',
-                        building_number: config.building   || '',
-                        district:        config.district   || '',
-                        city:            city,
-                        postal_code:     config.postal_code|| '',
-                        country:         config.csr_country|| 'SA'
-                    });
-                } else {
-                    zatcaConfigSaved = false;
-                    var errMsg = (result.data && (result.data.detail || result.data.error)) || '{{ L "tpl.settings.zatca_save_failed" }}';
-                    if (statusEl) {
-                        statusEl.textContent = '✗ ' + errMsg;
-                        statusEl.classList.remove('hidden');
-                        statusEl.style.color = 'var(--md-sys-color-error)';
-                    }
-                    checkZatcaConnectReady();
-                    if (typeof showToast === 'function') showToast(errMsg, 'error');
+                if (!result.ok) {
+                    var configErr = (result.data && (result.data.detail || result.data.error)) || '{{ L "tpl.settings.zatca_save_failed" }}';
+                    throw new Error(configErr);
                 }
+                // Persist city + co-located address fields to the branch's
+                // first store before reporting the complete save as done.
+                var cityInput = document.getElementById('zatca_city');
+                var city = cityInput ? (cityInput.value || '').trim() : '';
+                return saveBranchStoreCity(branchId, {
+                    street_name:     config.street     || '',
+                    building_number: config.building   || '',
+                    district:        config.district   || '',
+                    city:            city,
+                    postal_code:     config.postal_code|| '',
+                    country:         config.csr_country|| 'SA'
+                }).then(function(storeSaved) {
+                    if (!storeSaved) throw new Error('{{ L "tpl.settings.zatca_save_failed" }}');
+                    return result;
+                });
             })
-            .catch(function() {
-                btn.disabled = false;
-                btn.innerHTML = origHtml;
-                formFields.forEach(function(f) { f.disabled = false; });
+            .then(function() {
+                zatcaConfigSaved = true;
+                // Update local cache only after both saves have succeeded.
+                zatcaBranchData[branchId] = config;
+                if (statusEl) {
+                    statusEl.textContent = '✓ {{ L "tpl.settings.zatca_saved_at" }} ' + new Date().toLocaleTimeString('ar-SA');
+                    statusEl.classList.remove('hidden');
+                    statusEl.style.color = 'var(--md-sys-color-primary)';
+                }
+                checkZatcaConnectReady();
+                if (typeof showToast === 'function') showToast('{{ L "tpl.settings.zatca_config_saved" }}', 'success');
+                return true;
+            })
+            .catch(function(err) {
                 zatcaConfigSaved = false;
-                var errMsg = '{{ L "tpl.settings.zatca_save_failed" }}';
+                var errMsg = (err && err.message) || '{{ L "tpl.settings.zatca_save_failed" }}';
                 if (statusEl) {
                     statusEl.textContent = '✗ ' + errMsg;
                     statusEl.classList.remove('hidden');
                     statusEl.style.color = 'var(--md-sys-color-error)';
                 }
                 if (typeof showToast === 'function') showToast(errMsg, 'error');
+                return false;
+            })
+            .then(function(saved) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+                formFields.forEach(function(f) { f.disabled = false; });
+                zatcaSavePending = false;
+                zatcaSavePromise = null;
+                checkZatcaConnectReady();
+                return saved;
             });
+            zatcaSavePromise = savePromise;
+            return savePromise;
         };
 
         window.switchZatcaBranch = function(branchId) {
@@ -1562,16 +1574,25 @@
                     }
                     return;
                 }
-                // Auto-save config before opening OTP modal
-                if (!zatcaConfigSaved) {
-                    saveZatcaConfig();
+                var openModal = function() {
+                    var modal = document.getElementById('zatca-otp-modal');
+                    var otpSubmitBtn = document.getElementById('zatca-otp-submit');
+                    if (otpSubmitBtn) otpSubmitBtn.disabled = false;
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                    document.getElementById('zatca-otp-input').value = '';
+                    document.getElementById('zatca-otp-error').classList.add('hidden');
+                    setTimeout(function() { document.getElementById('zatca-otp-input').focus(); }, 100);
+                };
+                // Auto-save config before opening OTP modal. Do not expose
+                // the OTP submit control until the complete save resolves.
+                if (!zatcaConfigSaved || zatcaSavePending) {
+                    saveZatcaConfig().then(function(saved) {
+                        if (saved) openModal();
+                    });
+                    return;
                 }
-                var modal = document.getElementById('zatca-otp-modal');
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-                document.getElementById('zatca-otp-input').value = '';
-                document.getElementById('zatca-otp-error').classList.add('hidden');
-                setTimeout(function() { document.getElementById('zatca-otp-input').focus(); }, 100);
+                openModal();
             });
         };
 
@@ -1597,6 +1618,11 @@
             var branchId = document.getElementById('zatca-branch-id').value;
             if (!branchId) {
                 errEl.textContent = '{{ L "tpl.settings.zatca_select_branch" }}';
+                errEl.classList.remove('hidden');
+                return;
+            }
+            if (zatcaSavePending) {
+                errEl.textContent = '{{ L "ui.saving" }}...';
                 errEl.classList.remove('hidden');
                 return;
             }

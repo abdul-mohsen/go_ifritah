@@ -7,10 +7,17 @@
 </nav>
 
 <div class="space-y-6">
+    {{ template "error-alert" . }}
+    <div id="zm-loading-state" class="{{ if not .MonitorLoading }}hidden{{ end }} rounded-lg px-4 py-3 text-sm"
+         role="status" aria-live="polite"
+         style="background: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface-variant)">
+        {{ L "zatca_monitor.loading" }}
+    </div>
+
     <!-- ═══ Header + Refresh ═══ -->
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold" style="color: var(--md-sys-color-on-surface)">{{ L "zatca_monitor.title" }}</h1>
-        <button onclick="refreshZatcaMonitor()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition"
+        <button id="zm-refresh-button" onclick="refreshZatcaMonitor()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition"
                 style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container)">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -24,27 +31,37 @@
         <!-- Total Submitted -->
         <div class="rounded-xl p-4" style="background: var(--md-sys-color-surface-container); border: 1px solid var(--md-sys-color-outline-variant)">
             <div class="text-xs font-medium mb-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "zatca_monitor.total_submitted" }}</div>
-            <div class="text-2xl font-bold" style="color: var(--md-sys-color-on-surface)" id="zm-total">{{ .Stats.TotalSubmitted }}</div>
+            <div class="text-2xl font-bold" style="color: var(--md-sys-color-on-surface)" id="zm-total">
+                {{ if .StatsReady }}{{ .Stats.TotalSubmitted }}{{ else }}{{ L "zatca_monitor.unavailable" }}{{ end }}
+            </div>
         </div>
         <!-- Accepted -->
         <div class="rounded-xl p-4" style="background: var(--md-sys-color-surface-container); border: 1px solid var(--md-sys-color-outline-variant)">
             <div class="text-xs font-medium mb-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "zatca_monitor.accepted" }}</div>
-            <div class="text-2xl font-bold text-green-600" id="zm-accepted">{{ .Stats.Accepted }}</div>
+            <div class="text-2xl font-bold text-green-600" id="zm-accepted">
+                {{ if .StatsReady }}{{ .Stats.Accepted }}{{ else }}{{ L "zatca_monitor.unavailable" }}{{ end }}
+            </div>
         </div>
         <!-- Accepted with Warnings -->
         <div class="rounded-xl p-4" style="background: var(--md-sys-color-surface-container); border: 1px solid var(--md-sys-color-outline-variant)">
             <div class="text-xs font-medium mb-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "zatca_monitor.warnings" }}</div>
-            <div class="text-2xl font-bold text-amber-600" id="zm-warnings">{{ .Stats.Warnings }}</div>
+            <div class="text-2xl font-bold text-amber-600" id="zm-warnings">
+                {{ if .StatsReady }}{{ .Stats.Warnings }}{{ else }}{{ L "zatca_monitor.unavailable" }}{{ end }}
+            </div>
         </div>
         <!-- Rejected -->
         <div class="rounded-xl p-4" style="background: var(--md-sys-color-surface-container); border: 1px solid var(--md-sys-color-outline-variant)">
             <div class="text-xs font-medium mb-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "zatca_monitor.rejected" }}</div>
-            <div class="text-2xl font-bold text-red-600" id="zm-rejected">{{ .Stats.Rejected }}</div>
+            <div class="text-2xl font-bold text-red-600" id="zm-rejected">
+                {{ if .StatsReady }}{{ .Stats.Rejected }}{{ else }}{{ L "zatca_monitor.unavailable" }}{{ end }}
+            </div>
         </div>
         <!-- Pending -->
         <div class="rounded-xl p-4" style="background: var(--md-sys-color-surface-container); border: 1px solid var(--md-sys-color-outline-variant)">
             <div class="text-xs font-medium mb-1" style="color: var(--md-sys-color-on-surface-variant)">{{ L "zatca_monitor.pending" }}</div>
-            <div class="text-2xl font-bold text-blue-600" id="zm-pending">{{ .Stats.Pending }}</div>
+            <div class="text-2xl font-bold text-blue-600" id="zm-pending">
+                {{ if .StatsReady }}{{ .Stats.Pending }}{{ else }}{{ L "zatca_monitor.unavailable" }}{{ end }}
+            </div>
         </div>
     </div>
 
@@ -66,13 +83,26 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {{ if .BranchesError }}
+                    <tr style="border-top: 1px solid var(--md-sys-color-outline-variant)">
+                        <td colspan="6" class="px-4 py-6 text-center text-sm" style="color: var(--md-sys-color-error)">
+                            {{ L "zatca_monitor.section_error" }}
+                        </td>
+                    </tr>
+                    {{ else if not .BranchStatuses }}
+                    <tr style="border-top: 1px solid var(--md-sys-color-outline-variant)">
+                        <td colspan="6" class="px-4 py-6 text-center text-sm" style="color: var(--md-sys-color-on-surface-variant)">
+                            {{ L "zatca_monitor.empty_branches" }}
+                        </td>
+                    </tr>
+                    {{ else }}
                     {{ range .BranchStatuses }}
                     <tr style="border-top: 1px solid var(--md-sys-color-outline-variant)">
                         <td class="px-4 py-3 font-medium" style="color: var(--md-sys-color-on-surface)">{{ .BranchName }}</td>
                         <td class="px-4 py-3">
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {{ .StatusBg }}">
                                 <span class="w-2 h-2 rounded-full {{ .StatusDot }}"></span>
-                                {{ .StatusText }}
+                                {{ L .StatusLabelKey }}
                             </span>
                         </td>
                         <td class="px-4 py-3 text-xs" style="color: var(--md-sys-color-on-surface-variant)">{{ .CertExpiry }}</td>
@@ -88,6 +118,7 @@
                         </td>
                         <td class="px-4 py-3 text-center text-xs" style="color: var(--md-sys-color-on-surface-variant)">{{ .LastSubmission }}</td>
                     </tr>
+                    {{ end }}
                     {{ end }}
                 </tbody>
             </table>
@@ -105,6 +136,9 @@
                     <option value="warning">{{ L "zatca_monitor.filter_warning" }}</option>
                     <option value="rejected">{{ L "zatca_monitor.filter_rejected" }}</option>
                     <option value="pending">{{ L "zatca_monitor.filter_pending" }}</option>
+                    <option value="ambiguous">{{ L "zatca_monitor.filter_ambiguous" }}</option>
+                    <option value="terminal_failure">{{ L "zatca_monitor.filter_terminal_failure" }}</option>
+                    <option value="unknown">{{ L "zatca_monitor.filter_unknown" }}</option>
                 </select>
             </div>
         </div>
@@ -121,16 +155,31 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {{ if .SubmissionsError }}
+                    <tr style="border-top: 1px solid var(--md-sys-color-outline-variant)">
+                        <td colspan="6" class="px-4 py-6 text-center text-sm" style="color: var(--md-sys-color-error)">
+                            {{ L "zatca_monitor.section_error" }}
+                        </td>
+                    </tr>
+                    {{ else if not .Submissions }}
+                    <tr style="border-top: 1px solid var(--md-sys-color-outline-variant)">
+                        <td colspan="6" class="px-4 py-6 text-center text-sm" style="color: var(--md-sys-color-on-surface-variant)">
+                            {{ L "zatca_monitor.empty_submissions" }}
+                        </td>
+                    </tr>
+                    {{ else }}
                     {{ range .Submissions }}
-                    <tr class="zm-row" data-status="{{ .Status }}" style="border-top: 1px solid var(--md-sys-color-outline-variant)">
+                    <tr class="zm-row" data-status="{{ .FilterStatus }}" style="border-top: 1px solid var(--md-sys-color-outline-variant)">
                         <td class="px-4 py-3">
                             <a href="/dashboard/invoices/{{ .InvoiceID }}" class="font-medium hover:underline" style="color: var(--md-sys-color-primary)">{{ .InvoiceNo }}</a>
                         </td>
                         <td class="px-4 py-3" style="color: var(--md-sys-color-on-surface-variant)">
                             {{ if eq .InvoiceType "standard" }}
                             <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{{ L "zatca_monitor.type_standard" }}</span>
-                            {{ else }}
+                            {{ else if eq .InvoiceType "simplified" }}
                             <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{{ L "zatca_monitor.type_simplified" }}</span>
+                            {{ else }}
+                            <span class="text-xs">{{ L "zatca_monitor.unavailable" }}</span>
                             {{ end }}
                         </td>
                         <td class="px-4 py-3 text-xs" style="color: var(--md-sys-color-on-surface-variant)">{{ .BranchName }}</td>
@@ -140,7 +189,7 @@
                                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                                 {{ L "zatca_monitor.status_accepted" }}
                             </span>
-                            {{ else if eq .Status "warning" }}
+                            {{ else if or (eq .Status "warning") (eq .Status "accepted_with_warning") }}
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
                                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
                                 {{ L "zatca_monitor.status_warning" }}
@@ -150,16 +199,47 @@
                                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                                 {{ L "zatca_monitor.status_rejected" }}
                             </span>
-                            {{ else }}
+                            {{ else if eq .Status "pending" }}
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                                 <svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v4m0 12v4m-7-7H2m20 0h-3m-1.636-6.364l-2.121 2.121M6.757 17.243l-2.121 2.121m0-14.142l2.121 2.121m10.607 10.607l2.121 2.121"/></svg>
                                 {{ L "zatca_monitor.status_pending" }}
                             </span>
+                            {{ else }}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {{ .StatusBg }}">
+                                {{ L .StatusLabelKey }}
+                            </span>
+                            {{ end }}
+                            {{ if eq .Status "pending" }}
+                            <div class="mt-1 text-xs" style="color: var(--md-sys-color-on-surface-variant)">
+                                {{ L "zatca_monitor.pending_age" }}: {{ .PendingAge }}
+                            </div>
+                            {{ end }}
+                            {{ if .WarningMsg }}
+                            <div class="mt-1 text-xs" style="color: var(--md-sys-color-error)">
+                                {{ L "zatca_monitor.warning_detail" }}: {{ .WarningMsg }}
+                            </div>
                             {{ end }}
                         </td>
-                        <td class="px-4 py-3 text-xs font-mono" style="color: var(--md-sys-color-on-surface-variant)">{{ .ZatcaRef }}</td>
+                        <td class="px-4 py-3 text-xs font-mono" style="color: var(--md-sys-color-on-surface-variant)">
+                            {{ if .ProviderReference }}
+                            <div>{{ L "zatca_monitor.provider_reference" }}: {{ .ProviderReference }}</div>
+                            {{ end }}
+                            {{ if .ProviderCode }}
+                            <div class="mt-1">{{ L "zatca_monitor.provider_code" }}: {{ .ProviderCode }}</div>
+                            {{ end }}
+                            {{ if .ZatcaRef }}
+                            <div class="mt-1">{{ L "zatca_monitor.zatca_ref" }}: {{ .ZatcaRef }}</div>
+                            {{ end }}
+                            {{ if .DocumentID }}
+                            <div class="mt-1">{{ L "zatca_monitor.document_id" }}: {{ .DocumentID }}</div>
+                            {{ end }}
+                            {{ if not (or .ProviderReference .ProviderCode .ZatcaRef .DocumentID) }}
+                            {{ L "zatca_monitor.unavailable" }}
+                            {{ end }}
+                        </td>
                         <td class="px-4 py-3 text-xs" style="color: var(--md-sys-color-on-surface-variant)">{{ .SubmittedAt }}</td>
                     </tr>
+                    {{ end }}
                     {{ end }}
                 </tbody>
             </table>
@@ -180,7 +260,15 @@
     }
 
     function refreshZatcaMonitor() {
-        // TODO: replace with HTMX or fetch call to refresh data
+        var loading = document.getElementById('zm-loading-state');
+        var button = document.getElementById('zm-refresh-button');
+        if (loading) {
+            loading.classList.remove('hidden');
+        }
+        if (button) {
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+        }
         window.location.reload();
     }
 </script>

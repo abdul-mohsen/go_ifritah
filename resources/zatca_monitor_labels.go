@@ -1,0 +1,26 @@
+package resources
+
+var zatcaMonitorLabels = map[string]Label{
+	"zatca_monitor.loading":                     {Ar: "جاري تحميل بيانات مراقبة زاتكا...", En: "Loading ZATCA monitor data..."},
+	"zatca_monitor.load_error":                  {Ar: "تعذر تحميل بيانات مراقبة زاتكا من الخادم حالياً", En: "Unable to load ZATCA monitor data from the server"},
+	"zatca_monitor.section_error":               {Ar: "تعذر تحميل هذا القسم من الخادم", En: "This section could not be loaded from the server"},
+	"zatca_monitor.empty_branches":              {Ar: "لا توجد فروع مهيأة لزاتكا", En: "No ZATCA-configured branches found"},
+	"zatca_monitor.empty_submissions":           {Ar: "لا توجد إرسالات زاتكا حتى الآن", En: "No ZATCA submissions found"},
+	"zatca_monitor.unavailable":                 {Ar: "غير متاح", En: "Unavailable"},
+	"zatca_monitor.branch_status_active":        {Ar: "متصل ✓", En: "Connected ✓"},
+	"zatca_monitor.branch_status_expired":       {Ar: "منتهية", En: "Expired"},
+	"zatca_monitor.branch_status_expiring_soon": {Ar: "ينتهي قريباً", En: "Expiring soon"},
+	"zatca_monitor.branch_status_not_active":    {Ar: "غير متصل", En: "Not connected"},
+	"zatca_monitor.branch_status_unknown":       {Ar: "حالة غير معروفة", En: "Unknown status"},
+	"zatca_monitor.status_ambiguous":            {Ar: "غير محسوم", En: "Ambiguous"},
+	"zatca_monitor.status_terminal_failure":     {Ar: "فشل نهائي", En: "Terminal failure"},
+	"zatca_monitor.status_unknown":              {Ar: "حالة غير معروفة", En: "Unknown status"},
+	"zatca_monitor.filter_ambiguous":            {Ar: "غير محسوم", En: "Ambiguous"},
+	"zatca_monitor.filter_terminal_failure":     {Ar: "فشل نهائي", En: "Terminal failure"},
+	"zatca_monitor.filter_unknown":              {Ar: "غير معروفة", En: "Unknown"},
+	"zatca_monitor.pending_age":                 {Ar: "مدة الانتظار", En: "Pending age"},
+	"zatca_monitor.warning_detail":              {Ar: "تفاصيل التحذير", En: "Warning detail"},
+	"zatca_monitor.provider_reference":          {Ar: "مرجع المزود", En: "Provider reference"},
+	"zatca_monitor.provider_code":               {Ar: "رمز المزود", En: "Provider code"},
+	"zatca_monitor.document_id":                 {Ar: "معرف المستند", En: "Document ID"},
+}

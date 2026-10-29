@@ -1989,6 +1989,9 @@ func L(key string) string {
 	if lbl, ok := labels[key]; ok {
 		return lbl.Ar
 	}
+	if lbl, ok := zatcaMonitorLabels[key]; ok {
+		return lbl.Ar
+	}
 	return key
 }
 
@@ -1997,12 +2000,18 @@ func LEN(key string) string {
 	if lbl, ok := labels[key]; ok {
 		return lbl.En
 	}
+	if lbl, ok := zatcaMonitorLabels[key]; ok {
+		return lbl.En
+	}
 	return key
 }
 
 // GetLabel returns the full Label struct for a key.
 func GetLabel(key string) Label {
 	if lbl, ok := labels[key]; ok {
+		return lbl
+	}
+	if lbl, ok := zatcaMonitorLabels[key]; ok {
 		return lbl
 	}
 	return Label{Ar: key, En: key}

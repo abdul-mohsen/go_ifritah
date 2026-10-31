@@ -90,6 +90,7 @@ func BuildBillPayload(r *http.Request) models.BillPayload {
 
 	return models.BillPayload{
 		StoreID:         ParseIntValue(r.FormValue("store_id")),
+		BillRequestID:   strings.TrimSpace(r.FormValue("bill_request_id")),
 		Products:        products,
 		ManualProducts:  manualProducts,
 		TotalAmount:     ParseFloatValue(r.FormValue("total_amount")),

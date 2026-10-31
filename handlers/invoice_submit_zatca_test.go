@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"afrita/config"
@@ -70,7 +72,13 @@ func TestSubmitDraftInvoicePreservesZatcaSubmissionFields(t *testing.T) {
 		config.SessionTokensMutex.Unlock()
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/invoices/321/submit", nil)
+	form := url.Values{"bill_request_id": {"request-321"}}
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/invoices/321/submit",
+		strings.NewReader(form.Encode()),
+	)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = mux.SetURLVars(req, map[string]string{"id": "321"})
 	req.AddCookie(&http.Cookie{Name: "session_id", Value: sessionID})
 	w := httptest.NewRecorder()
@@ -104,6 +112,7 @@ func TestSubmitDraftInvoicePreservesZatcaSubmissionFields(t *testing.T) {
 	assertNumber("branch_id", 7)
 	assertNumber("client_id", 44)
 	assertNumber("payment_method", 2)
+	assertString("bill_request_id", "request-321")
 	assertString("effective_date", "2025-02-03T00:00:00+03:00")
 	assertString("payment_due_date", "2025-02-10T00:00:00+03:00")
 	assertString("deliver_date", "2025-02-04T00:00:00+03:00")

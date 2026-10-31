@@ -213,3 +213,22 @@ func TestBuildPurchaseBillPayload_MixedProducts(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildBillPayloadPreservesBillRequestID(t *testing.T) {
+	form := url.Values{
+		"store_id":         {"1"},
+		"bill_request_id":  {"request-123"},
+		"state":            {"1"},
+		"total_amount":     {"115"},
+		"maintenance_cost": {"0"},
+	}
+
+	req, _ := http.NewRequest("POST", "/api/invoices", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	payload := BuildBillPayload(req)
+
+	if payload.BillRequestID != "request-123" {
+		t.Fatalf("BillRequestID = %q, want %q", payload.BillRequestID, "request-123")
+	}
+}

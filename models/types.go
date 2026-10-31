@@ -498,6 +498,7 @@ type BillManualItem struct {
 // Products use BillProductItem (with "product_id"), ManualProducts use BillManualItem (with "product_id": null).
 type BillPayload struct {
 	StoreID         int               `json:"store_id"`
+	BillRequestID   string            `json:"bill_request_id,omitempty"`
 	Products        []BillProductItem `json:"products"`
 	ManualProducts  []BillManualItem  `json:"manual_products"`
 	TotalAmount     float64           `json:"total_amount,omitempty"`

@@ -1,7 +1,9 @@
 ﻿{{ define "content" }}
 {{ template "breadcrumb" dict "section_url" "/dashboard/invoices" "section_label" (L "nav.invoices_section") "current" (L "tpl.invoice.form.edit_title") }}
 <div class="page-card-wide">
-    <form hx-put="/api/invoices/{{ .id }}" hx-target="body" id="invoice-form" hx-indicator="#submit-spinner">
+    <form hx-put="/api/invoices/{{ .id }}" hx-target="body" id="invoice-form" hx-indicator="#submit-spinner"
+        data-bill-submit-form data-bill-request-scope="invoice:{{ .id }}">
+        <input type="hidden" name="bill_request_id" data-bill-request-id value="">
         {{ if .is_company }}
         <input type="hidden" name="client_id" value="{{ .client_id }}">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 border rounded" style="border-color: var(--md-sys-color-primary); background: var(--md-sys-color-surface-container)">
@@ -194,8 +196,8 @@
         </div>
 
         <div class="mt-6 flex gap-2 items-center">
-            <button type="submit" name="state" value="0" class="btn btn-tonal">{{ L "tpl.invoice.form.save_draft" }}</button>
-            <button type="submit" name="state" value="1" class="btn btn-filled">{{ L "tpl.invoice.form.update_invoice" }}</button>
+            <button type="submit" name="state" value="0" class="btn btn-tonal" data-bill-submit-button>{{ L "tpl.invoice.form.save_draft" }}</button>
+            <button type="submit" name="state" value="1" class="btn btn-filled" data-bill-submit-button>{{ L "tpl.invoice.form.update_invoice" }}</button>
             <a href="/dashboard/invoices" class="btn btn-outlined">{{ L "tpl.cancel" }}</a>
             <span id="submit-spinner" class="htmx-indicator">
                 <svg class="animate-spin h-5 w-5" style="color: var(--md-sys-color-primary)" viewBox="0 0 24 24">
@@ -205,6 +207,13 @@
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
             </span>
+        </div>
+        <div id="bill-submit-state" data-bill-submit-state="idle" data-bill-submit-result="idle"
+            data-unknown-message="نتيجة إرسال الفاتورة غير معروفة. لا تنشئ فاتورة بديلة؛ أعد المحاولة بنفس الفاتورة."
+            data-waiting-message="جارٍ إرسال الفاتورة، يرجى الانتظار." role="status" aria-live="polite" hidden
+            class="mt-3 p-3 rounded border" style="border-color: var(--md-sys-color-error); color: var(--md-sys-color-error)">
+            <span data-bill-submit-message></span>
+            <button type="button" data-bill-submit-retry class="btn btn-tonal btn-sm mt-2">إعادة المحاولة بنفس الفاتورة</button>
         </div>
     </form>
 </div>

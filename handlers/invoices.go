@@ -693,6 +693,7 @@ func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	manualItems := buildSubmitManualItems(manualProducts)
 
 	payload := buildSubmitDraftPayload(inv, extra, prodItems, manualItems)
+	payload.BillRequestID = strings.TrimSpace(r.FormValue("bill_request_id"))
 	if date := helpers.SafeString(extra["payment_due_date"]); date != "" {
 		payload.PaymentDueDate = helpers.ToBackendDatePtr(date)
 	}
@@ -761,6 +762,7 @@ func HandleCreateCompanyInvoice(w http.ResponseWriter, r *http.Request) {
 	// Build the invoice payload with client_id
 	payload := map[string]interface{}{
 		"store_id":          helpers.ParseIntValue(r.FormValue("store_id")),
+		"bill_request_id":   strings.TrimSpace(r.FormValue("bill_request_id")),
 		"client_id":         r.FormValue("client_id"),
 		"user_name":         r.FormValue("user_name"),
 		"user_phone_number": r.FormValue("user_phone_number"),

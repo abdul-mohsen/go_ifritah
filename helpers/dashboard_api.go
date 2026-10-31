@@ -76,14 +76,25 @@ type DashboardAPICharts struct {
 }
 
 type DashboardAPIInvoice struct {
-	ID              int    `json:"id"`
-	SequenceNumber  int64  `json:"sequence_number"`
-	Total           string `json:"total"`
-	State           int    `json:"state"`
-	StateLabel      string `json:"state_label"`
-	Date            string `json:"date"`
-	IsCreditNote    bool   `json:"is_credit_note"`
-	UserPhoneNumber any    `json:"user_phone_number"`
+	ID              int                    `json:"id"`
+	SequenceNumber  int64                  `json:"sequence_number"`
+	Total           string                 `json:"total"`
+	State           int                    `json:"state"`
+	StateLabel      string                 `json:"state_label"`
+	SaleState       string                 `json:"sale_state,omitempty"`
+	SaleStatus      string                 `json:"sale_status,omitempty"`
+	PaymentState    string                 `json:"payment_state,omitempty"`
+	PaymentStatus   string                 `json:"payment_status,omitempty"`
+	InvoiceState    string                 `json:"invoice_state,omitempty"`
+	InvoiceStatus   string                 `json:"invoice_status,omitempty"`
+	ZatcaState      string                 `json:"zatca_state,omitempty"`
+	ZatcaStatus     string                 `json:"zatca_status,omitempty"`
+	StateProjection map[string]interface{} `json:"state_projection,omitempty"`
+	BillState       map[string]interface{} `json:"bill_state,omitempty"`
+	Status          string                 `json:"status,omitempty"`
+	Date            string                 `json:"date"`
+	IsCreditNote    bool                   `json:"is_credit_note"`
+	UserPhoneNumber any                    `json:"user_phone_number"`
 }
 
 type DashboardAPILowStock struct {

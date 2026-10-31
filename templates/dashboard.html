@@ -163,6 +163,14 @@
             <div class="flex justify-between text-sm"><span class="text-gray-600">{{ L "invoice_status.processed" }}</span><span class="font-bold text-green-600">{{ .status_counts.processed }}</span></div>
             <div class="flex justify-between text-sm"><span class="text-gray-600">{{ L "invoice_status.issued" }}</span><span class="font-bold"
                     style="color: var(--md-sys-color-primary)">{{ .status_counts.issued }}</span></div>
+            <div class="flex justify-between text-sm"><span class="text-gray-600">{{ L "invoice_status.retrying" }}</span><span
+                    class="font-bold text-yellow-700">{{ .status_counts.retrying }}</span></div>
+            <div class="flex justify-between text-sm"><span class="text-gray-600">{{ L "invoice_status.result_unknown" }}</span><span
+                    class="font-bold text-red-600">{{ .status_counts.result_unknown }}</span></div>
+            <div class="flex justify-between text-sm"><span class="text-gray-600">{{ L "invoice_status.action_required" }}</span><span
+                    class="font-bold text-amber-700">{{ .status_counts.action_required }}</span></div>
+            <div class="flex justify-between text-sm"><span class="text-gray-600">{{ L "invoice_status.rejected" }}</span><span
+                    class="font-bold text-red-700">{{ .status_counts.rejected }}</span></div>
         </div>
     </div>
 </div>
@@ -195,7 +203,7 @@
                         <td class="px-3 py-2 font-semibold">{{ .total }} {{ L "ui.currency" }}</td>
                         <td class="px-3 py-2 text-gray-500">{{ .date }}</td>
                         <td class="px-3 py-2"><span class="badge {{ .status_class }}">{{ .status
-                                }}</span></td>
+                                }}</span>{{ template "bill-state-summary" .bill_state }}</td>
                         <td class="px-3 py-2">
                             <a href="/bill/{{ .id }}" class="hover:underline text-xs"
                                 style="color: var(--md-sys-color-primary)">{{ L "ui.view" }}</a>

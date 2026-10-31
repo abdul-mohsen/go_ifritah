@@ -57,6 +57,7 @@
                 <td>{{ .type }}</td>
                 <td>
                     <span class="badge {{ .status_class }}">{{ .status }}</span>
+                    {{ template "bill-state-summary" .bill_state }}
                 </td>
                 <td>
                     <div class="action-cell">
@@ -74,13 +75,13 @@
                             <a href="#" onclick="printPDF('/bill/pdf/{{ .id }}'); return false;"
                                 class="action-link action-print">{{ L "tpl.print" }}</a>
                             {{ end }}
-                            {{ if eq .state 0 }}
+                            {{ if .can_edit }}
                             <a href="/dashboard/invoices/edit/{{ .id }}" class="action-link action-edit">{{ L "tpl.edit" }}</a>
                             {{ end }}
-                            {{ if and (or (eq .state 1) (eq .state 3)) (eq .credit_state 0) }}
+                            {{ if .can_replace }}
                             <a href="/dashboard/invoices/credit/{{ .id }}" class="action-link action-credit">{{ L "tpl.invoice.credit_note" }}</a>
                             {{ end }}
-                            {{ if eq .state 0 }}
+                            {{ if .can_delete }}
                             <a href="#" hx-delete="/api/invoices/{{ .id }}"
                                 hx-confirm="{{ L "tpl.invoice.confirm_delete" }}" class="action-link action-delete">{{ L "tpl.delete" }}</a>
                             {{ end }}

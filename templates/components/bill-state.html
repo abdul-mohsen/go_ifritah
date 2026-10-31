@@ -1,0 +1,18 @@
+{{ define "bill-state-summary" }}
+{{ if . }}
+<div class="flex flex-wrap items-center gap-1.5" data-bill-state="{{ .OverallState }}"
+    data-result-unknown="{{ if .ResultUnknown }}true{{ else }}false{{ end }}"
+    data-can-duplicate="{{ if .CanDuplicate }}true{{ else }}false{{ end }}"
+    data-can-replace="{{ if .CanReplace }}true{{ else }}false{{ end }}">
+    <span class="badge {{ .SaleClass }}" data-bill-state-sale="{{ .SaleState }}">{{ .SaleLabel }}</span>
+    <span class="badge {{ .PaymentClass }}" data-bill-state-payment="{{ .PaymentState }}">{{ .PaymentLabel }}</span>
+    <span class="badge {{ .InvoiceClass }}" data-bill-state-invoice="{{ .InvoiceState }}">{{ .InvoiceLabel }}</span>
+    <span class="badge {{ .ZatcaClass }}" data-bill-state-zatca="{{ .ZatcaState }}">{{ .ZatcaLabel }}</span>
+    {{ if .ResultUnknown }}
+    <span class="text-xs font-medium text-red-600" data-bill-state-action="reconcile">لا تنشئ فاتورة بديلة قبل التحقق من النتيجة</span>
+    {{ else if .ActionRequired }}
+    <span class="text-xs font-medium text-amber-700" data-bill-state-action="required">يتطلب إجراء قبل المتابعة</span>
+    {{ end }}
+</div>
+{{ end }}
+{{ end }}

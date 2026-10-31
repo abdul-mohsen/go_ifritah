@@ -7,6 +7,13 @@
 </nav>
 
 <div class="space-y-6">
+    {{ if .monitor_errors }}
+    <div class="rounded-xl p-4 border" role="status"
+        style="background: var(--md-sys-color-error-container); border-color: var(--md-sys-color-error); color: var(--md-sys-color-on-error-container)">
+        تعذر تحميل بعض بيانات المراقبة: {{ range $i, $item := .monitor_errors }}{{ if $i }}، {{ end }}{{ $item }}{{ end }}
+    </div>
+    {{ end }}
+
     <!-- ═══ Header + Refresh ═══ -->
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold" style="color: var(--md-sys-color-on-surface)">{{ L "zatca_monitor.title" }}</h1>
@@ -105,6 +112,8 @@
                     <option value="warning">{{ L "zatca_monitor.filter_warning" }}</option>
                     <option value="rejected">{{ L "zatca_monitor.filter_rejected" }}</option>
                     <option value="pending">{{ L "zatca_monitor.filter_pending" }}</option>
+                    <option value="result_unknown">نتيجة غير معروفة</option>
+                    <option value="action_required">يتطلب إجراء</option>
                 </select>
             </div>
         </div>
@@ -129,6 +138,10 @@
                         <td class="px-4 py-3" style="color: var(--md-sys-color-on-surface-variant)">
                             {{ if eq .InvoiceType "standard" }}
                             <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{{ L "zatca_monitor.type_standard" }}</span>
+                            {{ else if eq .InvoiceType "credit" }}
+                            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">إشعار دائن</span>
+                            {{ else if eq .InvoiceType "debit" }}
+                            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">إشعار مدين</span>
                             {{ else }}
                             <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{{ L "zatca_monitor.type_simplified" }}</span>
                             {{ end }}
@@ -150,12 +163,21 @@
                                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                                 {{ L "zatca_monitor.status_rejected" }}
                             </span>
+                            {{ else if eq .Status "result_unknown" }}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                نتيجة غير معروفة
+                            </span>
+                            {{ else if eq .Status "action_required" }}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                يتطلب إجراء
+                            </span>
                             {{ else }}
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                                 <svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v4m0 12v4m-7-7H2m20 0h-3m-1.636-6.364l-2.121 2.121M6.757 17.243l-2.121 2.121m0-14.142l2.121 2.121m10.607 10.607l2.121 2.121"/></svg>
                                 {{ L "zatca_monitor.status_pending" }}
                             </span>
                             {{ end }}
+                            {{ template "bill-state-summary" .BillState }}
                         </td>
                         <td class="px-4 py-3 text-xs font-mono" style="color: var(--md-sys-color-on-surface-variant)">{{ .ZatcaRef }}</td>
                         <td class="px-4 py-3 text-xs" style="color: var(--md-sys-color-on-surface-variant)">{{ .SubmittedAt }}</td>

@@ -189,8 +189,7 @@ func main() {
 	router.HandleFunc("/api/branch/{id}/store-address", adminOnly(handlers.HandleGetBranchStoreAddress)).Methods("GET")
 	router.HandleFunc("/api/branch/{id}/store-address", adminOnly(handlers.HandleUpdateBranchStoreAddress)).Methods("PUT")
 
-	// ZATCA Monitor page (mock data — backend has no /api/v2/zatca/monitor/*
-	// endpoints yet; tracked in the backend issue tracker). Admin only.
+	// ZATCA Monitor page backed by the durable monitor endpoints. Admin only.
 	router.HandleFunc("/dashboard/zatca-monitor", adminOnly(handlers.HandleZatcaMonitor)).Methods("GET")
 
 	// Notification routes

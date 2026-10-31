@@ -75,10 +75,10 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 	displayInvoices := make([]map[string]interface{}, 0, len(invoices))
 	for _, inv := range invoices {
 		totalDisplay := fmt.Sprintf("%.2f", inv.Total)
-		status, statusClass := helpers.InvoiceStatus(inv)
-		status = helpers.TranslateInvoiceStatus(status)
+		billState := helpers.ProjectBillState(inv)
+		status, statusClass := billState.OverallLabel, billState.OverallClass
 		invoiceType := helpers.InvoiceTypeLabel(inv)
-		if inv.State == 0 {
+		if billState.IsDraft {
 			invoiceType = fmt.Sprintf("%s (مسودة)", invoiceType)
 		}
 
@@ -96,6 +96,13 @@ func HandleInvoices(w http.ResponseWriter, r *http.Request) {
 			"state":           inv.State,
 			"credit_state":    inv.CreditState,
 			"is_credit":       inv.CreditState > 0,
+			"bill_state":      billState,
+			"is_draft":        billState.IsDraft,
+			"can_edit":        billState.IsDraft,
+			"can_delete":      billState.IsDraft,
+			"can_replace":     billState.CanReplace && inv.CreditState == 0,
+			"can_duplicate":   billState.CanDuplicate,
+			"result_unknown":  billState.ResultUnknown,
 		})
 	}
 
@@ -339,9 +346,10 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 	// Also parse into Invoice for status/type helpers
 	invoice, products, manualProducts, extra, _ := helpers.ParseBillRaw(raw, id)
 
-	status, statusClass := helpers.InvoiceStatus(invoice)
+	billState := helpers.ProjectBillState(invoice)
+	status, statusClass := billState.OverallLabel, billState.OverallClass
 	invoiceType := helpers.InvoiceTypeLabel(invoice)
-	if invoice.State == 0 {
+	if billState.IsDraft {
 		invoiceType = fmt.Sprintf("%s (مسودة)", invoiceType)
 	}
 
@@ -400,7 +408,13 @@ func HandleGetInvoice(w http.ResponseWriter, r *http.Request) {
 		"note":             helpers.SafeString(extra["note"]),
 		"maintenance_cost": maintenanceCost,
 		"url":              helpers.SafeString(extra["url"]),
-		"is_draft":         invoice.State == 0,
+		"is_draft":         billState.IsDraft,
+		"can_edit":         billState.IsDraft,
+		"can_delete":       billState.IsDraft,
+		"can_replace":      billState.CanReplace && invoice.CreditState == 0,
+		"can_duplicate":    billState.CanDuplicate,
+		"result_unknown":   billState.ResultUnknown,
+		"bill_state":       billState,
 		"is_credit":        false,
 		"is_standard":      invoice.Type,
 		"bill_type_label":  helpers.InvoiceTypeLabel(invoice),
@@ -477,9 +491,10 @@ func HandleInvoicePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status, statusClass := helpers.InvoiceStatus(invoice)
+	billState := helpers.ProjectBillState(invoice)
+	status, statusClass := billState.OverallLabel, billState.OverallClass
 	invoiceType := helpers.InvoiceTypeLabel(invoice)
-	if invoice.State == 0 {
+	if billState.IsDraft {
 		invoiceType = fmt.Sprintf("%s (مسودة)", invoiceType)
 	}
 
@@ -490,6 +505,7 @@ func HandleInvoicePreview(w http.ResponseWriter, r *http.Request) {
 		"status":        status,
 		"status_class":  statusClass,
 		"type":          invoiceType,
+		"bill_state":    billState,
 	}
 	helpers.RenderStandalone(w, "invoice-preview", data)
 }

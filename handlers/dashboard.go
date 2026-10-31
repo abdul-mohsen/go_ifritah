@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -61,10 +62,14 @@ func HandleDashboardTest(w http.ResponseWriter, r *http.Request) {
 	statusJSON := `[12, 5, 28, 45]`
 
 	statusCountsTemplate := map[string]int{
-		"draft":      12,
-		"processing": 5,
-		"processed":  28,
-		"issued":     45,
+		"draft":           12,
+		"processing":      5,
+		"processed":       28,
+		"issued":          45,
+		"retrying":        0,
+		"result_unknown":  0,
+		"action_required": 0,
+		"rejected":        0,
 	}
 
 	data := map[string]interface{}{
@@ -374,52 +379,129 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// ── status_counts (template expects keys: draft/processing/processed/issued)
+	// ── status_counts ──────────────────────────────────────────────
+	// Durable status keys are authoritative. Numeric state keys are used only
+	// when no durable status key was returned by the backend.
 	stateBy := map[int]int{0: 0, 1: 0, 2: 0, 3: 0}
+	durableCounts := map[string]int{
+		"draft":           0,
+		"processing":      0,
+		"processed":       0,
+		"issued":          0,
+		"retrying":        0,
+		"result_unknown":  0,
+		"action_required": 0,
+		"rejected":        0,
+	}
+	hasDurableCounts := false
 	for k, v := range summary.StatusCounts {
-		// Backend may key by numeric string ("0","1","2","3") or label.
-		switch k {
-		case "0", "draft":
-			stateBy[0] += int(v)
-		case "1", "pending", "processing":
-			stateBy[1] += int(v)
-		case "2", "processed":
-			stateBy[2] += int(v)
-		case "3", "issued":
-			stateBy[3] += int(v)
+		switch strings.ToLower(strings.TrimSpace(k)) {
+		case "draft":
+			durableCounts["draft"] += int(v)
+			hasDurableCounts = true
+		case "pending", "processing":
+			durableCounts["processing"] += int(v)
+			hasDurableCounts = true
+		case "processed":
+			durableCounts["processed"] += int(v)
+			hasDurableCounts = true
+		case "issued", "accepted", "accepted_with_warning", "issued_with_warning":
+			durableCounts["issued"] += int(v)
+			hasDurableCounts = true
+		case "retrying":
+			durableCounts["retrying"] += int(v)
+			hasDurableCounts = true
+		case "result_unknown", "ambiguous", "unknown":
+			durableCounts["result_unknown"] += int(v)
+			hasDurableCounts = true
+		case "action_required":
+			durableCounts["action_required"] += int(v)
+			hasDurableCounts = true
+		case "rejected":
+			durableCounts["rejected"] += int(v)
+			hasDurableCounts = true
+		case "0", "1", "2", "3":
+			if !hasDurableCounts {
+				switch k {
+				case "0":
+					stateBy[0] += int(v)
+				case "1":
+					stateBy[1] += int(v)
+				case "2":
+					stateBy[2] += int(v)
+				case "3":
+					stateBy[3] += int(v)
+				}
+			}
 		}
 	}
+	if hasDurableCounts {
+		stateBy[0] = durableCounts["draft"]
+		stateBy[1] = durableCounts["processing"] + durableCounts["retrying"] +
+			durableCounts["result_unknown"] + durableCounts["action_required"]
+		stateBy[2] = durableCounts["processed"]
+		stateBy[3] = durableCounts["issued"]
+	}
 	statusCountsTemplate := map[string]int{
-		"draft":      stateBy[0],
-		"processing": stateBy[1],
-		"processed":  stateBy[2],
-		"issued":     stateBy[3],
+		"draft":           stateBy[0],
+		"processing":      stateBy[1],
+		"processed":       stateBy[2],
+		"issued":          stateBy[3],
+		"retrying":        durableCounts["retrying"],
+		"result_unknown":  durableCounts["result_unknown"],
+		"action_required": durableCounts["action_required"],
+		"rejected":        durableCounts["rejected"],
 	}
 
 	// ── Recent invoices ────────────────────────────────────────────
-	statusClassFor := func(state int) string {
-		switch state {
-		case 0:
-			return "badge-gray"
-		case 1:
-			return "badge-yellow"
-		case 2:
-			return "badge-green"
-		case 3:
-			return "badge-blue"
-		default:
-			return "badge-gray"
+	dashboardBillState := func(inv helpers.DashboardAPIInvoice) models.BillStateProjection {
+		raw := map[string]interface{}{
+			"state": inv.State,
 		}
+		if inv.StateLabel != "" {
+			raw["state_label"] = inv.StateLabel
+		}
+		if inv.Status != "" {
+			raw["status"] = inv.Status
+		}
+		for key, value := range map[string]string{
+			"sale_state":     inv.SaleState,
+			"sale_status":    inv.SaleStatus,
+			"payment_state":  inv.PaymentState,
+			"payment_status": inv.PaymentStatus,
+			"invoice_state":  inv.InvoiceState,
+			"invoice_status": inv.InvoiceStatus,
+			"zatca_state":    inv.ZatcaState,
+			"zatca_status":   inv.ZatcaStatus,
+		} {
+			if value != "" {
+				raw[key] = value
+			}
+		}
+		if len(inv.StateProjection) > 0 {
+			raw["state_projection"] = inv.StateProjection
+		}
+		if len(inv.BillState) > 0 {
+			raw["bill_state"] = inv.BillState
+		}
+		var bill models.Invoice
+		bill.State = inv.State
+		helpers.SetBillStateProjection(&bill, raw)
+		return helpers.ProjectBillState(bill)
 	}
 	recentInvoices := make([]map[string]interface{}, 0, len(summary.RecentInvoices))
 	for _, inv := range summary.RecentInvoices {
+		billState := dashboardBillState(inv)
 		recentInvoices = append(recentInvoices, map[string]interface{}{
 			"id":              inv.ID,
 			"sequence_number": inv.SequenceNumber,
 			"total":           inv.Total,
 			"date":            helpers.ToDisplayDate(inv.Date),
-			"status":          helpers.TranslateInvoiceStatus(inv.StateLabel),
-			"status_class":    statusClassFor(inv.State),
+			"status":          billState.OverallLabel,
+			"status_class":    billState.OverallClass,
+			"bill_state":      billState,
+			"state":           inv.State,
+			"is_issued":       billState.Issued,
 		})
 	}
 

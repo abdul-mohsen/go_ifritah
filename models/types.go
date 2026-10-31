@@ -108,6 +108,44 @@ type CashVoucherPayload struct {
 	BranchID             int     `json:"branch_id"`
 }
 
+// BillStateProjection is the durable, source-of-truth state projection for a
+// bill. The legacy numeric state remains available on Invoice for older
+// responses, but must not be used when Durable is true.
+type BillStateProjection struct {
+	SaleState      string `json:"sale_state,omitempty"`
+	SaleStatus     string `json:"sale_status,omitempty"`
+	PaymentState   string `json:"payment_state,omitempty"`
+	PaymentStatus  string `json:"payment_status,omitempty"`
+	InvoiceState   string `json:"invoice_state,omitempty"`
+	InvoiceStatus  string `json:"invoice_status,omitempty"`
+	ZatcaState     string `json:"zatca_state,omitempty"`
+	ZatcaStatus    string `json:"zatca_status,omitempty"`
+	OverallState   string `json:"overall_state,omitempty"`
+	OverallStatus  string `json:"overall_status,omitempty"`
+	Reason         string `json:"reason,omitempty"`
+	Warning        string `json:"warning,omitempty"`
+	Durable        bool   `json:"-"`
+	Legacy         bool   `json:"-"`
+	ResultUnknown  bool   `json:"-"`
+	ActionRequired bool   `json:"-"`
+	Rejected       bool   `json:"-"`
+	Issued         bool   `json:"-"`
+	IsDraft        bool   `json:"-"`
+	CanRetry       bool   `json:"-"`
+	CanDuplicate   bool   `json:"-"`
+	CanReplace     bool   `json:"-"`
+	SaleLabel      string `json:"-"`
+	SaleClass      string `json:"-"`
+	PaymentLabel   string `json:"-"`
+	PaymentClass   string `json:"-"`
+	InvoiceLabel   string `json:"-"`
+	InvoiceClass   string `json:"-"`
+	ZatcaLabel     string `json:"-"`
+	ZatcaClass     string `json:"-"`
+	OverallLabel   string `json:"-"`
+	OverallClass   string `json:"-"`
+}
+
 // Invoice represents the invoice/bill structure from the API
 type Invoice struct {
 	ID                     int `json:"id"`
@@ -127,6 +165,17 @@ type Invoice struct {
 	VAT            float64     `json:"vat"`
 	Type           bool        `json:"type"`
 	CreditState    int         `json:"credit_state"`
+	// These top-level fields are accepted for list/dashboard responses that
+	// flatten the durable projection instead of nesting state_projection.
+	SaleState       string               `json:"sale_state,omitempty"`
+	SaleStatus      string               `json:"sale_status,omitempty"`
+	PaymentState    string               `json:"payment_state,omitempty"`
+	PaymentStatus   string               `json:"payment_status,omitempty"`
+	InvoiceState    string               `json:"invoice_state,omitempty"`
+	InvoiceStatus   string               `json:"invoice_status,omitempty"`
+	ZatcaState      string               `json:"zatca_state,omitempty"`
+	ZatcaStatus     string               `json:"zatca_status,omitempty"`
+	StateProjection *BillStateProjection `json:"state_projection,omitempty"`
 }
 
 // InvoiceDisplay represents formatted invoice data for display
@@ -617,12 +666,12 @@ type SupplierBillSummary struct {
 	TotalDiscount    float64 `json:"total_discount"`
 	CreditUtilPct    float64 `json:"credit_utilization"`
 	TotalPayments    float64 `json:"total_payments"`    // sum of cash voucher payments
-	PaymentCount     int     `json:"payment_count"`     // number of payments
-	ClosingBalance   float64 `json:"closing_balance"`   // unpaid after payments
-	OpeningBalance   float64 `json:"opening_balance"`   // balance before date range
-	OverdueAmount    float64 `json:"overdue_amount"`    // bills past due date
-	OverdueCount     int     `json:"overdue_count"`     // number of overdue bills
-	AvgPaymentDays   float64 `json:"avg_payment_days"`  // average days to pay
+	PaymentCount   int     `json:"payment_count"`    // number of payments
+	ClosingBalance float64 `json:"closing_balance"`  // unpaid after payments
+	OpeningBalance float64 `json:"opening_balance"`  // balance before date range
+	OverdueAmount  float64 `json:"overdue_amount"`   // bills past due date
+	OverdueCount   int     `json:"overdue_count"`    // number of overdue bills
+	AvgPaymentDays float64 `json:"avg_payment_days"` // average days to pay
 }
 
 // SupplierReportBill represents a single bill row in the supplier report
@@ -658,14 +707,14 @@ type SupplierTopItem struct {
 // LedgerEntry represents a single line in the account statement (كشف حساب)
 type LedgerEntry struct {
 	Date        string  `json:"date"`
-	Type        string  `json:"type"`         // "bill", "payment", "opening"
-	SystemID    int     `json:"system_id"`    // our internal id (bill.id / voucher.id)
-	SupplierNo  string  `json:"supplier_no"`  // supplier_sequence_number for bills
+	Type        string  `json:"type"`        // "bill", "payment", "opening"
+	SystemID    int     `json:"system_id"`   // our internal id (bill.id / voucher.id)
+	SupplierNo  string  `json:"supplier_no"` // supplier_sequence_number for bills
 	Reference   string  `json:"reference"`
 	Description string  `json:"description"`
-	Debit       float64 `json:"debit"`        // bills increase debt
-	Credit      float64 `json:"credit"`       // payments reduce debt
-	Balance     float64 `json:"balance"`      // running balance
+	Debit       float64 `json:"debit"`   // bills increase debt
+	Credit      float64 `json:"credit"`  // payments reduce debt
+	Balance     float64 `json:"balance"` // running balance
 	LinkURL     string  `json:"link_url"`
 }
 
@@ -693,16 +742,16 @@ type MonthlySpend struct {
 // SupplierReportPageData is the template data for the supplier report page
 type SupplierReportPageData struct {
 	PageData
-	Supplier              Supplier                 `json:"supplier"`
-	Summary               SupplierBillSummary      `json:"summary"`
-	Bills                 []SupplierReportBill     `json:"bills"`
-	TopItems              []SupplierTopItem        `json:"top_items"`
-	Ledger                []LedgerEntry            `json:"ledger"`
-	Aging                 []AgingBucket            `json:"aging"`
-	PaymentMethods        []PaymentMethodBreakdown `json:"payment_methods"`
-	MonthlySpending       []MonthlySpend           `json:"monthly_spending"`
-	DateFrom              string                   `json:"date_from"`
-	DateTo                string                   `json:"date_to"`
+	Supplier        Supplier                 `json:"supplier"`
+	Summary         SupplierBillSummary      `json:"summary"`
+	Bills           []SupplierReportBill     `json:"bills"`
+	TopItems        []SupplierTopItem        `json:"top_items"`
+	Ledger          []LedgerEntry            `json:"ledger"`
+	Aging           []AgingBucket            `json:"aging"`
+	PaymentMethods  []PaymentMethodBreakdown `json:"payment_methods"`
+	MonthlySpending []MonthlySpend           `json:"monthly_spending"`
+	DateFrom        string                   `json:"date_from"`
+	DateTo          string                   `json:"date_to"`
 }
 
 // ============================================================================

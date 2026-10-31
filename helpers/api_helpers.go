@@ -1580,6 +1580,7 @@ func ParseBillRaw(raw map[string]interface{}, id string) (models.Invoice, []mode
 		extra["deliver_date"] = dd
 	}
 
+	SetBillStateProjection(&inv, raw)
 	return inv, products, manualProducts, extra, nil
 }
 
@@ -2225,6 +2226,7 @@ func mapToInvoice(m map[string]interface{}) models.Invoice {
 	inv.Type = mapBool(m, "bill_type", "type")
 	populateInvoiceEffectiveDate(m, &inv)
 	inv.PaymentDueDate = m["payment_due_date"]
+	SetBillStateProjection(&inv, m)
 	return inv
 }
 
@@ -2309,37 +2311,6 @@ func decodeListResponse[T any](body []byte) ([]T, error) {
 	}
 
 	return nil, fmt.Errorf("unsupported response shape")
-}
-
-// statusClassCreditNote is the CSS class for credit note (إشعار دائن) statuses.
-const statusClassCreditNote = "badge-processing" //nolint:gosec // G101 false positive: CSS class, not credentials
-
-func InvoiceStatus(inv models.Invoice) (string, string) {
-	if inv.CreditState >= 1 {
-		switch inv.CreditState {
-		case 1:
-			return "إشعار دائن قيد المعالجة", statusClassCreditNote
-		case 2:
-			return "إشعار دائن تمت المعالجة", statusClassCreditNote
-		case 3:
-			return "إشعار دائن صادرة", statusClassCreditNote
-		default:
-			return "ERROR", "badge-danger"
-		}
-	}
-
-	switch inv.State {
-	case 0:
-		return "مسودة", "badge-draft"
-	case 1:
-		return "قيد المعالجة", "badge-pending"
-	case 2:
-		return "تمت المعالجة", "badge-issued"
-	case 3:
-		return "صادرة", "badge-issued"
-	default:
-		return "ERROR", "badge-danger"
-	}
 }
 
 func TranslateInvoiceStatus(status string) string {

@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
+	"strconv"
 
 	"afrita/helpers"
+	"afrita/models"
 )
 
 // ZatcaMonitorStats holds aggregate submission statistics.
@@ -31,96 +34,159 @@ type ZatcaBranchMonitor struct {
 type ZatcaSubmissionRow struct {
 	InvoiceID   int
 	InvoiceNo   string
-	InvoiceType string // "standard" or "simplified"
+	InvoiceType string
 	BranchName  string
-	Status      string // "accepted", "warning", "rejected", "pending"
+	Status      string
+	StatusClass string
 	ZatcaRef    string
 	SubmittedAt string
 	WarningMsg  string
+	BillState   models.BillStateProjection
 }
 
-// HandleZatcaMonitor renders the ZATCA status monitoring page.
-// Currently returns mock data — will call backend APIs when ready.
+// HandleZatcaMonitor renders the durable ZATCA status monitoring page.
 func HandleZatcaMonitor(w http.ResponseWriter, r *http.Request) {
-	_, ok := helpers.GetTokenOrRedirect(w, r)
+	token, ok := helpers.GetTokenOrRedirect(w, r)
 	if !ok {
 		return
 	}
 
-	// TODO: Replace mock data with real API calls:
-	//   GET /api/v2/zatca/monitor/stats
-	//   GET /api/v2/zatca/monitor/branches
-	//   GET /api/v2/zatca/monitor/submissions?limit=50
-
-	stats := ZatcaMonitorStats{
-		TotalSubmitted: 1247,
-		Accepted:       1189,
-		Warnings:       38,
-		Rejected:       12,
-		Pending:        8,
+	stats, statsErr := helpers.FetchZatcaMonitorStats(token)
+	branches, branchesErr := helpers.FetchZatcaMonitorBranches(token)
+	submissions, submissionsErr := helpers.FetchZatcaMonitorSubmissions(token)
+	for _, err := range []error{statsErr, branchesErr, submissionsErr} {
+		if err != nil && helpers.IsUnauthorizedError(err) {
+			helpers.HandleUnauthorized(w, r)
+			return
+		}
 	}
 
-	branchStatuses := []ZatcaBranchMonitor{
-		{
-			BranchName:     "الفرع الرئيسي",
-			StatusText:     "متصل ✓",
-			StatusDot:      "bg-green-500",
-			StatusBg:       "bg-green-100 text-green-700",
-			CertExpiry:     "2026-09-15",
-			TodayCount:     23,
-			SuccessRate:    97.8,
-			LastSubmission: "قبل 5 دقائق",
-		},
-		{
-			BranchName:     "فرع جدة",
-			StatusText:     "متصل ✓",
-			StatusDot:      "bg-green-500",
-			StatusBg:       "bg-green-100 text-green-700",
-			CertExpiry:     "2026-08-22",
-			TodayCount:     15,
-			SuccessRate:    100.0,
-			LastSubmission: "قبل 12 دقيقة",
-		},
-		{
-			BranchName:     "فرع الدمام",
-			StatusText:     "ينتهي قريباً ⏰",
-			StatusDot:      "bg-orange-500",
-			StatusBg:       "bg-orange-100 text-orange-700",
-			CertExpiry:     "2026-05-01",
-			TodayCount:     8,
-			SuccessRate:    87.5,
-			LastSubmission: "قبل 30 دقيقة",
-		},
-		{
-			BranchName:     "فرع المدينة",
-			StatusText:     "غير متصل",
-			StatusDot:      "bg-red-500",
-			StatusBg:       "bg-red-100 text-red-600",
-			CertExpiry:     "—",
-			TodayCount:     0,
-			SuccessRate:    0,
-			LastSubmission: "—",
-		},
+	var monitorErrors []string
+	if statsErr != nil {
+		log.Printf("[zatca-monitor] stats fetch failed: %v", statsErr)
+		monitorErrors = append(monitorErrors, "إحصاءات الإرسال")
+	}
+	if branchesErr != nil {
+		log.Printf("[zatca-monitor] branches fetch failed: %v", branchesErr)
+		monitorErrors = append(monitorErrors, "حالة الفروع")
+	}
+	if submissionsErr != nil {
+		log.Printf("[zatca-monitor] submissions fetch failed: %v", submissionsErr)
+		monitorErrors = append(monitorErrors, "سجل الإرسال")
 	}
 
-	submissions := []ZatcaSubmissionRow{
-		{InvoiceID: 4521, InvoiceNo: "INV-4521", InvoiceType: "simplified", BranchName: "الفرع الرئيسي", Status: "accepted", ZatcaRef: "ZAT-2026-04150001", SubmittedAt: "2026-04-15 09:32:14"},
-		{InvoiceID: 4520, InvoiceNo: "INV-4520", InvoiceType: "standard", BranchName: "فرع جدة", Status: "accepted", ZatcaRef: "ZAT-2026-04150002", SubmittedAt: "2026-04-15 09:28:41"},
-		{InvoiceID: 4519, InvoiceNo: "INV-4519", InvoiceType: "simplified", BranchName: "الفرع الرئيسي", Status: "warning", ZatcaRef: "ZAT-2026-04150003", SubmittedAt: "2026-04-15 09:15:07", WarningMsg: "حقل العنوان غير مكتمل"},
-		{InvoiceID: 4518, InvoiceNo: "INV-4518", InvoiceType: "simplified", BranchName: "فرع الدمام", Status: "rejected", ZatcaRef: "", SubmittedAt: "2026-04-15 09:10:33"},
-		{InvoiceID: 4517, InvoiceNo: "INV-4517", InvoiceType: "standard", BranchName: "الفرع الرئيسي", Status: "accepted", ZatcaRef: "ZAT-2026-04150004", SubmittedAt: "2026-04-15 08:55:19"},
-		{InvoiceID: 4516, InvoiceNo: "INV-4516", InvoiceType: "simplified", BranchName: "فرع جدة", Status: "accepted", ZatcaRef: "ZAT-2026-04150005", SubmittedAt: "2026-04-15 08:42:08"},
-		{InvoiceID: 4515, InvoiceNo: "INV-4515", InvoiceType: "simplified", BranchName: "الفرع الرئيسي", Status: "pending", ZatcaRef: "", SubmittedAt: "2026-04-15 08:38:55"},
-		{InvoiceID: 4514, InvoiceNo: "INV-4514", InvoiceType: "standard", BranchName: "فرع الدمام", Status: "warning", ZatcaRef: "ZAT-2026-04150006", SubmittedAt: "2026-04-15 08:30:11", WarningMsg: "الرقم المرجعي مكرر"},
-		{InvoiceID: 4513, InvoiceNo: "INV-4513", InvoiceType: "simplified", BranchName: "الفرع الرئيسي", Status: "accepted", ZatcaRef: "ZAT-2026-04150007", SubmittedAt: "2026-04-15 08:22:44"},
-		{InvoiceID: 4512, InvoiceNo: "INV-4512", InvoiceType: "simplified", BranchName: "فرع جدة", Status: "accepted", ZatcaRef: "ZAT-2026-04150008", SubmittedAt: "2026-04-15 08:15:02"},
+	branchStatuses := make([]ZatcaBranchMonitor, 0, len(branches))
+	if branchesErr == nil {
+		for _, branch := range branches {
+			statusText, statusDot, statusBg := branchStatusPresentation(branch.ZatcaStatus)
+			certExpiry := "—"
+			if branch.CertExpiry != nil && *branch.CertExpiry != "" {
+				certExpiry = *branch.CertExpiry
+			}
+			lastSubmission := "—"
+			if branch.LastSubmissionAt != nil && *branch.LastSubmissionAt != "" {
+				lastSubmission = *branch.LastSubmissionAt
+			}
+			branchStatuses = append(branchStatuses, ZatcaBranchMonitor{
+				BranchName:     branch.BranchName,
+				StatusText:     statusText,
+				StatusDot:      statusDot,
+				StatusBg:       statusBg,
+				CertExpiry:     certExpiry,
+				TodayCount:     branch.TodayCount,
+				SuccessRate:    branch.SuccessRate,
+				LastSubmission: lastSubmission,
+			})
+		}
+	}
+
+	submissionRows := make([]ZatcaSubmissionRow, 0, len(submissions))
+	if submissionsErr == nil {
+		for _, submission := range submissions {
+			billState := helpers.ProjectZatcaMonitorState(submission.Status, submission.StatusCode)
+			status := monitorStatusKey(billState.ZatcaState)
+			invoiceNo := strconv.Itoa(submission.SourceID)
+			if submission.DocumentNumber != nil && *submission.DocumentNumber != "" {
+				invoiceNo = *submission.DocumentNumber
+			}
+			zatcaRef := ""
+			if submission.ZatcaRef != nil {
+				zatcaRef = *submission.ZatcaRef
+			}
+			warningMsg := ""
+			if submission.WarningMsg != nil {
+				warningMsg = *submission.WarningMsg
+			}
+			submittedAt := ""
+			if submission.SubmittedAt != nil {
+				submittedAt = *submission.SubmittedAt
+			}
+			submissionRows = append(submissionRows, ZatcaSubmissionRow{
+				InvoiceID:   submission.SourceID,
+				InvoiceNo:   invoiceNo,
+				InvoiceType: monitorDocumentType(submission.DocumentType),
+				BranchName:  submission.BranchName,
+				Status:      status,
+				StatusClass: billState.ZatcaClass,
+				ZatcaRef:    zatcaRef,
+				SubmittedAt: submittedAt,
+				WarningMsg:  warningMsg,
+				BillState:   billState,
+			})
+		}
 	}
 
 	helpers.Render(w, r, "zatca-monitor", map[string]interface{}{
 		"title":          "ZATCA Monitor",
 		"active_page":    "zatca-monitor",
-		"Stats":          stats,
+		"Stats":          ZatcaMonitorStats{TotalSubmitted: stats.TotalSubmitted, Accepted: stats.Accepted, Warnings: stats.Warnings, Rejected: stats.Rejected, Pending: stats.Pending},
 		"BranchStatuses": branchStatuses,
-		"Submissions":    submissions,
+		"Submissions":    submissionRows,
+		"monitor_errors": monitorErrors,
 	})
+}
+
+func branchStatusPresentation(status int) (string, string, string) {
+	switch status {
+	case 1:
+		return "متصل ✓", "bg-green-500", "bg-green-100 text-green-700"
+	case 2:
+		return "منتهي", "bg-red-500", "bg-red-100 text-red-600"
+	case 4:
+		return "ينتهي قريباً ⏰", "bg-orange-500", "bg-orange-100 text-orange-700"
+	default:
+		return "غير متصل", "bg-gray-500", "bg-gray-100 text-gray-700"
+	}
+}
+
+func monitorStatusKey(state string) string {
+	switch state {
+	case "accepted":
+		return "accepted"
+	case "accepted_with_warning":
+		return "warning"
+	case "rejected":
+		return "rejected"
+	case "pending", "retrying":
+		return "pending"
+	case "result_unknown":
+		return "result_unknown"
+	case "action_required":
+		return "action_required"
+	default:
+		return "unknown"
+	}
+}
+
+func monitorDocumentType(documentType string) string {
+	switch documentType {
+	case "bill", "invoice":
+		return "standard"
+	case "credit":
+		return "credit"
+	case "debit":
+		return "debit"
+	default:
+		return documentType
+	}
 }

@@ -17,8 +17,8 @@
     b[6] = (b[6] & 0x0f) | 0x40;
     b[8] = (b[8] & 0x3f) | 0x80;
     var h = '';
-    for (var i = 0; i < b.length; i++) {
-      h += ('0' + b[i].toString(16)).slice(-2);
+    for (var value of b) {
+      h += ('0' + value.toString(16)).slice(-2);
     }
     return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
   }
@@ -66,8 +66,7 @@
   }
 
   function scopeOf(evt) {
-    var elt = evt.detail.elt;
-    return elt && elt.getAttribute ? elt.getAttribute('data-sale-scope') : null;
+    return evt.detail.elt?.dataset?.saleScope;
   }
 
   document.addEventListener('htmx:configRequest', function (evt) {
@@ -97,8 +96,7 @@
   });
 
   // A sale form gets its value when it opens, so the value exists before the first submit.
-  var forms = document.querySelectorAll('[data-sale-scope]');
-  for (var i = 0; i < forms.length; i++) {
-    attemptId(forms[i].getAttribute('data-sale-scope'));
+  for (var form of document.querySelectorAll('[data-sale-scope]')) {
+    attemptId(form.dataset.saleScope);
   }
 })();

@@ -69,6 +69,8 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	batchKey := importBatchKey(rawBytes)
+
 	// Strip BOM if present
 	rawStr := string(rawBytes)
 	rawStr = strings.TrimPrefix(rawStr, "\xef\xbb\xbf")
@@ -119,6 +121,7 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 
 	for i, bill := range bills {
 		bill.State = 3 // completed/issued
+		bill.PosID, bill.BillRequestID = importSaleIdentity(batchKey, i+1)
 
 		jsonPayload, _ := json.Marshal(bill)
 		log.Printf("[CSV IMPORT] Bill %d/%d payload: %s", i+1, len(bills), string(jsonPayload))

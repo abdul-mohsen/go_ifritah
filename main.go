@@ -215,9 +215,6 @@ func main() {
 	router.HandleFunc("/dashboard/stores/{id}/update", protect("stores", "edit", handlers.HandleUpdateStore)).Methods("POST")
 	router.HandleFunc("/dashboard/stores/{id}/delete", protect("stores", "delete", handlers.HandleDeleteStore)).Methods("POST")
 
-	// Company invoice route — RBAC protected
-	router.HandleFunc("/dashboard/invoices/create-company", protect("invoices", "add", handlers.HandleCreateCompanyInvoice)).Methods("POST")
-
 	// CSV Export routes — RBAC protected
 	router.HandleFunc("/dashboard/invoices/export-csv", protect("invoices", "view", handlers.HandleExportInvoicesCSV)).Methods("GET")
 	router.HandleFunc("/dashboard/invoices/export-xlsx", protect("invoices", "view", handlers.HandleExportSalesBillsXLSX)).Methods("GET")

@@ -693,6 +693,8 @@ func HandleSubmitDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	manualItems := buildSubmitManualItems(manualProducts)
 
 	payload := buildSubmitDraftPayload(inv, extra, prodItems, manualItems)
+	payload.PosID = r.FormValue("pos_id")
+	payload.BillRequestID = r.FormValue("bill_request_id")
 	if date := helpers.SafeString(extra["payment_due_date"]); date != "" {
 		payload.PaymentDueDate = helpers.ToBackendDatePtr(date)
 	}
@@ -748,37 +750,6 @@ func HandleDeleteInvoice(w http.ResponseWriter, r *http.Request) {
 
 	helpers.APICache.Delete("invoices_all")
 	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم حذف الفاتورة بنجاح")
-}
-
-// HandleCreateCompanyInvoice creates an invoice for a company client
-func HandleCreateCompanyInvoice(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
-	token, ok := helpers.GetTokenOrRedirect(w, r)
-	if !ok {
-		return
-	}
-
-	// Build the invoice payload with client_id
-	payload := map[string]interface{}{
-		"store_id":          helpers.ParseIntValue(r.FormValue("store_id")),
-		"client_id":         r.FormValue("client_id"),
-		"user_name":         r.FormValue("user_name"),
-		"user_phone_number": r.FormValue("user_phone_number"),
-		"note":              r.FormValue("note"),
-		"state":             1,
-	}
-	jsonPayload, _ := json.Marshal(payload)
-	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill", bytes.NewBuffer(jsonPayload))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := helpers.DoAuthedRequest(req, token)
-	if err != nil {
-		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
-		return
-	}
-	defer resp.Body.Close()
-
-	helpers.APICache.Delete("invoices_all")
-	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم إنشاء فاتورة الشركة بنجاح")
 }
 
 // buildSubmitProductItems converts persisted bill product rows into the

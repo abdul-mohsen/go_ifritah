@@ -514,6 +514,8 @@ type BillPayload struct {
 	PaymentMethod   int               `json:"payment_method"`
 	ClientID        *int              `json:"client_id,omitempty"`
 	BranchID        int               `json:"branch_id"`
+	PosID           string            `json:"pos_id"`
+	BillRequestID   string            `json:"bill_request_id"`
 }
 
 // BillDetail represents detailed bill information

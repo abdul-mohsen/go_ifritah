@@ -88,6 +88,7 @@ func BuildBillPayload(r *http.Request) models.BillPayload {
 		clientID = &cid
 	}
 
+	// The sale identity is set by static/js/sale-identity.js. The backend needs it on final sales.
 	return models.BillPayload{
 		StoreID:         ParseIntValue(r.FormValue("store_id")),
 		Products:        products,
@@ -106,6 +107,8 @@ func BuildBillPayload(r *http.Request) models.BillPayload {
 		PaymentMethod:   ParseIntValue(r.FormValue("payment_method")),
 		ClientID:        clientID,
 		BranchID:        ParseIntValue(r.FormValue("branch_id")),
+		PosID:           r.FormValue("pos_id"),
+		BillRequestID:   r.FormValue("bill_request_id"),
 	}
 }
 

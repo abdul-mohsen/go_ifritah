@@ -1,7 +1,7 @@
 ﻿{{ define "content" }}
 {{ template "breadcrumb" dict "section_url" "/dashboard/invoices" "section_label" (L "nav.invoices_section") "current" .title }}
 <div class="page-card-wide">
-    <form hx-post="/api/invoices" hx-target="body" id="invoice-form" hx-indicator="#submit-spinner">
+    <form hx-post="/api/invoices" hx-target="body" id="invoice-form" hx-indicator="#submit-spinner" data-sale-scope="new-sale">
         {{ if .is_company }}
         <input type="hidden" name="client_id" id="client-id-field" value="">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 border rounded" style="border-color: var(--md-sys-color-primary); background: var(--md-sys-color-surface-container)">

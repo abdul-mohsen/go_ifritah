@@ -136,6 +136,7 @@ func HandleImportBillsXLSX(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	batchKey := importBatchKey(payload)
 	bills, products, err := parseBillImportWorkbook(payload, importType)
 	if err != nil {
 		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: err.Error()})
@@ -154,7 +155,7 @@ func HandleImportBillsXLSX(w http.ResponseWriter, r *http.Request) {
 		if importType == billImportPurchase {
 			createErr = submitPurchaseImport(token, bill, items)
 		} else {
-			createErr = submitSalesImport(token, bill, items)
+			createErr = submitSalesImport(token, batchKey, index+1, bill, items)
 		}
 		result := bulkImportLineResult{Index: index, OK: createErr == nil}
 		if createErr != nil {
@@ -467,7 +468,7 @@ func parseSheetFloat(value string) float64 {
 	return parsed
 }
 
-func submitSalesImport(token string, bill spreadsheetBill, products []spreadsheetProduct) error {
+func submitSalesImport(token, batchKey string, row int, bill spreadsheetBill, products []spreadsheetProduct) error {
 	items, total := importSalesItems(products)
 	effective := helpers.ToBackendDate(bill.values["date"])
 	if effective == "" {
@@ -498,6 +499,7 @@ func submitSalesImport(token string, bill spreadsheetBill, products []spreadshee
 		ClientID:        customerID,
 		BranchID:        branchID,
 	}
+	payload.PosID, payload.BillRequestID = importSaleIdentity(batchKey, row)
 	return postImportedBill(token, "/api/v2/bill", payload)
 }
 

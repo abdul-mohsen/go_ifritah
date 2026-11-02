@@ -139,6 +139,9 @@ func HandleDataImportExecute(w http.ResponseWriter, r *http.Request) {
 // ── Bill import ─────────────────────────────────────────────────
 
 func importBills(w http.ResponseWriter, token string, req importRequest) {
+	// The request was decoded from JSON, so it encodes again. The same rows and mapping give the same batch key.
+	content, _ := json.Marshal(req)
+	batchKey := importBatchKey(content)
 	var results []billResult
 	successCount := 0
 	failCount := 0
@@ -264,7 +267,7 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 				continue
 			}
 			bp := buildBillPayload(grp)
-			ok, errMsg := submitBill(token, bp, i+1)
+			ok, errMsg := submitBill(token, bp, batchKey, i+1)
 			results = append(results, billResult{Row: i + 1, OK: ok, Error: errMsg})
 			if ok {
 				successCount++
@@ -282,7 +285,7 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 			}
 			rowNum++
 			bp := buildBillPayload([]billRow{br})
-			ok, errMsg := submitBill(token, bp, rowNum)
+			ok, errMsg := submitBill(token, bp, batchKey, rowNum)
 			results = append(results, billResult{Row: rowNum, OK: ok, Error: errMsg})
 			if ok {
 				successCount++
@@ -301,7 +304,8 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 	})
 }
 
-func submitBill(token string, bp models.BillPayload, num int) (bool, string) {
+func submitBill(token string, bp models.BillPayload, batchKey string, num int) (bool, string) {
+	bp.PosID, bp.BillRequestID = importSaleIdentity(batchKey, num)
 	jsonPayload, _ := json.Marshal(bp)
 	log.Printf("[DATA IMPORT] Bill %d payload: %s", num, string(jsonPayload))
 

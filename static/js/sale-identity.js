@@ -95,4 +95,10 @@
   window.addEventListener('pageshow', function (evt) {
     if (evt.persisted) current = {};
   });
+
+  // A sale form gets its value when it opens, so the value exists before the first submit.
+  var forms = document.querySelectorAll('[data-sale-scope]');
+  for (var i = 0; i < forms.length; i++) {
+    attemptId(forms[i].getAttribute('data-sale-scope'));
+  }
 })();

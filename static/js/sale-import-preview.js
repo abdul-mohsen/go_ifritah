@@ -6,10 +6,6 @@
     en: { ok: 'OK', duplicate: 'Duplicate', warning: 'Warning', error: 'Error' },
     ar: { ok: 'جاهز', duplicate: 'مكرر', warning: 'تحذير', error: 'خطأ' }
   };
-  var HEADERS = {
-    en: ['', 'Row', 'Customer', 'Date', 'Total', 'Status', 'Details'],
-    ar: ['', 'الصف', 'العميل', 'التاريخ', 'الإجمالي', 'الحالة', 'التفاصيل']
-  };
   var DUPLICATE_CODES = ['duplicate_sale', 'duplicate_in_batch'];
 
   function language() {
@@ -28,7 +24,7 @@
     var warnings = row.warnings || [];
     var status = warnings.length > 0 ? 'warning' : 'ok';
     for (var warning of warnings) {
-      if (DUPLICATE_CODES.indexOf(warning.code) !== -1) {
+      if (DUPLICATE_CODES.includes(warning.code)) {
         status = 'duplicate';
       }
     }
@@ -55,13 +51,13 @@
 
   function rowElement(row, status, text) {
     var tr = document.createElement('tr');
-    tr.setAttribute('data-row', String(row.row));
-    tr.setAttribute('data-status', status);
+    tr.dataset.row = String(row.row);
+    tr.dataset.status = status;
     var tick = document.createElement('td');
     tick.className = 'py-1 px-2';
     var box = document.createElement('input');
     box.type = 'checkbox';
-    box.setAttribute('data-row-check', String(row.row));
+    box.dataset.rowCheck = String(row.row);
     box.checked = status === 'ok';
     box.disabled = status === 'error';
     tick.appendChild(box);
@@ -75,30 +71,28 @@
     return tr;
   }
 
+  // body returns the table's body, which is where the rows go. The headers come from the page.
+  function body(table) {
+    return table.tBodies.length > 0 ? table.tBodies[0] : table.appendChild(document.createElement('tbody'));
+  }
+
   // render fills the table with one line per row. It returns the count of each status.
   function render(table, rows) {
-    var lang = language();
-    var text = TEXT[lang];
+    var text = TEXT[language()];
     var counts = { ok: 0, duplicate: 0, warning: 0, error: 0 };
-    var head = document.createElement('thead');
-    var headRow = document.createElement('tr');
-    for (var heading of HEADERS[lang]) {
-      var th = document.createElement('th');
-      th.className = 'py-1 px-2';
-      th.textContent = heading;
-      headRow.appendChild(th);
-    }
-    head.appendChild(headRow);
-    var body = document.createElement('tbody');
+    var target = body(table);
+    target.textContent = '';
     for (var row of rows) {
       var status = classify(row);
       counts[status] += 1;
-      body.appendChild(rowElement(row, status, text));
+      target.appendChild(rowElement(row, status, text));
     }
-    table.textContent = '';
-    table.appendChild(head);
-    table.appendChild(body);
     return { counts: counts };
+  }
+
+  // clear removes the rows, and keeps the headers.
+  function clear(table) {
+    body(table).textContent = '';
   }
 
   // selectedRows returns the numbers of the rows that are ticked. A blocked row is never one of them.
@@ -106,7 +100,7 @@
     var rows = [];
     for (var box of table.querySelectorAll('input[data-row-check]')) {
       if (box.checked && !box.disabled) {
-        rows.push(Number(box.getAttribute('data-row-check')));
+        rows.push(Number(box.dataset.rowCheck));
       }
     }
     return rows;
@@ -139,5 +133,5 @@
     return counts;
   }
 
-  window.salePreview = { classify: classify, render: render, selectedRows: selectedRows, summary: summary, tally: tally };
+  window.salePreview = { classify: classify, clear: clear, render: render, selectedRows: selectedRows, summary: summary, tally: tally };
 })();

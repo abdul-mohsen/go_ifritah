@@ -21,7 +21,19 @@
   <section id="bill-import-preview" class="mt-6" hidden>
     <p id="bill-import-summary" class="text-sm mb-2"></p>
     <div class="overflow-x-auto rounded-lg p-2" style="background:var(--md-sys-color-surface-variant)">
-      <table id="bill-import-table" class="min-w-full text-xs"></table>
+      <table id="bill-import-table" class="min-w-full text-xs">
+        <thead>
+          <tr>
+            <th>{{ if .arabic }}اختيار{{ else }}Import{{ end }}</th>
+            <th>{{ if .arabic }}الصف{{ else }}Row{{ end }}</th>
+            <th>{{ if .arabic }}العميل{{ else }}Customer{{ end }}</th>
+            <th>{{ if .arabic }}التاريخ{{ else }}Date{{ end }}</th>
+            <th>{{ if .arabic }}الإجمالي{{ else }}Total{{ end }}</th>
+            <th>{{ if .arabic }}الحالة{{ else }}Status{{ end }}</th>
+            <th>{{ if .arabic }}التفاصيل{{ else }}Details{{ end }}</th>
+          </tr>
+        </thead>
+      </table>
     </div>
     <div class="flex gap-2 mt-4">
       <button id="bill-import-commit" type="button" class="btn btn-filled" disabled>{{ if .arabic }}استيراد الصفوف المحددة{{ else }}Import selected rows{{ end }}</button>
@@ -58,7 +70,7 @@
 
   function hidePreview() {
     shown = { byRow: {} };
-    table.textContent = '';
+    window.salePreview.clear(table);
     commit.disabled = true;
     preview.hidden = true;
   }

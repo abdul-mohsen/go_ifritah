@@ -80,53 +80,68 @@ type salesOutcome struct {
 	err         string
 }
 
-// checkSalesCandidates checks the candidates that can become sales, with the backend, in chunks of importCheckChunk. It answers
+// checkSalesCandidates checks the candidates that can become sales, with the backend, in chunks of importCheckChunk, and answers
 // every candidate in order. A row that the backend does not answer is blocked, so no row is ok without an answer.
 func checkSalesCandidates(token string, candidates []salesCandidate) ([]previewRow, error) {
 	rows := make([]previewRow, len(candidates))
 	var sent []int
 	for i, candidate := range candidates {
-		rows[i] = previewRow{
-			Row: candidate.row, Customer: candidate.customer, Date: candidate.date, Total: candidate.total,
-			Errors: nonNilIssues(candidate.issues), Warnings: []previewIssue{},
+		rows[i] = newPreviewRow(candidate)
+		if candidate.payload != nil {
+			rows[i].Valid = true
+			sent = append(sent, i)
 		}
-		if candidate.payload == nil {
-			continue
-		}
-		rows[i].Valid = true
-		sent = append(sent, i)
 	}
 	for start := 0; start < len(sent); start += importCheckChunk {
-		batch := sent[start:min(start+importCheckChunk, len(sent))]
-		payloads := make([]models.BillPayload, 0, len(batch))
-		for _, i := range batch {
-			payloads = append(payloads, *candidates[i].payload)
-		}
-		answers, err := postImportCheck(token, payloads)
-		if err != nil {
+		if err := checkChunk(token, candidates, rows, sent[start:min(start+importCheckChunk, len(sent))]); err != nil {
 			return nil, err
-		}
-		answered := make([]bool, len(batch))
-		for _, answer := range answers {
-			if answer.Index < 0 || answer.Index >= len(batch) {
-				return nil, fmt.Errorf("the check answered row %d, which it was not sent", answer.Index)
-			}
-			answered[answer.Index] = true
-			row := &rows[batch[answer.Index]]
-			row.Valid = answer.Valid && len(answer.Errors) == 0
-			row.Errors = nonNilIssues(answer.Errors)
-			row.Warnings = nonNilIssues(answer.Warnings)
-			row.DuplicateOf = answer.DuplicateOf
-		}
-		for j, ok := range answered {
-			if !ok {
-				row := &rows[batch[j]]
-				row.Valid = false
-				row.Errors = append(row.Errors, previewIssue{Code: importCodeNoAnswer, Message: "the backend did not check this row"})
-			}
 		}
 	}
 	return rows, nil
+}
+
+// newPreviewRow starts the answer for a candidate. A candidate that cannot become a sale is blocked with its own issues.
+func newPreviewRow(candidate salesCandidate) previewRow {
+	return previewRow{
+		Row: candidate.row, Customer: candidate.customer, Date: candidate.date, Total: candidate.total,
+		Errors: nonNilIssues(candidate.issues), Warnings: []previewIssue{},
+	}
+}
+
+// checkChunk checks the candidates at batch with the backend, and writes the answer of each one into rows.
+func checkChunk(token string, candidates []salesCandidate, rows []previewRow, batch []int) error {
+	payloads := make([]models.BillPayload, 0, len(batch))
+	for _, i := range batch {
+		payloads = append(payloads, *candidates[i].payload)
+	}
+	answers, err := postImportCheck(token, payloads)
+	if err != nil {
+		return err
+	}
+	answered := make([]bool, len(batch))
+	for _, answer := range answers {
+		if answer.Index < 0 || answer.Index >= len(batch) {
+			return fmt.Errorf("the check answered row %d, which it was not sent", answer.Index)
+		}
+		answered[answer.Index] = true
+		applyCheckAnswer(&rows[batch[answer.Index]], answer)
+	}
+	for j, ok := range answered {
+		if !ok {
+			row := &rows[batch[j]]
+			row.Valid = false
+			row.Errors = append(row.Errors, previewIssue{Code: importCodeNoAnswer, Message: "the backend did not check this row"})
+		}
+	}
+	return nil
+}
+
+// applyCheckAnswer writes the backend's answer for one row. A row is valid only when the backend says so and gives no error.
+func applyCheckAnswer(row *previewRow, answer backendCheckRow) {
+	row.Valid = answer.Valid && len(answer.Errors) == 0
+	row.Errors = nonNilIssues(answer.Errors)
+	row.Warnings = nonNilIssues(answer.Warnings)
+	row.DuplicateOf = answer.DuplicateOf
 }
 
 // postImportCheck sends sale requests to the backend check, and returns its answer for them.

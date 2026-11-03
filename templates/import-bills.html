@@ -244,7 +244,19 @@
         <section id="csv-check" class="mt-6" hidden>
             <p id="csv-check-summary" class="text-sm mb-2"></p>
             <div class="overflow-x-auto rounded-lg p-2" style="background:var(--md-sys-color-surface-variant)">
-                <table id="csv-check-table" class="min-w-full text-xs"></table>
+                <table id="csv-check-table" class="min-w-full text-xs">
+                    <thead>
+                        <tr>
+                            <th>{{ if .arabic }}اختيار{{ else }}Import{{ end }}</th>
+                            <th>{{ if .arabic }}الصف{{ else }}Row{{ end }}</th>
+                            <th>{{ if .arabic }}العميل{{ else }}Customer{{ end }}</th>
+                            <th>{{ if .arabic }}التاريخ{{ else }}Date{{ end }}</th>
+                            <th>{{ if .arabic }}الإجمالي{{ else }}Total{{ end }}</th>
+                            <th>{{ if .arabic }}الحالة{{ else }}Status{{ end }}</th>
+                            <th>{{ if .arabic }}التفاصيل{{ else }}Details{{ end }}</th>
+                        </tr>
+                    </thead>
+                </table>
             </div>
             <div class="flex gap-2 mt-4">
                 <button type="button" id="csv-check-commit" class="btn btn-filled" disabled>{{ if .arabic }}استيراد الصفوف المحددة{{ else }}Import selected rows{{ end }}</button>
@@ -391,7 +403,7 @@
 
     function hideCsvCheck() {
         csvShown = { byRow: {} };
-        csvTable.textContent = '';
+        window.salePreview.clear(csvTable);
         csvCommit.disabled = true;
         csvCheck.hidden = true;
     }

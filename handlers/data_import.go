@@ -197,148 +197,147 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 	writeJSON(w, http.StatusOK, importResult{Total: len(outcomes), Success: success, Failed: failed, Results: results})
 }
 
-// billCandidates builds the sales of a data import from its rows. A group of rows is one bill, and it takes the number of its
-// group. A row on its own takes the number of the rows before it.
+// dataBillRow is one row of a data import, read through the mapping of its columns.
+type dataBillRow struct {
+	partName string
+	price    float64
+	quantity int
+	discount string
+	customer string
+	phone    string
+	vin      string
+	note     string
+	date     string
+}
+
+// dataBill is one bill of a data import: its row number, and the rows that make it.
+type dataBill struct {
+	row  int
+	rows []dataBillRow
+}
+
+// dataCell returns the trimmed value of a mapped column. It is "" when the column is not mapped or the row is short.
+func dataCell(mapping map[string]int, row []string, field string) string {
+	idx, ok := mapping[field]
+	if !ok || idx >= len(row) {
+		return ""
+	}
+	return strings.TrimSpace(row[idx])
+}
+
+// parseDataRow reads one row of a data import through the mapping.
+func parseDataRow(mapping map[string]int, row []string) dataBillRow {
+	br := dataBillRow{quantity: 1}
+	br.partName = dataCell(mapping, row, "part_name")
+	br.price = parsePrice(dataCell(mapping, row, "price"))
+	if q := helpers.ParseIntValue(dataCell(mapping, row, "quantity")); q > 0 {
+		br.quantity = q
+	}
+	br.discount = cleanNumeric(dataCell(mapping, row, "discount"))
+	br.customer = dataCell(mapping, row, "customer_name")
+	br.phone = dataCell(mapping, row, "customer_phone")
+	br.vin = dataCell(mapping, row, "vin")
+	br.note = dataCell(mapping, row, "note")
+	br.date = dataCell(mapping, row, "date")
+	return br
+}
+
+// dataBillOf builds the sale request of the rows of one bill of a data import.
+func dataBillOf(req importRequest, rows []dataBillRow) models.BillPayload {
+	items := make([]models.BillManualItem, 0, len(rows))
+	var total float64
+	for _, r := range rows {
+		name := r.partName
+		if name == "" {
+			name = "بند"
+		}
+		items = append(items, models.BillManualItem{
+			PartName: name,
+			Price:    formatPrice(r.price),
+			Quantity: strconv.Itoa(r.quantity),
+		})
+		total += r.price * float64(r.quantity)
+	}
+	first := rows[0]
+	discount := first.discount
+	if discount == "" {
+		discount = "0"
+	}
+	bp := models.BillPayload{
+		StoreID:         req.StoreID,
+		Products:        []models.BillProductItem{},
+		ManualProducts:  items,
+		TotalAmount:     total,
+		Discount:        discount,
+		MaintenanceCost: "0",
+		State:           3, // issued
+		UserName:        first.customer,
+		UserPhoneNumber: first.phone,
+		Note:            first.note,
+		VIN:             first.vin,
+		PaymentMethod:   10, // cash
+	}
+	if first.date != "" {
+		if d := parseDateToRFC3339(first.date); d != "" {
+			bp.EffectiveDate = &d
+		}
+	}
+	return bp
+}
+
+// dataBillsOf groups the rows of a data import into bills. A group of rows is one bill, and it takes the number of its group. A row
+// on its own is a bill, and it takes the number of the rows before it.
+func dataBillsOf(req importRequest) []dataBill {
+	if billGroupIdx, hasBillGroup := req.Mapping["bill_group"]; hasBillGroup {
+		return groupedDataBills(req, billGroupIdx)
+	}
+	var bills []dataBill
+	for _, row := range req.Rows {
+		br := parseDataRow(req.Mapping, row)
+		if br.partName == "" && br.price == 0 {
+			continue
+		}
+		bills = append(bills, dataBill{row: len(bills) + 1, rows: []dataBillRow{br}})
+	}
+	return bills
+}
+
+// groupedDataBills groups the rows of a data import by the value of their bill_group column.
+func groupedDataBills(req importRequest, billGroupIdx int) []dataBill {
+	groups := make(map[string][]dataBillRow)
+	var order []string
+	for _, row := range req.Rows {
+		br := parseDataRow(req.Mapping, row)
+		if br.partName == "" && br.price == 0 {
+			continue
+		}
+		key := ""
+		if billGroupIdx < len(row) {
+			key = strings.TrimSpace(row[billGroupIdx])
+		}
+		if key == "" {
+			key = fmt.Sprintf("__single_%d", len(order))
+		}
+		if _, exists := groups[key]; !exists {
+			order = append(order, key)
+		}
+		groups[key] = append(groups[key], br)
+	}
+	bills := make([]dataBill, 0, len(order))
+	for i, key := range order {
+		bills = append(bills, dataBill{row: i + 1, rows: groups[key]})
+	}
+	return bills
+}
+
+// billCandidates builds the sales of a data import, one for each of its bills, with the identity of each bill's row.
 func billCandidates(req importRequest) []salesCandidate {
-	billGroupIdx, hasBillGroup := req.Mapping["bill_group"]
-
-	type billRow struct {
-		partName string
-		price    float64
-		quantity int
-		discount string
-		customer string
-		phone    string
-		vin      string
-		note     string
-		date     string
-	}
-
-	parseRow := func(row []string) billRow {
-		br := billRow{quantity: 1}
-		if idx, ok := req.Mapping["part_name"]; ok && idx < len(row) {
-			br.partName = strings.TrimSpace(row[idx])
-		}
-		if idx, ok := req.Mapping["price"]; ok && idx < len(row) {
-			br.price = parsePrice(strings.TrimSpace(row[idx]))
-		}
-		if idx, ok := req.Mapping["quantity"]; ok && idx < len(row) {
-			q := helpers.ParseIntValue(strings.TrimSpace(row[idx]))
-			if q > 0 {
-				br.quantity = q
-			}
-		}
-		if idx, ok := req.Mapping["discount"]; ok && idx < len(row) {
-			br.discount = cleanNumeric(row[idx])
-		}
-		if idx, ok := req.Mapping["customer_name"]; ok && idx < len(row) {
-			br.customer = strings.TrimSpace(row[idx])
-		}
-		if idx, ok := req.Mapping["customer_phone"]; ok && idx < len(row) {
-			br.phone = strings.TrimSpace(row[idx])
-		}
-		if idx, ok := req.Mapping["vin"]; ok && idx < len(row) {
-			br.vin = strings.TrimSpace(row[idx])
-		}
-		if idx, ok := req.Mapping["note"]; ok && idx < len(row) {
-			br.note = strings.TrimSpace(row[idx])
-		}
-		if idx, ok := req.Mapping["date"]; ok && idx < len(row) {
-			br.date = strings.TrimSpace(row[idx])
-		}
-		return br
-	}
-
-	buildBillPayload := func(rows []billRow) models.BillPayload {
-		items := make([]models.BillManualItem, 0, len(rows))
-		var total float64
-		for _, r := range rows {
-			name := r.partName
-			if name == "" {
-				name = "بند"
-			}
-			items = append(items, models.BillManualItem{
-				PartName: name,
-				Price:    formatPrice(r.price),
-				Quantity: strconv.Itoa(r.quantity),
-			})
-			total += r.price * float64(r.quantity)
-		}
-		first := rows[0]
-		discount := first.discount
-		if discount == "" {
-			discount = "0"
-		}
-		bp := models.BillPayload{
-			StoreID:         req.StoreID,
-			Products:        []models.BillProductItem{},
-			ManualProducts:  items,
-			TotalAmount:     total,
-			Discount:        discount,
-			MaintenanceCost: "0",
-			State:           3, // issued
-			UserName:        first.customer,
-			UserPhoneNumber: first.phone,
-			Note:            first.note,
-			VIN:             first.vin,
-			PaymentMethod:   10, // cash
-		}
-		if first.date != "" {
-			d := parseDateToRFC3339(first.date)
-			if d != "" {
-				bp.EffectiveDate = &d
-			}
-		}
-		return bp
-	}
-
 	var candidates []salesCandidate
-	add := func(row int, bp models.BillPayload) {
-		bp.PosID, bp.BillRequestID = importSaleIdentity(req.ImportSession, row)
+	for _, bill := range dataBillsOf(req) {
+		bp := dataBillOf(req, bill.rows)
+		bp.PosID, bp.BillRequestID = importSaleIdentity(req.ImportSession, bill.row)
 		customer, date, total := salesPreviewFields(&bp)
-		candidates = append(candidates, salesCandidate{row: row, payload: &bp, customer: customer, date: date, total: total})
-	}
-
-	if hasBillGroup {
-		// Group rows by bill_group column value
-		groups := make(map[string][]billRow)
-		var order []string
-		for _, row := range req.Rows {
-			br := parseRow(row)
-			if br.partName == "" && br.price == 0 {
-				continue
-			}
-			key := ""
-			if billGroupIdx < len(row) {
-				key = strings.TrimSpace(row[billGroupIdx])
-			}
-			if key == "" {
-				key = fmt.Sprintf("__single_%d", len(order))
-			}
-			if _, exists := groups[key]; !exists {
-				order = append(order, key)
-			}
-			groups[key] = append(groups[key], br)
-		}
-
-		for i, key := range order {
-			grp := groups[key]
-			if len(grp) == 0 {
-				continue
-			}
-			add(i+1, buildBillPayload(grp))
-		}
-	} else {
-		// Each row is a separate bill
-		rowNum := 0
-		for _, row := range req.Rows {
-			br := parseRow(row)
-			if br.partName == "" && br.price == 0 {
-				continue
-			}
-			rowNum++
-			add(rowNum, buildBillPayload([]billRow{br}))
-		}
+		candidates = append(candidates, salesCandidate{row: bill.row, payload: &bp, customer: customer, date: date, total: total})
 	}
 	return candidates
 }

@@ -938,7 +938,19 @@
                 <div id="import-check" class="mt-6" hidden>
                     <p id="import-check-summary" class="text-sm mb-2"></p>
                     <div class="overflow-x-auto rounded-lg p-2" style="background: var(--md-sys-color-surface-container-low)">
-                        <table id="import-check-table" class="min-w-full text-xs"></table>
+                        <table id="import-check-table" class="min-w-full text-xs">
+                        <thead>
+                            <tr>
+                                <th>اختيار</th>
+                                <th>الصف</th>
+                                <th>العميل</th>
+                                <th>التاريخ</th>
+                                <th>الإجمالي</th>
+                                <th>الحالة</th>
+                                <th>التفاصيل</th>
+                            </tr>
+                        </thead>
+                    </table>
                     </div>
                     <div class="flex gap-2 mt-4">
                         <button type="button" onclick="commitImport()" class="btn btn-filled font-medium" id="import-commit-btn" disabled>استيراد الصفوف المحددة</button>
@@ -2054,7 +2066,7 @@
 
         function hideImportCheck() {
             importCheckShown = { byRow: {} };
-            document.getElementById('import-check-table').textContent = '';
+            window.salePreview.clear(document.getElementById('import-check-table'));
             document.getElementById('import-commit-btn').disabled = true;
             document.getElementById('import-check').hidden = true;
             setMappingLocked(false);

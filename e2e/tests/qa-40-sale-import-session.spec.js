@@ -23,7 +23,7 @@ test.describe('Sales import session', () => {
     expect(other).not.toBe(first);
 
     await page.evaluate(() => window.saleImportSession.end());
-    expect(await page.evaluate(() => window.sessionStorage.getItem('afrita_sale_import'))).toBeNull();
+    expect(await page.evaluate(() => window.sessionStorage.getItem('afrita_sale_import_session'))).toBeNull();
 
     const next = await begin('other.xlsx|2048|1700000000001');
     expect(next).toMatch(UUID_V4);

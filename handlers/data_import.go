@@ -95,10 +95,11 @@ func HandleDataImportPreview(w http.ResponseWriter, r *http.Request) {
 
 // importRequest is the JSON body sent by the client after column mapping.
 type importRequest struct {
-	Type    string         `json:"type"` // "bills", "purchase_bills", "products"
-	StoreID int            `json:"store_id"`
-	Mapping map[string]int `json:"mapping"` // field_name → column_index
-	Rows    [][]string     `json:"rows"`    // all data rows (excluding header)
+	Type         string         `json:"type"` // "bills", "purchase_bills", "products"
+	StoreID      int            `json:"store_id"`
+	Mapping      map[string]int `json:"mapping"`                 // field_name → column_index
+	Rows         [][]string     `json:"rows"`                    // all data rows (excluding header)
+	SelectedRows []int          `json:"selected_rows,omitempty"` // sales imports: the rows to post, from the preview
 }
 
 // HandleDataImportExecute processes the mapped rows and submits them to the backend.
@@ -111,10 +112,6 @@ func HandleDataImportExecute(w http.ResponseWriter, r *http.Request) {
 	var req importRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, importResult{Error: "بيانات غير صالحة: " + err.Error()})
-		return
-	}
-	if req.Type == "bills" && !salesImportEnabled {
-		writeJSON(w, http.StatusServiceUnavailable, importResult{Error: salesImportOffMessage})
 		return
 	}
 
@@ -142,192 +139,207 @@ func HandleDataImportExecute(w http.ResponseWriter, r *http.Request) {
 
 // ── Bill import ─────────────────────────────────────────────────
 
-func importBills(w http.ResponseWriter, token string, req importRequest) {
-	// The request was decoded from JSON, so it encodes again. The same rows and mapping give the same batch key.
-	content, _ := json.Marshal(req)
-	batchKey := importBatchKey(content)
-	var results []billResult
-	successCount := 0
-	failCount := 0
-
-	// Group rows by bill_group if mapped
-	billGroupIdx, hasBillGroup := req.Mapping["bill_group"]
-
-	type billRow struct {
-		partName string
-		price    float64
-		quantity int
-		discount string
-		customer string
-		phone    string
-		vin      string
-		note     string
-		date     string
+// HandleDataImportCheck checks the rows of a sales data import before anything is posted. It answers each row with its status.
+func HandleDataImportCheck(w http.ResponseWriter, r *http.Request) {
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return
 	}
-
-	parseRow := func(row []string) billRow {
-		br := billRow{quantity: 1}
-		if idx, ok := req.Mapping["part_name"]; ok && idx < len(row) {
-			br.partName = strings.TrimSpace(row[idx])
-		}
-		if idx, ok := req.Mapping["price"]; ok && idx < len(row) {
-			br.price = parsePrice(strings.TrimSpace(row[idx]))
-		}
-		if idx, ok := req.Mapping["quantity"]; ok && idx < len(row) {
-			q := helpers.ParseIntValue(strings.TrimSpace(row[idx]))
-			if q > 0 {
-				br.quantity = q
-			}
-		}
-		if idx, ok := req.Mapping["discount"]; ok && idx < len(row) {
-			br.discount = cleanNumeric(row[idx])
-		}
-		if idx, ok := req.Mapping["customer_name"]; ok && idx < len(row) {
-			br.customer = strings.TrimSpace(row[idx])
-		}
-		if idx, ok := req.Mapping["customer_phone"]; ok && idx < len(row) {
-			br.phone = strings.TrimSpace(row[idx])
-		}
-		if idx, ok := req.Mapping["vin"]; ok && idx < len(row) {
-			br.vin = strings.TrimSpace(row[idx])
-		}
-		if idx, ok := req.Mapping["note"]; ok && idx < len(row) {
-			br.note = strings.TrimSpace(row[idx])
-		}
-		if idx, ok := req.Mapping["date"]; ok && idx < len(row) {
-			br.date = strings.TrimSpace(row[idx])
-		}
-		return br
+	var req importRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "بيانات غير صالحة: " + err.Error()})
+		return
 	}
-
-	buildBillPayload := func(rows []billRow) models.BillPayload {
-		items := make([]models.BillManualItem, 0, len(rows))
-		var total float64
-		for _, r := range rows {
-			name := r.partName
-			if name == "" {
-				name = "بند"
-			}
-			items = append(items, models.BillManualItem{
-				PartName: name,
-				Price:    formatPrice(r.price),
-				Quantity: strconv.Itoa(r.quantity),
-			})
-			total += r.price * float64(r.quantity)
-		}
-		first := rows[0]
-		discount := first.discount
-		if discount == "" {
-			discount = "0"
-		}
-		bp := models.BillPayload{
-			StoreID:         req.StoreID,
-			Products:        []models.BillProductItem{},
-			ManualProducts:  items,
-			TotalAmount:     total,
-			Discount:        discount,
-			MaintenanceCost: "0",
-			State:           3, // issued
-			UserName:        first.customer,
-			UserPhoneNumber: first.phone,
-			Note:            first.note,
-			VIN:             first.vin,
-			PaymentMethod:   10, // cash
-		}
-		if first.date != "" {
-			d := parseDateToRFC3339(first.date)
-			if d != "" {
-				bp.EffectiveDate = &d
-			}
-		}
-		return bp
+	if req.Type != "bills" {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "only sales rows are checked"})
+		return
 	}
-
-	if hasBillGroup {
-		// Group rows by bill_group column value
-		groups := make(map[string][]billRow)
-		var order []string
-		for _, row := range req.Rows {
-			br := parseRow(row)
-			if br.partName == "" && br.price == 0 {
-				continue
-			}
-			key := ""
-			if billGroupIdx < len(row) {
-				key = strings.TrimSpace(row[billGroupIdx])
-			}
-			if key == "" {
-				key = fmt.Sprintf("__single_%d", len(order))
-			}
-			if _, exists := groups[key]; !exists {
-				order = append(order, key)
-			}
-			groups[key] = append(groups[key], br)
-		}
-
-		for i, key := range order {
-			grp := groups[key]
-			if len(grp) == 0 {
-				continue
-			}
-			bp := buildBillPayload(grp)
-			ok, errMsg := submitBill(token, bp, batchKey, i+1)
-			results = append(results, billResult{Row: i + 1, OK: ok, Error: errMsg})
-			if ok {
-				successCount++
-			} else {
-				failCount++
-			}
-		}
-	} else {
-		// Each row is a separate bill
-		rowNum := 0
-		for _, row := range req.Rows {
-			br := parseRow(row)
-			if br.partName == "" && br.price == 0 {
-				continue
-			}
-			rowNum++
-			bp := buildBillPayload([]billRow{br})
-			ok, errMsg := submitBill(token, bp, batchKey, rowNum)
-			results = append(results, billResult{Row: rowNum, OK: ok, Error: errMsg})
-			if ok {
-				successCount++
-			} else {
-				failCount++
-			}
-		}
+	if req.StoreID == 0 {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "يرجى اختيار المخزن"})
+		return
 	}
-
-	helpers.APICache.Delete("invoices_all")
-	writeJSON(w, http.StatusOK, importResult{
-		Total:   successCount + failCount,
-		Success: successCount,
-		Failed:  failCount,
-		Results: results,
-	})
+	if len(req.Rows) == 0 {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "لا توجد بيانات للاستيراد"})
+		return
+	}
+	rows, err := checkSalesCandidates(token, billCandidates(req))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, previewResponse{Error: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, previewResponse{Total: len(rows), Rows: rows})
 }
 
-func submitBill(token string, bp models.BillPayload, batchKey string, num int) (bool, string) {
-	bp.PosID, bp.BillRequestID = importSaleIdentity(batchKey, num)
-	jsonPayload, _ := json.Marshal(bp)
-	log.Printf("[DATA IMPORT] Bill %d payload: %s", num, string(jsonPayload))
-
-	apiReq, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill", bytes.NewBuffer(jsonPayload))
-	apiReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := helpers.DoAuthedRequest(apiReq, token)
+// importBills creates the bills of a sales data import. It posts only the rows that the user selected in the preview, and each
+// of those rows is checked again before it is posted.
+func importBills(w http.ResponseWriter, token string, req importRequest) {
+	selected, err := selectedRowsOfInts(req.SelectedRows)
 	if err != nil {
-		return false, "خطأ في الاتصال: " + err.Error()
+		writeJSON(w, http.StatusBadRequest, importResult{Error: err.Error()})
+		return
 	}
-	respBody, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	outcomes, err := commitSales(token, billCandidates(req), selected)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, importResult{Error: err.Error()})
+		return
+	}
+	results, success, failed := billResultsOf(outcomes)
+	helpers.APICache.Delete("invoices_all")
+	writeJSON(w, http.StatusOK, importResult{Total: len(outcomes), Success: success, Failed: failed, Results: results})
+}
 
-	if resp.StatusCode >= 300 {
-		log.Printf("[DATA IMPORT] Bill %d failed: %d body=[%s]", num, resp.StatusCode, string(respBody))
-		return false, fmt.Sprintf("خطأ %d: %s", resp.StatusCode, truncate(string(respBody), 120))
+// dataBillRow is one row of a data import, read through the mapping of its columns.
+type dataBillRow struct {
+	partName string
+	price    float64
+	quantity int
+	discount string
+	customer string
+	phone    string
+	vin      string
+	note     string
+	date     string
+}
+
+// dataBill is one bill of a data import: its row number, and the rows that make it.
+type dataBill struct {
+	row  int
+	rows []dataBillRow
+}
+
+// dataCell returns the trimmed value of a mapped column. It is "" when the column is not mapped or the row is short.
+func dataCell(mapping map[string]int, row []string, field string) string {
+	idx, ok := mapping[field]
+	if !ok || idx >= len(row) {
+		return ""
 	}
-	return true, ""
+	return strings.TrimSpace(row[idx])
+}
+
+// parseDataRow reads one row of a data import through the mapping.
+func parseDataRow(mapping map[string]int, row []string) dataBillRow {
+	br := dataBillRow{quantity: 1}
+	br.partName = dataCell(mapping, row, "part_name")
+	br.price = parsePrice(dataCell(mapping, row, "price"))
+	if q := helpers.ParseIntValue(dataCell(mapping, row, "quantity")); q > 0 {
+		br.quantity = q
+	}
+	br.discount = cleanNumeric(dataCell(mapping, row, "discount"))
+	br.customer = dataCell(mapping, row, "customer_name")
+	br.phone = dataCell(mapping, row, "customer_phone")
+	br.vin = dataCell(mapping, row, "vin")
+	br.note = dataCell(mapping, row, "note")
+	br.date = dataCell(mapping, row, "date")
+	return br
+}
+
+// dataBillOf builds the sale request of the rows of one bill of a data import.
+func dataBillOf(req importRequest, rows []dataBillRow) models.BillPayload {
+	items := make([]models.BillManualItem, 0, len(rows))
+	var total float64
+	for _, r := range rows {
+		name := r.partName
+		if name == "" {
+			name = "بند"
+		}
+		items = append(items, models.BillManualItem{
+			PartName: name,
+			Price:    formatPrice(r.price),
+			Quantity: strconv.Itoa(r.quantity),
+		})
+		total += r.price * float64(r.quantity)
+	}
+	first := rows[0]
+	discount := first.discount
+	if discount == "" {
+		discount = "0"
+	}
+	bp := models.BillPayload{
+		StoreID:         req.StoreID,
+		Products:        []models.BillProductItem{},
+		ManualProducts:  items,
+		TotalAmount:     total,
+		Discount:        discount,
+		MaintenanceCost: "0",
+		State:           3, // issued
+		UserName:        first.customer,
+		UserPhoneNumber: first.phone,
+		Note:            first.note,
+		VIN:             first.vin,
+		PaymentMethod:   10, // cash
+	}
+	if first.date != "" {
+		if d := parseDateToRFC3339(first.date); d != "" {
+			bp.EffectiveDate = &d
+		}
+	}
+	return bp
+}
+
+// dataBillsOf groups the rows of a data import into bills. A group of rows is one bill, and it takes the number of its group. A row
+// on its own is a bill, and it takes the number of the rows before it.
+func dataBillsOf(req importRequest) []dataBill {
+	if billGroupIdx, hasBillGroup := req.Mapping["bill_group"]; hasBillGroup {
+		return groupedDataBills(req, billGroupIdx)
+	}
+	var bills []dataBill
+	for _, row := range req.Rows {
+		br := parseDataRow(req.Mapping, row)
+		if br.partName == "" && br.price == 0 {
+			continue
+		}
+		bills = append(bills, dataBill{row: len(bills) + 1, rows: []dataBillRow{br}})
+	}
+	return bills
+}
+
+// groupedDataBills groups the rows of a data import by the value of their bill_group column.
+func groupedDataBills(req importRequest, billGroupIdx int) []dataBill {
+	groups := make(map[string][]dataBillRow)
+	var order []string
+	for _, row := range req.Rows {
+		br := parseDataRow(req.Mapping, row)
+		if br.partName == "" && br.price == 0 {
+			continue
+		}
+		key := ""
+		if billGroupIdx < len(row) {
+			key = strings.TrimSpace(row[billGroupIdx])
+		}
+		if key == "" {
+			key = fmt.Sprintf("__single_%d", len(order))
+		}
+		if _, exists := groups[key]; !exists {
+			order = append(order, key)
+		}
+		groups[key] = append(groups[key], br)
+	}
+	bills := make([]dataBill, 0, len(order))
+	for i, key := range order {
+		bills = append(bills, dataBill{row: i + 1, rows: groups[key]})
+	}
+	return bills
+}
+
+// dataBatchKey names the batch of a data import: the SHA-256 of the request as it encodes without its selection, so a check and a
+// commit of the same rows share it.
+func dataBatchKey(req importRequest) string {
+	req.SelectedRows = nil
+	content, _ := json.Marshal(req)
+	return importBatchKey(content)
+}
+
+// billCandidates builds the sales of a data import, one for each of its bills, with the identity of each bill's row.
+func billCandidates(req importRequest) []salesCandidate {
+	var candidates []salesCandidate
+	batchKey := dataBatchKey(req)
+	for _, bill := range dataBillsOf(req) {
+		bp := dataBillOf(req, bill.rows)
+		bp.PosID, bp.BillRequestID = importSaleIdentity(batchKey, bill.row)
+		customer, date, total := salesPreviewFields(&bp)
+		candidates = append(candidates, salesCandidate{row: bill.row, payload: &bp, customer: customer, date: date, total: total})
+	}
+	return candidates
 }
 
 // ── Purchase bill import ────────────────────────────────────────

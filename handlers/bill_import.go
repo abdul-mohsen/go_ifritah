@@ -24,6 +24,9 @@ const (
 	billImportPurchase = "purchase"
 )
 
+// bulkUploadReadError answers an upload that the server could not read.
+const bulkUploadReadError = "Unable to read upload"
+
 type spreadsheetBill struct {
 	reference string
 	values    map[string]string
@@ -35,9 +38,12 @@ type spreadsheetProduct struct {
 }
 
 type bulkImportLineResult struct {
-	Index int    `json:"index"`
-	OK    bool   `json:"ok"`
-	Error string `json:"error,omitempty"`
+	Index       int     `json:"index"`
+	Row         int     `json:"row,omitempty"`
+	OK          bool    `json:"ok"`
+	BillID      uint64  `json:"bill_id,omitempty"`
+	DuplicateOf *uint64 `json:"duplicate_of,omitempty"`
+	Error       string  `json:"error,omitempty"`
 }
 
 type bulkImportResponse struct {
@@ -56,10 +62,9 @@ func HandleBillImportPage(w http.ResponseWriter, r *http.Request) {
 	}
 	importType := billImportType(r.URL.Query().Get("type"))
 	helpers.Render(w, r, "bill-import", map[string]interface{}{
-		"title":            billImportTitle(importType, isArabic(token)),
-		"import_type":      importType,
-		"arabic":           isArabic(token),
-		"sales_import_off": importType == billImportSales && !salesImportEnabled,
+		"title":       billImportTitle(importType, isArabic(token)),
+		"import_type": importType,
+		"arabic":      isArabic(token),
 	})
 }
 
@@ -113,41 +118,76 @@ func orDefault(value, fallback string) string {
 	return value
 }
 
-// HandleImportBillsXLSX validates a two-sheet workbook and creates every
-// referenced bill independently, returning per-bill results for partial failures.
+// HandleCheckBillImportXLSX checks the workbook of a sales import before anything is posted. It answers each row with its status.
+func HandleCheckBillImportXLSX(w http.ResponseWriter, r *http.Request) {
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return
+	}
+	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: bulkUploadReadError})
+		return
+	}
+	payload, err := readImportFile(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: err.Error()})
+		return
+	}
+	bills, products, err := parseBillImportWorkbook(payload, billImportSales)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: err.Error()})
+		return
+	}
+	rows, err := checkSalesCandidates(token, xlsxSalesCandidates(importBatchKey(payload), bills, products))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, previewResponse{Error: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, previewResponse{Total: len(rows), Rows: rows})
+}
+
+// HandleImportBillsXLSX creates the bills of a workbook. A purchase import creates each bill as it reads it. A sales import posts
+// only the rows that the user selected in the preview, and each of those rows is checked again before it is posted.
 func HandleImportBillsXLSX(w http.ResponseWriter, r *http.Request) {
 	token, ok := helpers.GetTokenOrRedirect(w, r)
 	if !ok {
 		return
 	}
-	importType := billImportType(r.URL.Query().Get("type"))
-	if importType == billImportSales && !salesImportEnabled {
-		writeBulkImportJSON(w, http.StatusServiceUnavailable, bulkImportResponse{Error: salesImportOffMessage})
-		return
-	}
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
-		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: "Unable to read upload"})
+		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: bulkUploadReadError})
 		return
 	}
-	file, _, err := r.FormFile("file")
+	importType := billImportType(r.URL.Query().Get("type"))
+	var selected map[int]bool
+	if importType == billImportSales {
+		var err error
+		selected, err = selectedRowsOf(r.MultipartForm.Value["selected_rows"])
+		if err != nil {
+			writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: err.Error()})
+			return
+		}
+	}
+	payload, err := readImportFile(r)
 	if err != nil {
-		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: "Choose an .xlsx file"})
+		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: err.Error()})
 		return
 	}
-	defer file.Close()
-	payload, err := io.ReadAll(io.LimitReader(file, 20<<20))
-	if err != nil {
-		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: "Unable to read upload"})
-		return
-	}
-
-	batchKey := importBatchKey(payload)
 	bills, products, err := parseBillImportWorkbook(payload, importType)
 	if err != nil {
 		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: err.Error()})
 		return
 	}
-
+	if importType == billImportSales {
+		outcomes, err := commitSales(token, xlsxSalesCandidates(importBatchKey(payload), bills, products), selected)
+		if err != nil {
+			writeBulkImportJSON(w, http.StatusBadGateway, bulkImportResponse{Error: err.Error()})
+			return
+		}
+		helpers.APICache.Delete("invoices_all")
+		helpers.APICache.Delete("purchase_bills")
+		writeBulkImportJSON(w, http.StatusOK, xlsxResults(outcomes))
+		return
+	}
 	response := bulkImportResponse{Total: len(bills), Results: make([]bulkImportLineResult, 0, len(bills))}
 	for index, bill := range bills {
 		items := products[bill.reference]
@@ -156,12 +196,7 @@ func HandleImportBillsXLSX(w http.ResponseWriter, r *http.Request) {
 			response.Results = append(response.Results, bulkImportLineResult{Index: index, Error: "Bill Reference has no products"})
 			continue
 		}
-		var createErr error
-		if importType == billImportPurchase {
-			createErr = submitPurchaseImport(token, bill, items)
-		} else {
-			createErr = submitSalesImport(token, batchKey, index+1, bill, items)
-		}
+		createErr := submitPurchaseImport(token, bill, items)
 		result := bulkImportLineResult{Index: index, OK: createErr == nil}
 		if createErr != nil {
 			result.Error = createErr.Error()
@@ -174,6 +209,34 @@ func HandleImportBillsXLSX(w http.ResponseWriter, r *http.Request) {
 	helpers.APICache.Delete("invoices_all")
 	helpers.APICache.Delete("purchase_bills")
 	writeBulkImportJSON(w, http.StatusOK, response)
+}
+
+// readImportFile reads the uploaded workbook of an import, up to 20 MB.
+func readImportFile(r *http.Request) ([]byte, error) {
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		return nil, fmt.Errorf("Choose an .xlsx file")
+	}
+	defer file.Close()
+	payload, err := io.ReadAll(io.LimitReader(file, 20<<20))
+	if err != nil {
+		return nil, fmt.Errorf(bulkUploadReadError)
+	}
+	return payload, nil
+}
+
+// xlsxResults answers a sales commit of a workbook.
+func xlsxResults(outcomes []salesOutcome) bulkImportResponse {
+	response := bulkImportResponse{Total: len(outcomes), Results: make([]bulkImportLineResult, 0, len(outcomes))}
+	for _, outcome := range outcomes {
+		response.Results = append(response.Results, bulkImportLineResult{Index: outcome.row - 1, Row: outcome.row, OK: outcome.ok, BillID: outcome.billID, DuplicateOf: outcome.duplicateOf, Error: outcome.err})
+		if outcome.ok {
+			response.Success++
+		} else {
+			response.Failed++
+		}
+	}
+	return response
 }
 
 func billImportType(value string) string {
@@ -473,41 +536,6 @@ func parseSheetFloat(value string) float64 {
 	return parsed
 }
 
-func submitSalesImport(token, batchKey string, row int, bill spreadsheetBill, products []spreadsheetProduct) error {
-	items, total := importSalesItems(products)
-	effective := helpers.ToBackendDate(bill.values["date"])
-	if effective == "" {
-		return fmt.Errorf("invalid Date")
-	}
-	var customerID *int
-	if id := parsePositiveInt(bill.values["customer_id"]); id > 0 {
-		customerID = &id
-	}
-	branchID := parsePositiveInt(bill.values["branch_id"])
-	if branchID == 0 {
-		branchID = 1
-	}
-	payload := models.BillPayload{
-		StoreID:         parsePositiveInt(bill.values["store_id"]),
-		Products:        []models.BillProductItem{},
-		ManualProducts:  items,
-		TotalAmount:     total,
-		Discount:        importNumber(bill.values["discount"]),
-		MaintenanceCost: "0",
-		State:           3,
-		VIN:             bill.values["vin"],
-		UserName:        bill.values["customer_name"],
-		UserPhoneNumber: bill.values["customer_phone"],
-		Note:            bill.values["note"],
-		EffectiveDate:   &effective,
-		PaymentMethod:   10,
-		ClientID:        customerID,
-		BranchID:        branchID,
-	}
-	payload.PosID, payload.BillRequestID = importSaleIdentity(batchKey, row)
-	return postImportedBill(token, "/api/v2/bill", payload)
-}
-
 func submitPurchaseImport(token string, bill spreadsheetBill, products []spreadsheetProduct) error {
 	items, total := importPurchaseItems(products)
 	effective := helpers.ToBackendDate(bill.values["date"])
@@ -584,27 +612,34 @@ func importPaymentMethod(value string) int {
 }
 
 func postImportedBill(token, path string, payload interface{}) error {
+	_, err := postImportedBillBody(token, path, payload)
+	return err
+}
+
+// postImportedBillBody posts one bill of an import, and returns the body of the backend's answer.
+func postImportedBillBody(token, path string, payload interface{}) ([]byte, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("prepare bill")
+		return nil, fmt.Errorf("prepare bill")
 	}
 	log.Printf("[bill import] POST %s payload: %s", path, string(body))
 	req, err := http.NewRequest(http.MethodPost, config.BackendDomain+path, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("prepare request")
+		return nil, fmt.Errorf("prepare request")
 	}
 	req.Header.Set(headerContentType, mimeJSON)
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {
-		return fmt.Errorf("backend request failed: %v", err)
+		return nil, fmt.Errorf("backend request failed: %v", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= http.StatusMultipleChoices {
 		response, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 		log.Printf("[bill import] backend %s -> status=%d body=%s", path, resp.StatusCode, string(response))
-		return fmt.Errorf("backend rejected bill (status %d): %s", resp.StatusCode, strings.TrimSpace(string(response)))
+		return nil, fmt.Errorf("backend rejected bill (status %d): %s", resp.StatusCode, strings.TrimSpace(string(response)))
 	}
-	return nil
+	answer, _ := io.ReadAll(io.LimitReader(resp.Body, 64))
+	return answer, nil
 }
 
 func writeBulkImportJSON(w http.ResponseWriter, status int, result bulkImportResponse) {

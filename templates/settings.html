@@ -929,13 +929,34 @@
                     </table>
                 </div>
 
-                <p id="import-sales-off" class="text-sm mb-3" style="color: #dc2626" hidden>Sales import is off until the duplicate check is live.</p>
                 <button type="button" onclick="executeImport()" class="btn btn-filled font-medium" id="import-execute-btn">
                     <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                     </svg>
-                    {{ L "tpl.settings.import_start" }}
+                    <span id="import-execute-label">{{ L "tpl.settings.import_start" }}</span>
                 </button>
+                <div id="import-check" class="mt-6" hidden>
+                    <p id="import-check-summary" class="text-sm mb-2"></p>
+                    <div class="overflow-x-auto rounded-lg p-2" style="background: var(--md-sys-color-surface-container-low)">
+                        <table id="import-check-table" class="min-w-full text-xs">
+                        <thead>
+                            <tr>
+                                <th>اختيار</th>
+                                <th>الصف</th>
+                                <th>العميل</th>
+                                <th>التاريخ</th>
+                                <th>الإجمالي</th>
+                                <th>الحالة</th>
+                                <th>التفاصيل</th>
+                            </tr>
+                        </thead>
+                    </table>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button type="button" onclick="commitImport()" class="btn btn-filled font-medium" id="import-commit-btn" disabled>استيراد الصفوف المحددة</button>
+                        <button type="button" onclick="cancelImport()" class="btn btn-tonal">إلغاء</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Step 3: Results (hidden until done) -->
@@ -949,6 +970,7 @@
             </div>
         </div>
     </div><!-- /panel-import -->
+    <script src="/static/js/sale-import-preview.js" defer></script>
 
     <!-- ── Sticky Save Button (hidden on ZATCA tab — ZATCA has its own save) ─── -->
     <div id="sticky-save-bar" class="sticky bottom-0 z-10 mt-6 py-4 px-4 flex items-center justify-between gap-4 rounded-lg"
@@ -1939,7 +1961,7 @@
         function showMappingStep() {
             document.getElementById('import-step1').style.display = 'none';
             document.getElementById('import-step2').style.display = '';
-            applySalesImportState();
+            setExecuteLabel();
             document.getElementById('import-total-rows').textContent = _importData.total;
 
             var type = document.getElementById('import-type').value;
@@ -1998,28 +2020,29 @@
             });
         }
 
-        // Sales import is off until the duplicate check is live: its execute button is disabled for the bills type.
-        var salesImportOff = {{ if .sales_import_off }}true{{ else }}false{{ end }};
-        function applySalesImportState() {
-            var blocked = salesImportOff && document.getElementById('import-type').value === 'bills';
-            document.getElementById('import-execute-btn').disabled = blocked;
-            document.getElementById('import-sales-off').hidden = !blocked;
-        }
-
         // Step 2 → Step 1
         window.resetImport = function() {
+            hideImportCheck();
             document.getElementById('import-step1').style.display = '';
             document.getElementById('import-step2').style.display = 'none';
             document.getElementById('import-step3').style.display = 'none';
             _importData = { headers: [], samples: [], rows: [], total: 0 };
         };
 
-        // Step 2: Execute import
-        window.executeImport = function() {
-            var type = document.getElementById('import-type').value;
-            var storeId = parseInt(document.getElementById('import-store').value) || 0;
+        // Step 2: a sales import is checked first, and the rows that the user ticks are the rows that are imported. The other imports run at once.
+        var importCheckShown = { byRow: {} };
 
-            // Build mapping from dropdown selections
+        function setExecuteLabel() {
+            var type = document.getElementById('import-type').value;
+            document.getElementById('import-execute-label').textContent = type === 'bills' ? 'فحص الصفوف' : 'بدء الاستيراد';
+        }
+
+        function csrfQuery() {
+            var csrfCookie = document.cookie.split(';').find(function(c) { return c.trim().startsWith('csrf_token='); });
+            return 'csrf_token=' + encodeURIComponent(csrfCookie ? csrfCookie.trim().split('=')[1] : '');
+        }
+
+        function importMapping() {
             var mapping = {};
             _importData.headers.forEach(function(h, idx) {
                 var sel = document.getElementById('import-map-col-' + idx);
@@ -2027,6 +2050,49 @@
                     mapping[sel.value] = idx;
                 }
             });
+            return mapping;
+        }
+
+        // While a preview is shown, the mapping cannot change: the rows that were checked are the rows that are imported.
+        function setMappingLocked(locked) {
+            _importData.headers.forEach(function(h, idx) {
+                var sel = document.getElementById('import-map-col-' + idx);
+                if (sel) {
+                    sel.disabled = locked;
+                }
+            });
+        }
+
+        function hideImportCheck() {
+            importCheckShown = { byRow: {} };
+            window.salePreview.clear(document.getElementById('import-check-table'));
+            document.getElementById('import-commit-btn').disabled = true;
+            document.getElementById('import-check').hidden = true;
+            setMappingLocked(false);
+        }
+
+        function salesRequest(storeId, mapping) {
+            return {
+                type: 'bills',
+                store_id: storeId,
+                mapping: mapping,
+                rows: _importData.rows
+            };
+        }
+
+        function postImport(url, payload) {
+            return fetch(url + '?' + csrfQuery(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            }).then(function(resp) { return resp.json(); });
+        }
+
+        window.executeImport = function() {
+            var type = document.getElementById('import-type').value;
+            var storeId = parseInt(document.getElementById('import-store').value) || 0;
+            var mapping = importMapping();
 
             // Validate required fields
             var fields = _importFields[type] || [];
@@ -2041,42 +2107,91 @@
                 return;
             }
 
+            if (type === 'bills') {
+                checkSalesRows(storeId, mapping);
+            } else {
+                runImport(type, storeId, mapping);
+            }
+        };
+
+        // The check posts nothing. It shows each row with its status.
+        function checkSalesRows(storeId, mapping) {
             var btn = document.getElementById('import-execute-btn');
             btn.disabled = true;
-            btn.textContent = 'جاري الاستيراد...';
-
-            var csrfCookie = document.cookie.split(';').find(function(c) { return c.trim().startsWith('csrf_token='); });
-            var csrfValue = csrfCookie ? csrfCookie.trim().split('=')[1] : '';
-
-            fetch('/api/data-import/execute?csrf_token=' + encodeURIComponent(csrfValue), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    type: type,
-                    store_id: storeId,
-                    mapping: mapping,
-                    rows: _importData.rows
-                })
+            postImport('/api/data-import/check', salesRequest(storeId, mapping))
+            .then(function(data) {
+                if (data.error) {
+                    hideImportCheck();
+                    alert(data.error);
+                    return;
+                }
+                var table = document.getElementById('import-check-table');
+                importCheckShown = window.salePreview.render(table, data.rows);
+                document.getElementById('import-check-summary').textContent = window.salePreview.summary(importCheckShown.counts);
+                document.getElementById('import-commit-btn').disabled = window.salePreview.selectedRows(table).length === 0;
+                document.getElementById('import-check').hidden = false;
+                setMappingLocked(true);
             })
-            .then(function(resp) { return resp.json(); })
+            .catch(function(err) {
+                hideImportCheck();
+                alert('فشل في فحص الصفوف: ' + err.message);
+            })
+            .finally(function() {
+                btn.disabled = false;
+            });
+        }
+
+        // Only the rows that are ticked are posted, with the session of the check.
+        window.commitImport = function() {
+            var rows = window.salePreview.selectedRows(document.getElementById('import-check-table'));
+            if (rows.length === 0) return;
+            var storeId = parseInt(document.getElementById('import-store').value) || 0;
+            var payload = salesRequest(storeId, importMapping());
+            payload.selected_rows = rows;
+            document.getElementById('import-commit-btn').disabled = true;
+            postImport('/api/data-import/execute', payload)
+            .then(function(data) {
+                if (data.error) {
+                    document.getElementById('import-commit-btn').disabled = false;
+                    alert(data.error);
+                    return;
+                }
+                var counts = window.salePreview.tally(data.results || []);
+                hideImportCheck();
+                data.success = counts.created + counts.replayed;
+                data.failed = counts.failed;
+                showImportResults(data);
+            })
+            .catch(function(err) {
+                document.getElementById('import-commit-btn').disabled = false;
+                alert('فشل في الاستيراد: ' + err.message);
+            });
+        };
+
+        window.cancelImport = function() {
+            hideImportCheck();
+        };
+
+        function runImport(type, storeId, mapping) {
+            var btn = document.getElementById('import-execute-btn');
+            btn.disabled = true;
+            document.getElementById('import-execute-label').textContent = 'جاري الاستيراد...';
+            postImport('/api/data-import/execute', { type: type, store_id: storeId, mapping: mapping, rows: _importData.rows })
             .then(function(data) {
                 btn.disabled = false;
-                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> بدء الاستيراد';
-
+                setExecuteLabel();
                 if (data.error) {
                     alert(data.error);
                     return;
                 }
-
                 showImportResults(data);
             })
             .catch(function(err) {
                 btn.disabled = false;
-                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> بدء الاستيراد';
+                setExecuteLabel();
                 alert('فشل في الاستيراد: ' + err.message);
             });
-        };
+        }
 
         // Show Step 3: Results
         function showImportResults(data) {

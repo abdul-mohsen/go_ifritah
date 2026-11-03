@@ -95,11 +95,10 @@ func HandleDataImportPreview(w http.ResponseWriter, r *http.Request) {
 
 // importRequest is the JSON body sent by the client after column mapping.
 type importRequest struct {
-	Type          string         `json:"type"` // "bills", "purchase_bills", "products"
-	StoreID       int            `json:"store_id"`
-	Mapping       map[string]int `json:"mapping"`        // field_name → column_index
-	Rows          [][]string     `json:"rows"`           // all data rows (excluding header)
-	ImportSession string         `json:"import_session"` // sales imports: the UUID v4 of the import
+	Type    string            `json:"type"`    // "bills", "purchase_bills", "products"
+	StoreID int               `json:"store_id"`
+	Mapping map[string]int    `json:"mapping"` // field_name → column_index
+	Rows    [][]string        `json:"rows"`    // all data rows (excluding header)
 }
 
 // HandleDataImportExecute processes the mapped rows and submits them to the backend.
@@ -112,10 +111,6 @@ func HandleDataImportExecute(w http.ResponseWriter, r *http.Request) {
 	var req importRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, importResult{Error: "بيانات غير صالحة: " + err.Error()})
-		return
-	}
-	if req.Type == "bills" && !salesImportEnabled {
-		writeJSON(w, http.StatusServiceUnavailable, importResult{Error: salesImportOffMessage})
 		return
 	}
 
@@ -144,10 +139,9 @@ func HandleDataImportExecute(w http.ResponseWriter, r *http.Request) {
 // ── Bill import ─────────────────────────────────────────────────
 
 func importBills(w http.ResponseWriter, token string, req importRequest) {
-	if !validImportSession(req.ImportSession) {
-		writeJSON(w, http.StatusBadRequest, importResult{Error: importSessionMessage})
-		return
-	}
+	// The request was decoded from JSON, so it encodes again. The same rows and mapping give the same batch key.
+	content, _ := json.Marshal(req)
+	batchKey := importBatchKey(content)
 	var results []billResult
 	successCount := 0
 	failCount := 0
@@ -273,7 +267,7 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 				continue
 			}
 			bp := buildBillPayload(grp)
-			ok, errMsg := submitBill(token, bp, req.ImportSession, i+1)
+			ok, errMsg := submitBill(token, bp, batchKey, i+1)
 			results = append(results, billResult{Row: i + 1, OK: ok, Error: errMsg})
 			if ok {
 				successCount++
@@ -291,7 +285,7 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 			}
 			rowNum++
 			bp := buildBillPayload([]billRow{br})
-			ok, errMsg := submitBill(token, bp, req.ImportSession, rowNum)
+			ok, errMsg := submitBill(token, bp, batchKey, rowNum)
 			results = append(results, billResult{Row: rowNum, OK: ok, Error: errMsg})
 			if ok {
 				successCount++
@@ -310,8 +304,8 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 	})
 }
 
-func submitBill(token string, bp models.BillPayload, session string, num int) (bool, string) {
-	bp.PosID, bp.BillRequestID = importSaleIdentity(session, num)
+func submitBill(token string, bp models.BillPayload, batchKey string, num int) (bool, string) {
+	bp.PosID, bp.BillRequestID = importSaleIdentity(batchKey, num)
 	jsonPayload, _ := json.Marshal(bp)
 	log.Printf("[DATA IMPORT] Bill %d payload: %s", num, string(jsonPayload))
 

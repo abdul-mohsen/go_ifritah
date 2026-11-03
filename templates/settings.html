@@ -2022,7 +2022,6 @@
 
         // Step 2 → Step 1
         window.resetImport = function() {
-            window.saleImportSession.end();
             hideImportCheck();
             document.getElementById('import-step1').style.display = '';
             document.getElementById('import-step2').style.display = 'none';
@@ -2073,13 +2072,11 @@
         }
 
         function salesRequest(storeId, mapping) {
-            var file = document.getElementById('import-file').files[0];
             return {
                 type: 'bills',
                 store_id: storeId,
                 mapping: mapping,
-                rows: _importData.rows,
-                import_session: window.saleImportSession.begin(JSON.stringify([file.name, file.size, file.lastModified, storeId, mapping]))
+                rows: _importData.rows
             };
         }
 
@@ -2160,7 +2157,6 @@
                     return;
                 }
                 var counts = window.salePreview.tally(data.results || []);
-                window.saleImportSession.end();
                 hideImportCheck();
                 data.success = counts.created + counts.replayed;
                 data.failed = counts.failed;
@@ -2173,7 +2169,6 @@
         };
 
         window.cancelImport = function() {
-            window.saleImportSession.end();
             hideImportCheck();
         };
 

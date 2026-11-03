@@ -95,12 +95,11 @@ func HandleDataImportPreview(w http.ResponseWriter, r *http.Request) {
 
 // importRequest is the JSON body sent by the client after column mapping.
 type importRequest struct {
-	Type          string         `json:"type"` // "bills", "purchase_bills", "products"
-	StoreID       int            `json:"store_id"`
-	Mapping       map[string]int `json:"mapping"`        // field_name → column_index
-	Rows          [][]string     `json:"rows"`           // all data rows (excluding header)
-	ImportSession string         `json:"import_session"` // sales imports: the UUID v4 of the import
-	SelectedRows  []int          `json:"selected_rows"`  // sales imports: the rows to post, from the preview
+	Type         string         `json:"type"` // "bills", "purchase_bills", "products"
+	StoreID      int            `json:"store_id"`
+	Mapping      map[string]int `json:"mapping"`                 // field_name → column_index
+	Rows         [][]string     `json:"rows"`                    // all data rows (excluding header)
+	SelectedRows []int          `json:"selected_rows,omitempty"` // sales imports: the rows to post, from the preview
 }
 
 // HandleDataImportExecute processes the mapped rows and submits them to the backend.
@@ -163,10 +162,6 @@ func HandleDataImportCheck(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "لا توجد بيانات للاستيراد"})
 		return
 	}
-	if !validImportSession(req.ImportSession) {
-		writeJSON(w, http.StatusBadRequest, previewResponse{Error: importSessionMessage})
-		return
-	}
 	rows, err := checkSalesCandidates(token, billCandidates(req))
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, previewResponse{Error: err.Error()})
@@ -178,10 +173,6 @@ func HandleDataImportCheck(w http.ResponseWriter, r *http.Request) {
 // importBills creates the bills of a sales data import. It posts only the rows that the user selected in the preview, and each
 // of those rows is checked again before it is posted.
 func importBills(w http.ResponseWriter, token string, req importRequest) {
-	if !validImportSession(req.ImportSession) {
-		writeJSON(w, http.StatusBadRequest, importResult{Error: importSessionMessage})
-		return
-	}
 	selected, err := selectedRowsOfInts(req.SelectedRows)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, importResult{Error: err.Error()})
@@ -330,12 +321,21 @@ func groupedDataBills(req importRequest, billGroupIdx int) []dataBill {
 	return bills
 }
 
+// dataBatchKey names the batch of a data import: the SHA-256 of the request as it encodes without its selection, so a check and a
+// commit of the same rows share it.
+func dataBatchKey(req importRequest) string {
+	req.SelectedRows = nil
+	content, _ := json.Marshal(req)
+	return importBatchKey(content)
+}
+
 // billCandidates builds the sales of a data import, one for each of its bills, with the identity of each bill's row.
 func billCandidates(req importRequest) []salesCandidate {
 	var candidates []salesCandidate
+	batchKey := dataBatchKey(req)
 	for _, bill := range dataBillsOf(req) {
 		bp := dataBillOf(req, bill.rows)
-		bp.PosID, bp.BillRequestID = importSaleIdentity(req.ImportSession, bill.row)
+		bp.PosID, bp.BillRequestID = importSaleIdentity(batchKey, bill.row)
 		customer, date, total := salesPreviewFields(&bp)
 		candidates = append(candidates, salesCandidate{row: bill.row, payload: &bp, customer: customer, date: date, total: total})
 	}

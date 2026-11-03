@@ -65,7 +65,6 @@
     const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
     return csrfMatch ? csrfMatch[1] : '';
   };
-  const fingerprint = (picked) => JSON.stringify([picked.name, picked.size, picked.lastModified]);
   const failure = (data, fallback) => data.error || fallback;
 
   function hidePreview() {
@@ -82,7 +81,6 @@
   // The check posts nothing. It shows each row with its status, and the rows that the user ticks are the rows that are imported.
   async function check() {
     const body = new FormData(form);
-    body.append('import_session', window.saleImportSession.begin(fingerprint(file.files[0])));
     result.textContent = '{{ if .arabic }}جارٍ الفحص…{{ else }}Checking…{{ end }}';
     const response = await fetch('/api/bill-import/check?type=sales', {
       method: 'POST',
@@ -102,7 +100,6 @@
     const rows = window.salePreview.selectedRows(table);
     if (rows.length === 0) return;
     const body = new FormData(form);
-    body.append('import_session', window.saleImportSession.begin(fingerprint(file.files[0])));
     for (const row of rows) body.append('selected_rows', String(row));
     commit.disabled = true;
     const response = await fetch('/api/bill-import/upload?type=sales', {
@@ -113,7 +110,6 @@
     const data = await response.json();
     if (!response.ok || data.error) throw new Error(failure(data, 'Import failed'));
     const counts = window.salePreview.tally(data.results || []);
-    window.saleImportSession.end();
     hidePreview();
     const success = counts.created + counts.replayed;
     result.textContent = `{{ if .arabic }}تم استيراد ${success} من ${data.total} فاتورة: ${counts.created} جديدة، ${counts.replayed} أعيد عرضها، ${counts.failed} فشلت.{{ else }}Imported ${success} of ${data.total} bills: ${counts.created} created, ${counts.replayed} replayed, ${counts.failed} failed.{{ end }}`;
@@ -173,7 +169,6 @@
   });
 
   cancel.addEventListener('click', () => {
-    window.saleImportSession.end();
     hidePreview();
     result.textContent = '{{ if .arabic }}تم الإلغاء. لم يُستورد شيء.{{ else }}Cancelled. Nothing was imported.{{ end }}';
   });

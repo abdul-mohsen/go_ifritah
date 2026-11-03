@@ -284,7 +284,7 @@ func selectedRowsOfInts(rows []int) (map[int]bool, error) {
 
 // xlsxSalesCandidates turns the bills of a workbook into the candidates of a sales import. Row n is the n-th bill of the
 // workbook, as before, so a bill without products keeps its number and is blocked.
-func xlsxSalesCandidates(session string, bills []spreadsheetBill, products map[string][]spreadsheetProduct) []salesCandidate {
+func xlsxSalesCandidates(batchKey string, bills []spreadsheetBill, products map[string][]spreadsheetProduct) []salesCandidate {
 	candidates := make([]salesCandidate, 0, len(bills))
 	for index, bill := range bills {
 		candidate := salesCandidate{row: index + 1, customer: bill.values["customer_name"], date: bill.values["date"]}
@@ -293,7 +293,7 @@ func xlsxSalesCandidates(session string, bills []spreadsheetBill, products map[s
 		case len(items) == 0:
 			candidate.issues = []previewIssue{{Code: importCodeNoProducts, Message: "Bill Reference has no products"}}
 		default:
-			payload, err := salesPayload(session, candidate.row, bill, items)
+			payload, err := salesPayload(batchKey, candidate.row, bill, items)
 			if err != nil {
 				candidate.issues = []previewIssue{{Code: importCodeInvalidRow, Message: err.Error()}}
 				break
@@ -307,7 +307,7 @@ func xlsxSalesCandidates(session string, bills []spreadsheetBill, products map[s
 }
 
 // salesPayload builds the sale request of one bill of a sales import, with the identity of its row.
-func salesPayload(session string, row int, bill spreadsheetBill, products []spreadsheetProduct) (models.BillPayload, error) {
+func salesPayload(batchKey string, row int, bill spreadsheetBill, products []spreadsheetProduct) (models.BillPayload, error) {
 	items, total := importSalesItems(products)
 	effective := helpers.ToBackendDate(bill.values["date"])
 	if effective == "" {
@@ -338,7 +338,7 @@ func salesPayload(session string, row int, bill spreadsheetBill, products []spre
 		ClientID:        customerID,
 		BranchID:        branchID,
 	}
-	payload.PosID, payload.BillRequestID = importSaleIdentity(session, row)
+	payload.PosID, payload.BillRequestID = importSaleIdentity(batchKey, row)
 	return payload, nil
 }
 

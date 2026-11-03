@@ -69,47 +69,6 @@
     return evt.detail.elt?.dataset?.saleScope;
   }
 
-  // A sales import (XLSX, CSV or the data import) sends one session with its request, and the server derives the
-  // bill_request_id of every row from it. A retry of the same input sends the same session. The session is kept in
-  // sessionStorage with the input it was made for. A different input, a finished import or a cancelled one starts a new
-  // session.
-  var SESSION_KEY = 'afrita_sale_import_session';
-  var INPUT_KEY = 'afrita_sale_import_input';
-  var PROBE_KEY = 'afrita_storage_probe';
-  var pendingImport = null;
-
-  // When storage is blocked, the session is kept in memory for the current page only.
-  function sessionStorageWorks() {
-    writeStored('sessionStorage', PROBE_KEY, '1');
-    var works = readStored('sessionStorage', PROBE_KEY) === '1';
-    removeStored('sessionStorage', PROBE_KEY);
-    return works;
-  }
-
-  function readPendingImport() {
-    if (!sessionStorageWorks()) return pendingImport;
-    var session = readStored('sessionStorage', SESSION_KEY);
-    if (!session) return null;
-    return { session: session, input: readStored('sessionStorage', INPUT_KEY) };
-  }
-
-  function beginImport(input) {
-    var pending = readPendingImport();
-    if (pending && pending.input === input) return pending.session;
-    pendingImport = { session: newUUID(), input: input };
-    writeStored('sessionStorage', SESSION_KEY, pendingImport.session);
-    writeStored('sessionStorage', INPUT_KEY, input);
-    return pendingImport.session;
-  }
-
-  function endImport() {
-    pendingImport = null;
-    removeStored('sessionStorage', SESSION_KEY);
-    removeStored('sessionStorage', INPUT_KEY);
-  }
-
-  window.saleImportSession = { begin: beginImport, end: endImport };
-
   document.addEventListener('htmx:configRequest', function (evt) {
     var scope = scopeOf(evt);
     if (!scope) return;

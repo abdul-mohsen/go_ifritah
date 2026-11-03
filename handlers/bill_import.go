@@ -128,11 +128,6 @@ func HandleCheckBillImportXLSX(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, previewResponse{Error: bulkUploadReadError})
 		return
 	}
-	session := r.FormValue(importSessionField)
-	if !validImportSession(session) {
-		writeJSON(w, http.StatusBadRequest, previewResponse{Error: importSessionMessage})
-		return
-	}
 	payload, err := readImportFile(r)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, previewResponse{Error: err.Error()})
@@ -143,7 +138,7 @@ func HandleCheckBillImportXLSX(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, previewResponse{Error: err.Error()})
 		return
 	}
-	rows, err := checkSalesCandidates(token, xlsxSalesCandidates(session, bills, products))
+	rows, err := checkSalesCandidates(token, xlsxSalesCandidates(importBatchKey(payload), bills, products))
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, previewResponse{Error: err.Error()})
 		return
@@ -163,14 +158,8 @@ func HandleImportBillsXLSX(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	importType := billImportType(r.URL.Query().Get("type"))
-	var session string
 	var selected map[int]bool
 	if importType == billImportSales {
-		session = r.FormValue(importSessionField)
-		if !validImportSession(session) {
-			writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: importSessionMessage})
-			return
-		}
 		var err error
 		selected, err = selectedRowsOf(r.MultipartForm.Value["selected_rows"])
 		if err != nil {
@@ -189,7 +178,7 @@ func HandleImportBillsXLSX(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if importType == billImportSales {
-		outcomes, err := commitSales(token, xlsxSalesCandidates(session, bills, products), selected)
+		outcomes, err := commitSales(token, xlsxSalesCandidates(importBatchKey(payload), bills, products), selected)
 		if err != nil {
 			writeBulkImportJSON(w, http.StatusBadGateway, bulkImportResponse{Error: err.Error()})
 			return

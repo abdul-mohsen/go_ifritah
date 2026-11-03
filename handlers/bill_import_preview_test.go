@@ -117,7 +117,7 @@ func issue(code, message string) map[string]interface{} {
 	return map[string]interface{}{"code": code, "message": message}
 }
 
-// csvUpload posts a CSV file of sales to a handler, with a session and the rows to post.
+// csvUpload posts a CSV file of sales to a handler, with the rows to post.
 func csvUpload(t *testing.T, target, csvBody string, fields map[string][]string) *http.Request {
 	t.Helper()
 	merged := map[string][]string{"store_id": {"1"}}
@@ -148,7 +148,7 @@ func TestCSVCheckAnswersEachRowWithItsStatus(t *testing.T) {
 	})
 	w := httptest.NewRecorder()
 	HandleCheckBillImportCSV(w, csvUpload(t, "/api/invoices/import-csv/check", "name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\nWiper Blade,20,2\n",
-		map[string][]string{importSessionField: {importTestSession}}))
+		nil))
 	if w.Code != http.StatusOK {
 		t.Fatalf("check status = %d body=%s", w.Code, w.Body.String())
 	}
@@ -187,7 +187,7 @@ func TestCheckSendsRowsInChunksOfTheBackendLimit(t *testing.T) {
 		fmt.Fprintf(&csvBody, "Part %d,10,1\n", i)
 	}
 	w := httptest.NewRecorder()
-	HandleCheckBillImportCSV(w, csvUpload(t, "/api/invoices/import-csv/check", csvBody.String(), map[string][]string{importSessionField: {importTestSession}}))
+	HandleCheckBillImportCSV(w, csvUpload(t, "/api/invoices/import-csv/check", csvBody.String(), nil))
 	if w.Code != http.StatusOK {
 		t.Fatalf("check status = %d body=%s", w.Code, w.Body.String())
 	}
@@ -206,7 +206,7 @@ func TestCheckFailurePostsNothing(t *testing.T) {
 	backend := startImportBackend(t, allValid)
 	backend.failChecks(http.StatusInternalServerError)
 	w := httptest.NewRecorder()
-	HandleCheckBillImportCSV(w, csvUpload(t, "/api/invoices/import-csv/check", "name,price\nBrake Pad,75\n", map[string][]string{importSessionField: {importTestSession}}))
+	HandleCheckBillImportCSV(w, csvUpload(t, "/api/invoices/import-csv/check", "name,price\nBrake Pad,75\n", nil))
 	if w.Code != http.StatusBadGateway || !strings.Contains(decodePreview(t, w).Error, "backend check failed") {
 		t.Fatalf("status = %d body=%s, want 502 with the check error", w.Code, w.Body.String())
 	}
@@ -221,7 +221,7 @@ func TestCheckBlocksARowTheBackendDoesNotAnswer(t *testing.T) {
 		return []map[string]interface{}{checkAnswer(0, true, nil, nil, nil)}
 	})
 	w := httptest.NewRecorder()
-	HandleCheckBillImportCSV(w, csvUpload(t, "/api/invoices/import-csv/check", "name,price\nBrake Pad,75\nEngine Oil,40\n", map[string][]string{importSessionField: {importTestSession}}))
+	HandleCheckBillImportCSV(w, csvUpload(t, "/api/invoices/import-csv/check", "name,price\nBrake Pad,75\nEngine Oil,40\n", nil))
 	rows := decodePreview(t, w).Rows
 	if len(rows) != 2 || rows[1].Valid || len(rows[1].Errors) != 1 || rows[1].Errors[0].Code != importCodeNoAnswer {
 		t.Fatalf("row 2 = %+v, want it blocked with the no-answer code", rows)
@@ -245,7 +245,7 @@ func TestXLSXCheckBlocksABillWithoutProducts(t *testing.T) {
 	cookie := seedSaleSession(t)
 	w := httptest.NewRecorder()
 	HandleCheckBillImportXLSX(w, multipartUpload(t, cookie, "/api/bill-import/check?type=sales", "file", "sales.xlsx", xlsx.Bytes(),
-		map[string][]string{importSessionField: {importTestSession}}))
+		nil))
 	rows := decodePreview(t, w).Rows
 	if w.Code != http.StatusOK || len(rows) != 2 {
 		t.Fatalf("status = %d rows = %d body=%s", w.Code, len(rows), w.Body.String())
@@ -263,13 +263,15 @@ func TestXLSXCheckBlocksABillWithoutProducts(t *testing.T) {
 func TestCommitPostsOnlyTheSelectedRowsWithTheirOwnIdentities(t *testing.T) {
 	backend := startImportBackend(t, allValid)
 	cookie := seedSaleSession(t)
+	workbook := importWorkbook(t, billImportSales)
 	w := httptest.NewRecorder()
-	HandleImportBillsXLSX(w, multipartUpload(t, cookie, "/api/bill-import/upload?type=sales", "file", "sales.xlsx", importWorkbook(t, billImportSales), saleFields(importTestSession, "2")))
+	HandleImportBillsXLSX(w, multipartUpload(t, cookie, "/api/bill-import/upload?type=sales", "file", "sales.xlsx", workbook, saleFields("2")))
 	if w.Code != http.StatusOK {
 		t.Fatalf("commit status = %d body=%s", w.Code, w.Body.String())
 	}
 	posted := backend.postedBills()
-	if len(posted) != 1 || posted[0]["bill_request_id"] != "3a3e6962-a4b8-5bfe-9f92-cf2bc2e4a763" {
+	_, want := importSaleIdentity(importBatchKey(workbook), 2)
+	if len(posted) != 1 || posted[0]["bill_request_id"] != want {
 		t.Fatalf("posted = %v, want one bill with the identity of row 2", posted)
 	}
 	var result bulkImportResponse
@@ -291,12 +293,13 @@ func TestCommitDoesNotPostARowTheCheckBlocks(t *testing.T) {
 		}
 	})
 	w := httptest.NewRecorder()
-	HandleImportBillsUpload(w, csvUpload(t, "/api/invoices/import-csv", "name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n", saleFields(importTestSession, "1", "2")))
+	HandleImportBillsUpload(w, csvUpload(t, "/api/invoices/import-csv", "name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n", saleFields("1", "2")))
 	if w.Code != http.StatusOK {
 		t.Fatalf("commit status = %d body=%s", w.Code, w.Body.String())
 	}
 	posted := backend.postedBills()
-	if len(posted) != 1 || posted[0]["bill_request_id"] != "3a3e6962-a4b8-5bfe-9f92-cf2bc2e4a763" {
+	_, want := importSaleIdentity(importBatchKey([]byte("name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n")), 2)
+	if len(posted) != 1 || posted[0]["bill_request_id"] != want {
 		t.Fatalf("posted = %v, want only row 2", posted)
 	}
 	var result importResult
@@ -314,7 +317,7 @@ func TestCommitRefusesARequestWithoutSelectedRows(t *testing.T) {
 	backend := startImportBackend(t, allValid)
 	w := httptest.NewRecorder()
 	HandleImportBillsXLSX(w, multipartUpload(t, seedSaleSession(t), "/api/bill-import/upload?type=sales", "file", "sales.xlsx", importWorkbook(t, billImportSales),
-		map[string][]string{importSessionField: {importTestSession}}))
+		nil))
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d body=%s, want 400", w.Code, w.Body.String())
 	}
@@ -328,7 +331,7 @@ func TestCommitPostsNothingWhenTheCheckFails(t *testing.T) {
 	backend := startImportBackend(t, allValid)
 	backend.failChecks(http.StatusInternalServerError)
 	w := httptest.NewRecorder()
-	HandleImportBillsXLSX(w, multipartUpload(t, seedSaleSession(t), "/api/bill-import/upload?type=sales", "file", "sales.xlsx", importWorkbook(t, billImportSales), saleFields(importTestSession, "1", "2")))
+	HandleImportBillsXLSX(w, multipartUpload(t, seedSaleSession(t), "/api/bill-import/upload?type=sales", "file", "sales.xlsx", importWorkbook(t, billImportSales), saleFields("1", "2")))
 	if w.Code != http.StatusBadGateway {
 		t.Fatalf("status = %d body=%s, want 502", w.Code, w.Body.String())
 	}
@@ -342,7 +345,7 @@ func TestCommitPostsNothingWhenTheCheckFails(t *testing.T) {
 func TestDataImportCheckAndCommitPostOnlyTheSelectedRows(t *testing.T) {
 	backend := startImportBackend(t, allValid)
 	cookie := seedSaleSession(t)
-	request := importRequest{Type: "bills", StoreID: 1, Mapping: map[string]int{"part_name": 0, "price": 1, "quantity": 2}, Rows: [][]string{{"Brake Pad", "75", "2"}, {"Engine Oil", "40", "1"}}, ImportSession: importTestSession}
+	request := importRequest{Type: "bills", StoreID: 1, Mapping: map[string]int{"part_name": 0, "price": 1, "quantity": 2}, Rows: [][]string{{"Brake Pad", "75", "2"}, {"Engine Oil", "40", "1"}}}
 
 	body, err := json.Marshal(request)
 	if err != nil {
@@ -368,7 +371,8 @@ func TestDataImportCheckAndCommitPostOnlyTheSelectedRows(t *testing.T) {
 	w = httptest.NewRecorder()
 	HandleDataImportExecute(w, req)
 	posted := backend.postedBills()
-	if w.Code != http.StatusOK || len(posted) != 1 || posted[0]["bill_request_id"] != "3a3e6962-a4b8-5bfe-9f92-cf2bc2e4a763" {
+	_, want := importSaleIdentity(dataBatchKey(request), 2)
+	if w.Code != http.StatusOK || len(posted) != 1 || posted[0]["bill_request_id"] != want {
 		t.Fatalf("commit status = %d posted = %v body=%s", w.Code, posted, w.Body.String())
 	}
 }
@@ -383,7 +387,7 @@ func TestXLSXCommitRefusesARowWithAnUnknownCode(t *testing.T) {
 		}
 	})
 	w := httptest.NewRecorder()
-	HandleImportBillsXLSX(w, multipartUpload(t, seedSaleSession(t), "/api/bill-import/upload?type=sales", "file", "sales.xlsx", importWorkbook(t, billImportSales), saleFields(importTestSession, "1", "2")))
+	HandleImportBillsXLSX(w, multipartUpload(t, seedSaleSession(t), "/api/bill-import/upload?type=sales", "file", "sales.xlsx", importWorkbook(t, billImportSales), saleFields("1", "2")))
 	var result bulkImportResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatal(err)
@@ -401,7 +405,7 @@ func TestCommitReportsTheDuplicateThatTheCheckFound(t *testing.T) {
 		return []map[string]interface{}{checkAnswer(0, true, nil, []map[string]interface{}{issue("duplicate_sale", "this sale matches bill 42 on this branch")}, 42)}
 	})
 	w := httptest.NewRecorder()
-	HandleImportBillsUpload(w, csvUpload(t, "/api/invoices/import-csv", "name,price,quantity\nBrake Pad,75,2\n", saleFields(importTestSession, "1")))
+	HandleImportBillsUpload(w, csvUpload(t, "/api/invoices/import-csv", "name,price,quantity\nBrake Pad,75,2\n", saleFields("1")))
 	var result importResult
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatal(err)
@@ -420,7 +424,7 @@ func TestCheckKeepsAWarningOnlyRowValid(t *testing.T) {
 		}
 	})
 	w := httptest.NewRecorder()
-	HandleCheckBillImportCSV(w, csvUpload(t, "/api/invoices/import-csv/check", "name,price,quantity\nBrake Pad,75,2\n", map[string][]string{importSessionField: {importTestSession}}))
+	HandleCheckBillImportCSV(w, csvUpload(t, "/api/invoices/import-csv/check", "name,price,quantity\nBrake Pad,75,2\n", nil))
 	rows := decodePreview(t, w).Rows
 	if w.Code != http.StatusOK || len(rows) != 1 {
 		t.Fatalf("status = %d rows = %+v, want one row", w.Code, rows)
@@ -440,12 +444,13 @@ func TestCommitPostsAWarningOnlyRowAndBlocksAnErrorRow(t *testing.T) {
 		}
 	})
 	w := httptest.NewRecorder()
-	HandleImportBillsUpload(w, csvUpload(t, "/api/invoices/import-csv", "name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n", saleFields(importTestSession, "1", "2")))
+	HandleImportBillsUpload(w, csvUpload(t, "/api/invoices/import-csv", "name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n", saleFields("1", "2")))
 	if w.Code != http.StatusOK {
 		t.Fatalf("commit status = %d body=%s", w.Code, w.Body.String())
 	}
 	posted := backend.postedBills()
-	if len(posted) != 1 || posted[0]["bill_request_id"] != "8cb392fa-4ce3-52dd-b421-664a8e39a55a" {
+	_, want := importSaleIdentity(importBatchKey([]byte("name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n")), 1)
+	if len(posted) != 1 || posted[0]["bill_request_id"] != want {
 		t.Fatalf("posted = %v, want only row 1 with its identity", posted)
 	}
 	var result importResult

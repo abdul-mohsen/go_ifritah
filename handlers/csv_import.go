@@ -47,22 +47,17 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "فشل في قراءة الملف: " + err.Error()})
 		return
 	}
-	session := r.FormValue(importSessionField)
-	if !validImportSession(session) {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: importSessionMessage})
-		return
-	}
 	selected, err := selectedRowsOf(r.MultipartForm.Value["selected_rows"])
 	if err != nil {
 		writeImportJSON(w, http.StatusBadRequest, importResult{Error: err.Error()})
 		return
 	}
-	bills, err := readSalesCSV(r)
+	bills, batchKey, err := readSalesCSV(r)
 	if err != nil {
 		writeImportJSON(w, http.StatusBadRequest, importResult{Error: err.Error()})
 		return
 	}
-	outcomes, err := commitSales(token, csvSalesCandidates(session, bills), selected)
+	outcomes, err := commitSales(token, csvSalesCandidates(batchKey, bills), selected)
 	if err != nil {
 		writeImportJSON(w, http.StatusBadGateway, importResult{Error: err.Error()})
 		return
@@ -82,17 +77,12 @@ func HandleCheckBillImportCSV(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "فشل في قراءة الملف: " + err.Error()})
 		return
 	}
-	session := r.FormValue(importSessionField)
-	if !validImportSession(session) {
-		writeJSON(w, http.StatusBadRequest, previewResponse{Error: importSessionMessage})
-		return
-	}
-	bills, err := readSalesCSV(r)
+	bills, batchKey, err := readSalesCSV(r)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, previewResponse{Error: err.Error()})
 		return
 	}
-	rows, err := checkSalesCandidates(token, csvSalesCandidates(session, bills))
+	rows, err := checkSalesCandidates(token, csvSalesCandidates(batchKey, bills))
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, previewResponse{Error: err.Error()})
 		return
@@ -100,25 +90,29 @@ func HandleCheckBillImportCSV(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, previewResponse{Total: len(rows), Rows: rows})
 }
 
-// readSalesCSV reads the CSV file and the store of a sales import, and parses the file into its bills.
-func readSalesCSV(r *http.Request) ([]models.BillPayload, error) {
+// readSalesCSV reads the CSV file and the store of a sales import. It parses the file into its bills, and returns the batch key of the file.
+func readSalesCSV(r *http.Request) ([]models.BillPayload, string, error) {
 	file, _, err := r.FormFile("csv_file")
 	if err != nil {
-		return nil, fmt.Errorf("يرجى اختيار ملف CSV")
+		return nil, "", fmt.Errorf("يرجى اختيار ملف CSV")
 	}
 	defer file.Close()
 
 	defaultStoreID := helpers.ParseIntValue(r.FormValue("store_id"))
 	if defaultStoreID == 0 {
-		return nil, fmt.Errorf("يرجى اختيار المخزن")
+		return nil, "", fmt.Errorf("يرجى اختيار المخزن")
 	}
 
 	// Read CSV with flexible detection
 	rawBytes, err := io.ReadAll(file)
 	if err != nil {
-		return nil, fmt.Errorf("فشل في قراءة الملف")
+		return nil, "", fmt.Errorf("فشل في قراءة الملف")
 	}
-	return parseSalesCSVBills(rawBytes, defaultStoreID)
+	bills, err := parseSalesCSVBills(rawBytes, defaultStoreID)
+	if err != nil {
+		return nil, "", err
+	}
+	return bills, importBatchKey(rawBytes), nil
 }
 
 // parseSalesCSVBills reads a CSV file into the bills of a sales import. Each bill is final (state 3).
@@ -163,12 +157,12 @@ func parseSalesCSVBills(rawBytes []byte, defaultStoreID int) ([]models.BillPaylo
 }
 
 // csvSalesCandidates turns the bills of a CSV file into the candidates of a sales import. Row n is the n-th bill.
-func csvSalesCandidates(session string, bills []models.BillPayload) []salesCandidate {
+func csvSalesCandidates(batchKey string, bills []models.BillPayload) []salesCandidate {
 	candidates := make([]salesCandidate, 0, len(bills))
 	for i := range bills {
 		bill := bills[i]
 		bill.State = 3 // completed/issued
-		bill.PosID, bill.BillRequestID = importSaleIdentity(session, i+1)
+		bill.PosID, bill.BillRequestID = importSaleIdentity(batchKey, i+1)
 		customer, date, total := salesPreviewFields(&bill)
 		candidates = append(candidates, salesCandidate{row: i + 1, payload: &bill, customer: customer, date: date, total: total})
 	}

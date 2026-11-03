@@ -397,7 +397,6 @@
         var formData = new FormData();
         formData.append('csv_file', file);
         formData.append('store_id', storeVal);
-        formData.append('import_session', window.saleImportSession.begin(JSON.stringify([file.name, file.size, file.lastModified, storeVal])));
         return formData;
     }
 
@@ -487,7 +486,6 @@
                 return;
             }
             var counts = window.salePreview.tally(data.results || []);
-            window.saleImportSession.end();
             hideCsvCheck();
             showCsvResults(data, counts);
         })
@@ -501,7 +499,6 @@
     });
 
     csvCancel.addEventListener('click', function() {
-        window.saleImportSession.end();
         hideCsvCheck();
         document.getElementById('csv-import-status').textContent = '{{ if .arabic }}تم الإلغاء. لم يُستورد شيء.{{ else }}Cancelled. Nothing was imported.{{ end }}';
     });

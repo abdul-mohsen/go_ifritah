@@ -95,10 +95,10 @@ func HandleDataImportPreview(w http.ResponseWriter, r *http.Request) {
 
 // importRequest is the JSON body sent by the client after column mapping.
 type importRequest struct {
-	Type    string            `json:"type"`    // "bills", "purchase_bills", "products"
-	StoreID int               `json:"store_id"`
-	Mapping map[string]int    `json:"mapping"` // field_name → column_index
-	Rows    [][]string        `json:"rows"`    // all data rows (excluding header)
+	Type    string         `json:"type"` // "bills", "purchase_bills", "products"
+	StoreID int            `json:"store_id"`
+	Mapping map[string]int `json:"mapping"` // field_name → column_index
+	Rows    [][]string     `json:"rows"`    // all data rows (excluding header)
 }
 
 // HandleDataImportExecute processes the mapped rows and submits them to the backend.
@@ -111,6 +111,10 @@ func HandleDataImportExecute(w http.ResponseWriter, r *http.Request) {
 	var req importRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, importResult{Error: "بيانات غير صالحة: " + err.Error()})
+		return
+	}
+	if req.Type == "bills" && !salesImportEnabled {
+		writeJSON(w, http.StatusServiceUnavailable, importResult{Error: salesImportOffMessage})
 		return
 	}
 

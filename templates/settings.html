@@ -2008,7 +2008,6 @@
 
         // Step 2 → Step 1
         window.resetImport = function() {
-            window.saleImportSession.end();
             document.getElementById('import-step1').style.display = '';
             document.getElementById('import-step2').style.display = 'none';
             document.getElementById('import-step3').style.display = 'none';
@@ -2042,12 +2041,6 @@
                 return;
             }
 
-            var payload = { type: type, store_id: storeId, mapping: mapping, rows: _importData.rows };
-            if (type === 'bills') {
-                var file = document.getElementById('import-file').files[0];
-                payload.import_session = window.saleImportSession.begin(JSON.stringify([file.name, file.size, file.lastModified, storeId, mapping]));
-            }
-
             var btn = document.getElementById('import-execute-btn');
             btn.disabled = true;
             btn.textContent = 'جاري الاستيراد...';
@@ -2059,11 +2052,15 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    type: type,
+                    store_id: storeId,
+                    mapping: mapping,
+                    rows: _importData.rows
+                })
             })
             .then(function(resp) { return resp.json(); })
             .then(function(data) {
-                if (type === 'bills') window.saleImportSession.end();
                 btn.disabled = false;
                 btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> بدء الاستيراد';
 

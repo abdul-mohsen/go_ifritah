@@ -21,24 +21,23 @@ func enableSalesImport(t *testing.T) {
 	t.Cleanup(func() { salesImportEnabled = previous })
 }
 
-// TestSalesImportIsRefusedWhileItIsOff checks that each sales import answers 503 and posts no bill, even with a valid
-// session.
+// TestSalesImportIsRefusedWhileItIsOff checks that each sales import answers 503 and posts no bill.
 func TestSalesImportIsRefusedWhileItIsOff(t *testing.T) {
 	writes := startSaleBackend(t)
 	cookie := seedSaleSession(t)
-	body, err := json.Marshal(importRequest{Type: "bills", StoreID: 1, Mapping: map[string]int{"part_name": 0, "price": 1}, Rows: [][]string{{"Brake Pad", "75"}}, ImportSession: importTestSession})
+	body, err := json.Marshal(importRequest{Type: "bills", StoreID: 1, Mapping: map[string]int{"part_name": 0, "price": 1}, Rows: [][]string{{"Brake Pad", "75"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	cases := map[string]func(t *testing.T) *httptest.ResponseRecorder{
 		"xlsx": func(t *testing.T) *httptest.ResponseRecorder {
 			w := httptest.NewRecorder()
-			HandleImportBillsXLSX(w, multipartUpload(t, cookie, "/api/bill-import/upload?type=sales", "file", "sales.xlsx", importWorkbook(t, billImportSales), map[string]string{importSessionField: importTestSession}))
+			HandleImportBillsXLSX(w, multipartUpload(t, cookie, "/api/bill-import/upload?type=sales", "file", "sales.xlsx", importWorkbook(t, billImportSales), nil))
 			return w
 		},
 		"csv": func(t *testing.T) *httptest.ResponseRecorder {
 			w := httptest.NewRecorder()
-			HandleImportBillsUpload(w, multipartUpload(t, cookie, "/api/invoices/import-csv", "csv_file", "bills.csv", []byte("name,price\nBrake Pad,75\n"), map[string]string{"store_id": "1", importSessionField: importTestSession}))
+			HandleImportBillsUpload(w, multipartUpload(t, cookie, "/api/invoices/import-csv", "csv_file", "bills.csv", []byte("name,price\nBrake Pad,75\n"), map[string]string{"store_id": "1"}))
 			return w
 		},
 		"data import": func(t *testing.T) *httptest.ResponseRecorder {
@@ -111,4 +110,18 @@ func TestPurchaseImportsAreNotRefusedWhileSalesImportIsOff(t *testing.T) {
 	if w.Code != http.StatusOK || created.Load() != 4 {
 		t.Fatalf("data import purchase status = %d purchase bills = %d body=%s, want 200 and 4", w.Code, created.Load(), w.Body.String())
 	}
+}
+
+// importWorkbook returns the import template of one bill type.
+func importWorkbook(t *testing.T, importType string) []byte {
+	t.Helper()
+	workbook, err := buildBillImportTemplate(importType, false, billImportTemplateOverrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var xlsx bytes.Buffer
+	if err := workbook.Write(&xlsx); err != nil {
+		t.Fatal(err)
+	}
+	return xlsx.Bytes()
 }

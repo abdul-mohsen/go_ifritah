@@ -56,9 +56,10 @@ func HandleBillImportPage(w http.ResponseWriter, r *http.Request) {
 	}
 	importType := billImportType(r.URL.Query().Get("type"))
 	helpers.Render(w, r, "bill-import", map[string]interface{}{
-		"title":       billImportTitle(importType, isArabic(token)),
-		"import_type": importType,
-		"arabic":      isArabic(token),
+		"title":            billImportTitle(importType, isArabic(token)),
+		"import_type":      importType,
+		"arabic":           isArabic(token),
+		"sales_import_off": importType == billImportSales && !salesImportEnabled,
 	})
 }
 
@@ -119,11 +120,15 @@ func HandleImportBillsXLSX(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	importType := billImportType(r.URL.Query().Get("type"))
+	if importType == billImportSales && !salesImportEnabled {
+		writeBulkImportJSON(w, http.StatusServiceUnavailable, bulkImportResponse{Error: salesImportOffMessage})
+		return
+	}
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
 		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: "Unable to read upload"})
 		return
 	}
-	importType := billImportType(r.URL.Query().Get("type"))
 	file, _, err := r.FormFile("file")
 	if err != nil {
 		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: "Choose an .xlsx file"})

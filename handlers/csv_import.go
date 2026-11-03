@@ -31,8 +31,9 @@ func HandleImportBillsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "import-bills", map[string]interface{}{
-		"title":  "استيراد فواتير من CSV",
-		"stores": stores,
+		"title":            "استيراد فواتير من CSV",
+		"stores":           stores,
+		"sales_import_off": !salesImportEnabled,
 	})
 }
 
@@ -40,6 +41,10 @@ func HandleImportBillsPage(w http.ResponseWriter, r *http.Request) {
 func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 	token, ok := helpers.GetTokenOrRedirect(w, r)
 	if !ok {
+		return
+	}
+	if !salesImportEnabled {
+		writeImportJSON(w, http.StatusServiceUnavailable, importResult{Error: salesImportOffMessage})
 		return
 	}
 

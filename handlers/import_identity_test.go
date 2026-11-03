@@ -69,13 +69,12 @@ func TestValidImportSession(t *testing.T) {
 }
 
 func TestXLSXSalesImportSendsSaleIdentity(t *testing.T) {
-	enableSalesImport(t)
 	writes := startSaleBackend(t)
 	cookie := seedSaleSession(t)
 	xlsx := importWorkbook(t, billImportSales)
 	upload := func(session string) []map[string]interface{} {
 		return runImport(t, writes, func() {
-			req := multipartUpload(t, cookie, "/api/bill-import/upload?type=sales", "file", "sales.xlsx", xlsx, map[string]string{importSessionField: session})
+			req := multipartUpload(t, cookie, "/api/bill-import/upload?type=sales", "file", "sales.xlsx", xlsx, saleFields(session, "1", "2"))
 			w := httptest.NewRecorder()
 			HandleImportBillsXLSX(w, req)
 			if w.Code != http.StatusOK {
@@ -90,13 +89,14 @@ func TestXLSXSalesImportSendsSaleIdentity(t *testing.T) {
 }
 
 func TestCSVImportSendsSaleIdentity(t *testing.T) {
-	enableSalesImport(t)
 	writes := startSaleBackend(t)
 	cookie := seedSaleSession(t)
 	csvBytes := []byte("name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n")
 	upload := func(session string) []map[string]interface{} {
 		return runImport(t, writes, func() {
-			req := multipartUpload(t, cookie, "/api/invoices/import-csv", "csv_file", "bills.csv", csvBytes, map[string]string{"store_id": "1", importSessionField: session})
+			fields := saleFields(session, "1", "2")
+			fields["store_id"] = []string{"1"}
+			req := multipartUpload(t, cookie, "/api/invoices/import-csv", "csv_file", "bills.csv", csvBytes, fields)
 			w := httptest.NewRecorder()
 			HandleImportBillsUpload(w, req)
 			if w.Code != http.StatusOK {
@@ -111,13 +111,12 @@ func TestCSVImportSendsSaleIdentity(t *testing.T) {
 }
 
 func TestDataImportSendsSaleIdentity(t *testing.T) {
-	enableSalesImport(t)
 	writes := startSaleBackend(t)
 	cookie := seedSaleSession(t)
 	mapping := map[string]int{"part_name": 0, "price": 1, "quantity": 2}
 	rows := [][]string{{"Brake Pad", "75", "2"}, {"Engine Oil", "40", "1"}}
 	execute := func(session string) []map[string]interface{} {
-		body, err := json.Marshal(importRequest{Type: "bills", StoreID: 1, Mapping: mapping, Rows: rows, ImportSession: session})
+		body, err := json.Marshal(importRequest{Type: "bills", StoreID: 1, Mapping: mapping, Rows: rows, ImportSession: session, SelectedRows: []int{1, 2}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -138,25 +137,24 @@ func TestDataImportSendsSaleIdentity(t *testing.T) {
 	assertNewImportIdentities(t, first, execute(importTestNextSession))
 }
 
-// TestSalesImportRefusesAMissingSessionWhileItIsOn checks that a sales import without a session that is a UUID v4
-// answers 400 and posts no bill.
-func TestSalesImportRefusesAMissingSessionWhileItIsOn(t *testing.T) {
-	enableSalesImport(t)
+// TestSalesImportRefusesAMissingSession checks that a sales import without a session that is a UUID v4 answers 400 and posts no
+// bill.
+func TestSalesImportRefusesAMissingSession(t *testing.T) {
 	writes := startSaleBackend(t)
 	cookie := seedSaleSession(t)
 	cases := map[string]func(t *testing.T) *httptest.ResponseRecorder{
 		"xlsx": func(t *testing.T) *httptest.ResponseRecorder {
 			w := httptest.NewRecorder()
-			HandleImportBillsXLSX(w, multipartUpload(t, cookie, "/api/bill-import/upload?type=sales", "file", "sales.xlsx", importWorkbook(t, billImportSales), nil))
+			HandleImportBillsXLSX(w, multipartUpload(t, cookie, "/api/bill-import/upload?type=sales", "file", "sales.xlsx", importWorkbook(t, billImportSales), map[string][]string{"selected_rows": {"1"}}))
 			return w
 		},
 		"csv": func(t *testing.T) *httptest.ResponseRecorder {
 			w := httptest.NewRecorder()
-			HandleImportBillsUpload(w, multipartUpload(t, cookie, "/api/invoices/import-csv", "csv_file", "bills.csv", []byte("name,price\nBrake Pad,75\n"), map[string]string{"store_id": "1"}))
+			HandleImportBillsUpload(w, multipartUpload(t, cookie, "/api/invoices/import-csv", "csv_file", "bills.csv", []byte("name,price\nBrake Pad,75\n"), map[string][]string{"store_id": {"1"}, "selected_rows": {"1"}}))
 			return w
 		},
 		"data import": func(t *testing.T) *httptest.ResponseRecorder {
-			body, err := json.Marshal(importRequest{Type: "bills", StoreID: 1, Mapping: map[string]int{"part_name": 0, "price": 1}, Rows: [][]string{{"Brake Pad", "75"}}})
+			body, err := json.Marshal(importRequest{Type: "bills", StoreID: 1, Mapping: map[string]int{"part_name": 0, "price": 1}, Rows: [][]string{{"Brake Pad", "75"}}, SelectedRows: []int{1}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -181,14 +179,21 @@ func TestSalesImportRefusesAMissingSessionWhileItIsOn(t *testing.T) {
 	}
 }
 
+// saleFields are the form fields of a sales commit: its session and the rows that it posts.
+func saleFields(session string, rows ...string) map[string][]string {
+	return map[string][]string{importSessionField: {session}, "selected_rows": rows}
+}
+
 // multipartUpload builds a signed-in request that posts one file, with optional form fields.
-func multipartUpload(t *testing.T, cookie *http.Cookie, target, field, name string, content []byte, fields map[string]string) *http.Request {
+func multipartUpload(t *testing.T, cookie *http.Cookie, target, field, name string, content []byte, fields map[string][]string) *http.Request {
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	for key, value := range fields {
-		if err := writer.WriteField(key, value); err != nil {
-			t.Fatal(err)
+	for key, values := range fields {
+		for _, value := range values {
+			if err := writer.WriteField(key, value); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 	part, err := writer.CreateFormFile(field, name)

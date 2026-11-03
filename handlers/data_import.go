@@ -100,6 +100,7 @@ type importRequest struct {
 	Mapping       map[string]int `json:"mapping"`        // field_name → column_index
 	Rows          [][]string     `json:"rows"`           // all data rows (excluding header)
 	ImportSession string         `json:"import_session"` // sales imports: the UUID v4 of the import
+	SelectedRows  []int          `json:"selected_rows"`  // sales imports: the rows to post, from the preview
 }
 
 // HandleDataImportExecute processes the mapped rows and submits them to the backend.
@@ -112,10 +113,6 @@ func HandleDataImportExecute(w http.ResponseWriter, r *http.Request) {
 	var req importRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, importResult{Error: "بيانات غير صالحة: " + err.Error()})
-		return
-	}
-	if req.Type == "bills" && !salesImportEnabled {
-		writeJSON(w, http.StatusServiceUnavailable, importResult{Error: salesImportOffMessage})
 		return
 	}
 
@@ -143,16 +140,66 @@ func HandleDataImportExecute(w http.ResponseWriter, r *http.Request) {
 
 // ── Bill import ─────────────────────────────────────────────────
 
+// HandleDataImportCheck checks the rows of a sales data import before anything is posted. It answers each row with its status.
+func HandleDataImportCheck(w http.ResponseWriter, r *http.Request) {
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return
+	}
+	var req importRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "بيانات غير صالحة: " + err.Error()})
+		return
+	}
+	if req.Type != "bills" {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "only sales rows are checked"})
+		return
+	}
+	if req.StoreID == 0 {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "يرجى اختيار المخزن"})
+		return
+	}
+	if len(req.Rows) == 0 {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "لا توجد بيانات للاستيراد"})
+		return
+	}
+	if !validImportSession(req.ImportSession) {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: importSessionMessage})
+		return
+	}
+	rows, err := checkSalesCandidates(token, billCandidates(req))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, previewResponse{Error: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, previewResponse{Total: len(rows), Rows: rows})
+}
+
+// importBills creates the bills of a sales data import. It posts only the rows that the user selected in the preview, and each
+// of those rows is checked again before it is posted.
 func importBills(w http.ResponseWriter, token string, req importRequest) {
 	if !validImportSession(req.ImportSession) {
 		writeJSON(w, http.StatusBadRequest, importResult{Error: importSessionMessage})
 		return
 	}
-	var results []billResult
-	successCount := 0
-	failCount := 0
+	selected, err := selectedRowsOfInts(req.SelectedRows)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, importResult{Error: err.Error()})
+		return
+	}
+	outcomes, err := commitSales(token, billCandidates(req), selected)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, importResult{Error: err.Error()})
+		return
+	}
+	results, success, failed := billResultsOf(outcomes)
+	helpers.APICache.Delete("invoices_all")
+	writeJSON(w, http.StatusOK, importResult{Total: len(outcomes), Success: success, Failed: failed, Results: results})
+}
 
-	// Group rows by bill_group if mapped
+// billCandidates builds the sales of a data import from its rows. A group of rows is one bill, and it takes the number of its
+// group. A row on its own takes the number of the rows before it.
+func billCandidates(req importRequest) []salesCandidate {
 	billGroupIdx, hasBillGroup := req.Mapping["bill_group"]
 
 	type billRow struct {
@@ -245,6 +292,13 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 		return bp
 	}
 
+	var candidates []salesCandidate
+	add := func(row int, bp models.BillPayload) {
+		bp.PosID, bp.BillRequestID = importSaleIdentity(req.ImportSession, row)
+		customer, date, total := salesPreviewFields(&bp)
+		candidates = append(candidates, salesCandidate{row: row, payload: &bp, customer: customer, date: date, total: total})
+	}
+
 	if hasBillGroup {
 		// Group rows by bill_group column value
 		groups := make(map[string][]billRow)
@@ -272,14 +326,7 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 			if len(grp) == 0 {
 				continue
 			}
-			bp := buildBillPayload(grp)
-			ok, errMsg := submitBill(token, bp, req.ImportSession, i+1)
-			results = append(results, billResult{Row: i + 1, OK: ok, Error: errMsg})
-			if ok {
-				successCount++
-			} else {
-				failCount++
-			}
+			add(i+1, buildBillPayload(grp))
 		}
 	} else {
 		// Each row is a separate bill
@@ -290,46 +337,10 @@ func importBills(w http.ResponseWriter, token string, req importRequest) {
 				continue
 			}
 			rowNum++
-			bp := buildBillPayload([]billRow{br})
-			ok, errMsg := submitBill(token, bp, req.ImportSession, rowNum)
-			results = append(results, billResult{Row: rowNum, OK: ok, Error: errMsg})
-			if ok {
-				successCount++
-			} else {
-				failCount++
-			}
+			add(rowNum, buildBillPayload([]billRow{br}))
 		}
 	}
-
-	helpers.APICache.Delete("invoices_all")
-	writeJSON(w, http.StatusOK, importResult{
-		Total:   successCount + failCount,
-		Success: successCount,
-		Failed:  failCount,
-		Results: results,
-	})
-}
-
-func submitBill(token string, bp models.BillPayload, session string, num int) (bool, string) {
-	bp.PosID, bp.BillRequestID = importSaleIdentity(session, num)
-	jsonPayload, _ := json.Marshal(bp)
-	log.Printf("[DATA IMPORT] Bill %d payload: %s", num, string(jsonPayload))
-
-	apiReq, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill", bytes.NewBuffer(jsonPayload))
-	apiReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := helpers.DoAuthedRequest(apiReq, token)
-	if err != nil {
-		return false, "خطأ في الاتصال: " + err.Error()
-	}
-	respBody, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		log.Printf("[DATA IMPORT] Bill %d failed: %d body=[%s]", num, resp.StatusCode, string(respBody))
-		return false, fmt.Sprintf("خطأ %d: %s", resp.StatusCode, truncate(string(respBody), 120))
-	}
-	return true, ""
+	return candidates
 }
 
 // ── Purchase bill import ────────────────────────────────────────

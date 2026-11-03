@@ -80,6 +80,19 @@ func startSaleBackend(t *testing.T) *billWrites {
 			writes.add(body)
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte("321"))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v2/bill/import/check":
+			var body struct {
+				Rows []json.RawMessage `json:"rows"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Errorf("decode check: %v", err)
+			}
+			rows := make([]map[string]interface{}, 0, len(body.Rows))
+			for i := range body.Rows {
+				rows = append(rows, map[string]interface{}{"index": i, "valid": true, "errors": []interface{}{}, "warnings": []interface{}{}, "duplicate_of": nil})
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"rows": rows})
 		default:
 			http.NotFound(w, r)
 		}

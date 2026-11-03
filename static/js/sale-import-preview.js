@@ -1,0 +1,146 @@
+// Preview of a sales import. The server checks every row before anything is posted, and this script shows each row with its status.
+// An OK row is ticked. A duplicate or a warning is not ticked, and the user may tick it. A row with an error is blocked: its
+// messages are shown, and it cannot be ticked. A row that does not look clearly valid is never OK.
+(function () {
+  var TEXT = {
+    en: { ok: 'OK', duplicate: 'Duplicate', warning: 'Warning', error: 'Error' },
+    ar: { ok: 'جاهز', duplicate: 'مكرر', warning: 'تحذير', error: 'خطأ' }
+  };
+  var HEADERS = {
+    en: ['', 'Row', 'Customer', 'Date', 'Total', 'Status', 'Details'],
+    ar: ['', 'الصف', 'العميل', 'التاريخ', 'الإجمالي', 'الحالة', 'التفاصيل']
+  };
+  var DUPLICATE_CODES = ['duplicate_sale', 'duplicate_in_batch'];
+
+  function language() {
+    return document.documentElement.lang === 'ar' ? 'ar' : 'en';
+  }
+
+  // classify returns the status of a row: 'error', 'duplicate', 'warning' or 'ok'.
+  function classify(row) {
+    var errors = row.errors || [];
+    if (row.valid !== true || errors.length > 0) {
+      return 'error';
+    }
+    if (row.duplicate_of !== null && row.duplicate_of !== undefined) {
+      return 'duplicate';
+    }
+    var warnings = row.warnings || [];
+    var status = warnings.length > 0 ? 'warning' : 'ok';
+    for (var warning of warnings) {
+      if (DUPLICATE_CODES.indexOf(warning.code) !== -1) {
+        status = 'duplicate';
+      }
+    }
+    return status;
+  }
+
+  function cell(text) {
+    var td = document.createElement('td');
+    td.className = 'py-1 px-2';
+    td.textContent = text;
+    return td;
+  }
+
+  function detailsCell(row) {
+    var td = document.createElement('td');
+    td.className = 'py-1 px-2 text-xs';
+    for (var issue of (row.errors || []).concat(row.warnings || [])) {
+      var line = document.createElement('div');
+      line.textContent = issue.message + ' (' + issue.code + ')';
+      td.appendChild(line);
+    }
+    return td;
+  }
+
+  function rowElement(row, status, text) {
+    var tr = document.createElement('tr');
+    tr.setAttribute('data-row', String(row.row));
+    tr.setAttribute('data-status', status);
+    var tick = document.createElement('td');
+    tick.className = 'py-1 px-2';
+    var box = document.createElement('input');
+    box.type = 'checkbox';
+    box.setAttribute('data-row-check', String(row.row));
+    box.checked = status === 'ok';
+    box.disabled = status === 'error';
+    tick.appendChild(box);
+    tr.appendChild(tick);
+    tr.appendChild(cell(String(row.row)));
+    tr.appendChild(cell(row.customer || ''));
+    tr.appendChild(cell(row.date || ''));
+    tr.appendChild(cell(row.total || ''));
+    tr.appendChild(cell(text[status]));
+    tr.appendChild(detailsCell(row));
+    return tr;
+  }
+
+  // render fills the table with one line per row. It returns the rows by number and the count of each status.
+  function render(table, rows) {
+    var lang = language();
+    var text = TEXT[lang];
+    var counts = { ok: 0, duplicate: 0, warning: 0, error: 0 };
+    var byRow = {};
+    var head = document.createElement('thead');
+    var headRow = document.createElement('tr');
+    for (var heading of HEADERS[lang]) {
+      var th = document.createElement('th');
+      th.className = 'py-1 px-2';
+      th.textContent = heading;
+      headRow.appendChild(th);
+    }
+    head.appendChild(headRow);
+    var body = document.createElement('tbody');
+    for (var row of rows) {
+      var status = classify(row);
+      counts[status] += 1;
+      byRow[row.row] = row;
+      body.appendChild(rowElement(row, status, text));
+    }
+    table.textContent = '';
+    table.appendChild(head);
+    table.appendChild(body);
+    return { byRow: byRow, counts: counts };
+  }
+
+  // selectedRows returns the numbers of the rows that are ticked. A blocked row is never one of them.
+  function selectedRows(table) {
+    var rows = [];
+    for (var box of table.querySelectorAll('input[data-row-check]')) {
+      if (box.checked && !box.disabled) {
+        rows.push(Number(box.getAttribute('data-row-check')));
+      }
+    }
+    return rows;
+  }
+
+  function summary(counts) {
+    var text = TEXT[language()];
+    return [
+      counts.ok + ' ' + text.ok,
+      counts.duplicate + ' ' + text.duplicate,
+      counts.warning + ' ' + text.warning,
+      counts.error + ' ' + text.error
+    ].join(' · ');
+  }
+
+  // tally counts the outcomes of a commit. The backend answers a replay with the bill of the first attempt, as it answers a create.
+  // So a row that comes back with the bill that its preview named as a duplicate was replayed: a retry of the same session does that.
+  // Any other posted row was created.
+  function tally(results, byRow) {
+    var counts = { created: 0, replayed: 0, failed: 0 };
+    for (var result of results) {
+      var previewed = byRow[result.row];
+      if (!result.ok) {
+        counts.failed += 1;
+      } else if (previewed && previewed.duplicate_of === result.bill_id) {
+        counts.replayed += 1;
+      } else {
+        counts.created += 1;
+      }
+    }
+    return counts;
+  }
+
+  window.salePreview = { classify: classify, render: render, selectedRows: selectedRows, summary: summary, tally: tally };
+})();

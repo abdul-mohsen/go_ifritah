@@ -134,9 +134,8 @@
                 <div class="excel-wizard-body">
                     <div id="preview-summary" class="mb-3"></div>
                     <div id="preview-bills-container"></div>
-                    {{ if .sales_import_off }}<p id="excel-import-off" class="mt-4 text-sm" style="color:#dc2626">Sales import is off until the duplicate check is live.</p>{{ end }}
                     <div class="mt-4 flex gap-2 justify-start">
-                        <button type="button" class="btn btn-primary btn-xs" id="btn-confirm-import" onclick="confirmBulkImport()"{{ if .sales_import_off }} disabled{{ end }}>
+                        <button type="button" class="btn btn-primary btn-xs" id="btn-confirm-import" onclick="confirmBulkImport()">
                             <span id="excel-import-btn-text">{{ L "tpl.import.confirm_import" }}</span>
                             <span id="excel-import-btn-spinner" class="hidden" style="display:inline-flex;align-items:center;gap:4px">
                                 <svg aria-hidden="true" class="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="30 70" stroke-linecap="round"/></svg>
@@ -225,12 +224,11 @@
                 <p id="preview-info" class="text-xs mt-1" style="color:var(--md-sys-color-on-surface-variant)"></p>
             </div>
 
-            {{ if .sales_import_off }}<p id="csv-import-off" class="text-sm" style="color:#dc2626">Sales import is off until the duplicate check is live.</p>{{ end }}
             <div class="flex items-center gap-3 pt-2">
-                <button type="submit" id="csv-import-btn" class="btn btn-filled btn-lg font-medium"{{ if .sales_import_off }} disabled{{ end }}>
+                <button type="submit" id="csv-import-btn" class="btn btn-filled btn-lg font-medium">
                     <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg> {{ L "tpl.import.csv_start_import" }}
+                    </svg> {{ if .arabic }}فحص الملف{{ else }}Check file{{ end }}
                 </button>
                 <div id="csv-import-spinner" class="hidden">
                     <svg aria-hidden="true" class="animate-spin h-5 w-5" style="color:var(--md-sys-color-primary)" fill="none" viewBox="0 0 24 24">
@@ -241,6 +239,18 @@
                 <span id="csv-import-status" class="text-sm" style="color:var(--md-sys-color-on-surface-variant)"></span>
             </div>
         </form>
+
+        <!-- CSV check preview: the rows are posted only when the user imports them -->
+        <section id="csv-check" class="mt-6" hidden>
+            <p id="csv-check-summary" class="text-sm mb-2"></p>
+            <div class="overflow-x-auto rounded-lg p-2" style="background:var(--md-sys-color-surface-variant)">
+                <table id="csv-check-table" class="min-w-full text-xs"></table>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button type="button" id="csv-check-commit" class="btn btn-filled" disabled>{{ if .arabic }}استيراد الصفوف المحددة{{ else }}Import selected rows{{ end }}</button>
+                <button type="button" id="csv-check-cancel" class="btn btn-tonal">{{ if .arabic }}إلغاء{{ else }}Cancel{{ end }}</button>
+            </div>
+        </section>
 
         <!-- CSV Results area -->
         <div id="csv-import-results" class="hidden mt-6">
@@ -282,6 +292,7 @@
 <!-- Scripts                                                     -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 <script src="/static/js/xlsx.full.min.js"></script>
+<script src="/static/js/sale-import-preview.js"></script>
 <script>
     // ── Shared Helpers ───────────────────────────────────────
     function escHtml(s) {
@@ -361,58 +372,130 @@
         return result;
     }
 
-    document.getElementById('csv-import-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        var fileInput = document.getElementById('csv-file');
-        var storeVal = document.getElementById('store-select').value;
-        if (!fileInput.files[0]) { alert('{{ L "tpl.import.csv_err_select_file" }}'); return; }
-        if (!storeVal) { alert('{{ L "tpl.import.csv_err_select_store" }}'); return; }
+    // ── CSV sales import: check first, then import the rows that the user ticks ──
+    var csvShown = { byRow: {} };
+    var csvFile = document.getElementById('csv-file');
+    var csvCheck = document.getElementById('csv-check');
+    var csvTable = document.getElementById('csv-check-table');
+    var csvSummary = document.getElementById('csv-check-summary');
+    var csvCommit = document.getElementById('csv-check-commit');
+    var csvCancel = document.getElementById('csv-check-cancel');
 
-        var file = fileInput.files[0];
+    function csvFormData(file, storeVal) {
         var formData = new FormData();
         formData.append('csv_file', file);
         formData.append('store_id', storeVal);
         formData.append('import_session', window.saleImportSession.begin(JSON.stringify([file.name, file.size, file.lastModified, storeVal])));
+        return formData;
+    }
+
+    function hideCsvCheck() {
+        csvShown = { byRow: {} };
+        csvTable.textContent = '';
+        csvCommit.disabled = true;
+        csvCheck.hidden = true;
+    }
+
+    function showCsvResults(data, counts) {
+        document.getElementById('csv-total-count').textContent = data.total || 0;
+        document.getElementById('csv-success-count').textContent = counts.created + counts.replayed;
+        document.getElementById('csv-fail-count').textContent = counts.failed;
+        var tbody = '';
+        (data.results || []).forEach(function(r) {
+            var icon = r.ok ? '<span style="color:#16a34a;font-weight:bold">&#10003;</span>' : '<span style="color:#dc2626;font-weight:bold">&#10007;</span>';
+            var err = r.error ? '<span class="text-xs" style="color:#dc2626">' + escHtml(r.error) + '</span>' : '';
+            tbody += '<tr style="border-bottom:1px solid var(--md-sys-color-outline-variant)"><td class="py-1 px-2">' + r.row + '</td><td class="py-1 px-2">' + icon + '</td><td class="py-1 px-2">' + (r.ok ? '{{ L "tpl.import.csv_row_success" }}' : err) + '</td></tr>';
+        });
+        document.getElementById('csv-results-tbody').innerHTML = tbody;
+        document.getElementById('csv-import-results').classList.remove('hidden');
+        document.getElementById('csv-import-status').textContent = '{{ L "tpl.import.csv_done_prefix" }}' + (counts.created + counts.replayed) + '{{ L "tpl.import.csv_done_succeeded" }}' + counts.failed + '{{ L "tpl.import.csv_done_failed" }}';
+    }
+
+    // The check posts nothing. It shows each row with its status.
+    document.getElementById('csv-import-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var storeVal = document.getElementById('store-select').value;
+        if (!csvFile.files[0]) { alert('{{ L "tpl.import.csv_err_select_file" }}'); return; }
+        if (!storeVal) { alert('{{ L "tpl.import.csv_err_select_store" }}'); return; }
 
         document.getElementById('csv-import-btn').disabled = true;
         document.getElementById('csv-import-spinner').classList.remove('hidden');
-        document.getElementById('csv-import-status').textContent = '{{ L "tpl.import.importing" }}';
+        document.getElementById('csv-import-status').textContent = '{{ if .arabic }}جارٍ الفحص…{{ else }}Checking…{{ end }}';
         document.getElementById('csv-import-results').classList.add('hidden');
 
-        var csrfToken = getCsrfCookie();
-        fetch('/api/invoices/import-csv', {
+        fetch('/api/invoices/import-csv/check', {
             method: 'POST',
-            headers: { 'X-CSRF-Token': csrfToken },
-            body: formData
+            headers: { 'X-CSRF-Token': getCsrfCookie() },
+            body: csvFormData(csvFile.files[0], storeVal)
         })
         .then(function(resp) { return resp.json(); })
         .then(function(data) {
-            window.saleImportSession.end();
             if (data.error) {
-                document.getElementById('csv-import-status').textContent = '';
-                alert(data.error);
+                hideCsvCheck();
+                document.getElementById('csv-import-status').textContent = data.error;
                 return;
             }
-            document.getElementById('csv-total-count').textContent = data.total || 0;
-            document.getElementById('csv-success-count').textContent = data.success || 0;
-            document.getElementById('csv-fail-count').textContent = data.failed || 0;
-            var tbody = '';
-            (data.results || []).forEach(function(r) {
-                var icon = r.ok ? '<span style="color:#16a34a;font-weight:bold">&#10003;</span>' : '<span style="color:#dc2626;font-weight:bold">&#10007;</span>';
-                var err = r.error ? '<span class="text-xs" style="color:#dc2626">' + escHtml(r.error) + '</span>' : '';
-                tbody += '<tr style="border-bottom:1px solid var(--md-sys-color-outline-variant)"><td class="py-1 px-2">' + r.row + '</td><td class="py-1 px-2">' + icon + '</td><td class="py-1 px-2">' + (r.ok ? '{{ L "tpl.import.csv_row_success" }}' : err) + '</td></tr>';
-            });
-            document.getElementById('csv-results-tbody').innerHTML = tbody;
-            document.getElementById('csv-import-results').classList.remove('hidden');
-            document.getElementById('csv-import-status').textContent = '{{ L "tpl.import.csv_done_prefix" }}' + (data.success || 0) + '{{ L "tpl.import.csv_done_succeeded" }}' + (data.failed || 0) + '{{ L "tpl.import.csv_done_failed" }}';
+            csvShown = window.salePreview.render(csvTable, data.rows);
+            csvSummary.textContent = window.salePreview.summary(csvShown.counts);
+            csvCommit.disabled = window.salePreview.selectedRows(csvTable).length === 0;
+            csvCheck.hidden = false;
+            document.getElementById('csv-import-status').textContent = '';
         })
         .catch(function(err) {
+            hideCsvCheck();
             document.getElementById('csv-import-status').textContent = '{{ L "tpl.import.csv_error_prefix" }}' + err.message;
         })
         .finally(function() {
             document.getElementById('csv-import-btn').disabled = false;
             document.getElementById('csv-import-spinner').classList.add('hidden');
         });
+    });
+
+    // Only the rows that are ticked are posted, with the session of the check.
+    csvCommit.addEventListener('click', function() {
+        var rows = window.salePreview.selectedRows(csvTable);
+        if (rows.length === 0) return;
+        var storeVal = document.getElementById('store-select').value;
+        var formData = csvFormData(csvFile.files[0], storeVal);
+        rows.forEach(function(row) { formData.append('selected_rows', String(row)); });
+        csvCommit.disabled = true;
+        document.getElementById('csv-import-spinner').classList.remove('hidden');
+        document.getElementById('csv-import-status').textContent = '{{ L "tpl.import.importing" }}';
+
+        fetch('/api/invoices/import-csv', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': getCsrfCookie() },
+            body: formData
+        })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+            if (data.error) {
+                csvCommit.disabled = false;
+                document.getElementById('csv-import-status').textContent = data.error;
+                return;
+            }
+            var counts = window.salePreview.tally(data.results || [], csvShown.byRow);
+            window.saleImportSession.end();
+            hideCsvCheck();
+            showCsvResults(data, counts);
+        })
+        .catch(function(err) {
+            csvCommit.disabled = false;
+            document.getElementById('csv-import-status').textContent = '{{ L "tpl.import.csv_error_prefix" }}' + err.message;
+        })
+        .finally(function() {
+            document.getElementById('csv-import-spinner').classList.add('hidden');
+        });
+    });
+
+    csvCancel.addEventListener('click', function() {
+        window.saleImportSession.end();
+        hideCsvCheck();
+        document.getElementById('csv-import-status').textContent = '{{ if .arabic }}تم الإلغاء. لم يُستورد شيء.{{ else }}Cancelled. Nothing was imported.{{ end }}';
+    });
+    csvFile.addEventListener('change', hideCsvCheck);
+    csvTable.addEventListener('change', function() {
+        csvCommit.disabled = window.salePreview.selectedRows(csvTable).length === 0;
     });
 
     // ── Download Template ─────────────────────────────────────

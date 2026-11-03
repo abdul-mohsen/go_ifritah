@@ -16,40 +16,113 @@
     </div>
     <label class="form-label" for="bill-import-file">{{ if .arabic }}ملف XLSX{{ else }}XLSX workbook{{ end }}</label>
     <input id="bill-import-file" name="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
-    {{ if .sales_import_off }}<p id="bill-import-off" class="mt-4 text-sm" style="color:#dc2626">Sales import is off until the duplicate check is live.</p>{{ end }}
-    <button id="bill-import-submit" type="submit" class="btn btn-filled mt-4"{{ if .sales_import_off }} disabled{{ end }}>{{ if .arabic }}استيراد الفواتير{{ else }}Import bills{{ end }}</button>
+    <button id="bill-import-submit" type="submit" class="btn btn-filled mt-4">{{ if eq .import_type "sales" }}{{ if .arabic }}فحص الملف{{ else }}Check file{{ end }}{{ else }}{{ if .arabic }}استيراد الفواتير{{ else }}Import bills{{ end }}{{ end }}</button>
   </form>
+  <section id="bill-import-preview" class="mt-6" hidden>
+    <p id="bill-import-summary" class="text-sm mb-2"></p>
+    <div class="overflow-x-auto rounded-lg p-2" style="background:var(--md-sys-color-surface-variant)">
+      <table id="bill-import-table" class="min-w-full text-xs"></table>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button id="bill-import-commit" type="button" class="btn btn-filled" disabled>{{ if .arabic }}استيراد الصفوف المحددة{{ else }}Import selected rows{{ end }}</button>
+      <button id="bill-import-cancel" type="button" class="btn btn-tonal">{{ if .arabic }}إلغاء{{ else }}Cancel{{ end }}</button>
+    </div>
+  </section>
   <output id="bill-import-result" class="mt-4"></output>
 </div>
+<script src="/static/js/sale-import-preview.js"></script>
 <script>
 (() => {
   const type = document.getElementById('bill-import-type');
+  const form = document.getElementById('bill-import-form');
+  const file = document.getElementById('bill-import-file');
+  const result = document.getElementById('bill-import-result');
+  const preview = document.getElementById('bill-import-preview');
+  const table = document.getElementById('bill-import-table');
+  const summary = document.getElementById('bill-import-summary');
+  const commit = document.getElementById('bill-import-commit');
+  const cancel = document.getElementById('bill-import-cancel');
+  let shown = { byRow: {} };
+
   type.addEventListener('change', () => {
     const target = type.value;
     window.location.assign('/dashboard/bill-import?type=' + encodeURIComponent(target));
   });
-  document.getElementById('bill-import-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const result = document.getElementById('bill-import-result');
+
+  const csrfToken = () => {
+    const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+    return csrfMatch ? csrfMatch[1] : '';
+  };
+  const fingerprint = (picked) => JSON.stringify([picked.name, picked.size, picked.lastModified]);
+  const failure = (data, fallback) => data.error || fallback;
+
+  function hidePreview() {
+    shown = { byRow: {} };
+    table.textContent = '';
+    commit.disabled = true;
+    preview.hidden = true;
+  }
+
+  function updateCommit() {
+    commit.disabled = window.salePreview.selectedRows(table).length === 0;
+  }
+
+  // The check posts nothing. It shows each row with its status, and the rows that the user ticks are the rows that are imported.
+  async function check() {
+    const body = new FormData(form);
+    body.append('import_session', window.saleImportSession.begin(fingerprint(file.files[0])));
+    result.textContent = '{{ if .arabic }}جارٍ الفحص…{{ else }}Checking…{{ end }}';
+    const response = await fetch('/api/bill-import/check?type=sales', {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': csrfToken() },
+      body
+    });
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(failure(data, 'Check failed'));
+    shown = window.salePreview.render(table, data.rows);
+    summary.textContent = window.salePreview.summary(shown.counts);
+    preview.hidden = false;
+    updateCommit();
+    result.textContent = '';
+  }
+
+  async function importRows() {
+    const rows = window.salePreview.selectedRows(table);
+    if (rows.length === 0) return;
+    const body = new FormData(form);
+    body.append('import_session', window.saleImportSession.begin(fingerprint(file.files[0])));
+    for (const row of rows) body.append('selected_rows', String(row));
+    commit.disabled = true;
+    const response = await fetch('/api/bill-import/upload?type=sales', {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': csrfToken() },
+      body
+    });
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(failure(data, 'Import failed'));
+    const counts = window.salePreview.tally(data.results || [], shown.byRow);
+    window.saleImportSession.end();
+    hidePreview();
+    const success = counts.created + counts.replayed;
+    result.textContent = `{{ if .arabic }}تم استيراد ${success} من ${data.total} فاتورة: ${counts.created} جديدة، ${counts.replayed} أعيد عرضها، ${counts.failed} فشلت.{{ else }}Imported ${success} of ${data.total} bills: ${counts.created} created, ${counts.replayed} replayed, ${counts.failed} failed.{{ end }}`;
+    result.dataset.success = String(success);
+    result.dataset.created = String(counts.created);
+    result.dataset.replayed = String(counts.replayed);
+    result.dataset.failed = String(counts.failed);
+  }
+
+  // A purchase import posts its bills as it reads them, as before.
+  async function importPurchases(event) {
     const submit = document.getElementById('bill-import-submit');
     submit.disabled = true;
     result.textContent = '{{ if .arabic }}جارٍ الاستيراد…{{ else }}Importing…{{ end }}';
     try {
-      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
-      const csrfToken = csrfMatch ? csrfMatch[1] : '';
-      const body = new FormData(event.currentTarget);
-      const sales = type.value === 'sales';
-      if (sales) {
-        const file = body.get('file');
-        body.append('import_session', window.saleImportSession.begin(JSON.stringify([file.name, file.size, file.lastModified])));
-      }
       const response = await fetch('/api/bill-import/upload?type=' + encodeURIComponent(type.value), {
         method: 'POST',
-        headers: { 'X-CSRF-Token': csrfToken },
-        body
+        headers: { 'X-CSRF-Token': csrfToken() },
+        body: new FormData(event.currentTarget)
       });
       const data = await response.json();
-      if (sales) window.saleImportSession.end();
       if (!response.ok || data.error) throw new Error(data.error || 'Import failed');
       result.textContent = `{{ if .arabic }}تم استيراد ${data.success} من ${data.total} فاتورة بنجاح.{{ else }}Imported ${data.success} of ${data.total} bills successfully.{{ end }}`;
       result.dataset.success = String(data.success);
@@ -59,6 +132,38 @@
     } finally {
       submit.disabled = false;
     }
+  }
+
+  file.addEventListener('change', hidePreview);
+  table.addEventListener('change', updateCommit);
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (type.value !== 'sales') {
+      await importPurchases(event);
+      return;
+    }
+    try {
+      await check();
+    } catch (error) {
+      hidePreview();
+      result.textContent = error.message;
+    }
+  });
+
+  commit.addEventListener('click', async () => {
+    try {
+      await importRows();
+    } catch (error) {
+      commit.disabled = false;
+      result.textContent = error.message;
+    }
+  });
+
+  cancel.addEventListener('click', () => {
+    window.saleImportSession.end();
+    hidePreview();
+    result.textContent = '{{ if .arabic }}تم الإلغاء. لم يُستورد شيء.{{ else }}Cancelled. Nothing was imported.{{ end }}';
   });
 })();
 </script>

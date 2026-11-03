@@ -28,6 +28,19 @@ async function realAccountIds(page, kind) {
   return { store_id: storeId, supplier_id: supplierId };
 }
 
+// A sales import shows its preview first. Every row that is not blocked is ticked, so the duplicates of earlier runs are imported too.
+async function importPreviewedRows(page, expectedRows) {
+  await expect(page.locator('#bill-import-preview')).toBeVisible();
+  await expect(page.locator('#bill-import-table tbody tr')).toHaveCount(expectedRows);
+  const boxes = page.locator('#bill-import-table input[data-row-check]:not([disabled])');
+  const count = await boxes.count();
+  for (let i = 0; i < count; i++) {
+    await boxes.nth(i).check();
+  }
+  await expect(page.locator('#bill-import-commit')).toBeEnabled();
+  await page.locator('#bill-import-commit').click();
+}
+
 async function assertToolbarAndImport(page, kind) {
   const listURL = kind === 'sales' ? '/dashboard/invoices' : '/dashboard/purchase-bills';
   const expectedType = kind === 'sales' ? 'sales' : 'purchase';
@@ -67,6 +80,9 @@ async function assertToolbarAndImport(page, kind) {
     buffer: template,
   });
   await page.locator('#bill-import-submit').click();
+  if (kind === 'sales') {
+    await importPreviewedRows(page, 2);
+  }
   await expect(page.locator('#bill-import-result')).toContainText(/2.*2/);
   await expect(page.locator('#bill-import-result')).toHaveAttribute('data-success', '2');
 
@@ -80,9 +96,28 @@ async function assertToolbarAndImport(page, kind) {
   );
 }
 
+// salesTemplate downloads the sales template for the account, with the given overrides of its example ids.
+async function salesTemplate(page, overrides) {
+  await page.goto('/dashboard/bill-import?type=sales');
+  const templateURL = await page.locator('#bill-import-template').getAttribute('href');
+  const query = new URLSearchParams(overrides).toString();
+  const response = await page.request.get(appURL(templateURL) + '&' + query);
+  expect(response.ok()).toBeTruthy();
+  return response.body();
+}
+
+async function uploadSalesWorkbook(page, buffer, name) {
+  await page.goto('/dashboard/bill-import?type=sales');
+  await page.locator('#bill-import-file').setInputFiles({
+    name,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer,
+  });
+  await page.locator('#bill-import-submit').click();
+}
+
 test.describe('Shared Excel bill import and export', () => {
   test('sales flow imports a multiple-bill workbook through the shared page', async ({ page }) => {
-    test.skip(true, 'Waits for the duplicate-check preview. Sales import is off until that preview is live.');
     await login(page);
     await assertToolbarAndImport(page, 'sales');
   });
@@ -91,5 +126,43 @@ test.describe('Shared Excel bill import and export', () => {
     test.skip(true, 'Fails on this PR run 41549510367 and on dev run 41550304309. Pre-existing. Tracked as a follow-up to fix the shared e2e state.');
     await login(page);
     await assertToolbarAndImport(page, 'purchase');
+  });
+
+  test('sales preview marks a sale that is already on the branch as a duplicate, and imports it only when ticked', async ({ page }) => {
+    await login(page);
+    const accountIds = await realAccountIds(page, 'sales');
+    const buffer = await salesTemplate(page, accountIds);
+
+    // The first import creates the sales of the template, so the second check finds them on the branch.
+    await uploadSalesWorkbook(page, buffer, 'sales-first.xlsx');
+    await importPreviewedRows(page, 2);
+    await expect(page.locator('#bill-import-result')).toHaveAttribute('data-success', '2');
+
+    await uploadSalesWorkbook(page, buffer, 'sales-again.xlsx');
+    await expect(page.locator('#bill-import-preview')).toBeVisible();
+    const firstRow = page.locator('#bill-import-table tr[data-row="1"]');
+    await expect(firstRow).toHaveAttribute('data-status', 'duplicate');
+    await expect(firstRow.locator('input[data-row-check]')).not.toBeChecked();
+    await expect(firstRow).toContainText(/matches bill \d+/);
+    await expect(page.locator('#bill-import-commit')).toBeDisabled();
+
+    await firstRow.locator('input[data-row-check]').check();
+    await page.locator('#bill-import-commit').click();
+    await expect(page.locator('#bill-import-result')).toHaveAttribute('data-success', '1');
+  });
+
+  test('sales preview blocks a row that the backend refuses, and shows its messages', async ({ page }) => {
+    await login(page);
+    const accountIds = await realAccountIds(page, 'sales');
+    // A branch that does not exist makes the check block every row.
+    const buffer = await salesTemplate(page, { store_id: accountIds.store_id, branch_id: '999999' });
+
+    await uploadSalesWorkbook(page, buffer, 'sales-unknown-branch.xlsx');
+    await expect(page.locator('#bill-import-preview')).toBeVisible();
+    const firstRow = page.locator('#bill-import-table tr[data-row="1"]');
+    await expect(firstRow).toHaveAttribute('data-status', 'error');
+    await expect(firstRow.locator('input[data-row-check]')).toBeDisabled();
+    await expect(firstRow).toContainText(/does not exist/);
+    await expect(page.locator('#bill-import-commit')).toBeDisabled();
   });
 });

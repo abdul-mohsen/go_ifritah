@@ -205,16 +205,16 @@ func commitSales(token string, candidates []salesCandidate, selected map[int]boo
 	return outcomes, nil
 }
 
-// postSaleBill posts one sale of an import, and returns the id of the bill that the backend answered with. A replay is answered
-// with the bill of the first attempt, as a create is.
+// postSaleBill posts one sale of an import, and returns the id of the bill that the backend confirmed. A replay is answered with the
+// bill of the first attempt, as a create is. An answer that is not a bill id does not confirm the bill, so the row is not counted as posted.
 func postSaleBill(token string, payload models.BillPayload) (uint64, error) {
 	body, err := postImportedBillBody(token, "/api/v2/bill", payload)
 	if err != nil {
 		return 0, err
 	}
 	billID, err := strconv.ParseUint(strings.TrimSpace(string(body)), 10, 64)
-	if err != nil {
-		return 0, nil
+	if err != nil || billID == 0 {
+		return 0, fmt.Errorf("the backend did not confirm the bill")
 	}
 	return billID, nil
 }

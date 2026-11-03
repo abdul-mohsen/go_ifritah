@@ -638,7 +638,10 @@ func postImportedBillBody(token, path string, payload interface{}) ([]byte, erro
 		log.Printf("[bill import] backend %s -> status=%d body=%s", path, resp.StatusCode, string(response))
 		return nil, fmt.Errorf("backend rejected bill (status %d): %s", resp.StatusCode, strings.TrimSpace(string(response)))
 	}
-	answer, _ := io.ReadAll(io.LimitReader(resp.Body, 64))
+	answer, err := io.ReadAll(io.LimitReader(resp.Body, 64))
+	if err != nil {
+		return nil, fmt.Errorf("backend answer was cut off: %v", err)
+	}
 	return answer, nil
 }
 

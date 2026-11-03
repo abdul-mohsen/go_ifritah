@@ -16,8 +16,7 @@
     </div>
     <label class="form-label" for="bill-import-file">{{ if .arabic }}ملف XLSX{{ else }}XLSX workbook{{ end }}</label>
     <input id="bill-import-file" name="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
-    {{ if .sales_import_off }}<p id="bill-import-off" class="mt-4 text-sm" style="color:#dc2626">Sales import is off until the duplicate check is live.</p>{{ end }}
-    <button id="bill-import-submit" type="submit" class="btn btn-filled mt-4"{{ if .sales_import_off }} disabled{{ end }}>{{ if .arabic }}استيراد الفواتير{{ else }}Import bills{{ end }}</button>
+    <button id="bill-import-submit" type="submit" class="btn btn-filled mt-4">{{ if .arabic }}استيراد الفواتير{{ else }}Import bills{{ end }}</button>
   </form>
   <output id="bill-import-result" class="mt-4"></output>
 </div>
@@ -37,19 +36,12 @@
     try {
       const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
       const csrfToken = csrfMatch ? csrfMatch[1] : '';
-      const body = new FormData(event.currentTarget);
-      const sales = type.value === 'sales';
-      if (sales) {
-        const file = body.get('file');
-        body.append('import_session', window.saleImportSession.begin(JSON.stringify([file.name, file.size, file.lastModified])));
-      }
       const response = await fetch('/api/bill-import/upload?type=' + encodeURIComponent(type.value), {
         method: 'POST',
         headers: { 'X-CSRF-Token': csrfToken },
-        body
+        body: new FormData(event.currentTarget)
       });
       const data = await response.json();
-      if (sales) window.saleImportSession.end();
       if (!response.ok || data.error) throw new Error(data.error || 'Import failed');
       result.textContent = `{{ if .arabic }}تم استيراد ${data.success} من ${data.total} فاتورة بنجاح.{{ else }}Imported ${data.success} of ${data.total} bills successfully.{{ end }}`;
       result.dataset.success = String(data.success);

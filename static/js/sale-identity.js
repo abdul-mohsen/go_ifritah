@@ -81,6 +81,7 @@
       var stored = window.sessionStorage.getItem(IMPORT_KEY);
       return stored ? JSON.parse(stored) : null;
     } catch (e) {
+      // Storage is blocked or unreadable: the copy kept in memory for this page is the only one.
       return pendingImport;
     }
   }

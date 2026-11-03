@@ -40,7 +40,7 @@ function selectedRowsOf(body) {
 }
 
 test.describe('Sales preview states and posting', () => {
-  test('each row shows its status, and only the OK rows are ticked by default', async ({ page }) => {
+  test('OK and warning-only rows are ticked by default, a duplicate is not, and an error row cannot be ticked', async ({ page }) => {
     await stubRoutes(page, { check: CHECK_OK, upload: { status: 200, contentType: 'application/json', body: '{}' } });
     await openSalesPage(page);
     await page.locator('#bill-import-submit').click();
@@ -55,8 +55,11 @@ test.describe('Sales preview states and posting', () => {
     expect(await status(5)).toBe('error');
 
     const ticked = page.locator('#bill-import-table input[data-row-check]:checked');
-    await expect(ticked).toHaveCount(1);
+    await expect(ticked).toHaveCount(2);
     await expect(page.locator('#bill-import-table tr[data-row="2"] input[data-row-check]')).toBeChecked();
+    await expect(page.locator('#bill-import-table tr[data-row="4"] input[data-row-check]')).toBeChecked();
+    await expect(page.locator('#bill-import-table tr[data-row="1"] input[data-row-check]')).not.toBeChecked();
+    await expect(page.locator('#bill-import-table tr[data-row="4"]')).toContainText('the VIN has an unknown format');
   });
 
   test('an error row cannot be ticked, and its messages are shown, including a code the page does not know', async ({ page }) => {
@@ -74,22 +77,21 @@ test.describe('Sales preview states and posting', () => {
   test('only the ticked rows are posted, with their row numbers, and a duplicate is not posted unless it is ticked', async ({ page }) => {
     const uploads = await stubRoutes(page, {
       check: CHECK_OK,
-      upload: { status: 200, contentType: 'application/json', body: JSON.stringify({ total: 1, success: 1, failed: 0, results: [{ row: 2, ok: true, bill_id: 77 }] }) },
+      upload: { status: 200, contentType: 'application/json', body: JSON.stringify({ total: 2, success: 2, failed: 0, results: [{ row: 2, ok: true, bill_id: 77 }, { row: 4, ok: true, bill_id: 78 }] }) },
     });
     await openSalesPage(page);
     await page.locator('#bill-import-submit').click();
     await page.locator('#bill-import-commit').click();
 
     await expect.poll(() => uploads.length).toBe(1);
-    expect(selectedRowsOf(uploads[0])).toEqual(['2']);
+    expect(selectedRowsOf(uploads[0])).toEqual(['2', '4']);
     expect(selectedRowsOf(uploads[0])).not.toContain('1');
-    expect(selectedRowsOf(uploads[0])).not.toContain('4');
   });
 
   test('ticking a duplicate posts it with its row number', async ({ page }) => {
     const uploads = await stubRoutes(page, {
       check: CHECK_OK,
-      upload: { status: 200, contentType: 'application/json', body: JSON.stringify({ total: 2, success: 2, failed: 0, results: [{ row: 1, ok: true, bill_id: 42 }, { row: 2, ok: true, bill_id: 77 }] }) },
+      upload: { status: 200, contentType: 'application/json', body: JSON.stringify({ total: 3, success: 3, failed: 0, results: [{ row: 1, ok: true, bill_id: 42 }, { row: 2, ok: true, bill_id: 77 }, { row: 4, ok: true, bill_id: 78 }] }) },
     });
     await openSalesPage(page);
     await page.locator('#bill-import-submit').click();
@@ -97,7 +99,7 @@ test.describe('Sales preview states and posting', () => {
     await page.locator('#bill-import-commit').click();
 
     await expect.poll(() => uploads.length).toBe(1);
-    expect(selectedRowsOf(uploads[0])).toEqual(['1', '2']);
+    expect(selectedRowsOf(uploads[0])).toEqual(['1', '2', '4']);
   });
 
   test('the result counts the rows as created, replayed and failed', async ({ page }) => {
@@ -108,7 +110,6 @@ test.describe('Sales preview states and posting', () => {
     await openSalesPage(page);
     await page.locator('#bill-import-submit').click();
     await page.locator('#bill-import-table tr[data-row="1"] input[data-row-check]').check();
-    await page.locator('#bill-import-table tr[data-row="4"] input[data-row-check]').check();
     await page.locator('#bill-import-commit').click();
 
     await expect(page.locator('#bill-import-result')).toHaveAttribute('data-created', '1');

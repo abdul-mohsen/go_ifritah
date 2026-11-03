@@ -1,6 +1,6 @@
 // Preview of a sales import. The server checks every row before anything is posted, and this script shows each row with its status.
-// An OK row is ticked. A duplicate or a warning is not ticked, and the user may tick it. A row with an error is blocked: its
-// messages are shown, and it cannot be ticked. A row that does not look clearly valid is never OK.
+// An OK row, and a row whose only findings are warnings, is ticked. A duplicate is not ticked, and the user may tick it. A row with
+// an error is blocked: its messages are shown, and it cannot be ticked. A row that does not look clearly valid is never OK.
 (function () {
   var TEXT = {
     en: { ok: 'OK', duplicate: 'Duplicate', warning: 'Warning', error: 'Error' },
@@ -58,7 +58,7 @@
     var box = document.createElement('input');
     box.type = 'checkbox';
     box.dataset.rowCheck = String(row.row);
-    box.checked = status === 'ok';
+    box.checked = status === 'ok' || status === 'warning';
     box.disabled = status === 'error';
     tick.appendChild(box);
     tr.appendChild(tick);

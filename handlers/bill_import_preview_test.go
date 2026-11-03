@@ -411,6 +411,52 @@ func TestCommitReportsTheDuplicateThatTheCheckFound(t *testing.T) {
 	}
 }
 
+// TestCheckKeepsAWarningOnlyRowValid checks that a row whose only finding is a warning is valid and has no error, so the preview ticks
+// it and the commit may post it.
+func TestCheckKeepsAWarningOnlyRowValid(t *testing.T) {
+	startImportBackend(t, func(rows []map[string]interface{}) []map[string]interface{} {
+		return []map[string]interface{}{
+			checkAnswer(0, true, nil, []map[string]interface{}{issue("sale_warning", "this warning does not block the sale")}, nil),
+		}
+	})
+	w := httptest.NewRecorder()
+	HandleCheckBillImportCSV(w, csvUpload(t, "/api/invoices/import-csv/check", "name,price,quantity\nBrake Pad,75,2\n", map[string][]string{importSessionField: {importTestSession}}))
+	rows := decodePreview(t, w).Rows
+	if w.Code != http.StatusOK || len(rows) != 1 {
+		t.Fatalf("status = %d rows = %+v, want one row", w.Code, rows)
+	}
+	if !rows[0].Valid || len(rows[0].Errors) != 0 || len(rows[0].Warnings) != 1 || rows[0].DuplicateOf != nil {
+		t.Errorf("row 1 = %+v, want valid with its warning and no error", rows[0])
+	}
+}
+
+// TestCommitPostsAWarningOnlyRowAndBlocksAnErrorRow checks that a selected row whose only finding is a warning is posted, and that a
+// selected row with an error is not posted, even when it has a warning too.
+func TestCommitPostsAWarningOnlyRowAndBlocksAnErrorRow(t *testing.T) {
+	backend := startImportBackend(t, func(rows []map[string]interface{}) []map[string]interface{} {
+		return []map[string]interface{}{
+			checkAnswer(0, true, nil, []map[string]interface{}{issue("sale_warning", "this warning does not block the sale")}, nil),
+			checkAnswer(1, false, []map[string]interface{}{issue("branch_not_found", "branch 9 does not exist")}, []map[string]interface{}{issue("sale_warning", "this warning does not block the sale")}, nil),
+		}
+	})
+	w := httptest.NewRecorder()
+	HandleImportBillsUpload(w, csvUpload(t, "/api/invoices/import-csv", "name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n", saleFields(importTestSession, "1", "2")))
+	if w.Code != http.StatusOK {
+		t.Fatalf("commit status = %d body=%s", w.Code, w.Body.String())
+	}
+	posted := backend.postedBills()
+	if len(posted) != 1 || posted[0]["bill_request_id"] != "8cb392fa-4ce3-52dd-b421-664a8e39a55a" {
+		t.Fatalf("posted = %v, want only row 1 with its identity", posted)
+	}
+	var result importResult
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Success != 1 || result.Failed != 1 || !result.Results[0].OK || result.Results[0].BillID != 501 || result.Results[1].OK || !strings.Contains(result.Results[1].Error, "branch 9 does not exist") {
+		t.Errorf("result = %+v, want row 1 created as bill 501 and row 2 failed with its error", result)
+	}
+}
+
 // startPurchaseBackend fakes the purchase bill route and counts the purchase bills that it receives.
 func startPurchaseBackend(t *testing.T) *atomic.Int32 {
 	t.Helper()

@@ -38,11 +38,12 @@ type spreadsheetProduct struct {
 }
 
 type bulkImportLineResult struct {
-	Index  int    `json:"index"`
-	Row    int    `json:"row,omitempty"`
-	OK     bool   `json:"ok"`
-	BillID uint64 `json:"bill_id,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Index       int     `json:"index"`
+	Row         int     `json:"row,omitempty"`
+	OK          bool    `json:"ok"`
+	BillID      uint64  `json:"bill_id,omitempty"`
+	DuplicateOf *uint64 `json:"duplicate_of,omitempty"`
+	Error       string  `json:"error,omitempty"`
 }
 
 type bulkImportResponse struct {
@@ -239,7 +240,7 @@ func readImportFile(r *http.Request) ([]byte, error) {
 func xlsxResults(outcomes []salesOutcome) bulkImportResponse {
 	response := bulkImportResponse{Total: len(outcomes), Results: make([]bulkImportLineResult, 0, len(outcomes))}
 	for _, outcome := range outcomes {
-		response.Results = append(response.Results, bulkImportLineResult{Index: outcome.row - 1, Row: outcome.row, OK: outcome.ok, BillID: outcome.billID, Error: outcome.err})
+		response.Results = append(response.Results, bulkImportLineResult{Index: outcome.row - 1, Row: outcome.row, OK: outcome.ok, BillID: outcome.billID, DuplicateOf: outcome.duplicateOf, Error: outcome.err})
 		if outcome.ok {
 			response.Success++
 		} else {

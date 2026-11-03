@@ -565,10 +565,11 @@ type importResult struct {
 }
 
 type billResult struct {
-	Row    int    `json:"row"`
-	OK     bool   `json:"ok"`
-	BillID uint64 `json:"bill_id,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Row         int     `json:"row"`
+	OK          bool    `json:"ok"`
+	BillID      uint64  `json:"bill_id,omitempty"`
+	DuplicateOf *uint64 `json:"duplicate_of,omitempty"`
+	Error       string  `json:"error,omitempty"`
 }
 
 func writeImportJSON(w http.ResponseWriter, status int, result importResult) {

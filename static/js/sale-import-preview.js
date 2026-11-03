@@ -75,12 +75,11 @@
     return tr;
   }
 
-  // render fills the table with one line per row. It returns the rows by number and the count of each status.
+  // render fills the table with one line per row. It returns the count of each status.
   function render(table, rows) {
     var lang = language();
     var text = TEXT[lang];
     var counts = { ok: 0, duplicate: 0, warning: 0, error: 0 };
-    var byRow = {};
     var head = document.createElement('thead');
     var headRow = document.createElement('tr');
     for (var heading of HEADERS[lang]) {
@@ -94,13 +93,12 @@
     for (var row of rows) {
       var status = classify(row);
       counts[status] += 1;
-      byRow[row.row] = row;
       body.appendChild(rowElement(row, status, text));
     }
     table.textContent = '';
     table.appendChild(head);
     table.appendChild(body);
-    return { byRow: byRow, counts: counts };
+    return { counts: counts };
   }
 
   // selectedRows returns the numbers of the rows that are ticked. A blocked row is never one of them.
@@ -125,15 +123,14 @@
   }
 
   // tally counts the outcomes of a commit. The backend answers a replay with the bill of the first attempt, as it answers a create.
-  // So a row that comes back with the bill that its preview named as a duplicate was replayed: a retry of the same session does that.
-  // Any other posted row was created.
-  function tally(results, byRow) {
+  // Each posted row says which bill its check, run just before the post, named as a duplicate. A row that comes back with that bill
+  // was replayed, which is what a retry of the same session does. Any other posted row was created.
+  function tally(results) {
     var counts = { created: 0, replayed: 0, failed: 0 };
     for (var result of results) {
-      var previewed = byRow[result.row];
       if (!result.ok) {
         counts.failed += 1;
-      } else if (previewed && previewed.duplicate_of === result.bill_id) {
+      } else if (result.duplicate_of !== null && result.duplicate_of !== undefined && result.duplicate_of === result.bill_id) {
         counts.replayed += 1;
       } else {
         counts.created += 1;

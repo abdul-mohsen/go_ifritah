@@ -2147,7 +2147,7 @@
                     alert(data.error);
                     return;
                 }
-                var counts = window.salePreview.tally(data.results || [], importCheckShown.byRow);
+                var counts = window.salePreview.tally(data.results || []);
                 window.saleImportSession.end();
                 hideImportCheck();
                 data.success = counts.created + counts.replayed;

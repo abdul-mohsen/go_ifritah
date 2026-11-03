@@ -70,12 +70,14 @@ type salesCandidate struct {
 	total    string
 }
 
-// salesOutcome is what a commit did with one selected row. billID is the bill that the backend answered with.
+// salesOutcome is what a commit did with one selected row. billID is the bill that the backend answered with, and duplicateOf is the
+// bill that the check of the row named as its duplicate, when there was one.
 type salesOutcome struct {
-	row    int
-	ok     bool
-	billID uint64
-	err    string
+	row         int
+	ok          bool
+	billID      uint64
+	duplicateOf *uint64
+	err         string
 }
 
 // checkSalesCandidates checks the candidates that can become sales, with the backend, in chunks of importCheckChunk. It answers
@@ -181,6 +183,7 @@ func commitSales(token string, candidates []salesCandidate, selected map[int]boo
 		} else {
 			outcome.ok = true
 			outcome.billID = billID
+			outcome.duplicateOf = checked[i].DuplicateOf
 		}
 		outcomes = append(outcomes, outcome)
 	}
@@ -329,7 +332,7 @@ func billResultsOf(outcomes []salesOutcome) ([]billResult, int, int) {
 	results := make([]billResult, 0, len(outcomes))
 	success, failed := 0, 0
 	for _, outcome := range outcomes {
-		results = append(results, billResult{Row: outcome.row, OK: outcome.ok, BillID: outcome.billID, Error: outcome.err})
+		results = append(results, billResult{Row: outcome.row, OK: outcome.ok, BillID: outcome.billID, DuplicateOf: outcome.duplicateOf, Error: outcome.err})
 		if outcome.ok {
 			success++
 		} else {

@@ -394,6 +394,23 @@ func TestXLSXCommitRefusesARowWithAnUnknownCode(t *testing.T) {
 	}
 }
 
+// TestCommitReportsTheDuplicateThatTheCheckFound checks that a posted row says which bill its check named as a duplicate. The page
+// compares that bill with the bill that the backend answers with, to tell a replay of an earlier attempt from a new bill.
+func TestCommitReportsTheDuplicateThatTheCheckFound(t *testing.T) {
+	startImportBackend(t, func(rows []map[string]interface{}) []map[string]interface{} {
+		return []map[string]interface{}{checkAnswer(0, true, nil, []map[string]interface{}{issue("duplicate_sale", "this sale matches bill 42 on this branch")}, 42)}
+	})
+	w := httptest.NewRecorder()
+	HandleImportBillsUpload(w, csvUpload(t, "/api/invoices/import-csv", "name,price,quantity\nBrake Pad,75,2\n", saleFields(importTestSession, "1")))
+	var result importResult
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Results) != 1 || !result.Results[0].OK || result.Results[0].DuplicateOf == nil || *result.Results[0].DuplicateOf != 42 {
+		t.Fatalf("result = %+v, want row 1 posted with duplicate_of 42", result)
+	}
+}
+
 // startPurchaseBackend fakes the purchase bill route and counts the purchase bills that it receives.
 func startPurchaseBackend(t *testing.T) *atomic.Int32 {
 	t.Helper()

@@ -474,7 +474,7 @@
                 document.getElementById('csv-import-status').textContent = data.error;
                 return;
             }
-            var counts = window.salePreview.tally(data.results || [], csvShown.byRow);
+            var counts = window.salePreview.tally(data.results || []);
             window.saleImportSession.end();
             hideCsvCheck();
             showCsvResults(data, counts);

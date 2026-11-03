@@ -100,7 +100,7 @@
     });
     const data = await response.json();
     if (!response.ok || data.error) throw new Error(failure(data, 'Import failed'));
-    const counts = window.salePreview.tally(data.results || [], shown.byRow);
+    const counts = window.salePreview.tally(data.results || []);
     window.saleImportSession.end();
     hidePreview();
     const success = counts.created + counts.replayed;

@@ -103,7 +103,7 @@ test.describe('Sales preview states and posting', () => {
   test('the result counts the rows as created, replayed and failed', async ({ page }) => {
     await stubRoutes(page, {
       check: CHECK_OK,
-      upload: { status: 200, contentType: 'application/json', body: JSON.stringify({ total: 3, success: 2, failed: 1, results: [{ row: 1, ok: true, bill_id: 42 }, { row: 2, ok: true, bill_id: 77 }, { row: 4, ok: false, error: 'backend refused' }] }) },
+      upload: { status: 200, contentType: 'application/json', body: JSON.stringify({ total: 3, success: 2, failed: 1, results: [{ row: 1, ok: true, bill_id: 42, duplicate_of: 42 }, { row: 2, ok: true, bill_id: 77, duplicate_of: null }, { row: 4, ok: false, error: 'backend refused' }] }) },
     });
     await openSalesPage(page);
     await page.locator('#bill-import-submit').click();

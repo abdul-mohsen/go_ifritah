@@ -6,7 +6,7 @@
     en: { ok: 'OK', duplicate: 'Duplicate', warning: 'Warning', error: 'Error' },
     ar: { ok: 'جاهز', duplicate: 'مكرر', warning: 'تحذير', error: 'خطأ' }
   };
-  var DUPLICATE_CODES = ['duplicate_sale', 'duplicate_in_batch'];
+  var DUPLICATE_CODES = new Set(['duplicate_sale', 'duplicate_in_batch']);
 
   function language() {
     return document.documentElement.lang === 'ar' ? 'ar' : 'en';
@@ -24,7 +24,7 @@
     var warnings = row.warnings || [];
     var status = warnings.length > 0 ? 'warning' : 'ok';
     for (var warning of warnings) {
-      if (DUPLICATE_CODES.includes(warning.code)) {
+      if (DUPLICATE_CODES.has(warning.code)) {
         status = 'duplicate';
       }
     }

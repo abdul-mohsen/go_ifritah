@@ -74,6 +74,7 @@ func TestCSVImportSendsSaleIdentity(t *testing.T) {
 		return runImport(t, writes, func() {
 			fields := saleFields("1", "2")
 			fields["store_id"] = []string{"1"}
+			fields["branch_id"] = []string{"7"}
 			req := multipartUpload(t, cookie, "/api/invoices/import-csv", "csv_file", "bills.csv", content, fields)
 			w := httptest.NewRecorder()
 			HandleImportBillsUpload(w, req)
@@ -98,7 +99,7 @@ func TestDataImportSendsSaleIdentity(t *testing.T) {
 	mapping := map[string]int{"part_name": 0, "price": 1, "quantity": 2}
 	rows := [][]string{{"Brake Pad", "75", "2"}, {"Engine Oil", "40", "1"}}
 	execute := func(rows [][]string) []map[string]interface{} {
-		body, err := json.Marshal(importRequest{Type: "bills", StoreID: 1, Mapping: mapping, Rows: rows, SelectedRows: []int{1, 2}})
+		body, err := json.Marshal(importRequest{Type: "bills", StoreID: 1, BranchID: 7, Mapping: mapping, Rows: rows, SelectedRows: []int{1, 2}})
 		if err != nil {
 			t.Fatal(err)
 		}

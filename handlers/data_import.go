@@ -97,6 +97,7 @@ func HandleDataImportPreview(w http.ResponseWriter, r *http.Request) {
 type importRequest struct {
 	Type         string         `json:"type"` // "bills", "purchase_bills", "products"
 	StoreID      int            `json:"store_id"`
+	BranchID     int            `json:"branch_id"`               // sales imports: the branch that the bills post to
 	Mapping      map[string]int `json:"mapping"`                 // field_name → column_index
 	Rows         [][]string     `json:"rows"`                    // all data rows (excluding header)
 	SelectedRows []int          `json:"selected_rows,omitempty"` // sales imports: the rows to post, from the preview
@@ -158,6 +159,10 @@ func HandleDataImportCheck(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "يرجى اختيار المخزن"})
 		return
 	}
+	if req.BranchID == 0 {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "يرجى اختيار الفرع"})
+		return
+	}
 	if len(req.Rows) == 0 {
 		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "لا توجد بيانات للاستيراد"})
 		return
@@ -173,6 +178,10 @@ func HandleDataImportCheck(w http.ResponseWriter, r *http.Request) {
 // importBills creates the bills of a sales data import. It posts only the rows that the user selected in the preview, and each
 // of those rows is checked again before it is posted.
 func importBills(w http.ResponseWriter, token string, req importRequest) {
+	if req.BranchID == 0 {
+		writeJSON(w, http.StatusBadRequest, importResult{Error: "يرجى اختيار الفرع"})
+		return
+	}
 	selected, err := selectedRowsOfInts(req.SelectedRows)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, importResult{Error: err.Error()})
@@ -256,6 +265,7 @@ func dataBillOf(req importRequest, rows []dataBillRow) models.BillPayload {
 	}
 	bp := models.BillPayload{
 		StoreID:         req.StoreID,
+		BranchID:        req.BranchID,
 		Products:        []models.BillProductItem{},
 		ManualProducts:  items,
 		TotalAmount:     total,

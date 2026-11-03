@@ -26,11 +26,16 @@ func HandleImportBillsPage(w http.ResponseWriter, r *http.Request) {
 	if stores == nil {
 		stores = []models.Store{}
 	}
+	branches, _ := helpers.FetchBranches(token)
+	if branches == nil {
+		branches = []models.Branch{}
+	}
 
 	helpers.Render(w, r, "import-bills", map[string]interface{}{
-		"title":  "استيراد فواتير من CSV",
-		"stores": stores,
-		"arabic": isArabic(token),
+		"title":    "استيراد فواتير من CSV",
+		"stores":   stores,
+		"branches": branches,
+		"arabic":   isArabic(token),
 	})
 }
 
@@ -90,7 +95,8 @@ func HandleCheckBillImportCSV(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, previewResponse{Total: len(rows), Rows: rows})
 }
 
-// readSalesCSV reads the CSV file and the store of a sales import. It parses the file into its bills, and returns the batch key of the file.
+// readSalesCSV reads the CSV file, the store and the branch of a sales import. It parses the file into its bills, each on the chosen
+// branch, and returns the batch key of the file and the branch.
 func readSalesCSV(r *http.Request) ([]models.BillPayload, string, error) {
 	file, _, err := r.FormFile("csv_file")
 	if err != nil {
@@ -102,6 +108,10 @@ func readSalesCSV(r *http.Request) ([]models.BillPayload, string, error) {
 	if defaultStoreID == 0 {
 		return nil, "", fmt.Errorf("يرجى اختيار المخزن")
 	}
+	branchID := helpers.ParseIntValue(r.FormValue("branch_id"))
+	if branchID == 0 {
+		return nil, "", fmt.Errorf("يرجى اختيار الفرع")
+	}
 
 	// Read CSV with flexible detection
 	rawBytes, err := io.ReadAll(file)
@@ -112,7 +122,16 @@ func readSalesCSV(r *http.Request) ([]models.BillPayload, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	return bills, importBatchKey(rawBytes), nil
+	for i := range bills {
+		bills[i].BranchID = branchID
+	}
+	return bills, csvBatchKey(rawBytes, branchID), nil
+}
+
+// csvBatchKey names the batch of a CSV sales import: the bytes of the file, and the branch that its bills post to. The same file on
+// another branch is another batch, so its bills do not share an identity.
+func csvBatchKey(rawBytes []byte, branchID int) string {
+	return importBatchKey(append([]byte(fmt.Sprintf("branch_id=%d\n", branchID)), rawBytes...))
 }
 
 // parseSalesCSVBills reads a CSV file into the bills of a sales import. Each bill is final (state 3).

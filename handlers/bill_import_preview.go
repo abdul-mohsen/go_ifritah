@@ -319,7 +319,7 @@ func salesPayload(batchKey string, row int, bill spreadsheetBill, products []spr
 	}
 	branchID := parsePositiveInt(bill.values["branch_id"])
 	if branchID == 0 {
-		branchID = 1
+		return models.BillPayload{}, fmt.Errorf("invalid Branch")
 	}
 	payload := models.BillPayload{
 		StoreID:         parsePositiveInt(bill.values["store_id"]),

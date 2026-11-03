@@ -207,6 +207,15 @@
         <!-- CSV Upload Form -->
         <form id="csv-import-form" class="space-y-4">
             <div style="max-width:300px">
+                <label class="form-label" for="csv-branch-select">{{ L "tpl.import.branch_label" }} <span class="required-mark">*</span></label>
+                <select id="csv-branch-select" name="branch_id" class="w-full" required>
+                    <option value="">{{ L "tpl.import.choose_branch" }}</option>
+                    {{ range .branches }}
+                    <option value="{{ .ID }}">{{ .Name }}</option>
+                    {{ end }}
+                </select>
+            </div>
+            <div style="max-width:300px">
                 <label class="form-label">{{ L "tpl.import.csv_file_label" }} <span class="required-mark">*</span></label>
                 <input type="file" name="csv_file" id="csv-file" accept=".csv,.tsv,.txt" required
                     class="w-full text-sm file:ml-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold" style="color:var(--md-sys-color-on-surface-variant)">
@@ -393,10 +402,11 @@
     var csvCommit = document.getElementById('csv-check-commit');
     var csvCancel = document.getElementById('csv-check-cancel');
 
-    function csvFormData(file, storeVal) {
+    function csvFormData(file, storeVal, branchVal) {
         var formData = new FormData();
         formData.append('csv_file', file);
         formData.append('store_id', storeVal);
+        formData.append('branch_id', branchVal);
         return formData;
     }
 
@@ -426,8 +436,10 @@
     document.getElementById('csv-import-form').addEventListener('submit', function(e) {
         e.preventDefault();
         var storeVal = document.getElementById('store-select').value;
+        var branchVal = document.getElementById('csv-branch-select').value;
         if (!csvFile.files[0]) { alert('{{ L "tpl.import.csv_err_select_file" }}'); return; }
         if (!storeVal) { alert('{{ L "tpl.import.csv_err_select_store" }}'); return; }
+        if (!branchVal) { alert('{{ L "tpl.import.csv_err_select_branch" }}'); return; }
 
         document.getElementById('csv-import-btn').disabled = true;
         document.getElementById('csv-import-spinner').classList.remove('hidden');
@@ -437,7 +449,7 @@
         fetch('/api/invoices/import-csv/check', {
             method: 'POST',
             headers: { 'X-CSRF-Token': getCsrfCookie() },
-            body: csvFormData(csvFile.files[0], storeVal)
+            body: csvFormData(csvFile.files[0], storeVal, branchVal)
         })
         .then(function(resp) { return resp.json(); })
         .then(function(data) {
@@ -467,7 +479,8 @@
         var rows = window.salePreview.selectedRows(csvTable);
         if (rows.length === 0) return;
         var storeVal = document.getElementById('store-select').value;
-        var formData = csvFormData(csvFile.files[0], storeVal);
+        var branchVal = document.getElementById('csv-branch-select').value;
+        var formData = csvFormData(csvFile.files[0], storeVal, branchVal);
         rows.forEach(function(row) { formData.append('selected_rows', String(row)); });
         csvCommit.disabled = true;
         document.getElementById('csv-import-spinner').classList.remove('hidden');
@@ -503,6 +516,7 @@
         document.getElementById('csv-import-status').textContent = '{{ if .arabic }}تم الإلغاء. لم يُستورد شيء.{{ else }}Cancelled. Nothing was imported.{{ end }}';
     });
     csvFile.addEventListener('change', hideCsvCheck);
+    document.getElementById('csv-branch-select').addEventListener('change', hideCsvCheck);
     csvTable.addEventListener('change', function() {
         csvCommit.disabled = window.salePreview.selectedRows(csvTable).length === 0;
     });

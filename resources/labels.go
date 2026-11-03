@@ -18,6 +18,12 @@ const (
 // labels is the master map of all user-facing strings.
 // Keys follow the pattern: "domain.context" (e.g. "auth.invalid_data").
 var labels = map[string]Label{
+	// Import branch
+	"tpl.import.branch_label":          {Ar: "الفرع", En: "Branch"},
+	"tpl.import.choose_branch":         {Ar: "اختر الفرع", En: "Select Branch"},
+	"tpl.import.csv_err_select_branch": {Ar: "يرجى اختيار الفرع", En: "Please select a branch"},
+	"tpl.settings.import_branch":       {Ar: "الفرع", En: "Branch"},
+
 	// ── Auth ─────────────────────────────────────────────────────────
 	"auth.invalid_data":                     {Ar: "بيانات غير صالحة", En: "Invalid data"},
 	"auth.enter_username_password":          {Ar: "يرجى إدخال اسم المستخدم وكلمة المرور", En: "Please enter username and password"},

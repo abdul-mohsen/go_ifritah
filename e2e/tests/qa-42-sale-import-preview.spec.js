@@ -141,4 +141,33 @@ test.describe('Sales preview states and posting', () => {
     await expect(page.locator('#bill-import-result')).toHaveText(/Nothing was imported|لم يُستورد شيء/);
     expect(uploads).toHaveLength(0);
   });
+
+  test('the CSV import needs a branch, and its check sends the chosen one', async ({ page }) => {
+    const checks = [];
+    await page.route('**/api/invoices/import-csv/check**', (route) => {
+      checks.push(route.request().postData() || '');
+      route.fulfill(CHECK_OK);
+    });
+    await login(page);
+    await page.goto(appURL('/dashboard/invoices/import-csv'));
+    await page.locator('#tab-csv').click();
+    await page.locator('#store-select').selectOption({ index: 1 });
+    await page.locator('#csv-file').setInputFiles({
+      name: 'sales.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('name,price,quantity\nBrake Pad,75,2\n'),
+    });
+
+    await page.locator('#csv-import-btn').click();
+    const missing = await page.locator('#csv-branch-select').evaluate((select) => select.validity.valueMissing);
+    expect(missing).toBe(true);
+    expect(checks).toHaveLength(0);
+
+    await page.locator('#csv-branch-select').selectOption({ index: 1 });
+    const branchID = await page.locator('#csv-branch-select').inputValue();
+    await page.locator('#csv-import-btn').click();
+    await expect(page.locator('#csv-check')).toBeVisible();
+    expect(checks).toHaveLength(1);
+    expect(checks[0]).toContain(`name="branch_id"\r\n\r\n${branchID}`);
+  });
 });

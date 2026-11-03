@@ -120,7 +120,7 @@ func issue(code, message string) map[string]interface{} {
 // csvUpload posts a CSV file of sales to a handler, with the rows to post.
 func csvUpload(t *testing.T, target, csvBody string, fields map[string][]string) *http.Request {
 	t.Helper()
-	merged := map[string][]string{"store_id": {"1"}}
+	merged := map[string][]string{"store_id": {"1"}, "branch_id": {"7"}}
 	for key, values := range fields {
 		merged[key] = values
 	}
@@ -298,7 +298,7 @@ func TestCommitDoesNotPostARowTheCheckBlocks(t *testing.T) {
 		t.Fatalf("commit status = %d body=%s", w.Code, w.Body.String())
 	}
 	posted := backend.postedBills()
-	_, want := importSaleIdentity(importBatchKey([]byte("name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n")), 2)
+	_, want := importSaleIdentity(csvBatchKey([]byte("name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n"), 7), 2)
 	if len(posted) != 1 || posted[0]["bill_request_id"] != want {
 		t.Fatalf("posted = %v, want only row 2", posted)
 	}
@@ -345,7 +345,7 @@ func TestCommitPostsNothingWhenTheCheckFails(t *testing.T) {
 func TestDataImportCheckAndCommitPostOnlyTheSelectedRows(t *testing.T) {
 	backend := startImportBackend(t, allValid)
 	cookie := seedSaleSession(t)
-	request := importRequest{Type: "bills", StoreID: 1, Mapping: map[string]int{"part_name": 0, "price": 1, "quantity": 2}, Rows: [][]string{{"Brake Pad", "75", "2"}, {"Engine Oil", "40", "1"}}}
+	request := importRequest{Type: "bills", StoreID: 1, BranchID: 7, Mapping: map[string]int{"part_name": 0, "price": 1, "quantity": 2}, Rows: [][]string{{"Brake Pad", "75", "2"}, {"Engine Oil", "40", "1"}}}
 
 	body, err := json.Marshal(request)
 	if err != nil {
@@ -449,7 +449,7 @@ func TestCommitPostsAWarningOnlyRowAndBlocksAnErrorRow(t *testing.T) {
 		t.Fatalf("commit status = %d body=%s", w.Code, w.Body.String())
 	}
 	posted := backend.postedBills()
-	_, want := importSaleIdentity(importBatchKey([]byte("name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n")), 1)
+	_, want := importSaleIdentity(csvBatchKey([]byte("name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n"), 7), 1)
 	if len(posted) != 1 || posted[0]["bill_request_id"] != want {
 		t.Fatalf("posted = %v, want only row 1 with its identity", posted)
 	}

@@ -1,19 +1,16 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 
-	"afrita/config"
 	"afrita/helpers"
 	"afrita/models"
 )
@@ -29,22 +26,24 @@ func HandleImportBillsPage(w http.ResponseWriter, r *http.Request) {
 	if stores == nil {
 		stores = []models.Store{}
 	}
+	branches, _ := helpers.FetchBranches(token)
+	if branches == nil {
+		branches = []models.Branch{}
+	}
 
 	helpers.Render(w, r, "import-bills", map[string]interface{}{
-		"title":            "استيراد فواتير من CSV",
-		"stores":           stores,
-		"sales_import_off": !salesImportEnabled,
+		"title":    "استيراد فواتير من CSV",
+		"stores":   stores,
+		"branches": branches,
+		"arabic":   isArabic(token),
 	})
 }
 
-// HandleImportBillsUpload processes the uploaded CSV and submits bills one by one.
+// HandleImportBillsUpload creates the bills of a CSV upload. A sales import posts only the rows that the user selected in the
+// preview, and each of those rows is checked again before it is posted.
 func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 	token, ok := helpers.GetTokenOrRedirect(w, r)
 	if !ok {
-		return
-	}
-	if !salesImportEnabled {
-		writeImportJSON(w, http.StatusServiceUnavailable, importResult{Error: salesImportOffMessage})
 		return
 	}
 
@@ -53,29 +52,90 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "فشل في قراءة الملف: " + err.Error()})
 		return
 	}
+	selected, err := selectedRowsOf(r.MultipartForm.Value["selected_rows"])
+	if err != nil {
+		writeImportJSON(w, http.StatusBadRequest, importResult{Error: err.Error()})
+		return
+	}
+	bills, batchKey, err := readSalesCSV(r)
+	if err != nil {
+		writeImportJSON(w, http.StatusBadRequest, importResult{Error: err.Error()})
+		return
+	}
+	outcomes, err := commitSales(token, csvSalesCandidates(batchKey, bills), selected)
+	if err != nil {
+		writeImportJSON(w, http.StatusBadGateway, importResult{Error: err.Error()})
+		return
+	}
+	results, success, failed := billResultsOf(outcomes)
+	helpers.APICache.Delete("invoices_all")
+	writeImportJSON(w, http.StatusOK, importResult{Total: len(outcomes), Success: success, Failed: failed, Results: results})
+}
 
+// HandleCheckBillImportCSV checks the CSV upload of a sales import before anything is posted. It answers each row with its status.
+func HandleCheckBillImportCSV(w http.ResponseWriter, r *http.Request) {
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
+		return
+	}
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: "فشل في قراءة الملف: " + err.Error()})
+		return
+	}
+	bills, batchKey, err := readSalesCSV(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, previewResponse{Error: err.Error()})
+		return
+	}
+	rows, err := checkSalesCandidates(token, csvSalesCandidates(batchKey, bills))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, previewResponse{Error: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, previewResponse{Total: len(rows), Rows: rows})
+}
+
+// readSalesCSV reads the CSV file, the store and the branch of a sales import. It parses the file into its bills, each on the chosen
+// branch, and returns the batch key of the file and the branch.
+func readSalesCSV(r *http.Request) ([]models.BillPayload, string, error) {
 	file, _, err := r.FormFile("csv_file")
 	if err != nil {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "يرجى اختيار ملف CSV"})
-		return
+		return nil, "", fmt.Errorf("يرجى اختيار ملف CSV")
 	}
 	defer file.Close()
 
 	defaultStoreID := helpers.ParseIntValue(r.FormValue("store_id"))
 	if defaultStoreID == 0 {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "يرجى اختيار المخزن"})
-		return
+		return nil, "", fmt.Errorf("يرجى اختيار المخزن")
+	}
+	branchID := helpers.ParseIntValue(r.FormValue("branch_id"))
+	if branchID == 0 {
+		return nil, "", fmt.Errorf("يرجى اختيار الفرع")
 	}
 
 	// Read CSV with flexible detection
 	rawBytes, err := io.ReadAll(file)
 	if err != nil {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "فشل في قراءة الملف"})
-		return
+		return nil, "", fmt.Errorf("فشل في قراءة الملف")
 	}
+	bills, err := parseSalesCSVBills(rawBytes, defaultStoreID)
+	if err != nil {
+		return nil, "", err
+	}
+	for i := range bills {
+		bills[i].BranchID = branchID
+	}
+	return bills, csvBatchKey(rawBytes, branchID), nil
+}
 
-	batchKey := importBatchKey(rawBytes)
+// csvBatchKey names the batch of a CSV sales import: the bytes of the file, and the branch that its bills post to. The same file on
+// another branch is another batch, so its bills do not share an identity.
+func csvBatchKey(rawBytes []byte, branchID int) string {
+	return importBatchKey(append([]byte(fmt.Sprintf("branch_id=%d\n", branchID)), rawBytes...))
+}
 
+// parseSalesCSVBills reads a CSV file into the bills of a sales import. Each bill is final (state 3).
+func parseSalesCSVBills(rawBytes []byte, defaultStoreID int) ([]models.BillPayload, error) {
 	// Strip BOM if present
 	rawStr := string(rawBytes)
 	rawStr = strings.TrimPrefix(rawStr, "\xef\xbb\xbf")
@@ -91,13 +151,11 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 
 	records, err := reader.ReadAll()
 	if err != nil {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "فشل في تحليل CSV: " + err.Error()})
-		return
+		return nil, fmt.Errorf("فشل في تحليل CSV: %s", err.Error())
 	}
 
 	if len(records) < 2 {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "الملف فارغ أو يحتوي على رأس فقط"})
-		return
+		return nil, fmt.Errorf("الملف فارغ أو يحتوي على رأس فقط")
 	}
 
 	// Map columns from header row
@@ -105,76 +163,29 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 	colMap := mapColumns(header)
 
 	if colMap.partName < 0 && colMap.price < 0 {
-		writeImportJSON(w, http.StatusBadRequest, importResult{
-			Error: "لم يتم العثور على أعمدة مطلوبة. يجب أن يحتوي الملف على عمود اسم القطعة أو السعر على الأقل. الأعمدة المكتشفة: " + strings.Join(header, ", "),
-		})
-		return
+		return nil, fmt.Errorf("لم يتم العثور على أعمدة مطلوبة. يجب أن يحتوي الملف على عمود اسم القطعة أو السعر على الأقل. الأعمدة المكتشفة: %s", strings.Join(header, ", "))
 	}
 
 	// Parse rows into bill groups
 	bills := parseBillRows(records[1:], colMap, defaultStoreID)
 
 	if len(bills) == 0 {
-		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "لم يتم العثور على بيانات صالحة في الملف"})
-		return
+		return nil, fmt.Errorf("لم يتم العثور على بيانات صالحة في الملف")
 	}
+	return bills, nil
+}
 
-	// Submit each bill one by one with state=3 (completed/issued)
-	var results []billResult
-	successCount := 0
-	failCount := 0
-
-	for i, bill := range bills {
+// csvSalesCandidates turns the bills of a CSV file into the candidates of a sales import. Row n is the n-th bill.
+func csvSalesCandidates(batchKey string, bills []models.BillPayload) []salesCandidate {
+	candidates := make([]salesCandidate, 0, len(bills))
+	for i := range bills {
+		bill := bills[i]
 		bill.State = 3 // completed/issued
 		bill.PosID, bill.BillRequestID = importSaleIdentity(batchKey, i+1)
-
-		jsonPayload, _ := json.Marshal(bill)
-		log.Printf("[CSV IMPORT] Bill %d/%d payload: %s", i+1, len(bills), string(jsonPayload))
-
-		req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill", bytes.NewBuffer(jsonPayload))
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := helpers.DoAuthedRequest(req, token)
-		if err != nil {
-			log.Printf("[CSV IMPORT] Bill %d request error: %v", i+1, err)
-			results = append(results, billResult{
-				Row:   i + 1,
-				OK:    false,
-				Error: "خطأ في الاتصال: " + err.Error(),
-			})
-			failCount++
-			continue
-		}
-
-		respBody, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-
-		if resp.StatusCode >= 300 {
-			log.Printf("[CSV IMPORT] Bill %d failed: %d body=[%s]", i+1, resp.StatusCode, string(respBody))
-			results = append(results, billResult{
-				Row:   i + 1,
-				OK:    false,
-				Error: fmt.Sprintf("خطأ %d: %s", resp.StatusCode, truncate(string(respBody), 120)),
-			})
-			failCount++
-		} else {
-			log.Printf("[CSV IMPORT] Bill %d succeeded", i+1)
-			results = append(results, billResult{
-				Row: i + 1,
-				OK:  true,
-			})
-			successCount++
-		}
+		customer, date, total := salesPreviewFields(&bill)
+		candidates = append(candidates, salesCandidate{row: i + 1, payload: &bill, customer: customer, date: date, total: total})
 	}
-
-	helpers.APICache.Delete("invoices_all")
-
-	writeImportJSON(w, http.StatusOK, importResult{
-		Total:   len(bills),
-		Success: successCount,
-		Failed:  failCount,
-		Results: results,
-	})
+	return candidates
 }
 
 // ── Column detection ────────────────────────────────────────────
@@ -567,9 +578,11 @@ type importResult struct {
 }
 
 type billResult struct {
-	Row   int    `json:"row"`
-	OK    bool   `json:"ok"`
-	Error string `json:"error,omitempty"`
+	Row         int     `json:"row"`
+	OK          bool    `json:"ok"`
+	BillID      uint64  `json:"bill_id,omitempty"`
+	DuplicateOf *uint64 `json:"duplicate_of,omitempty"`
+	Error       string  `json:"error,omitempty"`
 }
 
 func writeImportJSON(w http.ResponseWriter, status int, result importResult) {

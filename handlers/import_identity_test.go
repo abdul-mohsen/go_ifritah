@@ -48,20 +48,12 @@ func TestImportSaleIdentityIsStableForABatchAndRow(t *testing.T) {
 }
 
 func TestXLSXSalesImportSendsSaleIdentity(t *testing.T) {
-	enableSalesImport(t)
 	writes := startSaleBackend(t)
 	cookie := seedSaleSession(t)
-	workbook, err := buildBillImportTemplate(billImportSales, false, billImportTemplateOverrides{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var xlsx bytes.Buffer
-	if err := workbook.Write(&xlsx); err != nil {
-		t.Fatal(err)
-	}
-	upload := func(content []byte) []map[string]interface{} {
+	xlsx := importWorkbook(t, billImportSales)
+	upload := func() []map[string]interface{} {
 		return runImport(t, writes, func() {
-			req := multipartUpload(t, cookie, "/api/bill-import/upload?type=sales", "file", "sales.xlsx", content, nil)
+			req := multipartUpload(t, cookie, "/api/bill-import/upload?type=sales", "file", "sales.xlsx", xlsx, saleFields("1", "2"))
 			w := httptest.NewRecorder()
 			HandleImportBillsXLSX(w, req)
 			if w.Code != http.StatusOK {
@@ -70,18 +62,20 @@ func TestXLSXSalesImportSendsSaleIdentity(t *testing.T) {
 		})
 	}
 
-	first := upload(xlsx.Bytes())
-	assertSameImportIdentities(t, first, upload(xlsx.Bytes()))
+	first := upload()
+	assertSameImportIdentities(t, first, upload())
 }
 
 func TestCSVImportSendsSaleIdentity(t *testing.T) {
-	enableSalesImport(t)
 	writes := startSaleBackend(t)
 	cookie := seedSaleSession(t)
 	csvBytes := []byte("name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n")
 	upload := func(content []byte) []map[string]interface{} {
 		return runImport(t, writes, func() {
-			req := multipartUpload(t, cookie, "/api/invoices/import-csv", "csv_file", "bills.csv", content, map[string]string{"store_id": "1"})
+			fields := saleFields("1", "2")
+			fields["store_id"] = []string{"1"}
+			fields["branch_id"] = []string{"7"}
+			req := multipartUpload(t, cookie, "/api/invoices/import-csv", "csv_file", "bills.csv", content, fields)
 			w := httptest.NewRecorder()
 			HandleImportBillsUpload(w, req)
 			if w.Code != http.StatusOK {
@@ -100,13 +94,12 @@ func TestCSVImportSendsSaleIdentity(t *testing.T) {
 }
 
 func TestDataImportSendsSaleIdentity(t *testing.T) {
-	enableSalesImport(t)
 	writes := startSaleBackend(t)
 	cookie := seedSaleSession(t)
 	mapping := map[string]int{"part_name": 0, "price": 1, "quantity": 2}
 	rows := [][]string{{"Brake Pad", "75", "2"}, {"Engine Oil", "40", "1"}}
 	execute := func(rows [][]string) []map[string]interface{} {
-		body, err := json.Marshal(importRequest{Type: "bills", StoreID: 1, Mapping: mapping, Rows: rows})
+		body, err := json.Marshal(importRequest{Type: "bills", StoreID: 1, BranchID: 7, Mapping: mapping, Rows: rows, SelectedRows: []int{1, 2}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -131,14 +124,21 @@ func TestDataImportSendsSaleIdentity(t *testing.T) {
 	}
 }
 
+// saleFields are the form fields of a sales commit: the rows that it posts.
+func saleFields(rows ...string) map[string][]string {
+	return map[string][]string{"selected_rows": rows}
+}
+
 // multipartUpload builds a signed-in request that posts one file, with optional form fields.
-func multipartUpload(t *testing.T, cookie *http.Cookie, target, field, name string, content []byte, fields map[string]string) *http.Request {
+func multipartUpload(t *testing.T, cookie *http.Cookie, target, field, name string, content []byte, fields map[string][]string) *http.Request {
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	for key, value := range fields {
-		if err := writer.WriteField(key, value); err != nil {
-			t.Fatal(err)
+	for key, values := range fields {
+		for _, value := range values {
+			if err := writer.WriteField(key, value); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 	part, err := writer.CreateFormFile(field, name)
@@ -155,6 +155,20 @@ func multipartUpload(t *testing.T, cookie *http.Cookie, target, field, name stri
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.AddCookie(cookie)
 	return req
+}
+
+// importWorkbook returns the import template of one bill type.
+func importWorkbook(t *testing.T, importType string) []byte {
+	t.Helper()
+	workbook, err := buildBillImportTemplate(importType, false, billImportTemplateOverrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var xlsx bytes.Buffer
+	if err := workbook.Write(&xlsx); err != nil {
+		t.Fatal(err)
+	}
+	return xlsx.Bytes()
 }
 
 // runImport runs an import and returns the bill bodies that the backend received during it.

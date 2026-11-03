@@ -16,7 +16,8 @@
     </div>
     <label class="form-label" for="bill-import-file">{{ if .arabic }}ملف XLSX{{ else }}XLSX workbook{{ end }}</label>
     <input id="bill-import-file" name="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
-    <button id="bill-import-submit" type="submit" class="btn btn-filled mt-4">{{ if .arabic }}استيراد الفواتير{{ else }}Import bills{{ end }}</button>
+    {{ if .sales_import_off }}<p id="bill-import-off" class="mt-4 text-sm" style="color:#dc2626">Sales import is off until the duplicate check is live.</p>{{ end }}
+    <button id="bill-import-submit" type="submit" class="btn btn-filled mt-4"{{ if .sales_import_off }} disabled{{ end }}>{{ if .arabic }}استيراد الفواتير{{ else }}Import bills{{ end }}</button>
   </form>
   <output id="bill-import-result" class="mt-4"></output>
 </div>

@@ -48,6 +48,7 @@ func TestImportSaleIdentityIsStableForABatchAndRow(t *testing.T) {
 }
 
 func TestXLSXSalesImportSendsSaleIdentity(t *testing.T) {
+	enableSalesImport(t)
 	writes := startSaleBackend(t)
 	cookie := seedSaleSession(t)
 	workbook, err := buildBillImportTemplate(billImportSales, false, billImportTemplateOverrides{})
@@ -74,6 +75,7 @@ func TestXLSXSalesImportSendsSaleIdentity(t *testing.T) {
 }
 
 func TestCSVImportSendsSaleIdentity(t *testing.T) {
+	enableSalesImport(t)
 	writes := startSaleBackend(t)
 	cookie := seedSaleSession(t)
 	csvBytes := []byte("name,price,quantity\nBrake Pad,75,2\nEngine Oil,40,1\n")
@@ -98,6 +100,7 @@ func TestCSVImportSendsSaleIdentity(t *testing.T) {
 }
 
 func TestDataImportSendsSaleIdentity(t *testing.T) {
+	enableSalesImport(t)
 	writes := startSaleBackend(t)
 	cookie := seedSaleSession(t)
 	mapping := map[string]int{"part_name": 0, "price": 1, "quantity": 2}

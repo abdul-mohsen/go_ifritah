@@ -134,8 +134,9 @@
                 <div class="excel-wizard-body">
                     <div id="preview-summary" class="mb-3"></div>
                     <div id="preview-bills-container"></div>
+                    {{ if .sales_import_off }}<p id="excel-import-off" class="mt-4 text-sm" style="color:#dc2626">Sales import is off until the duplicate check is live.</p>{{ end }}
                     <div class="mt-4 flex gap-2 justify-start">
-                        <button type="button" class="btn btn-primary btn-xs" id="btn-confirm-import" onclick="confirmBulkImport()">
+                        <button type="button" class="btn btn-primary btn-xs" id="btn-confirm-import" onclick="confirmBulkImport()"{{ if .sales_import_off }} disabled{{ end }}>
                             <span id="excel-import-btn-text">{{ L "tpl.import.confirm_import" }}</span>
                             <span id="excel-import-btn-spinner" class="hidden" style="display:inline-flex;align-items:center;gap:4px">
                                 <svg class="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="30 70" stroke-linecap="round"/></svg>
@@ -224,8 +225,9 @@
                 <p id="preview-info" class="text-xs mt-1" style="color:var(--md-sys-color-on-surface-variant)"></p>
             </div>
 
+            {{ if .sales_import_off }}<p id="csv-import-off" class="text-sm" style="color:#dc2626">Sales import is off until the duplicate check is live.</p>{{ end }}
             <div class="flex items-center gap-3 pt-2">
-                <button type="submit" id="csv-import-btn" class="btn btn-filled btn-lg font-medium">
+                <button type="submit" id="csv-import-btn" class="btn btn-filled btn-lg font-medium"{{ if .sales_import_off }} disabled{{ end }}>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg> {{ L "tpl.import.csv_start_import" }}
@@ -366,9 +368,11 @@
         if (!fileInput.files[0]) { alert('{{ L "tpl.import.csv_err_select_file" }}'); return; }
         if (!storeVal) { alert('{{ L "tpl.import.csv_err_select_store" }}'); return; }
 
+        var file = fileInput.files[0];
         var formData = new FormData();
-        formData.append('csv_file', fileInput.files[0]);
+        formData.append('csv_file', file);
         formData.append('store_id', storeVal);
+        formData.append('import_session', window.saleImportSession.begin(JSON.stringify([file.name, file.size, file.lastModified, storeVal])));
 
         document.getElementById('csv-import-btn').disabled = true;
         document.getElementById('csv-import-spinner').classList.remove('hidden');
@@ -383,6 +387,7 @@
         })
         .then(function(resp) { return resp.json(); })
         .then(function(data) {
+            window.saleImportSession.end();
             if (data.error) {
                 document.getElementById('csv-import-status').textContent = '';
                 alert(data.error);

@@ -31,8 +31,9 @@ func HandleImportBillsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.Render(w, r, "import-bills", map[string]interface{}{
-		"title":  "استيراد فواتير من CSV",
-		"stores": stores,
+		"title":            "استيراد فواتير من CSV",
+		"stores":           stores,
+		"sales_import_off": !salesImportEnabled,
 	})
 }
 
@@ -42,10 +43,19 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !salesImportEnabled {
+		writeImportJSON(w, http.StatusServiceUnavailable, importResult{Error: salesImportOffMessage})
+		return
+	}
 
 	// Parse multipart form (max 10 MB)
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "فشل في قراءة الملف: " + err.Error()})
+		return
+	}
+	session := r.FormValue(importSessionField)
+	if !validImportSession(session) {
+		writeImportJSON(w, http.StatusBadRequest, importResult{Error: importSessionMessage})
 		return
 	}
 
@@ -68,8 +78,6 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 		writeImportJSON(w, http.StatusBadRequest, importResult{Error: "فشل في قراءة الملف"})
 		return
 	}
-
-	batchKey := importBatchKey(rawBytes)
 
 	// Strip BOM if present
 	rawStr := string(rawBytes)
@@ -121,7 +129,7 @@ func HandleImportBillsUpload(w http.ResponseWriter, r *http.Request) {
 
 	for i, bill := range bills {
 		bill.State = 3 // completed/issued
-		bill.PosID, bill.BillRequestID = importSaleIdentity(batchKey, i+1)
+		bill.PosID, bill.BillRequestID = importSaleIdentity(session, i+1)
 
 		jsonPayload, _ := json.Marshal(bill)
 		log.Printf("[CSV IMPORT] Bill %d/%d payload: %s", i+1, len(bills), string(jsonPayload))

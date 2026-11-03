@@ -69,6 +69,37 @@
     return evt.detail.elt?.dataset?.saleScope;
   }
 
+  // A sales import (XLSX, CSV or the data import) sends one session with its request, and the server derives the
+  // bill_request_id of every row from it. A retry of the same input sends the same session. The session is kept in
+  // sessionStorage with the input it was made for. A different input, a finished import or a cancelled one starts a new
+  // session.
+  var IMPORT_KEY = 'afrita_sale_import';
+  var pendingImport = null;
+
+  function readPendingImport() {
+    try {
+      var stored = window.sessionStorage.getItem(IMPORT_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return pendingImport;
+    }
+  }
+
+  function beginImport(fingerprint) {
+    var pending = readPendingImport();
+    if (pending && pending.fingerprint === fingerprint) return pending.session;
+    pendingImport = { session: newUUID(), fingerprint: fingerprint };
+    writeStored('sessionStorage', IMPORT_KEY, JSON.stringify(pendingImport));
+    return pendingImport.session;
+  }
+
+  function endImport() {
+    pendingImport = null;
+    removeStored('sessionStorage', IMPORT_KEY);
+  }
+
+  window.saleImportSession = { begin: beginImport, end: endImport };
+
   document.addEventListener('htmx:configRequest', function (evt) {
     var scope = scopeOf(evt);
     if (!scope) return;

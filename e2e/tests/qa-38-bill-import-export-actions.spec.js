@@ -82,6 +82,7 @@ async function assertToolbarAndImport(page, kind) {
 
 test.describe('Shared Excel bill import and export', () => {
   test('sales flow imports a multiple-bill workbook through the shared page', async ({ page }) => {
+    test.skip(true, 'Waits for the duplicate-check preview. Sales import is off until that preview is live.');
     await login(page);
     await assertToolbarAndImport(page, 'sales');
   });

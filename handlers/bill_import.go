@@ -56,9 +56,10 @@ func HandleBillImportPage(w http.ResponseWriter, r *http.Request) {
 	}
 	importType := billImportType(r.URL.Query().Get("type"))
 	helpers.Render(w, r, "bill-import", map[string]interface{}{
-		"title":       billImportTitle(importType, isArabic(token)),
-		"import_type": importType,
-		"arabic":      isArabic(token),
+		"title":            billImportTitle(importType, isArabic(token)),
+		"import_type":      importType,
+		"arabic":           isArabic(token),
+		"sales_import_off": importType == billImportSales && !salesImportEnabled,
 	})
 }
 
@@ -119,11 +120,20 @@ func HandleImportBillsXLSX(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	importType := billImportType(r.URL.Query().Get("type"))
+	if importType == billImportSales && !salesImportEnabled {
+		writeBulkImportJSON(w, http.StatusServiceUnavailable, bulkImportResponse{Error: salesImportOffMessage})
+		return
+	}
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
 		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: "Unable to read upload"})
 		return
 	}
-	importType := billImportType(r.URL.Query().Get("type"))
+	session := r.FormValue(importSessionField)
+	if importType == billImportSales && !validImportSession(session) {
+		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: importSessionMessage})
+		return
+	}
 	file, _, err := r.FormFile("file")
 	if err != nil {
 		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: "Choose an .xlsx file"})
@@ -136,7 +146,6 @@ func HandleImportBillsXLSX(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	batchKey := importBatchKey(payload)
 	bills, products, err := parseBillImportWorkbook(payload, importType)
 	if err != nil {
 		writeBulkImportJSON(w, http.StatusBadRequest, bulkImportResponse{Error: err.Error()})
@@ -155,7 +164,7 @@ func HandleImportBillsXLSX(w http.ResponseWriter, r *http.Request) {
 		if importType == billImportPurchase {
 			createErr = submitPurchaseImport(token, bill, items)
 		} else {
-			createErr = submitSalesImport(token, batchKey, index+1, bill, items)
+			createErr = submitSalesImport(token, session, index+1, bill, items)
 		}
 		result := bulkImportLineResult{Index: index, OK: createErr == nil}
 		if createErr != nil {
@@ -468,7 +477,7 @@ func parseSheetFloat(value string) float64 {
 	return parsed
 }
 
-func submitSalesImport(token, batchKey string, row int, bill spreadsheetBill, products []spreadsheetProduct) error {
+func submitSalesImport(token, session string, row int, bill spreadsheetBill, products []spreadsheetProduct) error {
 	items, total := importSalesItems(products)
 	effective := helpers.ToBackendDate(bill.values["date"])
 	if effective == "" {
@@ -499,7 +508,7 @@ func submitSalesImport(token, batchKey string, row int, bill spreadsheetBill, pr
 		ClientID:        customerID,
 		BranchID:        branchID,
 	}
-	payload.PosID, payload.BillRequestID = importSaleIdentity(batchKey, row)
+	payload.PosID, payload.BillRequestID = importSaleIdentity(session, row)
 	return postImportedBill(token, "/api/v2/bill", payload)
 }
 

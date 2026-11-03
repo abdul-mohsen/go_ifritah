@@ -409,6 +409,7 @@ func HandleSettingsPage(w http.ResponseWriter, r *http.Request) {
 		"Stores":              stores,
 		"ZatcaByBranch":       zatcaByBranch,
 		"ZatcaStatusByBranch": zatcaStatusByBranch,
+		"sales_import_off":    !salesImportEnabled,
 	})
 }
 

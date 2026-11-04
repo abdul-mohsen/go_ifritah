@@ -187,6 +187,20 @@ func HandleCreateDraftInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	storeDetail, err := helpers.FetchStoreByID(token, stores[0].ID)
+	if err != nil {
+		if helpers.IsUnauthorizedError(err) {
+			helpers.HandleUnauthorized(w, r)
+			return
+		}
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
+		return
+	}
+	if storeDetail.BranchID == nil || *storeDetail.BranchID == 0 {
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "لا يوجد فرع مرتبط بالمتجر الافتراضي لإنشاء مسودة الفاتورة")
+		return
+	}
+
 	payload := models.BillPayload{
 		StoreID:  stores[0].ID,
 		Products: []models.BillProductItem{},
@@ -201,6 +215,8 @@ func HandleCreateDraftInvoice(w http.ResponseWriter, r *http.Request) {
 		Discount:        "0",
 		MaintenanceCost: "0",
 		State:           0,
+		PaymentMethod:   10, // cash
+		BranchID:        *storeDetail.BranchID,
 		UserName:        "Draft",
 		UserPhoneNumber: "",
 		Note:            "Auto draft created from invoices page",
@@ -763,6 +779,7 @@ func buildSubmitProductItems(products []models.BillItem) []models.BillProductIte
 			PartName: p.PartName,
 			Price:    fmt.Sprintf("%g", p.Price),
 			Quantity: strconv.Itoa(p.Quantity),
+			Discount: strconv.FormatFloat(p.Discount, 'f', -1, 64),
 		})
 	}
 	return items
@@ -778,6 +795,7 @@ func buildSubmitManualItems(products []models.BillItem) []models.BillManualItem 
 			PartNumber: p.PartNumber,
 			Price:      fmt.Sprintf("%g", p.Price),
 			Quantity:   strconv.Itoa(p.Quantity),
+			Discount:   strconv.FormatFloat(p.Discount, 'f', -1, 64),
 		})
 	}
 	return items

@@ -68,9 +68,9 @@ func BuildBillPayload(r *http.Request) models.BillPayload {
 
 	// Products section uses product IDs (linked products from catalog)
 	// Include products_name so the backend receives the part name
-	products := BuildBillProductItemsWithNames(r.Form["products_product_id"], r.Form["products_price"], r.Form["products_quantity"], r.Form["products_name"])
+	products := BuildBillProductItemsWithNames(r.Form["products_product_id"], r.Form["products_price"], r.Form["products_quantity"], r.Form["products_name"], r.Form["products_discount"])
 	// Manual section uses part names (free-text manual items)
-	manualProducts := BuildBillManualItems(r.Form["manual_part_name"], r.Form["manual_price"], r.Form["manual_quantity"], r.Form["manual_part_number"])
+	manualProducts := BuildBillManualItems(r.Form["manual_part_name"], r.Form["manual_price"], r.Form["manual_quantity"], r.Form["manual_part_number"], r.Form["manual_discount"])
 
 	// Backend requires discount and maintenance_cost as STRINGS
 	discount := FormatStringPrice(r.FormValue("discount"))
@@ -115,7 +115,7 @@ func BuildBillPayload(r *http.Request) models.BillPayload {
 // BuildBillProductItems builds linked product items (with product ID).
 // Backend requires price as STRING and product reference as "id".
 func BuildBillProductItems(ids []string, prices []string, quantities []string) []models.BillProductItem {
-	return BuildBillProductItemsWithNames(ids, prices, quantities, nil)
+	return BuildBillProductItemsWithNames(ids, prices, quantities, nil, nil)
 }
 
 // productRow holds the parsed values for one row of parallel product form
@@ -182,8 +182,16 @@ func optionalSellingPrice(sellingPrices []string, i int) *string {
 	return &formatted
 }
 
+// lineDiscount returns the discount for row i, or "0" when the form omits it.
+func lineDiscount(discounts []string, i int) string {
+	if i >= len(discounts) {
+		return "0"
+	}
+	return FormatStringPrice(discounts[i])
+}
+
 // BuildBillProductItemsWithNames builds product items including part_name (for purchase bills).
-func BuildBillProductItemsWithNames(ids []string, prices []string, quantities []string, names []string) []models.BillProductItem {
+func BuildBillProductItemsWithNames(ids []string, prices []string, quantities []string, names []string, discounts []string) []models.BillProductItem {
 	items := make([]models.BillProductItem, 0)
 	max := productRowMaxLen(ids, prices, quantities)
 	for i := 0; i < max; i++ {
@@ -196,6 +204,7 @@ func BuildBillProductItemsWithNames(ids []string, prices []string, quantities []
 			PartName: row.name,
 			Price:    row.price,
 			Quantity: row.quantity,
+			Discount: lineDiscount(discounts, i),
 		})
 	}
 	return items
@@ -203,7 +212,7 @@ func BuildBillProductItemsWithNames(ids []string, prices []string, quantities []
 
 // BuildBillManualItems builds manual (free-text) product items.
 // Backend requires price as STRING and product name as "name", part number as "part_name".
-func BuildBillManualItems(names []string, prices []string, quantities []string, partNumbers []string) []models.BillManualItem {
+func BuildBillManualItems(names []string, prices []string, quantities []string, partNumbers []string, discounts []string) []models.BillManualItem {
 	items := make([]models.BillManualItem, 0)
 	max := len(names)
 	if len(prices) > max {
@@ -241,6 +250,7 @@ func BuildBillManualItems(names []string, prices []string, quantities []string, 
 			PartNumber: partNum,
 			Price:      price,
 			Quantity:   qtyStr,
+			Discount:   lineDiscount(discounts, i),
 		})
 	}
 	return items

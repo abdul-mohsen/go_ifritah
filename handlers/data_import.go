@@ -336,6 +336,7 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 	var results []billResult
 	successCount := 0
 	failCount := 0
+	riyadh := time.FixedZone("Asia/Riyadh", 3*3600)
 
 	for i, row := range req.Rows {
 		partName := getField(row, req.Mapping, "part_name")
@@ -344,6 +345,8 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 		discountStr := getField(row, req.Mapping, "discount")
 		dateStr := getField(row, req.Mapping, "date")
 		supplierIDStr := getField(row, req.Mapping, "supplier_id")
+		seqStr := getField(row, req.Mapping, "supplier_sequence_number")
+		costStr := getField(row, req.Mapping, "cost_price")
 
 		if partName == "" && priceStr == "" {
 			continue
@@ -364,43 +367,49 @@ func importPurchaseBills(w http.ResponseWriter, token string, req importRequest)
 			partName = "بند"
 		}
 
+		seq, err := strconv.ParseUint(seqStr, 10, 64)
+		if err != nil || seq == 0 {
+			results = append(results, billResult{Row: i + 1, OK: false, Error: "رقم فاتورة المورد مطلوب ويجب أن يكون رقمًا صحيحًا موجبًا"})
+			failCount++
+			continue
+		}
+
+		if !strings.ContainsAny(costStr, "0123456789") || parsePrice(costStr) < 0 {
+			results = append(results, billResult{Row: i + 1, OK: false, Error: "سعر التكلفة مطلوب ويجب أن يكون رقمًا"})
+			failCount++
+			continue
+		}
+		cost := parsePrice(costStr)
+
+		// Date-only imports are stored at noon Riyadh time so the bill date does not shift in other timezones.
+		day, err := time.ParseInLocation("2006-01-02", parseDateBare(dateStr), riyadh)
+		if err != nil {
+			results = append(results, billResult{Row: i + 1, OK: false, Error: "التاريخ مطلوب أو غير صالح"})
+			failCount++
+			continue
+		}
+
 		manualItem := models.BillManualItem{
-			PartName: partName,
-			Price:    formatPrice(price),
-			Quantity: strconv.Itoa(qty),
-		}
-
-		// Generate a random product for the products array (backend requires it)
-		bigN, _ := rand.Int(rand.Reader, big.NewInt(900000))
-		randID := int(bigN.Int64()) + 100000
-		productItem := models.BillProductItem{
-			ID:       randID,
-			PartName: partName,
-			Price:    formatPrice(price),
-			Quantity: strconv.Itoa(qty),
-		}
-
-		effectiveDate := ""
-		if dateStr != "" {
-			effectiveDate = parseDateBare(dateStr)
-		}
-		if effectiveDate == "" {
-			effectiveDate = time.Now().Format("2006-01-02")
+			PartName:  partName,
+			Price:     formatPrice(price),
+			Quantity:  strconv.Itoa(qty),
+			CostPrice: formatPrice(cost),
 		}
 
 		emptyPDF := ""
 		payload := models.PurchaseBillPayload{
-			StoreID:        req.StoreID,
-			SupplierID:     supplierID,
-			EffectiveDate:  effectiveDate,
-			Products:       []models.BillProductItem{productItem},
-			ManualProducts: []models.BillManualItem{manualItem},
-			Discount:       discount,
-			Subtotal:       price * float64(qty),
-			PaymentMethod:  10,
-			State:          1,
-			PDFLink:        &emptyPDF,
-			Attachments:    []string{},
+			StoreID:                req.StoreID,
+			SupplierID:             supplierID,
+			SupplierSequenceNumber: seq,
+			EffectiveDate:          day.Add(12 * time.Hour).Format(time.RFC3339),
+			Products:               []models.BillProductItem{},
+			ManualProducts:         []models.BillManualItem{manualItem},
+			Discount:               discount,
+			Subtotal:               price * float64(qty),
+			PaymentMethod:          10,
+			State:                  1,
+			PDFLink:                &emptyPDF,
+			Attachments:            []string{},
 		}
 
 		jsonPayload, _ := json.Marshal(payload)

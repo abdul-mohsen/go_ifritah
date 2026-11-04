@@ -1,9 +1,9 @@
 // Identity of a final sale. Every submit of a sale form sends two values, and the backend needs both on a final sale:
 //   pos_id          names this browser's point of sale. It is created on first use and kept in localStorage.
-//   bill_request_id names one sale attempt. A reload before the answer, a retry, or a double click sends the same value.
-//                   It is kept in sessionStorage until the sale is saved (2xx), and it is dropped on a 409. A page keeps
-//                   the value it used, so a second submit from the same page is answered with the original sale. The next
-//                   page starts a new sale with a new value.
+//   bill_request_id names one sale attempt. A retry or a double click sends the same value. It is kept in sessionStorage
+//                   until the sale is saved (2xx), and it is dropped on a 409. A reload drops it, so the reloaded page
+//                   starts a new attempt. A page keeps the value it used, so a second submit from the same page is
+//                   answered with the original sale.
 // If storage is blocked, the values are kept in memory for the current page only.
 (function () {
   var POS_KEY = 'afrita_pos_id';
@@ -65,6 +65,28 @@
     return current[scope];
   }
 
+  function isReload() {
+    var entries = performance.getEntriesByType('navigation');
+    if (entries.length > 0) return entries[0].type === 'reload';
+    // Browsers without navigation entries only have the deprecated performance.navigation.
+    return Boolean(performance.navigation) && performance.navigation.type === 1;
+  }
+
+  function dropStoredAttempts() {
+    var keys = [];
+    try {
+      for (var i = 0; i < window.sessionStorage.length; i++) {
+        var key = window.sessionStorage.key(i);
+        if (key && key.indexOf(ATTEMPT_PREFIX) === 0) keys.push(key);
+      }
+    } catch (e) {
+      return;
+    }
+    for (var j = 0; j < keys.length; j++) {
+      removeStored('sessionStorage', keys[j]);
+    }
+  }
+
   function scopeOf(evt) {
     return evt.detail.elt?.dataset?.saleScope;
   }
@@ -94,6 +116,8 @@
   window.addEventListener('pageshow', function (evt) {
     if (evt.persisted) current = {};
   });
+
+  if (isReload()) dropStoredAttempts();
 
   // A sale form gets its value when it opens, so the value exists before the first submit.
   for (var form of document.querySelectorAll('[data-sale-scope]')) {

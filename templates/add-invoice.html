@@ -1,7 +1,7 @@
 ﻿{{ define "content" }}
 {{ template "breadcrumb" dict "section_url" "/dashboard/invoices" "section_label" (L "nav.invoices_section") "current" .title }}
 <div class="page-card-wide">
-    <form hx-post="/api/invoices" hx-target="body" id="invoice-form" hx-indicator="#submit-spinner" data-sale-scope="new-sale">
+    <form hx-post="/api/invoices" hx-target="body" id="invoice-form" hx-indicator="#submit-spinner" data-sale-scope="new-sale" data-sale-discounts>
         {{ if .is_company }}
         <input type="hidden" name="client_id" id="client-id-field" value="">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 border rounded" style="border-color: var(--md-sys-color-primary); background: var(--md-sys-color-surface-container)">
@@ -313,12 +313,7 @@
     }
 
     function getDiscountAmount(discInput, lineTotal) {
-        var mode = discInput.dataset.mode || 'val';
-        var raw = parseFloat(discInput.value || 0);
-        if (mode === 'pct') {
-            return Math.min((raw / 100) * lineTotal, lineTotal);
-        }
-        return Math.min(raw, lineTotal);
+        return window.AfritaSaleDiscount.amount(discInput.value, discInput.dataset.mode || 'val', lineTotal);
     }
 
     function sumCatalogItems() {

@@ -1,15 +1,10 @@
-// Identity of a final sale. Every submit of a sale form sends two values, and the backend needs both on a final sale:
-//   pos_id          names this browser's point of sale. It is created on first use and kept in localStorage.
-//   bill_request_id names one sale attempt. A retry or a double click sends the same value. It is kept in sessionStorage
-//                   until the sale is saved (2xx), and it is dropped on a 409. A reload drops it, so the reloaded page
-//                   starts a new attempt. A page keeps the value it used, so a second submit from the same page is
-//                   answered with the original sale.
-// If storage is blocked, the values are kept in memory for the current page only.
+// Each sale form history entry has its own bill_request_id. Reloads and back/forward
+// navigation restore that entry's ID; a newly opened form gets a new ID.
 (function () {
   var POS_KEY = 'afrita_pos_id';
-  var ATTEMPT_PREFIX = 'afrita_sale_attempt:';
+  var ATTEMPT_STATE_KEY = '__afrita_sale_identity';
   var posMemory = null;
-  var current = {};
+  var memoryAttempts = {};
 
   function newUUID() {
     var b = new Uint8Array(16);
@@ -37,14 +32,12 @@
     } catch (e) {}
   }
 
-  function removeStored(name, key) {
-    try {
-      window[name].removeItem(key);
-    } catch (e) {}
-  }
-
   function isValidPosId(value) {
     return typeof value === 'string' && value.length > 0 && value.length <= 64 && value === value.trim();
+  }
+
+  function isValidAttemptId(value) {
+    return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
   }
 
   function posId() {
@@ -57,38 +50,39 @@
   }
 
   function attemptId(scope) {
-    var key = ATTEMPT_PREFIX + scope;
-    if (!current[scope]) {
-      current[scope] = readStored('sessionStorage', key) || newUUID();
-      writeStored('sessionStorage', key, current[scope]);
-    }
-    return current[scope];
-  }
-
-  function isReload() {
-    var entries = performance.getEntriesByType('navigation');
-    if (entries.length > 0) return entries[0].type === 'reload';
-    // Browsers without navigation entries only have the deprecated performance.navigation.
-    return Boolean(performance.navigation) && performance.navigation.type === 1;
-  }
-
-  function dropStoredAttempts() {
-    var keys = [];
+    var state = null;
     try {
-      for (var i = 0; i < window.sessionStorage.length; i++) {
-        var key = window.sessionStorage.key(i);
-        if (key && key.indexOf(ATTEMPT_PREFIX) === 0) keys.push(key);
-      }
+      state = window.history.state;
+    } catch (e) {}
+
+    var nextState = state && typeof state === 'object' && !Array.isArray(state) ? Object.assign({}, state) : {};
+    var attempts = nextState[ATTEMPT_STATE_KEY];
+    attempts = attempts && typeof attempts === 'object' && !Array.isArray(attempts) ? Object.assign({}, attempts) : {};
+    if (isValidAttemptId(attempts[scope])) {
+      return attempts[scope];
+    }
+
+    if (isValidAttemptId(memoryAttempts[scope])) return memoryAttempts[scope];
+
+    var value = newUUID();
+    attempts[scope] = value;
+    nextState[ATTEMPT_STATE_KEY] = attempts;
+    try {
+      window.history.replaceState(nextState, '');
     } catch (e) {
-      return;
+      memoryAttempts[scope] = value;
     }
-    for (var j = 0; j < keys.length; j++) {
-      removeStored('sessionStorage', keys[j]);
-    }
+    return value;
   }
 
   function scopeOf(evt) {
     return evt.detail.elt?.dataset?.saleScope;
+  }
+
+  function initializeForms() {
+    for (var form of document.querySelectorAll('[data-sale-scope]')) {
+      attemptId(form.dataset.saleScope);
+    }
   }
 
   document.addEventListener('htmx:configRequest', function (evt) {
@@ -98,29 +92,17 @@
     evt.detail.parameters.bill_request_id = attemptId(scope);
   });
 
-  document.addEventListener('htmx:afterRequest', function (evt) {
-    var scope = scopeOf(evt);
-    if (!scope) return;
-    // htmx leaves detail.successful unset for an HX-Redirect answer, which is how a saved sale is answered, so the
-    // status decides.
-    var status = evt.detail.xhr.status;
-    if (status >= 200 && status < 300) {
-      removeStored('sessionStorage', ATTEMPT_PREFIX + scope);
-    } else if (status === 409) {
-      delete current[scope];
-      removeStored('sessionStorage', ATTEMPT_PREFIX + scope);
-    }
+  document.addEventListener('htmx:afterSwap', initializeForms);
+  document.addEventListener('htmx:pushedIntoHistory', function () {
+    memoryAttempts = {};
+    initializeForms();
   });
 
-  // A page restored from the back-forward cache may still hold a value from a sale that was saved after it was shown.
-  window.addEventListener('pageshow', function (evt) {
-    if (evt.persisted) current = {};
+  window.addEventListener('popstate', function () {
+    memoryAttempts = {};
+    initializeForms();
   });
 
-  if (isReload()) dropStoredAttempts();
-
-  // A sale form gets its value when it opens, so the value exists before the first submit.
-  for (var form of document.querySelectorAll('[data-sale-scope]')) {
-    attemptId(form.dataset.saleScope);
-  }
+  window.addEventListener('pageshow', initializeForms);
+  initializeForms();
 })();

@@ -97,6 +97,16 @@ func setupMockBackendAll(t *testing.T) {
 			})
 
 		// Detail endpoints
+		case path == "/api/v2/bill/1/credit-source":
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"bill_id":   1,
+				"branch_id": 1,
+				"amount":    "115.00",
+				"lines": []map[string]interface{}{
+					{"bill_product_id": 1, "quantity": "1.00", "price": "100.00", "vat": "15.00"},
+				},
+			})
+
 		case strings.HasPrefix(path, "/api/v2/bill/"):
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"id": 1, "sequence_number": 1001,
@@ -139,13 +149,13 @@ func setupMockBackendAll(t *testing.T) {
 				"id": 1, "sequence_number": 2001,
 				"total_amount": 500.0, "total_before_vat": 434.78, "total_vat": 65.22,
 				"discount": 0.0, "state": 3, "type": false,
-				"products":                []interface{}{},
-				"manual_products":         []interface{}{},
-				"store_id":                1,
-				"merchant_id":             1,
+				"products":                 []interface{}{},
+				"manual_products":          []interface{}{},
+				"store_id":                 1,
+				"merchant_id":              1,
 				"supplier_sequence_number": 0,
-				"effective_date":          "2026-01-15",
-				"payment_method":          10,
+				"effective_date":           "2026-01-15",
+				"payment_method":           10,
 			})
 
 		case strings.HasPrefix(path, "/api/v2/credit_bill/"):

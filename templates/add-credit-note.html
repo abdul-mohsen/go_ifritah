@@ -1,14 +1,60 @@
 {{ define "content" }}
 <div class="page-card">
-    <form hx-post="/api/invoices/credit" hx-target="body" hx-indicator="#submit-spinner">
+    <section class="mb-6 rounded-lg border p-4">
+        <h2 class="mb-3 text-lg font-semibold">{{ L "tpl.credit.source_heading" }}</h2>
+        <dl class="mb-4">
+            <dt class="form-label">{{ L "tpl.credit.amount" }}</dt>
+            <dd class="font-semibold">{{ .Source.Amount }}</dd>
+        </dl>
+        <table class="w-full">
+            <thead>
+                <tr>
+                    <th>{{ L "tpl.credit.bill_product_id" }}</th>
+                    <th>{{ L "tpl.credit.quantity" }}</th>
+                    <th>{{ L "tpl.credit.price" }}</th>
+                    <th>{{ L "tpl.credit.vat" }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ range .Source.Lines }}
+                <tr>
+                    <td>{{ .BillProductID }}</td>
+                    <td>{{ .Quantity }}</td>
+                    <td>{{ .Price }}</td>
+                    <td>{{ .VAT }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </section>
+
+    <form
+        hx-post="/api/invoices/credit"
+        hx-target="body"
+        hx-indicator="#submit-spinner"
+        data-sale-scope="credit-{{ .id }}"
+    >
         <div class="form-group">
-            <label class="form-label">{{ L "tpl.credit.number_label" }} <span class="required-mark">*</span></label>
-            <input type="number" name="bill_id" value="{{ .id }}" class="w-full" required min="1">
+            <label class="form-label">
+                {{ L "tpl.credit.number_label" }}
+                <span class="required-mark">*</span>
+            </label>
+            <input type="number" name="bill_id" value="{{ .id }}" class="w-full" required min="1" readonly />
         </div>
 
         <div class="form-group">
-            <label class="form-label">{{ L "tpl.credit.reason" }}</label>
-            <textarea name="note" rows="4" class="w-full" placeholder="{{ L "tpl.credit.reason_placeholder" }}" maxlength="1000"></textarea>
+            <label class="form-label">
+                {{ L "tpl.credit.reason" }}
+                <span class="required-mark">*</span>
+            </label>
+            <textarea
+                name="reason"
+                rows="4"
+                class="w-full"
+                placeholder='{{ L "tpl.credit.reason_placeholder" }}'
+                maxlength="1000"
+                required
+            ></textarea>
         </div>
 
         {{ template "form-actions" dict "submit_label" (L "tpl.save") "cancel_url" "/dashboard/invoices" }}

@@ -2,14 +2,20 @@ package handlers
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+	"unicode/utf8"
 
 	"afrita/config"
 	"afrita/helpers"
@@ -243,18 +249,317 @@ func HandleCreateDraftInvoice(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteSuccessRedirect(w, "/dashboard/invoices", "تم إنشاء مسودة الفاتورة بنجاح")
 }
 
+const maxCreditSourceResponseBytes = 1 << 20
+
+type creditDecimal string
+
+func (d *creditDecimal) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		return fmt.Errorf("invalid credit decimal")
+	}
+
+	var value string
+	switch {
+	case data[0] == '"':
+		if err := json.Unmarshal(data, &value); err != nil {
+			return fmt.Errorf("decode credit decimal: %w", err)
+		}
+	case data[0] == '-' || data[0] >= '0' && data[0] <= '9':
+		var number json.Number
+		if err := json.Unmarshal(data, &number); err != nil {
+			return fmt.Errorf("decode credit decimal: %w", err)
+		}
+		value = number.String()
+	default:
+		return fmt.Errorf("credit decimal must be a JSON string or number")
+	}
+	if _, err := parseCreditDecimalValue(value); err != nil {
+		return err
+	}
+
+	*d = creditDecimal(value)
+	return nil
+}
+
+func (d creditDecimal) MarshalJSON() ([]byte, error) {
+	if _, err := parseCreditDecimalValue(string(d)); err != nil {
+		return nil, err
+	}
+	return json.Marshal(string(d))
+}
+
+func parseCreditDecimalValue(value string) (float64, error) {
+	if value == "" || strings.TrimSpace(value) != value {
+		return 0, fmt.Errorf("invalid credit decimal")
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil || math.IsNaN(parsed) || math.IsInf(parsed, 0) {
+		return 0, fmt.Errorf("invalid credit decimal")
+	}
+	return parsed, nil
+}
+
+type creditSourceLine struct {
+	BillProductID int64         `json:"bill_product_id"`
+	Quantity      creditDecimal `json:"quantity"`
+	Price         creditDecimal `json:"price"`
+	VAT           creditDecimal `json:"vat"`
+}
+
+type creditSourceSnapshot struct {
+	BillID   int64              `json:"bill_id"`
+	BranchID int64              `json:"branch_id"`
+	Amount   creditDecimal      `json:"amount"`
+	Lines    []creditSourceLine `json:"lines"`
+}
+
+type creditNotePayload struct {
+	BillID        int64              `json:"bill_id"`
+	BranchID      int64              `json:"branch_id"`
+	PosID         string             `json:"pos_id"`
+	BillRequestID string             `json:"bill_request_id"`
+	Reason        string             `json:"reason"`
+	Amount        creditDecimal      `json:"amount"`
+	Lines         []creditSourceLine `json:"lines"`
+}
+
+type creditSourceFetchError struct {
+	statusCode int
+	body       []byte
+}
+
+type creditAttemptCacheEntry struct {
+	billID int64
+	body   string
+}
+
+type creditAttemptKeyLock struct {
+	mu         sync.Mutex
+	references int
+}
+
+var creditAttemptKeyLocks = struct {
+	sync.Mutex
+	locks map[string]*creditAttemptKeyLock
+}{locks: make(map[string]*creditAttemptKeyLock)}
+
+const creditAttemptPayloadCacheTTL = 30 * time.Minute
+
+func creditAttemptCacheKey(sessionID, posID, billRequestID string) string {
+	hash := sha256.New()
+	for _, value := range []string{sessionID, posID, billRequestID} {
+		var length [8]byte
+		binary.BigEndian.PutUint64(length[:], uint64(len(value)))
+		_, _ = hash.Write(length[:])
+		_, _ = hash.Write([]byte(value))
+	}
+	return "credit_note_attempt_" + hex.EncodeToString(hash.Sum(nil))
+}
+
+func acquireCreditAttemptKeyLock(key string) func() {
+	creditAttemptKeyLocks.Lock()
+	lock := creditAttemptKeyLocks.locks[key]
+	if lock == nil {
+		lock = &creditAttemptKeyLock{}
+		creditAttemptKeyLocks.locks[key] = lock
+	}
+	lock.references++
+	creditAttemptKeyLocks.Unlock()
+
+	lock.mu.Lock()
+	return func() {
+		lock.mu.Unlock()
+		creditAttemptKeyLocks.Lock()
+		lock.references--
+		if lock.references == 0 {
+			delete(creditAttemptKeyLocks.locks, key)
+		}
+		creditAttemptKeyLocks.Unlock()
+	}
+}
+
+func parseCreditBillID(value string) (int64, bool) {
+	billID, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	return billID, err == nil && billID > 0
+}
+
+func validCreditPOSID(value string) bool {
+	return value != "" && len(value) <= 64 && value == strings.TrimSpace(value)
+}
+
+func validCreditRequestID(value string) bool {
+	if len(value) != 36 {
+		return false
+	}
+	for i, char := range value {
+		switch i {
+		case 8, 13, 18, 23:
+			if char != '-' {
+				return false
+			}
+		default:
+			if !(char >= '0' && char <= '9') &&
+				!(char >= 'a' && char <= 'f') &&
+				!(char >= 'A' && char <= 'F') {
+				return false
+			}
+		}
+	}
+	switch value[14] {
+	case '1', '2', '3', '4', '5', '6', '7', '8':
+	default:
+		return false
+	}
+	switch value[19] {
+	case '8', '9', 'a', 'A', 'b', 'B':
+		return true
+	default:
+		return false
+	}
+}
+
+func validCreditSource(source creditSourceSnapshot, billID int64) bool {
+	amount, err := parseCreditDecimalValue(string(source.Amount))
+	if source.BillID != billID || source.BranchID <= 0 ||
+		err != nil || amount <= 0 || len(source.Lines) == 0 {
+		return false
+	}
+	for _, line := range source.Lines {
+		quantity, quantityErr := parseCreditDecimalValue(string(line.Quantity))
+		price, priceErr := parseCreditDecimalValue(string(line.Price))
+		vat, vatErr := parseCreditDecimalValue(string(line.VAT))
+		if line.BillProductID <= 0 ||
+			quantityErr != nil || quantity <= 0 ||
+			priceErr != nil || price < 0 ||
+			vatErr != nil || vat < 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func fetchCreditSource(token string, billID int64) (creditSourceSnapshot, *creditSourceFetchError) {
+	endpoint := strings.TrimRight(config.BackendDomain, "/") +
+		"/api/v2/bill/" + strconv.FormatInt(billID, 10) + "/credit-source"
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return creditSourceSnapshot{}, &creditSourceFetchError{statusCode: http.StatusBadGateway}
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := helpers.DoAuthedRequest(req, token)
+	if err != nil {
+		return creditSourceSnapshot{}, &creditSourceFetchError{statusCode: http.StatusBadGateway}
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxCreditSourceResponseBytes+1))
+	if err != nil || len(body) > maxCreditSourceResponseBytes {
+		return creditSourceSnapshot{}, &creditSourceFetchError{statusCode: http.StatusBadGateway}
+	}
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		statusCode := resp.StatusCode
+		if statusCode < http.StatusBadRequest || statusCode > 599 {
+			statusCode = http.StatusBadGateway
+		}
+		return creditSourceSnapshot{}, &creditSourceFetchError{statusCode: statusCode, body: body}
+	}
+
+	var source creditSourceSnapshot
+	if err := json.Unmarshal(body, &source); err != nil || !validCreditSource(source, billID) {
+		return creditSourceSnapshot{}, &creditSourceFetchError{statusCode: http.StatusBadGateway}
+	}
+	return source, nil
+}
+
+func creditPayloadForAttempt(
+	sessionID string,
+	token string,
+	billID int64,
+	posID string,
+	billRequestID string,
+	reason string,
+) (string, *creditSourceFetchError, bool, error) {
+	cacheKey := creditAttemptCacheKey(sessionID, posID, billRequestID)
+	unlock := acquireCreditAttemptKeyLock(cacheKey)
+	defer unlock()
+
+	if cached, ok := helpers.APICache.Get(cacheKey); ok {
+		entry, validEntry := cached.(creditAttemptCacheEntry)
+		if !validEntry || entry.body == "" {
+			helpers.APICache.Delete(cacheKey)
+		} else if entry.billID != billID {
+			return "", nil, true, nil
+		} else {
+			return entry.body, nil, false, nil
+		}
+	}
+
+	source, failure := fetchCreditSource(token, billID)
+	if failure != nil {
+		return "", failure, false, nil
+	}
+
+	payload, err := json.Marshal(creditNotePayload{
+		BillID:        source.BillID,
+		BranchID:      source.BranchID,
+		PosID:         posID,
+		BillRequestID: billRequestID,
+		Reason:        reason,
+		Amount:        source.Amount,
+		Lines:         source.Lines,
+	})
+	if err != nil {
+		return "", nil, false, err
+	}
+
+	body := string(payload)
+	helpers.APICache.Set(cacheKey, creditAttemptCacheEntry{billID: source.BillID, body: body}, creditAttemptPayloadCacheTTL)
+	return body, nil, false, nil
+}
+
+func writeCreditSourceError(w http.ResponseWriter, failure *creditSourceFetchError) {
+	if failure == nil {
+		return
+	}
+	helpers.WriteErrorResponseFromBytes(
+		w,
+		failure.statusCode,
+		failure.body,
+		"تعذر التحقق من بيانات الفاتورة للإشعار الدائن",
+	)
+}
+
+func isValidCreditReason(reason string) bool {
+	return utf8.ValidString(reason) &&
+		strings.TrimSpace(reason) != "" &&
+		utf8.RuneCountInString(reason) <= 1000
+}
+
 // HandleAddCreditNote displays the add credit note form
 func HandleAddCreditNote(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if _, ok := helpers.GetTokenOrRedirect(w, r); !ok {
+	token, ok := helpers.GetTokenOrRedirect(w, r)
+	if !ok {
 		return
 	}
 
 	vars := mux.Vars(r)
-	id := vars["id"]
+	billID, validID := parseCreditBillID(vars["id"])
+	if !validID {
+		helpers.WriteErrorResponseFromBytes(w, http.StatusBadRequest, nil, "رقم الفاتورة غير صالح")
+		return
+	}
+	source, failure := fetchCreditSource(token, billID)
+	if failure != nil {
+		writeCreditSourceError(w, failure)
+		return
+	}
+
 	data := map[string]interface{}{
-		"title": "إضافة إشعار دائن",
-		"id":    id,
+		"title":  "إضافة إشعار دائن",
+		"id":     strconv.FormatInt(billID, 10),
+		"Source": source,
 	}
 	helpers.Render(w, r, "add-credit-note", data)
 }
@@ -298,20 +603,49 @@ func HandleCreateCreditNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, maxCreditSourceResponseBytes)
 	if err := r.ParseForm(); err != nil {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0646\u0645\u0648\u0630\u062c \u063a\u064a\u0631 \u0635\u0627\u0644\u062d\u0629")
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "بيانات النموذج غير صالحة")
 		return
 	}
 
-	billID := helpers.ParseIntValue(r.FormValue("bill_id"))
-	note := r.FormValue("note")
+	billID, validID := parseCreditBillID(r.FormValue("bill_id"))
+	reason := strings.TrimSpace(r.FormValue("reason"))
+	posID := r.FormValue("pos_id")
+	billRequestID := r.FormValue("bill_request_id")
+	if !validID || !isValidCreditReason(reason) ||
+		!validCreditPOSID(posID) || !validCreditRequestID(billRequestID) {
+		helpers.WriteErrorResponseFromBytes(w, http.StatusBadRequest, nil, "بيانات الإشعار الدائن غير صالحة")
+		return
+	}
 
-	payload, _ := json.Marshal(map[string]interface{}{
-		"bill_id": billID,
-		"note":    note,
-	})
+	sessionID := helpers.GetSessionIDFromRequest(r)
+	payload, failure, identityConflict, err := creditPayloadForAttempt(
+		sessionID,
+		token,
+		billID,
+		posID,
+		billRequestID,
+		reason,
+	)
+	if failure != nil {
+		writeCreditSourceError(w, failure)
+		return
+	}
+	if identityConflict {
+		helpers.WriteErrorResponse(w, http.StatusConflict, nil, "معرّف محاولة الإشعار الدائن مستخدم لفاتورة أخرى")
+		return
+	}
+	if err != nil {
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
+		return
+	}
 
-	req, _ := http.NewRequest("POST", config.BackendDomain+"/api/v2/bill/credit", bytes.NewBuffer(payload))
+	req, err := http.NewRequest(http.MethodPost, strings.TrimRight(config.BackendDomain, "/")+"/api/v2/bill/credit", bytes.NewBufferString(payload))
+	if err != nil {
+		helpers.WriteErrorResponse(w, http.StatusInternalServerError, nil, "")
+		return
+	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := helpers.DoAuthedRequest(req, token)
 	if err != nil {

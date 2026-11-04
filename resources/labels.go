@@ -805,6 +805,12 @@ var labels = map[string]Label{
 	"tpl.credit.number_label":       {Ar: "رقم الفاتورة", En: "Invoice Number"},
 	"tpl.credit.reason":             {Ar: "سبب الإشعار الدائن", En: "Credit Note Reason"},
 	"tpl.credit.reason_placeholder": {Ar: "سبب الإشعار", En: "Reason for credit note"},
+	"tpl.credit.source_heading":     {Ar: "الرصيد المتبقي للإشعار الدائن", En: "Remaining credit source"},
+	"tpl.credit.amount":             {Ar: "المبلغ المتبقي", En: "Remaining amount"},
+	"tpl.credit.bill_product_id":    {Ar: "رقم بند الفاتورة", En: "Invoice line ID"},
+	"tpl.credit.quantity":           {Ar: "الكمية", En: "Quantity"},
+	"tpl.credit.price":              {Ar: "السعر", En: "Price"},
+	"tpl.credit.vat":                {Ar: "ضريبة القيمة المضافة", En: "VAT"},
 	"tpl.credit.note_number":        {Ar: "رقم الإشعار", En: "Note Number"},
 	"tpl.credit.operation_type":     {Ar: "نوع العملية", En: "Operation Type"},
 
@@ -1638,7 +1644,7 @@ var labels = map[string]Label{
 	"tpl.import.import_another": {Ar: "استيراد ملف آخر", En: "Import Another File"},
 
 	// JS: field labels (shared between both)
-	"tpl.import.field.part_name": {Ar: "اسم المنتج", En: "Product Name"},
+	"tpl.import.field.part_name":    {Ar: "اسم المنتج", En: "Product Name"},
 	"tpl.import.field.quantity":     {Ar: "الكمية", En: "Quantity"},
 	"tpl.import.field.price":        {Ar: "السعر", En: "Price"},
 	"tpl.import.field.bill_ref":     {Ar: "مرجع الفاتورة", En: "Bill Reference"},
@@ -1681,13 +1687,16 @@ var labels = map[string]Label{
 	"tpl.import.fees_prefix":          {Ar: "رسوم:", En: "Fees:"},
 
 	// JS: validation alerts
-	"tpl.import.err_select_sheet":  {Ar: "اختر ورقة المنتجات", En: "Select the products sheet"},
-	"tpl.import.err_map_name":      {Ar: "يجب ربط عمود اسم القطعة", En: "Part name column must be mapped"},
-	"tpl.import.err_select_store":  {Ar: "يرجى اختيار المحل أولاً", En: "Please select a store first"},
-	"tpl.import.err_no_valid_data": {Ar: "لا توجد بيانات صالحة", En: "No valid data found"},
-	"tpl.import.err_excel_format":  {Ar: "يجب أن يكون الملف بصيغة Excel (.xlsx أو .xls)", En: "File must be in Excel format (.xlsx or .xls)"},
-	"tpl.import.err_read_file":     {Ar: "خطأ في قراءة الملف: ", En: "Error reading file: "},
-	"tpl.import.err_import_failed": {Ar: "فشل الاستيراد: ", En: "Import failed: "},
+	"tpl.import.err_select_sheet":           {Ar: "اختر ورقة المنتجات", En: "Select the products sheet"},
+	"tpl.import.err_map_name":               {Ar: "يجب ربط عمود اسم القطعة", En: "Part name column must be mapped"},
+	"tpl.import.err_map_purchase_fields":    {Ar: "اربط أعمدة الكمية وسعر الشراء وسعر التكلفة.", En: "Map quantity, purchase price, and cost price columns."},
+	"tpl.import.err_purchase_fields":        {Ar: "يجب إدخال معرف المورد ورقم الفاتورة وطريقة الدفع وتاريخ صالح لكل فاتورة.", En: "Each bill needs a valid supplier ID, supplier sequence, payment method, and date."},
+	"tpl.import.err_invalid_product_fields": {Ar: "يجب إدخال اسم وكمية وسعر شراء وسعر تكلفة صالح لكل منتج.", En: "Each product must have a valid name, quantity, purchase price, and cost price."},
+	"tpl.import.err_select_store":           {Ar: "يرجى اختيار المحل أولاً", En: "Please select a store first"},
+	"tpl.import.err_no_valid_data":          {Ar: "لا توجد بيانات صالحة", En: "No valid data found"},
+	"tpl.import.err_excel_format":           {Ar: "يجب أن يكون الملف بصيغة Excel (.xlsx أو .xls)", En: "File must be in Excel format (.xlsx or .xls)"},
+	"tpl.import.err_read_file":              {Ar: "خطأ في قراءة الملف: ", En: "Error reading file: "},
+	"tpl.import.err_import_failed":          {Ar: "فشل الاستيراد: ", En: "Import failed: "},
 
 	// JS: result messages
 	"tpl.import.result_prefix":         {Ar: "تم استيراد ", En: "Imported "},
@@ -1927,15 +1936,15 @@ var labels = map[string]Label{
 	"tpl.report.type_payment":   {Ar: "سند صرف", En: "Payment"},
 	"tpl.report.no_entries":     {Ar: "لا توجد حركات في هذه الفترة", En: "No entries in this period"},
 	// Multi-supplier ledger statement
-	"tpl.report.statement_title":           {Ar: "كشف حساب موردين", En: "Suppliers Ledger Statement"},
-	"tpl.report.statement_supplier_count":  {Ar: "عدد الموردين", En: "Suppliers"},
-	"tpl.supplier.select_for_statement":    {Ar: "تحديد لإنشاء كشف حساب", En: "Select for ledger statement"},
-	"tpl.supplier.generate_statement":      {Ar: "إنشاء كشف حساب", En: "Generate Ledger Statement"},
-	"tpl.supplier.statement_select_hint":   {Ar: "اختر مورداً واحداً أو أكثر", En: "Select one or more suppliers"},
-	"tpl.supplier.select_all_pages":        {Ar: "تحديد جميع الموردين في كل الصفحات", En: "Select all suppliers across all pages"},
-	"tpl.supplier.clear_selection":         {Ar: "إلغاء التحديد", En: "Clear selection"},
-	"tpl.supplier.page_selected":           {Ar: "مورد محدد في هذه الصفحة", En: "suppliers selected on this page"},
-	"tpl.supplier.all_selected":            {Ar: "مورد محدد في جميع الصفحات", En: "suppliers selected across all pages"},
+	"tpl.report.statement_title":          {Ar: "كشف حساب موردين", En: "Suppliers Ledger Statement"},
+	"tpl.report.statement_supplier_count": {Ar: "عدد الموردين", En: "Suppliers"},
+	"tpl.supplier.select_for_statement":   {Ar: "تحديد لإنشاء كشف حساب", En: "Select for ledger statement"},
+	"tpl.supplier.generate_statement":     {Ar: "إنشاء كشف حساب", En: "Generate Ledger Statement"},
+	"tpl.supplier.statement_select_hint":  {Ar: "اختر مورداً واحداً أو أكثر", En: "Select one or more suppliers"},
+	"tpl.supplier.select_all_pages":       {Ar: "تحديد جميع الموردين في كل الصفحات", En: "Select all suppliers across all pages"},
+	"tpl.supplier.clear_selection":        {Ar: "إلغاء التحديد", En: "Clear selection"},
+	"tpl.supplier.page_selected":          {Ar: "مورد محدد في هذه الصفحة", En: "suppliers selected on this page"},
+	"tpl.supplier.all_selected":           {Ar: "مورد محدد في جميع الصفحات", En: "suppliers selected across all pages"},
 	// Aging analysis
 	"tpl.report.aging_analysis": {Ar: "تحليل أعمار الديون", En: "Aging Analysis"},
 	// Bills table

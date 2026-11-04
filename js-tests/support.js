@@ -75,6 +75,7 @@ function createPage({
   elements = [],
   localStorage = createStorage(),
   sessionStorage = createStorage(),
+  historyState = null,
 } = {}) {
   if (!(navigationType in NAVIGATION_TYPES)) {
     throw new Error(`unknown navigationType: ${navigationType}`);
@@ -83,6 +84,12 @@ function createPage({
     document: createDocument(elements),
     localStorage,
     sessionStorage,
+    history: {
+      state: historyState,
+      replaceState(state) {
+        this.state = state;
+      },
+    },
     performance: {
       getEntriesByType: (type) => (type === 'navigation' ? [{ type: navigationType }] : []),
       navigation: { type: NAVIGATION_TYPES[navigationType] },

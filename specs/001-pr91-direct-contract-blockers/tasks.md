@@ -94,11 +94,11 @@ The verified API contracts and implementation decisions are recorded in `require
   - Depends on: T015
   - Acceptance: requirements, research, design, plan, tasks, status, and implementation agree; no unexplained Sonar findings or stale delivery claims remain.
   - Validation: run `/speckit-analyze`, `/speckit-converge`, and review the final diff.
-- [ ] T017 Commit with the required Co-authored-by trailer and non-force push to existing frontend PR #91 head `feat/sale-identity-fields-2`.
+- [x] T017 Commit with the required Co-authored-by trailer and non-force push to existing frontend PR #91 head `feat/sale-identity-fields-2`.
   - Depends on: T016
   - Acceptance: the push is a fast-forward to the existing PR branch; no force push or amend.
   - Validation: verify the remote branch SHA and GitHub PR head.
-- [ ] T018 Verify SonarCloud Quality Gate on the updated PR #91 head and hand off for owner review.
+- [x] T018 Verify SonarCloud Quality Gate on the updated PR #91 head and hand off for owner review.
   - Depends on: T017
   - Acceptance: SonarCloud passes the new-code reliability and security conditions with no suppressions or threshold changes; user reviews only after the pass.
   - Validation: read the new GitHub check conclusion and SonarCloud `project_status` for PR #91.

@@ -1,6 +1,13 @@
 // Each sale form history entry has its own bill_request_id. Reloads and back/forward
 // navigation restore that entry's ID; a newly opened form gets a new ID.
-(function () {
+(function (root, install) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = install;
+  } else {
+    install(root);
+  }
+})(typeof window !== 'undefined' ? window : null, function installSaleIdentity(window) {
+  var document = window.document;
   var POS_KEY = 'afrita_pos_id';
   var ATTEMPT_STATE_KEY = '__afrita_sale_identity';
   var posMemory = null;
@@ -8,7 +15,7 @@
 
   function newUUID() {
     var b = new Uint8Array(16);
-    crypto.getRandomValues(b);
+    window.crypto.getRandomValues(b);
     b[6] = (b[6] & 0x0f) | 0x40;
     b[8] = (b[8] & 0x3f) | 0x80;
     var h = '';
@@ -105,4 +112,4 @@
 
   window.addEventListener('pageshow', initializeForms);
   initializeForms();
-})();
+});

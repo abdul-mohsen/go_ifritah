@@ -1,6 +1,8 @@
 # PR #91 Direct Contract Blockers — Research
 
-**Baseline**: PR #91 is open at head `f14ed79876ae9f9ef6d473dc88da83d6621d5f08` (`feat/sale-identity-fields-2`) in `abdul-mohsen/go_ifritah`. The review text citing `2b96ec3` is stale. The local worktree is on `fix/pr91-blockers-95-100` at the same SHA; final push must target the existing remote PR branch explicitly.
+**Original blocker baseline**: The initial repair started from PR #91 at `f14ed79876ae9f9ef6d473dc88da83d6621d5f08`. The review text citing `2b96ec3` is stale.
+
+**Sonar follow-up baseline**: PR #91 is at pushed head `187357e87fefe2b6b29e5746de0b857c232e2d84` on remote branch `feat/sale-identity-fields-2`. The local follow-up worktree branch is `fix/pr91-blockers-95-100`; publish non-force to the existing PR branch.
 
 ## Findings
 
@@ -17,12 +19,34 @@
 
 - **Credit policy**: issue the full remaining credit only. The client must require a reason and use a verified backend snapshot; it must not guess line IDs, VAT, quantities, or amounts. Backend POST rechecks the request transactionally in case the snapshot became stale.
 - **Backend scope**: the owner directed autonomous continuation. Permit the minimal sale-line discount persistence fix and an additive read-only credit-source snapshot endpoint; do not change accounting formulas or existing credit POST validation.
-- **Baseline**: continue from current PR #91 head `f14ed79`; no force-push or amend.
+- **Baseline**: the original blocker work started at PR #91 `f14ed79`; the Sonar follow-up starts at current pushed head `187357e` and must use a non-force push to the existing PR branch.
 - **Import path**: retain the existing JSON-grouped purchase import page and add its missing protected handler rather than redirecting it to a different XLSX upload contract.
 - **Identity lifecycle**: bind the attempt identity to a history entry so refresh/back/resume keeps a retry stable while a newly navigated form gets a fresh ID.
 
-## Remaining verification
+## Verification status
 
-- Backend #105 discount persistence test and backend #108 credit-source handler tests.
-- Frontend focused tests for quick-draft, purchase request fields/date, credit request, and identity lifecycle.
-- End-to-end integration, convergence, self-review, independent QA approval, and non-force PR updates remain pending.
+- Original blocker implementation and delivery through T011-T012 are complete; see `STATUS.md` for validation and push evidence.
+- Sonar follow-up source fixes, local checks, and T016 convergence/self-review are complete. T017 non-force push and T018 remote Quality Gate verification remain tracked in `STATUS.md`.
+
+## SonarCloud Quality-Gate Follow-up
+
+### CI and quality-gate evidence
+
+- The failing check is SonarCloud's external `SonarCloud Code Analysis` check for frontend PR #91 at head `187357e87fefe2b6b29e5746de0b857c232e2d84`; ordinary GitHub Actions on that head passed.
+- Backend PR #105 and #108 SonarCloud checks passed, so this follow-up is limited to frontend PR #91.
+- The SonarCloud quality-gate API reports `new_reliability_rating=3` and `new_security_rating=4` against a threshold of `1`. New maintainability rating, duplication density, and security-hotspot review are within their thresholds.
+- The SonarCloud issue search filtered to `BUG,VULNERABILITY` returns exactly three open PR #91 findings: two `Web:InputWithoutLabelCheck` reliability issues in `templates/add-credit-note.html` and one `javascript:S1523` security issue in `js-tests/support.js`.
+
+### Source and test-harness trace
+
+- Both credit-note labels are adjacent to their controls but have no `for` attribute; the bill ID input and reason textarea have no IDs. Existing form selectors use the controls' `name` attributes, so unique IDs and matching label targets can be added without changing submission behavior. Existing templates consistently use explicit `for`/`id` pairs.
+- `js-tests/support.js` reads a caller-provided relative path under `static/` and evaluates it with `vm.runInContext`. Repository search found only two callers, both fixed: `js/sale-identity.js` and `js/sale-discount.js`.
+- The two scripts are plain browser IIFEs that attach listeners to the supplied page's `window`/`document`; their tests depend on per-page state. The Node test setup is `node:test` and the package has no DOM-simulation dependency. Both browser scripts are loaded normally from `templates/layouts/base.html`.
+- An explicit allowlist of CommonJS-imported installer functions can replace VM evaluation while preserving fresh per-page test setup. Each browser script can auto-install against `window` in a browser and export its installer under CommonJS, so tests pass the isolated test page directly. This avoids dynamic evaluation and adds no dependency.
+
+### Decision and remaining verification
+
+- Correct only the three findings that drive the new reliability/security gate; do not broaden the change to unrelated maintainability issues or alter Sonar configuration.
+- Keep existing input names, form values, browser script behavior, and test coverage; add programmatic label associations and invoke only allowlisted installers.
+- Verify the affected Go template-render test, JavaScript identity/discount tests, full JS suite, formatter/lint checks for touched files, then push non-force to the existing PR #91 branch and verify SonarCloud's new analysis passes.
+- Remaining implementation check: confirm the template-render regression asserts both label/control pairs, and confirm the test harness rejects unknown script keys rather than evaluating an arbitrary path.

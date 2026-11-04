@@ -40,12 +40,12 @@ Out of scope:
 - **ACC-004**: Purchase import sends required supplier/item/payment fields through a registered endpoint and uses a valid RFC3339 Riyadh-offset effective date.
 - **ACC-005**: Riyadh-midnight dates keep their intended business calendar date after normalization.
 - **ACC-006**: New-sale identities differ after abandoning one history entry; reload/back/retry of the same entry retains identity.
-- **ACC-007**: Relevant documentation, focused validation, Spec Kit convergence, self-review, designated QA approval, non-force update of the existing PR #91 branch, and GitHub head verification are complete.
+- **ACC-007**: Relevant documentation, focused validation, Spec Kit convergence, self-review, a non-force update of the existing PR #91 branch, and GitHub head verification are complete. The owner reviews the PR only after SonarCloud passes; that review is not a pre-push gate.
 
 ## Assumptions and Risks
 
 - Backend #105 and #108 contracts are authoritative as verified against their request models, handlers, and tests.
-- PR #91 is open at `f14ed79876ae9f9ef6d473dc88da83d6621d5f08`; the review comment citing `2b96ec3` is stale.
+- The initial blocker-repair baseline was PR #91 at `f14ed79876ae9f9ef6d473dc88da83d6621d5f08`; the current Sonar remediation baseline is `187357e87fefe2b6b29e5746de0b857c232e2d84`.
 - Existing frontend changes already fix quick-draft context and transmit sale discounts; tests must establish the actual submitted/persisted result.
 - The current backend bill-detail response does not expose enough data to safely build credit lines, so an additive read-only full-remaining source endpoint is required; the POST remains authoritative and revalidates transactionally.
 - Date-only workbook values must be parsed as Riyadh calendar dates and normalized to RFC3339 with `+03:00`, not sliced from UTC timestamps.
@@ -55,4 +55,30 @@ Out of scope:
 
 - Credit-note policy: full remaining bill only; require reason and stable request identity; derive amount and note lines from backend source data and refuse when data/remainder cannot be reconciled.
 - Backend scope: permit only line-discount persistence for the already-sent field and an additive read-only credit-source snapshot; do not change totals formulas or credit POST validation.
-- Baseline: continue on existing PR #91 from `f14ed79`; do not force-push or amend.
+- Baseline: continue on existing PR #91 from its current head; do not force-push or amend.
+
+## SonarCloud Quality-Gate Follow-up
+
+### Goal and Scope
+
+Resolve the failing SonarCloud Quality Gate on frontend PR #91 without suppressing rules or weakening the gate. The change is limited to the PR-specific new reliability/security findings and any directly required regression coverage. Backend PRs #105 and #108 are already passing SonarCloud and are out of scope.
+
+### Additional Requirements
+
+| ID | Requirement | Priority |
+|---|---|---|
+| FR-007 | The PR's new reliability and security findings must be corrected while preserving the intended credit-note UI and test-helper behavior. | High |
+| NFR-003 | The remediation MUST NOT disable Sonar analysis, suppress findings, or relax Quality Gate thresholds. | High |
+
+### Additional Acceptance Criteria
+
+- **ACC-008**: Both inputs flagged in `templates/add-credit-note.html` have programmatic label associations and retain their existing form behavior.
+- **ACC-009**: `js-tests/support.js` no longer exposes unsafe dynamic code execution, and the affected tests retain equivalent behavior.
+- **ACC-010**: SonarCloud Code Analysis reports a passing Quality Gate on the updated PR #91 head, with no remaining new reliability/security issues.
+
+### Assumptions, Risks, and Unknowns
+
+- The SonarCloud API response for PR #91 identifies two label-association findings and one dynamic-code-execution finding on the current analyzed branch.
+- The test helper's dynamic execution may support intentional test scenarios; its call sites and required behavior must be established before choosing a replacement.
+- The credit-note inputs may already have visible text labels, but their accessible association and existing selectors must be verified before changing markup.
+- Only the three PR-specific reliability/security findings are in scope; unrelated maintainability findings are not to be bundled unless SonarCloud shows they prevent the stated Quality Gate.

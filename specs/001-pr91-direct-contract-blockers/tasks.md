@@ -65,14 +65,43 @@ The verified API contracts and implementation decisions are recorded in `require
   - Depends on: T009
   - Acceptance: no requirement gaps, stale status, unverified contract claims, or unresolved generated tasks remain; convergence reports complete. Record that read-only analysis was performed manually after implementation began because the prerequisite helper is absent.
   - Validation: reconcile with the recorded manual analysis, run `/speckit-converge`, and review the final diff.
-- [ ] T011 Obtain independent approval from `copilot-pr91-qa`, then commit and non-force push the approved updates to backend PRs #105/#108 and the existing frontend PR #91 branch.
+- [x] T011 Commit and non-force push the completed updates to backend PRs #105/#108 and the existing frontend PR #91 branch; defer owner review until the current SonarCloud gate passes.
   - Depends on: T010
-  - Acceptance: the designated QA approves the current feature-chat revision before push; commits include the required Co-authored-by trailer; no force push or amend.
+  - Acceptance: commits include the required Co-authored-by trailer; no force push or amend; pushes update the existing PR heads. Owner review follows the SonarCloud pass, not this delivery task.
   - Validation: verify all push commands are fast-forward and GitHub PR heads reflect the intended commits.
-- [ ] T012 Verify GitHub head SHAs and record criterion evidence in the feature chat and `STATUS.md`.
+- [x] T012 Verify GitHub head SHAs and record delivery evidence in the feature chat and `STATUS.md`.
   - Depends on: T011
-  - Acceptance: PR #91 and any required backend PR heads match local commits; all applicable acceptance criteria have evidence; QA approval remains on the current revision.
+  - Acceptance: PR #91 and backend PR #105/#108 heads match the intended commits; SonarCloud status is recorded for the follow-up.
   - Validation: `pull_request_read` for each updated PR and final feature-chat snapshot.
+
+## Phase 7: User Story 4 — Meet the SonarCloud quality gate (P1)
+
+**Independent test criteria**: Both credit-note inputs are programmatically labeled; the Node test harness installs only known static scripts without dynamic source evaluation; SonarCloud passes on the new PR #91 head.
+
+- [x] T013 [P] [US4] Associate labels with the bill ID and reason controls in `templates/add-credit-note.html` and assert both rendered pairs in `handlers/credit_note_test.go`.
+  - Depends on: T012
+  - Acceptance: each visible label's `for` matches a unique control `id`; existing `name`, values, and form submission behavior remain unchanged.
+  - Validation: `go test ./handlers -run 'TestHandleAddCreditNoteDisplaysVerifiedSource'`.
+- [x] T014 [P] [US4] Replace dynamic VM loading with explicit installer imports in `js-tests/support.js`, `static/js/sale-identity.js`, and `static/js/sale-discount.js`; add unsupported-key coverage in `js-tests/sale-identity.test.js`.
+  - Depends on: T012
+  - Acceptance: no `vm.runInContext` or caller-derived source execution remains; each page installs the same browser behavior through an allowlisted installer; unknown keys fail explicitly.
+  - Validation: `node --test js-tests/sale-identity.test.js js-tests/sale-discount.test.js`.
+- [x] T015 [US4] Run focused and full frontend checks for the Sonar remediation and record results in `STATUS.md`.
+  - Depends on: T013, T014
+  - Acceptance: the focused template test and full JS suite pass; touched files pass formatter/linter checks; no new local regression is introduced.
+  - Validation: `go test ./handlers -run 'TestHandleAddCreditNoteDisplaysVerifiedSource'`; `npm run test:js`; targeted Prettier/Go formatting checks.
+- [x] T016 Complete post-remediation Spec Kit convergence and self-review in `specs/001-pr91-direct-contract-blockers/`.
+  - Depends on: T015
+  - Acceptance: requirements, research, design, plan, tasks, status, and implementation agree; no unexplained Sonar findings or stale delivery claims remain.
+  - Validation: run `/speckit-analyze`, `/speckit-converge`, and review the final diff.
+- [ ] T017 Commit with the required Co-authored-by trailer and non-force push to existing frontend PR #91 head `feat/sale-identity-fields-2`.
+  - Depends on: T016
+  - Acceptance: the push is a fast-forward to the existing PR branch; no force push or amend.
+  - Validation: verify the remote branch SHA and GitHub PR head.
+- [ ] T018 Verify SonarCloud Quality Gate on the updated PR #91 head and hand off for owner review.
+  - Depends on: T017
+  - Acceptance: SonarCloud passes the new-code reliability and security conditions with no suppressions or threshold changes; user reviews only after the pass.
+  - Validation: read the new GitHub check conclusion and SonarCloud `project_status` for PR #91.
 
 ## Dependency graph
 
@@ -87,6 +116,9 @@ flowchart TD
   T006 --> T008
   T007 --> T008
   T008 --> T009 --> T010 --> T011 --> T012
+  T012 --> T013 --> T015
+  T012 --> T014 --> T015
+  T015 --> T016 --> T017 --> T018
 ```
 
 ### Dependency adjacency list
@@ -103,13 +135,19 @@ flowchart TD
 - T010: T009.
 - T011: T010.
 - T012: T011.
+- T013: T012; add and test accessible labels on the credit-note controls.
+- T014: T012; replace dynamic test-source evaluation with trusted static installer imports.
+- T015: T013, T014; local validation follows both independent source fixes.
+- T016: T015; converge and self-review the complete update before delivery.
+- T017: T016; publish the verified commit non-force to the existing PR branch.
+- T018: T017; verify the new SonarCloud analysis before owner review.
 
 ## Parallel execution
 
 - Backend #105 discount work (T001) and backend #108 credit-source work (T003) use separate worktrees and may be developed in parallel; the stacked #108 branch must incorporate the final #105 base before push.
 - Frontend tasks are serialized in one worktree to avoid concurrent writers to `main.go` and shared handlers/templates. T002 and T007 touch distinct frontend files but remain with the same frontend writer.
-- Final validation, convergence, QA, and pushes are sequential gates.
+- Sonar tasks T013 and T014 touch disjoint files and are independently testable; this run uses one writer/worktree, so execute them sequentially. Validation, convergence, push, and remote Sonar verification are sequential.
 
 ## Implementation strategy
 
-No partial production release is complete: all six blockers are required. Implement backend contracts first, complete the frontend requests, then run focused tests, documentation/convergence, independent QA, and non-force PR updates.
+No partial production release is complete: all six original blockers and the Sonar follow-up are required. Implement the label associations and safe test installers, run focused checks, converge/self-review, push non-force to the existing PR #91 branch, and verify SonarCloud before owner review.

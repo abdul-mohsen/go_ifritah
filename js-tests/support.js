@@ -1,13 +1,11 @@
 'use strict';
 
-// Browser stand-ins for the static scripts. Each page is a fresh vm context. Passing the storage objects of an earlier
-// page to a new page simulates a reload that keeps localStorage and sessionStorage.
-
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
 const { webcrypto } = require('node:crypto');
 
+const installers = new Map([
+  ['js/sale-identity.js', require('../static/js/sale-identity.js')],
+  ['js/sale-discount.js', require('../static/js/sale-discount.js')],
+]);
 const NAVIGATION_TYPES = { navigate: 0, reload: 1, back_forward: 2 };
 const SELECTOR = /^\[data-([a-z0-9-]+)(?:="([^"]*)")?\]$/;
 
@@ -97,13 +95,15 @@ function createPage({
     crypto: webcrypto,
   });
   window.window = window;
-  vm.createContext(window);
   return { window, document: window.document, localStorage, sessionStorage, performance: window.performance };
 }
 
-function loadStatic(relPath, page) {
-  const filename = path.join(__dirname, '..', 'static', relPath);
-  vm.runInContext(fs.readFileSync(filename, 'utf8'), page.window, { filename });
+function loadStatic(script, page) {
+  const installer = installers.get(script);
+  if (!installer) {
+    throw new Error(`unsupported static script: ${script}`);
+  }
+  installer(page.window);
 }
 
 module.exports = { createPage, createStorage, loadStatic };

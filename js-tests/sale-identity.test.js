@@ -105,3 +105,9 @@ test('sale identity is namespaced without discarding unrelated history state', (
   assert.equal(state.unrelated, 'preserve-me');
   assert.equal(state.__afrita_sale_identity.sale, identity);
 });
+
+test('static script loader rejects installers outside its allowlist', () => {
+  const page = createPage();
+
+  assert.throws(() => loadStatic('js/unknown.js', page), /unsupported static script/);
+});

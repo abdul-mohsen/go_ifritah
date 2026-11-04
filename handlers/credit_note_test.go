@@ -260,6 +260,10 @@ func TestHandleAddCreditNoteDisplaysVerifiedSource(t *testing.T) {
 		"50.00",
 		`data-sale-scope="credit-42"`,
 		`/static/js/sale-identity.js`,
+		`for="credit-bill-id"`,
+		`id="credit-bill-id"`,
+		`for="credit-reason"`,
+		`id="credit-reason"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("rendered credit form does not contain %q", want)

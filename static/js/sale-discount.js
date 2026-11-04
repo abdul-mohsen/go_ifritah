@@ -2,7 +2,14 @@
 // total. amount() keeps the result between 0 and the line total, and a value that is not a finite number counts as 0.
 // The htmx listener sends products_discount and manual_discount in row order on forms marked data-sale-discounts. It
 // reads disabled rows too, so each discount keeps its line slot.
-(function () {
+(function (root, install) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = install;
+  } else {
+    install(root);
+  }
+})(typeof window !== 'undefined' ? window : null, function installSaleDiscount(window) {
+  var document = window.document;
   function finiteOrZero(n) {
     return Number.isFinite(n) ? n : 0;
   }
@@ -41,4 +48,4 @@
   });
 
   window.AfritaSaleDiscount = { amount: amount };
-})();
+});

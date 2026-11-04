@@ -32,4 +32,12 @@ Expected: the source endpoint returns only the exact full remaining amount and l
 
 ## Delivery checks
 
-Run the repository-required Go/JS checks for changed packages, review all three diffs, run Spec Kit analysis/convergence, obtain approval from `copilot-pr91-qa`, then non-force push to the existing PR branches and verify their GitHub head SHAs.
+For the SonarCloud follow-up, run the focused template and JavaScript checks from the frontend worktree:
+
+```powershell
+go test ./handlers -run 'TestHandleAddCreditNoteDisplaysVerifiedSource'
+node --test js-tests\sale-identity.test.js js-tests\sale-discount.test.js
+npm run test:js
+```
+
+Then run the applicable formatting/lint checks, review the changed files, and complete Spec Kit analysis/convergence. Non-force push to the existing PR #91 branch and verify the resulting GitHub head and SonarCloud Quality Gate. The PR owner reviews after the gate passes.

@@ -69,3 +69,34 @@ Merge backend #105 before stacked backend #108, then merge/update frontend PR #9
 | FR-006 | History-entry-scoped request identity |
 | NFR-001 | Focused request/persistence tests across the actual paths |
 | NFR-002 | No accounting formula or credit POST behavior change |
+
+## SonarCloud Quality-Gate Remediation
+
+### Boundaries and behavior
+
+- Keep SonarCloud workflow configuration and Quality Gate thresholds unchanged. The failing check is caused by PR-specific reliability/security findings, not a workflow execution problem.
+- Add unique IDs to the credit-note bill ID and reason controls and associate each visible label with its control. Preserve the existing `name`, values, HTMX form attributes, and submit behavior.
+- Refactor the two browser scripts used by Node tests into installer functions. Export the installers under CommonJS for tests and invoke them against `window` in a browser. Keep the existing browser API and event behavior unchanged.
+- Replace `vm.runInContext` and caller-derived file reads in `js-tests/support.js` with an explicit map of the two supported installer functions. Reject any unsupported key with an explicit error. The test helper must not evaluate arbitrary source or resolve arbitrary paths.
+
+### Failure handling and security
+
+- An unsupported test-helper script key fails immediately instead of reading or executing a file.
+- Each test page gets its own installer invocation and state; tests must not share browser globals or listeners through Node's global object.
+- No production API, data model, persistence, authorization, or dependency changes are required.
+
+### Validation and rollout
+
+- Add a rendered-template regression asserting both `label[for]`/control `id` pairs.
+- Run the existing sale identity/discount tests, full JavaScript suite, focused credit-note template test, and relevant formatter/linter checks.
+- Push a new non-force commit to the existing PR #91 head to trigger SonarCloud again; accept only a passing new-code security/reliability Quality Gate. The PR owner reviews after the check passes.
+
+### Requirement traceability
+
+| Requirement | Design element |
+|---|---|
+| FR-007 | Accessible control associations and safe, allowlisted test installers preserve intended behavior |
+| NFR-003 | No workflow/config change, suppression, or threshold relaxation |
+| ACC-008 | Matched unique label targets and control IDs |
+| ACC-009 | No dynamic VM evaluation; tests use explicit installer exports |
+| ACC-010 | New SonarCloud analysis on the pushed PR head passes |

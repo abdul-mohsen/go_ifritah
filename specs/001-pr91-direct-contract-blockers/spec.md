@@ -53,6 +53,18 @@ A user imports a purchase effective at Riyadh local midnight or abandons a new-s
 2. **Given** an abandoned sale followed by a different new sale, **When** the new sale is submitted, **Then** it uses a distinct request identity.
 3. **Given** the same sale is retried or resumed, **When** it is submitted again, **Then** it retains its original request identity.
 
+### User Story 4 - Keep the PR within the SonarCloud quality gate (Priority: P1)
+
+As the PR owner, I need newly introduced reliability and security findings fixed without weakening SonarCloud rules, so the PR can pass its quality gate before I review it.
+
+**Independent Test**: Exercise both credit-note label associations, run the affected Node tests without dynamic source evaluation, and confirm the new SonarCloud analysis passes.
+
+**Acceptance Scenarios**:
+
+1. **Given** the credit-note form renders, **When** a user or assistive technology reaches either input, **Then** its visible label is programmatically associated with that input.
+2. **Given** the JavaScript unit tests need a browser script, **When** the test helper installs it, **Then** only a known installer is invoked and arbitrary source paths are not evaluated.
+3. **Given** the remediation is pushed to PR #91, **When** SonarCloud analyzes the new head, **Then** the new-code reliability and security Quality Gate passes without suppressions or threshold changes.
+
 ## Edge Cases
 
 - Product discount and manual override are both present, zero, or omitted.
@@ -73,8 +85,10 @@ A user imports a purchase effective at Riyadh local midnight or abandons a new-s
 - **FR-004**: Purchase import MUST submit supplier sequence, item cost price, payment method, and the backend-approved date representation through a working request path.
 - **FR-005**: Effective dates MUST preserve the intended Riyadh business date through frontend serialization and backend normalization.
 - **FR-006**: A newly started sale MUST receive a distinct request identity after an earlier form is abandoned; retries and resumes of that same sale MUST retain its identity.
+- **FR-007**: New reliability/security findings on PR #91 MUST be corrected while preserving the credit-note form and test-helper behavior.
 - **NFR-001**: Regression tests MUST exercise the actual request construction/submission path, not only a mock that restates expected fields.
 - **NFR-002**: Backend accounting formulas and credit-note POST validation MUST remain unchanged; only required line-discount persistence and an additive read-only credit-source snapshot are in scope.
+- **NFR-003**: The SonarCloud workflow, rule suppression state, and Quality Gate thresholds MUST remain unchanged.
 
 ### Key Entities
 
@@ -93,12 +107,13 @@ A user imports a purchase effective at Riyadh local midnight or abandons a new-s
 - **SC-002**: Contract tests reject missing required values and zero sentinels only where the backend contract requires a positive/nonzero value; valid zero-valued line discounts remain accepted.
 - **SC-003**: Riyadh-midnight tests preserve the expected business date after normalization.
 - **SC-004**: New-sale tests show distinct identities after abandonment and stable identities for retries/resumes.
-- **SC-005**: The PR head is verified after an independently approved, non-force update to PR #91.
+- **SC-005**: The PR head is verified after a non-force update to PR #91; owner review occurs after the SonarCloud gate passes.
+- **SC-006**: The new SonarCloud analysis on PR #91 passes its reliability/security Quality Gate with no suppression or threshold change.
 
 ## Assumptions
 
 - Backend #105 and #108 contracts are authoritative after verification against their source and tests.
-- PR #91 remains the target; current head is `f14ed79876ae9f9ef6d473dc88da83d6621d5f08`.
+- PR #91 remains the target; the original blocker baseline was `f14ed79876ae9f9ef6d473dc88da83d6621d5f08`, and the Sonar follow-up starts from current pushed head `187357e87fefe2b6b29e5746de0b857c232e2d84`.
 - Existing changes may already address some frontend symptoms; current source and actual request tests determine what remains.
 - The owner directed autonomous continuation and selected a full-remaining-only credit policy, minimal discount persistence, additive read-only source data, and the existing PR #91 baseline.
 
@@ -106,4 +121,5 @@ A user imports a purchase effective at Riyadh local midnight or abandons a new-s
 
 - **Credit-note policy**: Full remaining source-bill credit only; require a reason and stable request identity; derive amount/lines from backend data and block when not provable.
 - **Backend scope**: Minimal line-discount persistence fix plus additive read-only credit-source endpoint; preserve accounting formulas and POST validation.
-- **Implementation baseline**: Existing PR #91 at `f14ed79`; update only after independent QA and use a non-force push.
+- **Implementation baseline**: original blocker work started at PR #91 `f14ed79`; the current Sonar follow-up starts from `187357e` and uses a non-force push.
+- **SonarCloud follow-up**: resolve only the new reliability/security findings identified on current PR #91 head `187357e`; leave unrelated maintainability issues and gate configuration unchanged. The owner reviews after the quality gate passes.

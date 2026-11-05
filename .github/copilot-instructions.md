@@ -10,7 +10,6 @@ All commands are available in `package.json` via npm. The project uses Go 1.21 w
 - **Format code**: `npm run format` (Prettier for JS/CSS/HTML templates)
 - **Check formatting**: `npm run format:check`
 - **Run Go tests**: `npm run test` or `npm run test:verbose`
-- **Run JS tests**: `npm run test:js`
 - **Build Tailwind CSS**: `npm run build:css` or `npm run watch:css` (watches for changes)
 
 ### Running a Single Test

@@ -383,41 +383,6 @@ func parseCreditBillID(value string) (int64, bool) {
 	return billID, err == nil && billID > 0
 }
 
-func validCreditPOSID(value string) bool {
-	return value != "" && len(value) <= 64 && value == strings.TrimSpace(value)
-}
-
-func validCreditRequestID(value string) bool {
-	if len(value) != 36 {
-		return false
-	}
-	for i, char := range value {
-		switch i {
-		case 8, 13, 18, 23:
-			if char != '-' {
-				return false
-			}
-		default:
-			if !(char >= '0' && char <= '9') &&
-				!(char >= 'a' && char <= 'f') &&
-				!(char >= 'A' && char <= 'F') {
-				return false
-			}
-		}
-	}
-	switch value[14] {
-	case '1', '2', '3', '4', '5', '6', '7', '8':
-	default:
-		return false
-	}
-	switch value[19] {
-	case '8', '9', 'a', 'A', 'b', 'B':
-		return true
-	default:
-		return false
-	}
-}
-
 func validCreditSource(source creditSourceSnapshot, billID int64) bool {
 	amount, err := parseCreditDecimalValue(string(source.Amount))
 	if source.BillID != billID || source.BranchID <= 0 ||
@@ -530,12 +495,6 @@ func writeCreditSourceError(w http.ResponseWriter, failure *creditSourceFetchErr
 	)
 }
 
-func isValidCreditReason(reason string) bool {
-	return utf8.ValidString(reason) &&
-		strings.TrimSpace(reason) != "" &&
-		utf8.RuneCountInString(reason) <= 1000
-}
-
 // HandleAddCreditNote displays the add credit note form
 func HandleAddCreditNote(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -609,12 +568,11 @@ func HandleCreateCreditNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	billID, validID := parseCreditBillID(r.FormValue("bill_id"))
-	reason := strings.TrimSpace(r.FormValue("reason"))
+	billID, _ := parseCreditBillID(r.FormValue("bill_id"))
+	reason := r.FormValue("reason")
 	posID := r.FormValue("pos_id")
 	billRequestID := r.FormValue("bill_request_id")
-	if !validID || !isValidCreditReason(reason) ||
-		!validCreditPOSID(posID) || !validCreditRequestID(billRequestID) {
+	if !utf8.ValidString(reason) || !utf8.ValidString(posID) || !utf8.ValidString(billRequestID) {
 		helpers.WriteErrorResponseFromBytes(w, http.StatusBadRequest, nil, "بيانات الإشعار الدائن غير صالحة")
 		return
 	}
@@ -655,6 +613,9 @@ func HandleCreateCreditNote(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
+		if resp.StatusCode >= http.StatusBadRequest && resp.StatusCode < http.StatusInternalServerError {
+			helpers.APICache.Delete(creditAttemptCacheKey(sessionID, posID, billRequestID))
+		}
 		helpers.WriteErrorResponse(w, resp.StatusCode, resp, "")
 		return
 	}

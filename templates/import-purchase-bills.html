@@ -171,6 +171,13 @@
         </div>
         <div class="excel-wizard-body">
             <div id="preview-summary" class="mb-3"></div>
+            <div
+                id="preview-validation-warning"
+                class="hidden mb-3 rounded-lg border p-3 text-sm"
+                role="status"
+                aria-live="polite"
+                style="background: #fef3c7; color: #92400e; border-color: #fcd34d"
+            ></div>
             <div id="preview-bills-container"></div>
             <div class="mt-4 flex gap-2 justify-start">
                 <button
@@ -240,6 +247,7 @@
 </div>
 
 <script src="/static/js/purchase-import-dates.js"></script>
+<script src="/static/js/purchase-import-validation.js"></script>
 <script src="/static/js/xlsx.full.min.js"></script>
 <script>
     function escHtml(s) {
@@ -617,22 +625,8 @@
             .replace(/[^\d.-]/g, '');
     }
 
-    function parsePositiveInteger(value) {
-        var text = String(value == null ? '' : value).trim();
-        if (!/^\d+$/.test(text)) return 0;
-        var parsed = Number(text);
-        return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0;
-    }
-
-    function isNonNegativeNumber(value) {
-        var text = String(value == null ? '' : value).trim();
-        if (!/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(text)) return false;
-        return Number.isFinite(Number(text)) && Number(text) >= 0;
-    }
-
-    function isPositiveNumber(value) {
-        return isNonNegativeNumber(value) && Number(value) > 0;
-    }
+    var purchaseImportValidation = window.AfritaPurchaseImportValidation;
+    var parsePositiveInteger = purchaseImportValidation.parsePositiveInteger;
 
     function buildBillGroups() {
         var prodSheet = document.getElementById('excel_products_sheet').value;
@@ -706,8 +700,16 @@
         for (var r = 1; r < prodData.length; r++) {
             var row = prodData[r];
             if (!row) continue;
-            var name = String(row[parseInt(nameCol)] || '').trim();
-            if (!name) continue;
+            var rawName = nameCol !== '' ? row[parseInt(nameCol)] : '';
+            var rawQty = qtyCol !== '' ? row[parseInt(qtyCol)] : '';
+            var rawPrice = priceCol !== '' ? row[parseInt(priceCol)] : '';
+            var rawCostPrice = costCol !== '' ? row[parseInt(costCol)] : '';
+            if (
+                !purchaseImportValidation.hasProductInput([rawName, rawQty, rawPrice, rawCostPrice])
+            ) {
+                continue;
+            }
+            var name = String(rawName || '').trim();
             var qty = qtyCol !== '' ? normalizeImportNumber(row[parseInt(qtyCol)]) : '';
             var price = priceCol !== '' ? normalizeImportNumber(row[parseInt(priceCol)]) : '';
             var costPrice = costCol !== '' ? normalizeImportNumber(row[parseInt(costCol)]) : '';
@@ -776,37 +778,13 @@
         return window.AfritaPurchaseImportDates.formatWorkbookDate(val, workbookUses1904DateSystem());
     }
 
-    function validatePurchaseImportBills(bills) {
-        for (var i = 0; i < bills.length; i++) {
-            var payload = bills[i].payload;
-            if (
-                !parsePositiveInteger(payload.store_id) ||
-                !parsePositiveInteger(payload.supplier_id) ||
-                !parsePositiveInteger(payload.supplier_sequence_number) ||
-                !parsePositiveInteger(payload.payment_method) ||
-                !/^\d{4}-\d{2}-\d{2}T00:00:00\+03:00$/.test(payload.effective_date)
-            ) {
-                return '{{ L "tpl.import.err_purchase_fields" }}';
-            }
-            if (!Array.isArray(payload.manual_products) || payload.manual_products.length === 0) {
-                return '{{ L "tpl.import.err_invalid_product_fields" }}';
-            }
-            for (var j = 0; j < payload.manual_products.length; j++) {
-                var product = payload.manual_products[j];
-                if (
-                    !String(product.name || '').trim() ||
-                    !isPositiveNumber(product.quantity) ||
-                    !isNonNegativeNumber(product.price) ||
-                    !isNonNegativeNumber(product.cost_price)
-                ) {
-                    return '{{ L "tpl.import.err_invalid_product_fields" }}';
-                }
-            }
-        }
-        return '';
-    }
-
     function previewBills() {
+        var validationWarning = document.getElementById('preview-validation-warning');
+        if (validationWarning) {
+            validationWarning.textContent = '';
+            validationWarning.classList.add('hidden');
+        }
+
         var prodSheet = document.getElementById('excel_products_sheet').value;
         if (!prodSheet) {
             alert('{{ L "tpl.import.err_select_sheet" }}');
@@ -835,10 +813,17 @@
             alert('{{ L "tpl.import.err_no_valid_data" }}');
             return;
         }
-        var validationError = validatePurchaseImportBills(bills);
+        var validationError = purchaseImportValidation.validatePurchaseImportBills(bills);
         if (validationError) {
-            alert(validationError);
-            return;
+            if (validationWarning) {
+                var validationMessage =
+                    validationError === 'purchase_fields'
+                        ? '{{ L "tpl.import.err_purchase_fields" }}'
+                        : '{{ L "tpl.import.err_invalid_product_fields" }}';
+                validationWarning.textContent =
+                    '{{ L "tpl.import.validation_warning" }} ' + validationMessage;
+                validationWarning.classList.remove('hidden');
+            }
         }
 
         parsedBillsForImport = bills;
@@ -1105,6 +1090,11 @@
         document.getElementById('excel-step-preview').classList.add('hidden');
         document.getElementById('excel-step-results').classList.add('hidden');
         document.getElementById('excel-sheet-preview').classList.add('hidden');
+        var warning = document.getElementById('preview-validation-warning');
+        if (warning) {
+            warning.textContent = '';
+            warning.classList.add('hidden');
+        }
     }
 
     // Drag-and-drop

@@ -264,10 +264,23 @@ func TestHandleAddCreditNoteDisplaysVerifiedSource(t *testing.T) {
 		`id="credit-bill-id"`,
 		`for="credit-reason"`,
 		`id="credit-reason"`,
+		`id="credit-reason-warning"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("rendered credit form does not contain %q", want)
 		}
+	}
+	reasonStart := strings.Index(body, `id="credit-reason"`)
+	if reasonStart < 0 {
+		t.Fatal("rendered credit reason field is missing")
+	}
+	reasonEnd := strings.Index(body[reasonStart:], "</textarea>")
+	if reasonEnd < 0 {
+		t.Fatal("rendered credit reason field is incomplete")
+	}
+	reasonField := body[reasonStart : reasonStart+reasonEnd]
+	if strings.Contains(reasonField, "required") || strings.Contains(reasonField, "maxlength") {
+		t.Errorf("credit reason field still has browser-blocking validation: %q", reasonField)
 	}
 	for _, forbidden := range []string{`name="amount"`, `name="lines"`, `name="branch_id"`} {
 		if strings.Contains(body, forbidden) {
@@ -323,6 +336,7 @@ func TestHandleCreateCreditNoteUsesFreshSourceForNewRequestIdentity(t *testing.T
 	for attempt := 0; attempt < 2; attempt++ {
 		form := validCreditNoteTestForm()
 		form.Set("bill_request_id", requestIDs[attempt])
+		form.Set("reason", "  Damaged item  ")
 		recorder := sendCreditNoteTestRequest(
 			t,
 			HandleCreateCreditNote,
@@ -354,8 +368,8 @@ func TestHandleCreateCreditNoteUsesFreshSourceForNewRequestIdentity(t *testing.T
 		if payload.PosID != creditNoteTestPosID || payload.BillRequestID != requestIDs[i] {
 			t.Errorf("attempt %d request identity = %q/%q, want %q/%q", i+1, payload.PosID, payload.BillRequestID, creditNoteTestPosID, requestIDs[i])
 		}
-		if payload.Reason != "Damaged item" {
-			t.Errorf("attempt %d reason = %q, want trimmed reason", i+1, payload.Reason)
+		if payload.Reason != "  Damaged item  " {
+			t.Errorf("attempt %d reason = %q, want the submitted reason unchanged", i+1, payload.Reason)
 		}
 		if payload.Amount != wantAmounts[i] || len(payload.Lines) != 1 ||
 			payload.Lines[0].BillProductID != wantProductIDs[i] {
@@ -492,24 +506,61 @@ func TestHandleCreateCreditNoteRejectsAttemptReusedForDifferentBill(t *testing.T
 	}
 }
 
-func TestHandleCreateCreditNoteRejectsInvalidInputBeforeFetchingSource(t *testing.T) {
+func TestHandleCreateCreditNoteForwardsInvalidSerializableInputToBackend(t *testing.T) {
 	cases := []struct {
-		name   string
-		change func(url.Values)
+		name               string
+		change             func(url.Values)
+		wantSourceRequests int
+		wantCreditPosts    int
 	}{
-		{name: "blank reason", change: func(form url.Values) { form.Set("reason", " \t ") }},
-		{name: "missing POS", change: func(form url.Values) { form.Del("pos_id") }},
-		{name: "invalid request ID", change: func(form url.Values) { form.Set("bill_request_id", "not-a-uuid") }},
-		{name: "invalid bill ID", change: func(form url.Values) { form.Set("bill_id", "0") }},
+		{
+			name:               "blank reason",
+			change:             func(form url.Values) { form.Set("reason", " \t ") },
+			wantSourceRequests: 1,
+			wantCreditPosts:    1,
+		},
+		{
+			name:               "missing POS",
+			change:             func(form url.Values) { form.Del("pos_id") },
+			wantSourceRequests: 1,
+			wantCreditPosts:    1,
+		},
+		{
+			name:               "invalid request ID",
+			change:             func(form url.Values) { form.Set("bill_request_id", "not-a-uuid") },
+			wantSourceRequests: 1,
+			wantCreditPosts:    1,
+		},
+		{
+			name:               "invalid bill ID",
+			change:             func(form url.Values) { form.Set("bill_id", "0") },
+			wantSourceRequests: 1,
+			wantCreditPosts:    0,
+		},
 	}
 
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
 			cookie := seedCreditNoteTestSession(t)
 			sourceRequests := 0
+			creditPosts := 0
 			setCreditNoteTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				sourceRequests++
-				http.Error(w, "source must not be fetched", http.StatusInternalServerError)
+				switch {
+				case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v2/bill/"):
+					sourceRequests++
+					if r.URL.Path == "/api/v2/bill/0/credit-source" {
+						http.Error(w, "backend rejected bill", http.StatusBadRequest)
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(creditNoteTestSourcePayload))
+				case r.Method == http.MethodPost && r.URL.Path == "/api/v2/bill/credit":
+					creditPosts++
+					http.Error(w, "backend rejected credit note", http.StatusBadRequest)
+				default:
+					t.Errorf("unexpected backend request: %s %s", r.Method, r.URL.Path)
+					http.NotFound(w, r)
+				}
 			}))
 
 			form := validCreditNoteTestForm()
@@ -524,12 +575,115 @@ func TestHandleCreateCreditNoteRejectsInvalidInputBeforeFetchingSource(t *testin
 				cookie,
 			)
 			if recorder.Code != http.StatusBadRequest {
-				t.Errorf("POST status = %d, want 400; body = %q", recorder.Code, recorder.Body.String())
+				t.Errorf("POST status = %d, want backend 400; body = %q", recorder.Code, recorder.Body.String())
 			}
-			if sourceRequests != 0 {
-				t.Errorf("credit source requests = %d, want 0 for invalid input", sourceRequests)
+			wantMessage := "backend rejected credit note"
+			if testCase.name == "invalid bill ID" {
+				wantMessage = "backend rejected bill"
+			}
+			if !strings.Contains(recorder.Body.String(), wantMessage) {
+				t.Errorf("POST body = %q, want backend message %q", recorder.Body.String(), wantMessage)
+			}
+			if sourceRequests != testCase.wantSourceRequests {
+				t.Errorf("credit source requests = %d, want %d", sourceRequests, testCase.wantSourceRequests)
+			}
+			if creditPosts != testCase.wantCreditPosts {
+				t.Errorf("credit POST requests = %d, want %d", creditPosts, testCase.wantCreditPosts)
 			}
 		})
+	}
+}
+
+func TestHandleCreateCreditNoteAllowsCorrectionAfterBackendRejection(t *testing.T) {
+	cookie := seedCreditNoteTestSession(t)
+	sourceRequests := 0
+	creditPosts := 0
+	var postedReasons []string
+	setCreditNoteTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v2/bill/42/credit-source":
+			sourceRequests++
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(creditNoteTestSourcePayload))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v2/bill/credit":
+			creditPosts++
+			var payload creditNotePayload
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode credit payload: %v", err)
+			}
+			postedReasons = append(postedReasons, payload.Reason)
+			if creditPosts == 1 {
+				http.Error(w, "backend rejected reason", http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+		default:
+			t.Errorf("unexpected backend request: %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+
+	form := validCreditNoteTestForm()
+	form.Set("reason", " ")
+	first := sendCreditNoteTestRequest(
+		t,
+		HandleCreateCreditNote,
+		http.MethodPost,
+		"/api/invoices/credit",
+		form,
+		nil,
+		cookie,
+	)
+	if first.Code != http.StatusBadRequest {
+		t.Fatalf("first POST status = %d, want 400; body = %q", first.Code, first.Body.String())
+	}
+
+	form.Set("reason", "Corrected reason")
+	second := sendCreditNoteTestRequest(
+		t,
+		HandleCreateCreditNote,
+		http.MethodPost,
+		"/api/invoices/credit",
+		form,
+		nil,
+		cookie,
+	)
+	if second.Code != http.StatusOK {
+		t.Fatalf("corrected POST status = %d, want 200; body = %q", second.Code, second.Body.String())
+	}
+	if sourceRequests != 2 || creditPosts != 2 {
+		t.Fatalf("backend requests = source %d, credit %d; want two source and two credit requests", sourceRequests, creditPosts)
+	}
+	if len(postedReasons) != 2 || postedReasons[0] != " " || postedReasons[1] != "Corrected reason" {
+		t.Errorf("posted reasons = %#v, want the rejected value followed by the correction", postedReasons)
+	}
+}
+
+func TestHandleCreateCreditNoteRejectsMalformedUTF8BeforeSourceFetch(t *testing.T) {
+	cookie := seedCreditNoteTestSession(t)
+	sourceRequests := 0
+	setCreditNoteTestBackend(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sourceRequests++
+		t.Errorf("unexpected backend request for malformed UTF-8: %s %s", r.Method, r.URL.Path)
+		http.Error(w, "source must not be fetched", http.StatusInternalServerError)
+	}))
+
+	form := validCreditNoteTestForm()
+	form.Set("reason", string([]byte{0xff}))
+	recorder := sendCreditNoteTestRequest(
+		t,
+		HandleCreateCreditNote,
+		http.MethodPost,
+		"/api/invoices/credit",
+		form,
+		nil,
+		cookie,
+	)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("POST status = %d, want 400; body = %q", recorder.Code, recorder.Body.String())
+	}
+	if sourceRequests != 0 {
+		t.Fatalf("source requests = %d, want 0 for malformed UTF-8", sourceRequests)
 	}
 }
 

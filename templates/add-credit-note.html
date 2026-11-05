@@ -45,7 +45,6 @@
         <div class="form-group">
             <label class="form-label" for="credit-reason">
                 {{ L "tpl.credit.reason" }}
-                <span class="required-mark">*</span>
             </label>
             <textarea
                 id="credit-reason"
@@ -53,12 +52,47 @@
                 rows="4"
                 class="w-full"
                 placeholder='{{ L "tpl.credit.reason_placeholder" }}'
-                maxlength="1000"
-                required
+                aria-describedby="credit-reason-warning"
             ></textarea>
+            <p
+                id="credit-reason-warning"
+                class="hidden mt-1 text-sm"
+                role="status"
+                aria-live="polite"
+                style="color: #92400e"
+                data-empty-warning='{{ L "tpl.credit.reason_warning_empty" }}'
+                data-length-warning='{{ L "tpl.credit.reason_warning_length" }}'
+            ></p>
         </div>
 
         {{ template "form-actions" dict "submit_label" (L "tpl.save") "cancel_url" "/dashboard/invoices" }}
     </form>
 </div>
+<script>
+    (function () {
+        var reason = document.getElementById('credit-reason');
+        var warning = document.getElementById('credit-reason-warning');
+        if (!reason || !warning) return;
+
+        function updateReasonWarning() {
+            var value = reason.value || '';
+            var length = Array.from(value).length;
+            if (value.trim() === '') {
+                warning.textContent = warning.dataset.emptyWarning;
+                warning.classList.remove('hidden');
+                return;
+            }
+            if (length > 1000) {
+                warning.textContent = warning.dataset.lengthWarning;
+                warning.classList.remove('hidden');
+                return;
+            }
+            warning.textContent = '';
+            warning.classList.add('hidden');
+        }
+
+        reason.addEventListener('input', updateReasonWarning);
+        updateReasonWarning();
+    })();
+</script>
 {{ end }}

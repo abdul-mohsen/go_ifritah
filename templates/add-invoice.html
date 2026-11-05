@@ -1,7 +1,7 @@
 ﻿{{ define "content" }}
 {{ template "breadcrumb" dict "section_url" "/dashboard/invoices" "section_label" (L "nav.invoices_section") "current" .title }}
 <div class="page-card-wide">
-    <form hx-post="/api/invoices" hx-target="body" id="invoice-form" hx-indicator="#submit-spinner">
+    <form hx-post="/api/invoices" hx-target="body" id="invoice-form" hx-indicator="#submit-spinner" data-sale-scope="new-sale" data-sale-discounts>
         {{ if .is_company }}
         <input type="hidden" name="client_id" id="client-id-field" value="">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 border rounded" style="border-color: var(--md-sys-color-primary); background: var(--md-sys-color-surface-container)">
@@ -101,7 +101,7 @@
             <button type="submit" name="state" value="1" class="btn btn-filled">{{ L "tpl.invoice.form.save_invoice" }}</button>
             <a href="/dashboard/invoices" class="btn btn-outlined">{{ L "tpl.cancel" }}</a>
             <span id="submit-spinner" class="htmx-indicator">
-                <svg class="animate-spin h-5 w-5" style="color: var(--md-sys-color-primary)" viewBox="0 0 24 24">
+                <svg aria-hidden="true" class="animate-spin h-5 w-5" style="color: var(--md-sys-color-primary)" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
                         fill="none" />
                     <path class="opacity-75" fill="currentColor"
@@ -313,12 +313,7 @@
     }
 
     function getDiscountAmount(discInput, lineTotal) {
-        var mode = discInput.dataset.mode || 'val';
-        var raw = parseFloat(discInput.value || 0);
-        if (mode === 'pct') {
-            return Math.min((raw / 100) * lineTotal, lineTotal);
-        }
-        return Math.min(raw, lineTotal);
+        return window.AfritaSaleDiscount.amount(discInput.value, discInput.dataset.mode || 'val', lineTotal);
     }
 
     function sumCatalogItems() {

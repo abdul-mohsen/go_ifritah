@@ -114,6 +114,7 @@ func main() {
 	router.HandleFunc("/api/purchase-bills/parse-excel", protect("purchase_bills", "add", handlers.HandleParseExcelItems)).Methods("POST")
 	router.HandleFunc("/api/purchase-bills/import-template", protect("purchase_bills", "add", handlers.HandleDownloadPurchaseBillTemplate)).Methods("GET")
 	router.HandleFunc("/api/purchase-bills/parse-csv", protect("purchase_bills", "add", handlers.HandleParseCSVItems)).Methods("POST")
+	router.HandleFunc("/api/purchase-bills/bulk-import", protect("purchase_bills", "add", handlers.HandleBulkPurchaseBillImport)).Methods("POST")
 	router.HandleFunc("/api/purchase-bills/{id}", protect("purchase_bills", "view", handlers.HandleGetPurchaseBill)).Methods("GET")
 	router.HandleFunc("/api/purchase-bills/{id}", protect("purchase_bills", "edit", handlers.HandleUpdatePurchaseBill)).Methods("PUT")
 	router.HandleFunc("/api/purchase-bills/{id}", protect("purchase_bills", "delete", handlers.HandleDeletePurchaseBill)).Methods("DELETE")
@@ -214,9 +215,6 @@ func main() {
 	router.HandleFunc("/dashboard/stores/{id}/edit", protect("stores", "edit", handlers.HandleEditStore)).Methods("GET")
 	router.HandleFunc("/dashboard/stores/{id}/update", protect("stores", "edit", handlers.HandleUpdateStore)).Methods("POST")
 	router.HandleFunc("/dashboard/stores/{id}/delete", protect("stores", "delete", handlers.HandleDeleteStore)).Methods("POST")
-
-	// Company invoice route — RBAC protected
-	router.HandleFunc("/dashboard/invoices/create-company", protect("invoices", "add", handlers.HandleCreateCompanyInvoice)).Methods("POST")
 
 	// CSV Export routes — RBAC protected
 	router.HandleFunc("/dashboard/invoices/export-csv", protect("invoices", "view", handlers.HandleExportInvoicesCSV)).Methods("GET")

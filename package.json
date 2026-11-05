@@ -15,6 +15,7 @@
     "format:check": "prettier --check 'static/**/*.{js,css}' 'templates/**/*.html'",
     "test": "go test ./...",
     "test:verbose": "go test -v ./...",
+    "test:js": "node --test \"js-tests/**/*.test.js\"",
     "check": "go build ./... && golangci-lint run ./... && go test ./..."
   },
   "keywords": [],

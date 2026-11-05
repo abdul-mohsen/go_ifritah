@@ -1,17 +1,98 @@
 {{ define "content" }}
 <div class="page-card">
-    <form hx-post="/api/invoices/credit" hx-target="body" hx-indicator="#submit-spinner">
+    <section class="mb-6 rounded-lg border p-4">
+        <h2 class="mb-3 text-lg font-semibold">{{ L "tpl.credit.source_heading" }}</h2>
+        <dl class="mb-4">
+            <dt class="form-label">{{ L "tpl.credit.amount" }}</dt>
+            <dd class="font-semibold">{{ .Source.Amount }}</dd>
+        </dl>
+        <table class="w-full">
+            <thead>
+                <tr>
+                    <th>{{ L "tpl.credit.bill_product_id" }}</th>
+                    <th>{{ L "tpl.credit.quantity" }}</th>
+                    <th>{{ L "tpl.credit.price" }}</th>
+                    <th>{{ L "tpl.credit.vat" }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ range .Source.Lines }}
+                <tr>
+                    <td>{{ .BillProductID }}</td>
+                    <td>{{ .Quantity }}</td>
+                    <td>{{ .Price }}</td>
+                    <td>{{ .VAT }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </section>
+
+    <form
+        hx-post="/api/invoices/credit"
+        hx-target="body"
+        hx-indicator="#submit-spinner"
+        data-sale-scope="credit-{{ .id }}"
+    >
         <div class="form-group">
-            <label class="form-label">{{ L "tpl.credit.number_label" }} <span class="required-mark">*</span></label>
-            <input type="number" name="bill_id" value="{{ .id }}" class="w-full" required min="1">
+            <label class="form-label" for="credit-bill-id">
+                {{ L "tpl.credit.number_label" }}
+                <span class="required-mark">*</span>
+            </label>
+            <input id="credit-bill-id" type="number" name="bill_id" value="{{ .id }}" class="w-full" required min="1" readonly />
         </div>
 
         <div class="form-group">
-            <label class="form-label">{{ L "tpl.credit.reason" }}</label>
-            <textarea name="note" rows="4" class="w-full" placeholder="{{ L "tpl.credit.reason_placeholder" }}" maxlength="1000"></textarea>
+            <label class="form-label" for="credit-reason">
+                {{ L "tpl.credit.reason" }}
+            </label>
+            <textarea
+                id="credit-reason"
+                name="reason"
+                rows="4"
+                class="w-full"
+                placeholder='{{ L "tpl.credit.reason_placeholder" }}'
+                aria-describedby="credit-reason-warning"
+            ></textarea>
+            <p
+                id="credit-reason-warning"
+                class="hidden mt-1 text-sm"
+                role="status"
+                aria-live="polite"
+                style="color: #92400e"
+                data-empty-warning='{{ L "tpl.credit.reason_warning_empty" }}'
+                data-length-warning='{{ L "tpl.credit.reason_warning_length" }}'
+            ></p>
         </div>
 
         {{ template "form-actions" dict "submit_label" (L "tpl.save") "cancel_url" "/dashboard/invoices" }}
     </form>
 </div>
+<script>
+    (function () {
+        var reason = document.getElementById('credit-reason');
+        var warning = document.getElementById('credit-reason-warning');
+        if (!reason || !warning) return;
+
+        function updateReasonWarning() {
+            var value = reason.value || '';
+            var length = Array.from(value).length;
+            if (value.trim() === '') {
+                warning.textContent = warning.dataset.emptyWarning;
+                warning.classList.remove('hidden');
+                return;
+            }
+            if (length > 1000) {
+                warning.textContent = warning.dataset.lengthWarning;
+                warning.classList.remove('hidden');
+                return;
+            }
+            warning.textContent = '';
+            warning.classList.add('hidden');
+        }
+
+        reason.addEventListener('input', updateReasonWarning);
+        updateReasonWarning();
+    })();
+</script>
 {{ end }}

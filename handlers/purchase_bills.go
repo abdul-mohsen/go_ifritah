@@ -209,6 +209,13 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	payload := helpers.BuildPurchaseBillPayload(r)
+	payload.State = 3
+	if payload.Subtotal <= 0 {
+		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "You can't submit an invoice with 0")
+		return
+	}
+
 	// Prevent duplicate submissions: only one in-flight create per user session
 	if _, loaded := purchaseBillCreateLock.LoadOrStore(token, true); loaded {
 		log.Printf("[CREATE PURCHASE BILL] Duplicate request blocked for token=%s…", token[:8])
@@ -217,13 +224,6 @@ func HandleCreatePurchaseBill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer purchaseBillCreateLock.Delete(token)
-
-	payload := helpers.BuildPurchaseBillPayload(r)
-	payload.State = 3
-	if payload.Subtotal <= 0 {
-		helpers.WriteErrorResponse(w, http.StatusBadRequest, nil, "You can't submit an invoice with 0")
-		return
-	}
 
 	pdfLink, uploadedAttachments, err := helpers.UploadPurchaseBillFiles(r, token)
 	if err != nil {

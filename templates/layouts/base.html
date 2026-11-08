@@ -55,6 +55,7 @@
 
 <body style="background: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface)" class="text-right">
     <div id="toast-container"></div>
+    {{ template "release-note" . }}
     <div id="global-loading" class="hidden fixed inset-0 z-50 flex items-center justify-center"
         style="background: rgba(0,0,0,0.32)">
         <div class="flex items-center gap-3 px-5 py-3"
@@ -531,6 +532,7 @@
     <script src="/static/js/darkmode.js"></script>
     <script src="/static/js/i18n.js"></script>
     <script src="/static/js/notifications.js" defer></script>
+    <script src="/static/js/release-note.js" defer></script>
     <script src="/static/js/script.js" defer></script>
     <script src="/static/js/sale-identity.js" defer></script>
     <script src="/static/js/smart-search.js" defer></script>

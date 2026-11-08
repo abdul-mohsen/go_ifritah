@@ -2980,6 +2980,12 @@ aside nav a.nav-link svg {
     background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
 }
 
+.modal-close:focus-visible,
+.release-note-dismiss:focus-visible {
+    outline: 2px solid var(--md-sys-color-primary);
+    outline-offset: 2px;
+}
+
 .modal-body {
     padding: 1.5rem;
 }
@@ -2989,6 +2995,71 @@ aside nav a.nav-link svg {
     gap: 0.5rem;
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+/* ── First-open MVP release note ───────────────────────────── */
+body.release-note-open {
+    overflow: hidden;
+}
+
+.release-note-container {
+    max-width: 38rem;
+}
+
+.release-note-header {
+    align-items: flex-start;
+}
+
+.release-note-eyebrow {
+    margin: 0 0 0.25rem;
+    color: var(--md-sys-color-primary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.release-note-version {
+    display: inline-block;
+    margin-inline-start: 0.35rem;
+    padding: 0.125rem 0.4rem;
+    border-radius: var(--md-sys-shape-full);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    font-size: 0.6875rem;
+    letter-spacing: normal;
+    text-transform: none;
+    vertical-align: 0.05rem;
+}
+
+.release-note-body {
+    color: var(--md-sys-color-on-surface);
+    line-height: 1.7;
+}
+
+.release-note-intro {
+    margin: 0;
+}
+
+.release-note-list {
+    display: grid;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding-inline-start: 1.25rem;
+}
+
+.release-note-caveat {
+    margin: 1rem 0 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-sm);
+    background: var(--md-sys-color-warning-container);
+    color: var(--md-sys-color-on-warning-container);
+    font-size: 0.875rem;
+}
+
+.release-note-actions {
+    justify-content: flex-start;
 }
 
 /* ── Grid Helpers ───────────────────────────────────────────── */

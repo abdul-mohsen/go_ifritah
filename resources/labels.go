@@ -665,6 +665,16 @@ var labels = map[string]Label{
 	"layout.dark_mode":     {Ar: "الوضع الداكن", En: "Dark Mode"},
 	"layout.all_rights":    {Ar: "جميع الحقوق محفوظة.", En: "All rights reserved."},
 
+	// ── First-open MVP release note ─────────────────────────────────
+	"release_note.title":                {Ar: "مرحباً بك في إصدار عفريته MVP", En: "Welcome to the Afrita MVP"},
+	"release_note.close":                {Ar: "إغلاق ملاحظة الإصدار", En: "Close release note"},
+	"release_note.intro":                {Ar: "هذا الإصدار يضع أساساً عملياً لإدارة المبيعات والفواتير والعمليات اليومية.", En: "This release provides a practical foundation for sales, invoicing, and daily operations."},
+	"release_note.capability_sales":     {Ar: "إنشاء ومتابعة فواتير المبيعات والمشتريات.", En: "Create and track sales and purchase invoices."},
+	"release_note.capability_inventory": {Ar: "إدارة المنتجات والمخزون والعملاء والموردين.", En: "Manage products, inventory, customers, and suppliers."},
+	"release_note.capability_reports":   {Ar: "الوصول إلى لوحات المعلومات والتقارير الأساسية.", En: "Use the core dashboards and reports."},
+	"release_note.zatca_pending":        {Ar: "قد تظل أدلة التكامل مع مزود زاتكا أو بيئة الاختبار (Sandbox) قيد الاستكمال؛ تحقق من إعدادات مزودك قبل الاعتماد على الإرسال الإنتاجي.", En: "Evidence for the ZATCA provider or sandbox integration may still be pending; verify your provider setup before relying on production submission."},
+	"release_note.continue":             {Ar: "متابعة إلى عفريته", En: "Continue to Afrita"},
+
 	// ── Common Template Labels (shared across pages) ─────────────────
 	"tpl.search":         {Ar: "بحث", En: "Search"},
 	"tpl.add":            {Ar: "إضافة", En: "Add"},

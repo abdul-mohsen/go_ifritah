@@ -1,0 +1,49 @@
+{{ define "release-note" }}
+<div id="afrita-release-note"
+    class="modal-overlay hidden"
+    data-release-note-version="{{ .version }}"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-labelledby="afrita-release-note-title"
+    aria-describedby="afrita-release-note-intro afrita-release-note-zatca">
+    <div class="modal-container release-note-container">
+        <div class="modal-header release-note-header">
+            <div>
+                <p class="release-note-eyebrow">MVP <span class="release-note-version">{{ .version }}</span></p>
+                <h2 id="afrita-release-note-title" class="modal-title" data-i18n="release_note.title">
+                    {{ L "release_note.title" }}
+                </h2>
+            </div>
+            <button type="button"
+                class="modal-close release-note-dismiss"
+                data-release-note-dismiss
+                data-i18n-key="release_note.close"
+                data-i18n-attr="aria-label"
+                aria-label="{{ L "release_note.close" }}">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <div class="modal-body release-note-body">
+            <p id="afrita-release-note-intro" class="release-note-intro" data-i18n="release_note.intro">
+                {{ L "release_note.intro" }}
+            </p>
+            <ul class="release-note-list">
+                <li data-i18n="release_note.capability_sales">{{ L "release_note.capability_sales" }}</li>
+                <li data-i18n="release_note.capability_inventory">{{ L "release_note.capability_inventory" }}</li>
+                <li data-i18n="release_note.capability_reports">{{ L "release_note.capability_reports" }}</li>
+            </ul>
+            <p id="afrita-release-note-zatca" class="release-note-caveat" role="note"
+                data-i18n="release_note.zatca_pending">
+                {{ L "release_note.zatca_pending" }}
+            </p>
+        </div>
+        <div class="modal-actions release-note-actions">
+            <button type="button" class="btn btn-primary release-note-dismiss" data-release-note-dismiss
+                data-i18n="release_note.continue">
+                {{ L "release_note.continue" }}
+            </button>
+        </div>
+    </div>
+</div>
+{{ end }}

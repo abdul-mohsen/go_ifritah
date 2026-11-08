@@ -55,6 +55,16 @@
             'common.to': 'إلى',
             'common.all': 'الكل',
 
+            // First-open MVP release note
+            'release_note.title': 'مرحباً بك في إصدار عفريته MVP',
+            'release_note.close': 'إغلاق ملاحظة الإصدار',
+            'release_note.intro': 'هذا الإصدار يضع أساساً عملياً لإدارة المبيعات والفواتير والعمليات اليومية.',
+            'release_note.capability_sales': 'إنشاء ومتابعة فواتير المبيعات والمشتريات.',
+            'release_note.capability_inventory': 'إدارة المنتجات والمخزون والعملاء والموردين.',
+            'release_note.capability_reports': 'الوصول إلى لوحات المعلومات والتقارير الأساسية.',
+            'release_note.zatca_pending': 'قد تظل أدلة التكامل مع مزود زاتكا أو بيئة الاختبار (Sandbox) قيد الاستكمال؛ تحقق من إعدادات مزودك قبل الاعتماد على الإرسال الإنتاجي.',
+            'release_note.continue': 'متابعة إلى عفريته',
+
             // Dashboard
             'dashboard.title': 'لوحة التحكم',
             'dashboard.total_revenue': 'إجمالي الإيرادات',
@@ -228,6 +238,16 @@
             'common.to': 'To',
             'common.all': 'All',
 
+            // First-open MVP release note
+            'release_note.title': 'Welcome to the Afrita MVP',
+            'release_note.close': 'Close release note',
+            'release_note.intro': 'This release provides a practical foundation for sales, invoicing, and daily operations.',
+            'release_note.capability_sales': 'Create and track sales and purchase invoices.',
+            'release_note.capability_inventory': 'Manage products, inventory, customers, and suppliers.',
+            'release_note.capability_reports': 'Use the core dashboards and reports.',
+            'release_note.zatca_pending': 'Evidence for the ZATCA provider or sandbox integration may still be pending; verify your provider setup before relying on production submission.',
+            'release_note.continue': 'Continue to Afrita',
+
             // Dashboard
             'dashboard.title': 'Dashboard',
             'dashboard.total_revenue': 'Total Revenue',
@@ -391,6 +411,19 @@
                 } else {
                     els[i].textContent = text;
                 }
+            }
+        }
+
+        // Update localized attributes such as aria-label without replacing
+        // visible icon content.
+        var attrEls = document.querySelectorAll('[data-i18n-attr]');
+        for (var j = 0; j < attrEls.length; j++) {
+            var attrKey = attrEls[j].getAttribute('data-i18n') ||
+                attrEls[j].getAttribute('data-i18n-key');
+            var attrName = attrEls[j].getAttribute('data-i18n-attr');
+            var attrText = translations[lang] && translations[lang][attrKey];
+            if (attrKey && attrName && attrText) {
+                attrEls[j].setAttribute(attrName, attrText);
             }
         }
 

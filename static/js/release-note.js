@@ -7,7 +7,7 @@
   }
 })(typeof window !== 'undefined' ? window : null, function installReleaseNote(window) {
   var document = window && window.document;
-  var MVP_RELEASE_NOTE_VERSION = 'v0.0.2';
+  var MVP_RELEASE_NOTE_VERSION = 'v0.1.0';
   var STORAGE_PREFIX = 'afrita.release-note.dismissed.';
   var COOKIE_MAX_AGE = 31536000;
 

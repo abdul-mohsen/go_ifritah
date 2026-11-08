@@ -142,7 +142,7 @@ class FakeDocument {
   }
 }
 
-function createReleaseNotePage({ storage = createStorage(), version = 'v0.0.2' } = {}) {
+function createReleaseNotePage({ storage = createStorage(), version = 'v0.1.0' } = {}) {
   const document = new FakeDocument({ storage, version });
   const window = {
     document,
@@ -169,7 +169,7 @@ test('dismissal is persisted and prevents the release note on later navigation',
 
   first.document.closeButton.dispatch('click');
   assert.equal(first.controller.isOpen(), false);
-  assert.equal(storage.getItem('afrita.release-note.dismissed.v0.0.2'), '1');
+  assert.equal(storage.getItem('afrita.release-note.dismissed.v0.1.0'), '1');
   assert.equal(first.document.body.classList.contains('release-note-open'), false);
 
   const later = createReleaseNotePage({ storage });
@@ -209,12 +209,12 @@ test('focus stays inside the release note while it is open', () => {
   assert.equal(page.document.activeElement, page.document.continueButton);
 });
 
-test('release-note version namespaces dismissal so a newer MVP release can be announced', () => {
+test('release-note version namespaces dismissal so the public MVP release can be announced', () => {
   const storage = createStorage();
   storage.setItem('afrita.release-note.dismissed.v0.0.2', '1');
 
-  const page = createReleaseNotePage({ storage, version: 'v0.0.3' });
+  const page = createReleaseNotePage({ storage, version: 'v0.1.0' });
 
-  assert.equal(page.controller.storageKey(), 'afrita.release-note.dismissed.v0.0.3');
+  assert.equal(page.controller.storageKey(), 'afrita.release-note.dismissed.v0.1.0');
   assert.equal(page.controller.isOpen(), true);
 });

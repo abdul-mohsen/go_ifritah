@@ -8,6 +8,42 @@ const BASE = process.env.PW_BASE_URL || 'http://127.0.0.1:8000';
 const USER = process.env.PW_USER || 'admin';
 const PASS = process.env.PW_PASS || 'admin123';
 const STORAGE = path.join(__dirname, '.auth', 'storageState.json');
+const RELEASE_NOTE_STORAGE_KEY = 'afrita.release-note.dismissed.v0.1.0';
+
+function suppressFirstOpenReleaseNoteForE2E() {
+  let state;
+  try {
+    state = JSON.parse(fs.readFileSync(STORAGE, 'utf8'));
+  } catch (e) {
+    state = {};
+  }
+
+  if (!state || typeof state !== 'object') state = {};
+  if (!Array.isArray(state.cookies)) state.cookies = [];
+  if (!Array.isArray(state.origins)) state.origins = [];
+
+  const origin = new URL(BASE).origin;
+  let originState = state.origins.find(entry => entry && entry.origin === origin);
+  if (!originState) {
+    originState = { origin, localStorage: [] };
+    state.origins.push(originState);
+  }
+  if (!Array.isArray(originState.localStorage)) originState.localStorage = [];
+
+  const dismissal = originState.localStorage.find(
+    entry => entry && entry.name === RELEASE_NOTE_STORAGE_KEY
+  );
+  if (dismissal) {
+    dismissal.value = '1';
+  } else {
+    originState.localStorage.push({
+      name: RELEASE_NOTE_STORAGE_KEY,
+      value: '1',
+    });
+  }
+
+  fs.writeFileSync(STORAGE, JSON.stringify(state));
+}
 
 async function hasUsableStoredLogin() {
   if (!fs.existsSync(STORAGE)) return false;
@@ -58,12 +94,14 @@ async function tryLogin() {
 module.exports = async () => {
   fs.mkdirSync(path.dirname(STORAGE), { recursive: true });
   if (await hasUsableStoredLogin()) {
+    suppressFirstOpenReleaseNoteForE2E();
     console.log(`[global-setup] reusing storage state -> ${STORAGE}`);
     return;
   }
 
   const ok = await tryLogin();
   if (ok) {
+    suppressFirstOpenReleaseNoteForE2E();
     console.log(`[global-setup] storage state saved -> ${STORAGE}`);
     return;
   }
